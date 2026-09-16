@@ -1,10 +1,8 @@
 import { getCycleDay } from './cycle-day';
+import { getEstimatedOvulationCycleDay } from './ovulation';
 import type { CycleProfile } from './types';
 
 import type { ISODate } from '@/types/iso-date';
-
-/** Luteal phase length assumed when estimating the ovulation boundary. */
-const ASSUMED_LUTEAL_LENGTH_DAYS = 14;
 
 /**
  * Tells whether `targetDate` falls inside the *expected* follicular phase.
@@ -33,8 +31,7 @@ export function getFollicularPhase(
   }
 
   const follicularStartDay = profile.settings.averagePeriodLengthDays + 1;
-  const estimatedOvulationDay =
-    profile.settings.averageCycleLengthDays - ASSUMED_LUTEAL_LENGTH_DAYS;
+  const estimatedOvulationDay = getEstimatedOvulationCycleDay(profile);
 
   if (estimatedOvulationDay <= follicularStartDay) {
     return null;

@@ -1,10 +1,8 @@
 import { getCycleDay } from './cycle-day';
+import { getEstimatedOvulationCycleDay } from './ovulation';
 import type { CycleProfile } from './types';
 
 import type { ISODate } from '@/types/iso-date';
-
-/** Luteal phase length assumed when estimating the ovulation day. */
-const ASSUMED_LUTEAL_LENGTH_DAYS = 14;
 
 /**
  * Tells whether `targetDate` falls inside the *expected* luteal phase.
@@ -27,8 +25,7 @@ export function getLutealPhase(profile: CycleProfile, targetDate: ISODate): 'lut
     return null;
   }
 
-  const estimatedOvulationDay =
-    profile.settings.averageCycleLengthDays - ASSUMED_LUTEAL_LENGTH_DAYS;
+  const estimatedOvulationDay = getEstimatedOvulationCycleDay(profile);
 
   // Defensive: settings validation keeps the cycle length at 15 or more, so this
   // cannot be reached today, but the rule does not depend on that holding.
