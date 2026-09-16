@@ -10,10 +10,10 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedText type="subtitle" style={styles.text}>
-          Regl &amp; Gebelik Takvimi
+          Home
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.text}>
-          Development baseline
+          Cycle dashboard
         </ThemedText>
       </SafeAreaView>
     </ThemedView>
