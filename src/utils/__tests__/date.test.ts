@@ -1,0 +1,160 @@
+import {
+  addDays,
+  daysBetween,
+  formatLocalDate,
+  isISODate,
+  toISODate,
+} from '@/utils/date';
+
+describe('isISODate', () => {
+  it('accepts a real calendar date', () => {
+    expect(isISODate('2026-01-01')).toBe(true);
+  });
+
+  it('accepts 29 February in a leap year', () => {
+    expect(isISODate('2024-02-29')).toBe(true);
+  });
+
+  it('rejects 29 February in a non-leap year', () => {
+    expect(isISODate('2026-02-29')).toBe(false);
+  });
+
+  it('rejects a day past the end of the month', () => {
+    expect(isISODate('2026-02-30')).toBe(false);
+  });
+
+  it('rejects an out-of-range month', () => {
+    expect(isISODate('2026-13-01')).toBe(false);
+  });
+
+  it('rejects month zero', () => {
+    expect(isISODate('2026-00-10')).toBe(false);
+  });
+
+  it('rejects day zero', () => {
+    expect(isISODate('2026-01-00')).toBe(false);
+  });
+
+  it('rejects malformed shapes', () => {
+    expect(isISODate('2026-1-01')).toBe(false);
+    expect(isISODate('26-01-01')).toBe(false);
+    expect(isISODate('2026/01/01')).toBe(false);
+    expect(isISODate('2026-01-01T00:00:00Z')).toBe(false);
+    expect(isISODate('')).toBe(false);
+  });
+
+  it('treats century years correctly', () => {
+    expect(isISODate('2000-02-29')).toBe(true);
+    expect(isISODate('1900-02-29')).toBe(false);
+  });
+});
+
+describe('toISODate', () => {
+  it('returns the value when it is a real calendar date', () => {
+    expect(toISODate('2026-01-01')).toBe('2026-01-01');
+  });
+
+  it('throws on an invalid calendar date', () => {
+    expect(() => toISODate('2026-02-30')).toThrow(/Invalid ISO date/);
+  });
+});
+
+describe('formatLocalDate', () => {
+  it('zero-pads month and day', () => {
+    expect(formatLocalDate(2026, 1, 5)).toBe('2026-01-05');
+  });
+
+  it('does not roll overflowing days into the next month', () => {
+    expect(() => formatLocalDate(2026, 2, 30)).toThrow(/Invalid calendar date/);
+  });
+
+  it('rejects out-of-range months', () => {
+    expect(() => formatLocalDate(2026, 13, 1)).toThrow(/Invalid calendar date/);
+    expect(() => formatLocalDate(2026, 0, 10)).toThrow(/Invalid calendar date/);
+  });
+
+  it('accepts 29 February in a leap year', () => {
+    expect(formatLocalDate(2024, 2, 29)).toBe('2024-02-29');
+  });
+});
+
+describe('addDays', () => {
+  it('crosses a month boundary', () => {
+    expect(addDays(toISODate('2026-01-31'), 1)).toBe('2026-02-01');
+  });
+
+  it('crosses a year boundary', () => {
+    expect(addDays(toISODate('2026-12-31'), 1)).toBe('2027-01-01');
+  });
+
+  it('steps through 29 February in a leap year', () => {
+    expect(addDays(toISODate('2024-02-28'), 1)).toBe('2024-02-29');
+    expect(addDays(toISODate('2024-02-29'), 1)).toBe('2024-03-01');
+  });
+
+  it('skips 29 February in a non-leap year', () => {
+    expect(addDays(toISODate('2026-02-28'), 1)).toBe('2026-03-01');
+  });
+
+  it('subtracts days', () => {
+    expect(addDays(toISODate('2026-03-01'), -1)).toBe('2026-02-28');
+    expect(addDays(toISODate('2024-03-01'), -1)).toBe('2024-02-29');
+    expect(addDays(toISODate('2027-01-01'), -1)).toBe('2026-12-31');
+  });
+
+  it('returns the same day for zero', () => {
+    expect(addDays(toISODate('2026-06-15'), 0)).toBe('2026-06-15');
+  });
+
+  it('is unaffected by DST transitions', () => {
+    // 2026-03-29 is a European DST spring-forward date.
+    expect(addDays(toISODate('2026-03-28'), 1)).toBe('2026-03-29');
+    expect(addDays(toISODate('2026-03-29'), 1)).toBe('2026-03-30');
+    // 2026-03-08 is a US DST spring-forward date.
+    expect(addDays(toISODate('2026-03-07'), 2)).toBe('2026-03-09');
+  });
+
+  it('round-trips over a long span', () => {
+    const start = toISODate('2026-01-01');
+    expect(addDays(addDays(start, 400), -400)).toBe(start);
+  });
+
+  it('rejects a fractional amount', () => {
+    expect(() => addDays(toISODate('2026-01-01'), 1.5)).toThrow(/integer amount/);
+  });
+});
+
+describe('daysBetween', () => {
+  it('is zero for the same day', () => {
+    expect(daysBetween(toISODate('2026-05-10'), toISODate('2026-05-10'))).toBe(0);
+  });
+
+  it('is positive when end follows start', () => {
+    expect(daysBetween(toISODate('2026-01-01'), toISODate('2026-01-31'))).toBe(30);
+  });
+
+  it('is negative when end precedes start', () => {
+    expect(daysBetween(toISODate('2026-01-31'), toISODate('2026-01-01'))).toBe(-30);
+  });
+
+  it('counts across a year boundary', () => {
+    expect(daysBetween(toISODate('2026-12-31'), toISODate('2027-01-01'))).toBe(1);
+  });
+
+  it('counts a leap year as 366 days', () => {
+    expect(daysBetween(toISODate('2024-01-01'), toISODate('2025-01-01'))).toBe(366);
+    expect(daysBetween(toISODate('2026-01-01'), toISODate('2027-01-01'))).toBe(365);
+  });
+
+  it('is unaffected by DST transitions', () => {
+    expect(daysBetween(toISODate('2026-03-07'), toISODate('2026-03-09'))).toBe(2);
+    expect(daysBetween(toISODate('2026-03-28'), toISODate('2026-03-30'))).toBe(2);
+    expect(daysBetween(toISODate('2026-10-24'), toISODate('2026-10-26'))).toBe(2);
+  });
+
+  it('agrees with addDays', () => {
+    const start = toISODate('2026-02-10');
+    expect(daysBetween(start, addDays(start, 45))).toBe(45);
+    expect(daysBetween(start, addDays(start, -45))).toBe(-45);
+  });
+});
