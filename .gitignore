@@ -13,6 +13,7 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -32,6 +33,9 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +45,11 @@ example
 # generated native folders
 /ios
 /android
+
+# IDE / OS
+.idea/
+*.iml
+Thumbs.db
+
+# Logs
+*.log
