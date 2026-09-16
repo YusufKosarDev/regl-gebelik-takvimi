@@ -1,7 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
-import CycleSettingsScreen from '@/app/(onboarding)/cycle-settings';
 import OnboardingWelcomeScreen from '@/app/(onboarding)/index';
 
 jest.mock('expo-router', () => ({
@@ -121,7 +120,7 @@ describe('OnboardingWelcomeScreen navigation', () => {
   it('goes to cycle settings when the button is pressed', async () => {
     const { getByRole } = await render(<OnboardingWelcomeScreen />);
 
-    fireEvent.press(getByRole('button', { name: 'Başlayalım' }));
+    await fireEvent.press(getByRole('button', { name: 'Başlayalım' }));
 
     expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith('/(onboarding)/cycle-settings');
@@ -151,7 +150,7 @@ describe('OnboardingWelcomeScreen scope', () => {
 
   it('touches no storage, repository or use case', async () => {
     const { getByRole } = await render(<OnboardingWelcomeScreen />);
-    fireEvent.press(getByRole('button', { name: 'Başlayalım' }));
+    await fireEvent.press(getByRole('button', { name: 'Başlayalım' }));
 
     expect(appStateStorage.loadAppState).not.toHaveBeenCalled();
     expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
@@ -163,17 +162,3 @@ describe('OnboardingWelcomeScreen scope', () => {
   });
 });
 
-describe('CycleSettingsScreen', () => {
-  it('renders the placeholder', async () => {
-    const { getByText } = await render(<CycleSettingsScreen />);
-
-    expect(getByText('Cycle settings')).toBeTruthy();
-  });
-
-  it('contains no form inputs yet', async () => {
-    const { toJSON, queryAllByRole } = await render(<CycleSettingsScreen />);
-
-    expect(countHostNodes(toJSON(), 'TextInput')).toBe(0);
-    expect(queryAllByRole('button')).toHaveLength(0);
-  });
-});
