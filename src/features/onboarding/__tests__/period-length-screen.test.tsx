@@ -1,10 +1,12 @@
 import { fireEvent, render } from '@testing-library/react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import CycleSettingsScreen from '@/app/(onboarding)/cycle-settings';
+import LastPeriodScreen from '@/app/(onboarding)/last-period';
+import PeriodLengthScreen from '@/app/(onboarding)/period-length';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
+  useLocalSearchParams: jest.fn(),
 }));
 
 // Guards: this step must not reach any of these layers yet.
@@ -29,6 +31,7 @@ jest.mock('@/features/cycle/application/complete-cycle-onboarding', () => ({
 }));
 
 const useRouterMock = useRouter as unknown as jest.Mock;
+const useLocalSearchParamsMock = useLocalSearchParams as unknown as jest.Mock;
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
@@ -56,6 +59,8 @@ beforeEach(() => {
   push = jest.fn();
   useRouterMock.mockReset();
   useRouterMock.mockReturnValue({ push, replace: jest.fn(), back: jest.fn() });
+  useLocalSearchParamsMock.mockReset();
+  useLocalSearchParamsMock.mockReturnValue({ cycleLength: '28' });
 
   for (const fn of [
     appStateStorage.loadAppState,
@@ -70,13 +75,14 @@ beforeEach(() => {
   }
 });
 
-async function renderScreen() {
-  const screen = await render(<CycleSettingsScreen />);
+async function renderScreen(cycleLength: unknown = '28') {
+  useLocalSearchParamsMock.mockReturnValue({ cycleLength });
+  const screen = await render(<PeriodLengthScreen />);
 
   return {
     ...screen,
-    decrease: () => screen.getByRole('button', { name: 'Döngü uzunluğunu azalt' }),
-    increase: () => screen.getByRole('button', { name: 'Döngü uzunluğunu artır' }),
+    decrease: () => screen.getByRole('button', { name: 'Regl süresini azalt' }),
+    increase: () => screen.getByRole('button', { name: 'Regl süresini artır' }),
     submit: () => screen.getByRole('button', { name: 'Devam' }),
   };
 }
@@ -89,11 +95,11 @@ async function pressTimes(getButton: () => unknown, times: number): Promise<void
   }
 }
 
-describe('CycleSettingsScreen content', () => {
+describe('PeriodLengthScreen content', () => {
   it('renders the question', async () => {
     const { getByText } = await renderScreen();
 
-    expect(getByText('Döngün ortalama kaç gün sürüyor?')).toBeTruthy();
+    expect(getByText('Regl dönemin ortalama kaç gün sürüyor?')).toBeTruthy();
   });
 
   it('renders the explanation', async () => {
@@ -101,32 +107,26 @@ describe('CycleSettingsScreen content', () => {
 
     expect(
       getByText(
-        'Bir regl döneminin ilk gününden, sonraki regl döneminin ilk gününe kadar geçen süre.'
+        'Kanamanın başladığı ilk günden tamamen bittiği güne kadar geçen ortalama süre.'
       )
     ).toBeTruthy();
   });
 
-  it('starts at 28 days', async () => {
+  it('starts at 5 days', async () => {
     const { getByText } = await renderScreen();
 
-    expect(getByText('28')).toBeTruthy();
+    expect(getByText('5')).toBeTruthy();
     expect(getByText('gün')).toBeTruthy();
-  });
-
-  it('renders the primary action', async () => {
-    const { submit } = await renderScreen();
-
-    expect(submit()).toBeTruthy();
   });
 });
 
-describe('CycleSettingsScreen stepper', () => {
+describe('PeriodLengthScreen stepper', () => {
   it('increases by one day', async () => {
     const { increase, getByText } = await renderScreen();
 
     await fireEvent.press(increase());
 
-    expect(getByText('29')).toBeTruthy();
+    expect(getByText('6')).toBeTruthy();
   });
 
   it('decreases by one day', async () => {
@@ -134,37 +134,53 @@ describe('CycleSettingsScreen stepper', () => {
 
     await fireEvent.press(decrease());
 
-    expect(getByText('27')).toBeTruthy();
+    expect(getByText('4')).toBeTruthy();
   });
 
-  it('does not go below 15', async () => {
+  it('does not go below 1', async () => {
     const { decrease, getByText } = await renderScreen();
 
-    await pressTimes(decrease, 20);
+    await pressTimes(decrease, 10);
+
+    expect(getByText('1')).toBeTruthy();
+  });
+
+  it('stops at 20 for a 28 day cycle', async () => {
+    const { increase, getByText } = await renderScreen('28');
+
+    await pressTimes(increase, 30);
+
+    expect(getByText('20')).toBeTruthy();
+  });
+
+  it('stops at 15 for a 15 day cycle', async () => {
+    const { increase, getByText } = await renderScreen('15');
+
+    await pressTimes(increase, 30);
 
     expect(getByText('15')).toBeTruthy();
   });
 
-  it('does not go above 90', async () => {
-    const { increase, getByText } = await renderScreen();
+  it('stops at 18 for an 18 day cycle', async () => {
+    const { increase, getByText } = await renderScreen('18');
 
-    await pressTimes(increase, 70);
+    await pressTimes(increase, 30);
 
-    expect(getByText('90')).toBeTruthy();
+    expect(getByText('18')).toBeTruthy();
   });
 
   it('disables decrease at the minimum', async () => {
     const { decrease } = await renderScreen();
 
-    await pressTimes(decrease, 13);
+    await pressTimes(decrease, 4);
 
     expect(decrease().props.accessibilityState.disabled).toBe(true);
   });
 
-  it('disables increase at the maximum', async () => {
-    const { increase } = await renderScreen();
+  it('disables increase at the computed maximum', async () => {
+    const { increase } = await renderScreen('15');
 
-    await pressTimes(increase, 62);
+    await pressTimes(increase, 10);
 
     expect(increase().props.accessibilityState.disabled).toBe(true);
   });
@@ -179,49 +195,48 @@ describe('CycleSettingsScreen stepper', () => {
   it('exposes the current value to assistive technology', async () => {
     const { getByLabelText, increase } = await renderScreen();
 
-    expect(getByLabelText('Ortalama döngü uzunluğu: 28 gün')).toBeTruthy();
+    expect(getByLabelText('Ortalama regl süresi: 5 gün')).toBeTruthy();
 
     await fireEvent.press(increase());
 
-    expect(getByLabelText('Ortalama döngü uzunluğu: 29 gün')).toBeTruthy();
+    expect(getByLabelText('Ortalama regl süresi: 6 gün')).toBeTruthy();
   });
 });
 
-describe('CycleSettingsScreen navigation', () => {
-  it('carries the default value forward', async () => {
-    const { submit } = await renderScreen();
+describe('PeriodLengthScreen navigation', () => {
+  it('forwards both values', async () => {
+    const { submit } = await renderScreen('28');
 
     await fireEvent.press(submit());
 
     expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith({
-      pathname: '/(onboarding)/period-length',
-      params: { cycleLength: '28' },
+      pathname: '/(onboarding)/last-period',
+      params: { cycleLength: '28', periodLength: '5' },
     });
   });
 
-  it('carries the adjusted value forward', async () => {
-    const { increase, decrease, submit } = await renderScreen();
+  it('forwards the adjusted period length', async () => {
+    const { increase, submit } = await renderScreen('28');
 
-    await pressTimes(increase, 5);
-    await fireEvent.press(decrease());
+    await pressTimes(increase, 3);
     await fireEvent.press(submit());
 
     expect(push).toHaveBeenCalledWith({
-      pathname: '/(onboarding)/period-length',
-      params: { cycleLength: '32' },
+      pathname: '/(onboarding)/last-period',
+      params: { cycleLength: '28', periodLength: '8' },
     });
   });
 
-  it('sends the clamped minimum forward', async () => {
-    const { decrease, submit } = await renderScreen();
+  it('keeps the incoming cycle length untouched', async () => {
+    const { increase, submit } = await renderScreen('35');
 
-    await pressTimes(decrease, 20);
+    await fireEvent.press(increase());
     await fireEvent.press(submit());
 
     expect(push).toHaveBeenCalledWith({
-      pathname: '/(onboarding)/period-length',
-      params: { cycleLength: '15' },
+      pathname: '/(onboarding)/last-period',
+      params: { cycleLength: '35', periodLength: '6' },
     });
   });
 
@@ -234,7 +249,55 @@ describe('CycleSettingsScreen navigation', () => {
   });
 });
 
-describe('CycleSettingsScreen scope', () => {
+describe('PeriodLengthScreen with an unusable cycle length', () => {
+  it.each<[string, unknown]>([
+    ['a missing param', undefined],
+    ['a non-numeric param', 'abc'],
+    ['a value below the minimum', '14'],
+    ['a value above the maximum', '91'],
+    ['a non-integer value', '28.5'],
+    ['an array of values', ['28']],
+  ])('shows the error screen for %s', async (_label, cycleLength) => {
+    useLocalSearchParamsMock.mockReturnValue({ cycleLength });
+
+    const { getByText } = await render(<PeriodLengthScreen />);
+
+    expect(getByText('Geçersiz döngü bilgisi.')).toBeTruthy();
+  });
+
+  it('offers no controls', async () => {
+    useLocalSearchParamsMock.mockReturnValue({ cycleLength: 'abc' });
+
+    const { queryAllByRole, queryByText } = await render(<PeriodLengthScreen />);
+
+    expect(queryAllByRole('button')).toHaveLength(0);
+    expect(queryByText('Devam')).toBeNull();
+    expect(queryByText('gün')).toBeNull();
+  });
+
+  it('does not fall back to a default value', async () => {
+    useLocalSearchParamsMock.mockReturnValue({ cycleLength: '14' });
+
+    const { queryByText } = await render(<PeriodLengthScreen />);
+
+    expect(queryByText('5')).toBeNull();
+    expect(queryByText('28')).toBeNull();
+  });
+
+  it('touches no storage, repository or use case', async () => {
+    useLocalSearchParamsMock.mockReturnValue({ cycleLength: undefined });
+
+    await render(<PeriodLengthScreen />);
+
+    expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
+    expect(db.openAppDatabase).not.toHaveBeenCalled();
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(useCase.completeCycleOnboarding).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+});
+
+describe('PeriodLengthScreen scope', () => {
   it('uses no text inputs', async () => {
     const { toJSON } = await renderScreen();
 
@@ -258,3 +321,17 @@ describe('CycleSettingsScreen scope', () => {
   });
 });
 
+describe('LastPeriodScreen', () => {
+  it('renders the placeholder', async () => {
+    const { getByText } = await render(<LastPeriodScreen />);
+
+    expect(getByText('Last period')).toBeTruthy();
+  });
+
+  it('contains no form controls yet', async () => {
+    const { toJSON, queryAllByRole } = await render(<LastPeriodScreen />);
+
+    expect(countHostNodes(toJSON(), 'TextInput')).toBe(0);
+    expect(queryAllByRole('button')).toHaveLength(0);
+  });
+});
