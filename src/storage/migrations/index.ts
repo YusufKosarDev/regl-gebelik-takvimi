@@ -7,7 +7,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 2;
+export const LATEST_SCHEMA_VERSION = 3;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -81,13 +81,51 @@ async function migrateToVersion2(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 3: the pregnancy being tracked.
+ *
+ * One row, pinned the same way `cycle_settings` is: a person tracks one
+ * pregnancy at a time, and a table that could hold two would need a rule for
+ * choosing between them.
+ *
+ * `due_date_source` is constrained to the two values the domain knows, so a
+ * write that would leave the row unreadable is refused by the database as well
+ * as by validation. Date *format* is not checked here — that stays in the domain
+ * layer, which owns the `YYYY-MM-DD` contract.
+ */
+const MIGRATION_V3 = `
+  CREATE TABLE pregnancy_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_menstrual_period_start_date TEXT NOT NULL
+      CHECK (length(last_menstrual_period_start_date) > 0),
+    estimated_due_date TEXT NOT NULL CHECK (length(estimated_due_date) > 0),
+    due_date_source TEXT NOT NULL CHECK (due_date_source IN ('lmp', 'adjusted'))
+  );
+`;
+
+/**
+ * Adds the pregnancy table.
+ *
+ * Nothing is backfilled: an existing database has no pregnancy to record, and
+ * inventing one from the cycle records would be a guess about someone's body.
+ * The table simply starts empty, which reads as "not tracking a pregnancy".
+ *
+ * Same bargain as the earlier steps: the DDL and the version bump share one
+ * transaction, so a failure leaves the database still reporting version 2 rather
+ * than claiming a table it does not have.
+ */
+async function migrateToVersion3(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V3);
+    await db.execAsync('PRAGMA user_version = 3');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
  * continuing there risks reading columns that have changed meaning, so it throws
  * instead.
- *
- * Not wired into `openAppDatabase` yet — callers invoke it explicitly.
  */
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<UserVersionRow>('PRAGMA user_version');
@@ -118,5 +156,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 2) {
     await migrateToVersion2(db);
+  }
+
+  if (currentVersion < 3) {
+    await migrateToVersion3(db);
   }
 }
