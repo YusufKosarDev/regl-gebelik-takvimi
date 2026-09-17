@@ -1,8 +1,4 @@
-import * as SQLite from 'expo-sqlite';
 import type { SQLiteDatabase } from 'expo-sqlite';
-
-import { DATABASE_NAME, openAppDatabase } from '../db';
-import { runMigrations } from '../migrations';
 
 // The native SQLite module cannot load under Jest, so the smallest possible
 // stand-in: one mocked entry point.
@@ -15,23 +11,45 @@ jest.mock('../migrations', () => ({
   runMigrations: jest.fn(),
 }));
 
-const openDatabaseAsync = SQLite.openDatabaseAsync as jest.Mock;
-const deleteDatabaseAsync = SQLite.deleteDatabaseAsync as jest.Mock;
-const runMigrationsMock = runMigrations as jest.Mock;
+type SQLiteModule = {
+  openDatabaseAsync: jest.Mock;
+  deleteDatabaseAsync: jest.Mock;
+};
 
+let openDatabaseAsync: jest.Mock;
+let deleteDatabaseAsync: jest.Mock;
+let runMigrationsMock: jest.Mock;
 let execAsync: jest.Mock;
 let fakeDatabase: SQLiteDatabase;
+let DATABASE_NAME: string;
+let openAppDatabase: () => Promise<SQLiteDatabase>;
 
 beforeEach(() => {
+  // The module under test caches one connection for the life of the module, so
+  // each test gets its own module registry and therefore its own connection.
+  // Clearing the mocks alone would not be enough — the cached connection would
+  // survive from the previous test — and the alternative, exporting a reset
+  // function, would put a test-only API into production code.
+  jest.resetModules();
+
+  const sqlite = require('expo-sqlite') as SQLiteModule;
+  const migrations = require('../migrations') as { runMigrations: jest.Mock };
+
   execAsync = jest.fn().mockResolvedValue(undefined);
   fakeDatabase = { execAsync } as unknown as SQLiteDatabase;
 
-  openDatabaseAsync.mockReset();
+  openDatabaseAsync = sqlite.openDatabaseAsync;
   openDatabaseAsync.mockResolvedValue(fakeDatabase);
-  deleteDatabaseAsync.mockReset();
+
+  deleteDatabaseAsync = sqlite.deleteDatabaseAsync;
   deleteDatabaseAsync.mockResolvedValue(undefined);
-  runMigrationsMock.mockReset();
+
+  runMigrationsMock = migrations.runMigrations;
   runMigrationsMock.mockResolvedValue(undefined);
+
+  const db = require('../db') as typeof import('../db');
+  DATABASE_NAME = db.DATABASE_NAME;
+  openAppDatabase = db.openAppDatabase;
 });
 
 describe('DATABASE_NAME', () => {
@@ -98,13 +116,102 @@ describe('openAppDatabase', () => {
       expect(statements.some((sql) => sql.includes(keyword))).toBe(false);
     }
   });
+});
 
-  it('opens a fresh connection on each call rather than caching one', async () => {
+describe('openAppDatabase called more than once', () => {
+  it('hands back the same connection to sequential callers', async () => {
+    const first = await openAppDatabase();
+    const second = await openAppDatabase();
+
+    expect(first).toBe(second);
+  });
+
+  it('opens the native database only once across sequential calls', async () => {
+    await openAppDatabase();
+    await openAppDatabase();
+    await openAppDatabase();
+
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-run migrations for later callers', async () => {
+    await openAppDatabase();
+    await openAppDatabase();
+    await openAppDatabase();
+
+    expect(runMigrationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-apply the pragmas for later callers', async () => {
     await openAppDatabase();
     await openAppDatabase();
 
-    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
-    expect(runMigrationsMock).toHaveBeenCalledTimes(2);
+    expect(execAsync.mock.calls.map(([sql]) => sql)).toEqual([
+      'PRAGMA foreign_keys = ON',
+      'PRAGMA journal_mode = WAL',
+    ]);
+  });
+
+  it('stays at one native open across a long run of calls', async () => {
+    // A realistic session: dozens of reads and writes, each asking for the
+    // database, none of them opening a second one.
+    for (let call = 0; call < 25; call += 1) {
+      await openAppDatabase();
+    }
+
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+    expect(runMigrationsMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('openAppDatabase called concurrently', () => {
+  it('opens the native database once for five callers arriving together', async () => {
+    await Promise.all([
+      openAppDatabase(),
+      openAppDatabase(),
+      openAppDatabase(),
+      openAppDatabase(),
+      openAppDatabase(),
+    ]);
+
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives all five concurrent callers the same connection', async () => {
+    const connections = await Promise.all([
+      openAppDatabase(),
+      openAppDatabase(),
+      openAppDatabase(),
+      openAppDatabase(),
+      openAppDatabase(),
+    ]);
+
+    for (const connection of connections) {
+      expect(connection).toBe(connections[0]);
+    }
+  });
+
+  it('runs migrations once even when callers race the first open', async () => {
+    // Without a shared in-flight promise both callers would read the schema
+    // version before either had written it, and both would migrate.
+    await Promise.all([openAppDatabase(), openAppDatabase(), openAppDatabase()]);
+
+    expect(runMigrationsMock).toHaveBeenCalledTimes(1);
+    expect(execAsync.mock.calls.map(([sql]) => sql)).toEqual([
+      'PRAGMA foreign_keys = ON',
+      'PRAGMA journal_mode = WAL',
+    ]);
+  });
+
+  it('keeps one connection when a concurrent burst follows an earlier call', async () => {
+    const first = await openAppDatabase();
+
+    const rest = await Promise.all([openAppDatabase(), openAppDatabase(), openAppDatabase()]);
+
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+    for (const connection of rest) {
+      expect(connection).toBe(first);
+    }
   });
 });
 
@@ -145,10 +252,81 @@ describe('openAppDatabase when migrations fail', () => {
     expect(statements).toEqual(['PRAGMA foreign_keys = ON', 'PRAGMA journal_mode = WAL']);
   });
 
-  it('does not retry the migration', async () => {
+  it('does not retry the migration on its own', async () => {
     await expect(openAppDatabase()).rejects.toThrow();
 
     expect(runMigrationsMock).toHaveBeenCalledTimes(1);
     expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects every caller that was waiting on the failed attempt', async () => {
+    const attempts = [openAppDatabase(), openAppDatabase(), openAppDatabase()];
+
+    await Promise.all(attempts.map((attempt) => expect(attempt).rejects.toThrow(migrationError)));
+
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the next caller try again instead of replaying the failure', async () => {
+    await expect(openAppDatabase()).rejects.toThrow(migrationError);
+
+    runMigrationsMock.mockResolvedValue(undefined);
+
+    await expect(openAppDatabase()).resolves.toBe(fakeDatabase);
+  });
+
+  it('starts the retry from scratch, pragmas included', async () => {
+    await expect(openAppDatabase()).rejects.toThrow(migrationError);
+
+    runMigrationsMock.mockResolvedValue(undefined);
+    await openAppDatabase();
+
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+    expect(runMigrationsMock).toHaveBeenCalledTimes(2);
+    expect(execAsync.mock.calls.map(([sql]) => sql)).toEqual([
+      'PRAGMA foreign_keys = ON',
+      'PRAGMA journal_mode = WAL',
+      'PRAGMA foreign_keys = ON',
+      'PRAGMA journal_mode = WAL',
+    ]);
+  });
+
+  it('caches the connection once a retry finally succeeds', async () => {
+    await expect(openAppDatabase()).rejects.toThrow(migrationError);
+
+    runMigrationsMock.mockResolvedValue(undefined);
+    const first = await openAppDatabase();
+    const second = await openAppDatabase();
+
+    expect(second).toBe(first);
+    expect(openDatabaseAsync).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('openAppDatabase when the native open fails', () => {
+  const openError = new Error('Call to function NativeDatabase.open has been rejected.');
+
+  beforeEach(() => {
+    openDatabaseAsync.mockRejectedValue(openError);
+  });
+
+  it('rejects with the native error', async () => {
+    await expect(openAppDatabase()).rejects.toThrow(openError);
+  });
+
+  it('never reaches the pragmas or the migrations', async () => {
+    await expect(openAppDatabase()).rejects.toThrow();
+
+    expect(execAsync).not.toHaveBeenCalled();
+    expect(runMigrationsMock).not.toHaveBeenCalled();
+  });
+
+  it('is not permanent — a later call opens the database normally', async () => {
+    await expect(openAppDatabase()).rejects.toThrow(openError);
+
+    openDatabaseAsync.mockResolvedValue(fakeDatabase);
+
+    await expect(openAppDatabase()).resolves.toBe(fakeDatabase);
+    expect(runMigrationsMock).toHaveBeenCalledTimes(1);
   });
 });

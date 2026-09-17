@@ -6,16 +6,26 @@ import { runMigrations } from './migrations';
 /**
  * Local database connection.
  *
- * This module owns two things: opening the app database with the pragmas we want
- * every connection to have, and bringing its schema up to date. It defines no
- * tables of its own and holds no cached instance — data access belongs to layers
- * above it.
+ * This module owns three things: opening the app database with the pragmas we
+ * want, bringing its schema up to date, and handing every caller the same
+ * connection for the lifetime of the JS runtime. It defines no tables of its own
+ * — data access belongs to layers above it.
  */
 
 export const DATABASE_NAME = 'regl-gebelik.db';
 
 /**
- * Opens the app database, applies the connection pragmas and migrates the schema.
+ * The one connection, kept as the in-flight promise rather than the resolved
+ * database, so callers that arrive while it is still opening wait for that same
+ * attempt instead of starting another one.
+ *
+ * Cleared on failure, so a first attempt that fails does not poison every later
+ * one: the next caller gets a fresh try rather than the old rejection.
+ */
+let connection: Promise<SQLiteDatabase> | null = null;
+
+/**
+ * Opens the database, applies the connection pragmas and migrates the schema.
  *
  * `foreign_keys` is off by default in SQLite and has to be set per connection.
  * `journal_mode = WAL` is persisted with the database file, but setting it here
@@ -27,7 +37,10 @@ export const DATABASE_NAME = 'regl-gebelik.db';
  * recovered from by wiping the database: health data is not something to discard
  * because a schema step failed, and the caller has to decide what to do.
  */
-export async function openAppDatabase(): Promise<SQLiteDatabase> {
+async function openAndInitialize(): Promise<SQLiteDatabase> {
+  // `useNewConnection` is left at its default of false on purpose: expo-sqlite
+  // already caches a native connection per database name, and asking for a new
+  // one would add connections rather than reuse the single one we want.
   const database = await SQLite.openDatabaseAsync(DATABASE_NAME);
 
   await database.execAsync('PRAGMA foreign_keys = ON');
@@ -36,4 +49,27 @@ export async function openAppDatabase(): Promise<SQLiteDatabase> {
   await runMigrations(database);
 
   return database;
+}
+
+/**
+ * The app database, opened once per JS runtime.
+ *
+ * Every caller gets the same connection. Opening per call used to mean a new
+ * wrapper, both pragmas and a full migration check on every read and write —
+ * dozens of them in a normal session — and two callers arriving together could
+ * race each other through the migration.
+ *
+ * The connection is never closed here. It lives as long as the runtime does, so
+ * navigating between screens or finishing a write leaves it open for the next
+ * caller.
+ */
+export function openAppDatabase(): Promise<SQLiteDatabase> {
+  if (connection === null) {
+    connection = openAndInitialize().catch((error: unknown) => {
+      connection = null;
+      throw error;
+    });
+  }
+
+  return connection;
 }
