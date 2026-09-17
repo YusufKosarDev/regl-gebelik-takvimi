@@ -1,5 +1,8 @@
+import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { FertilityLevel } from '../domain/fertility-level';
 import type { CyclePhase } from '../domain/phases';
+
+import { formatDisplayDate } from '@/utils/format-date';
 
 /**
  * Turkish labels for the domain's phase and fertility values.
@@ -32,4 +35,30 @@ export function getCyclePhaseLabel(phase: CyclePhase | null): string {
 
 export function getFertilityLevelLabel(level: FertilityLevel | null): string {
   return level === null ? UNKNOWN_LABEL : FERTILITY_LABELS[level];
+}
+
+/**
+ * What a screen reader says for one calendar square.
+ *
+ * Reads the date first, then only what makes that day different: the phase when
+ * it is one a person is looking for, and the fertility estimate when it is
+ * raised. Naming every day's phase would turn a month into thirty near-identical
+ * sentences to listen through.
+ */
+export function getCalendarDayAccessibilityLabel(day: CycleCalendarDay): string {
+  const parts: string[] = [formatDisplayDate(day.date)];
+
+  if (day.phase === 'menstrual' || day.phase === 'ovulatory') {
+    parts.push(getCyclePhaseLabel(day.phase));
+  }
+
+  if (day.fertilityLevel === 'elevated' || day.fertilityLevel === 'peak') {
+    parts.push(`doğurganlık ${getFertilityLevelLabel(day.fertilityLevel).toLocaleLowerCase('tr')}`);
+  }
+
+  if (day.isPredictedPeriodStart) {
+    parts.push('sonraki regl başlangıcı tahmini');
+  }
+
+  return parts.join(', ');
 }

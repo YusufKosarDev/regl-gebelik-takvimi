@@ -147,6 +147,17 @@ export function getDaysInMonth(year: number, month: number): number {
   return daysInMonth(year, month);
 }
 
+/** Day of the month, 1-31, read off the date rather than parsed into a `Date`. */
+export function getDayOfMonth(date: ISODate): number {
+  const parts = parseParts(date);
+
+  if (!parts) {
+    throw new Error(`Invalid ISODate: "${date}".`);
+  }
+
+  return parts.day;
+}
+
 /**
  * ISO-8601 weekday: 1 is Monday through 7 is Sunday.
  *

@@ -2,6 +2,7 @@ import {
   addDays,
   daysBetween,
   formatLocalDate,
+  getDayOfMonth,
   getDaysInMonth,
   getISOWeekday,
   isISODate,
@@ -279,5 +280,29 @@ describe('getISOWeekday', () => {
 
   it('rejects a value that is not a real calendar date', () => {
     expect(() => getISOWeekday('2026-02-30' as never)).toThrow(/Invalid ISODate/);
+  });
+});
+
+describe('getDayOfMonth', () => {
+  it('reads the day off the date', () => {
+    expect(getDayOfMonth(toISODate('2026-09-17'))).toBe(17);
+    expect(getDayOfMonth(toISODate('2026-09-30'))).toBe(30);
+  });
+
+  it('drops the leading zero', () => {
+    expect(getDayOfMonth(toISODate('2026-09-01'))).toBe(1);
+    expect(getDayOfMonth(toISODate('2026-09-09'))).toBe(9);
+  });
+
+  it('reads a leap day', () => {
+    expect(getDayOfMonth(toISODate('2024-02-29'))).toBe(29);
+  });
+
+  it('reads the longest month end', () => {
+    expect(getDayOfMonth(toISODate('2026-01-31'))).toBe(31);
+  });
+
+  it('rejects a value that is not a real calendar date', () => {
+    expect(() => getDayOfMonth('2026-02-30' as never)).toThrow(/Invalid ISODate/);
   });
 });
