@@ -1,7 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import FinishScreen from '@/app/(onboarding)/finish';
 import ReviewScreen from '@/app/(onboarding)/review';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -333,17 +332,3 @@ describe('ReviewScreen scope', () => {
   });
 });
 
-describe('FinishScreen', () => {
-  it('renders the placeholder', async () => {
-    const { getByText } = await render(<FinishScreen />);
-
-    expect(getByText('Finish')).toBeTruthy();
-  });
-
-  it('contains no form controls yet', async () => {
-    const { toJSON, queryAllByRole } = await render(<FinishScreen />);
-
-    expect(countHostNodes(toJSON(), 'TextInput')).toBe(0);
-    expect(queryAllByRole('button')).toHaveLength(0);
-  });
-});
