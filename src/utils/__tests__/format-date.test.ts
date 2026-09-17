@@ -1,7 +1,7 @@
 import type { ISODate } from '@/types/iso-date';
 import { toISODate } from '@/utils/date';
 
-import { formatDisplayDate } from '../format-date';
+import { formatDisplayDate, formatDisplayMonth } from '../format-date';
 
 describe('formatDisplayDate', () => {
   it('formats a date in Turkish', () => {
@@ -39,5 +39,46 @@ describe('formatDisplayDate', () => {
 
     expect(formatted).toBe('17 Eylül 2026');
     expect(formatted).not.toMatch(/September|Sep/);
+  });
+});
+
+describe('formatDisplayMonth', () => {
+  it('renders a month and year', () => {
+    expect(formatDisplayMonth(2026, 9)).toBe('Eylül 2026');
+  });
+
+  it.each<[number, string]>([
+    [1, 'Ocak 2026'],
+    [2, 'Şubat 2026'],
+    [3, 'Mart 2026'],
+    [4, 'Nisan 2026'],
+    [5, 'Mayıs 2026'],
+    [6, 'Haziran 2026'],
+    [7, 'Temmuz 2026'],
+    [8, 'Ağustos 2026'],
+    [9, 'Eylül 2026'],
+    [10, 'Ekim 2026'],
+    [11, 'Kasım 2026'],
+    [12, 'Aralık 2026'],
+  ])('renders month %i as %s', (month, expected) => {
+    expect(formatDisplayMonth(2026, month)).toBe(expected);
+  });
+
+  it('uses the same month names as formatDisplayDate', () => {
+    for (let month = 1; month <= 12; month += 1) {
+      const iso = `2026-${String(month).padStart(2, '0')}-01`;
+      const [, monthName] = formatDisplayDate(toISODate(iso)).split(' ');
+
+      expect(formatDisplayMonth(2026, month)).toBe(`${monthName} 2026`);
+    }
+  });
+
+  it('rejects a month outside 1-12', () => {
+    expect(() => formatDisplayMonth(2026, 0)).toThrow(/month between 1 and 12/);
+    expect(() => formatDisplayMonth(2026, 13)).toThrow(/month between 1 and 12/);
+  });
+
+  it('does not depend on the device locale', () => {
+    expect(formatDisplayMonth(2026, 9)).not.toMatch(/September|Sep/);
   });
 });

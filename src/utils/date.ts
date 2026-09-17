@@ -147,6 +147,17 @@ export function getDaysInMonth(year: number, month: number): number {
   return daysInMonth(year, month);
 }
 
+/** The calendar month a date falls in, with `month` in 1-12. */
+export function getYearMonth(date: ISODate): { year: number; month: number } {
+  const parts = parseParts(date);
+
+  if (!parts) {
+    throw new Error(`Invalid ISODate: "${date}".`);
+  }
+
+  return { year: parts.year, month: parts.month };
+}
+
 /** Day of the month, 1-31, read off the date rather than parsed into a `Date`. */
 export function getDayOfMonth(date: ISODate): number {
   const parts = parseParts(date);

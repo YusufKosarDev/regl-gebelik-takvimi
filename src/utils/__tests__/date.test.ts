@@ -5,6 +5,7 @@ import {
   getDayOfMonth,
   getDaysInMonth,
   getISOWeekday,
+  getYearMonth,
   isISODate,
   toISODate,
 } from '@/utils/date';
@@ -304,5 +305,27 @@ describe('getDayOfMonth', () => {
 
   it('rejects a value that is not a real calendar date', () => {
     expect(() => getDayOfMonth('2026-02-30' as never)).toThrow(/Invalid ISODate/);
+  });
+});
+
+describe('getYearMonth', () => {
+  it('reads the year and month off the date', () => {
+    expect(getYearMonth(toISODate('2026-09-17'))).toEqual({ year: 2026, month: 9 });
+  });
+
+  it('drops the leading zero from the month', () => {
+    expect(getYearMonth(toISODate('2026-01-31'))).toEqual({ year: 2026, month: 1 });
+  });
+
+  it('reads the last day of a year', () => {
+    expect(getYearMonth(toISODate('2026-12-31'))).toEqual({ year: 2026, month: 12 });
+  });
+
+  it('reads a leap day', () => {
+    expect(getYearMonth(toISODate('2024-02-29'))).toEqual({ year: 2024, month: 2 });
+  });
+
+  it('rejects a value that is not a real calendar date', () => {
+    expect(() => getYearMonth('2026-02-30' as never)).toThrow(/Invalid ISODate/);
   });
 });

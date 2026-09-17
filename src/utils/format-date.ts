@@ -32,3 +32,14 @@ export function formatDisplayDate(date: ISODate): string {
 
   return `${Number(day)} ${monthName} ${Number(year)}`;
 }
+
+/** Renders a calendar month for display, e.g. "Eylül 2026". `month` is 1-12. */
+export function formatDisplayMonth(year: number, month: number): string {
+  const monthName = MONTH_NAMES_TR[month - 1];
+
+  if (monthName === undefined) {
+    throw new Error(`formatDisplayMonth expects a month between 1 and 12, received ${month}.`);
+  }
+
+  return `${monthName} ${year}`;
+}

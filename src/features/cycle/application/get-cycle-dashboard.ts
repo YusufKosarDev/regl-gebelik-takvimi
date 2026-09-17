@@ -7,6 +7,7 @@ import { getEstimatedFertilityLevel } from '../domain/fertility-level';
 import type { FertilityLevel } from '../domain/fertility-level';
 import type { CyclePhase } from '../domain/phases';
 import { predictNextPeriodStart } from '../domain/predictions';
+import type { CycleProfile } from '../domain/types';
 
 import type { ISODate } from '@/types/iso-date';
 
@@ -27,6 +28,22 @@ export type CycleDashboard = {
   readonly nextPeriodStart: ISODate | null;
 };
 
+/**
+ * The summary for one profile and one day.
+ *
+ * Separate from the read so a caller that already holds the profile can build
+ * this without going back to the database for it.
+ */
+export function buildCycleDashboard(profile: CycleProfile, today: ISODate): CycleDashboard {
+  return {
+    today,
+    cycleDay: getCycleDay(profile, today),
+    phase: getCyclePhase(profile, today),
+    fertilityLevel: getEstimatedFertilityLevel(profile, today),
+    nextPeriodStart: predictNextPeriodStart(profile),
+  };
+}
+
 /** Returns `null` when nothing has been saved yet. */
 export async function getCycleDashboard(
   db: SQLiteDatabase,
@@ -38,11 +55,5 @@ export async function getCycleDashboard(
     return null;
   }
 
-  return {
-    today,
-    cycleDay: getCycleDay(profile, today),
-    phase: getCyclePhase(profile, today),
-    fertilityLevel: getEstimatedFertilityLevel(profile, today),
-    nextPeriodStart: predictNextPeriodStart(profile),
-  };
+  return buildCycleDashboard(profile, today);
 }

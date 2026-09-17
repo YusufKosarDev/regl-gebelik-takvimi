@@ -5,15 +5,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import type { CycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
-import { getCycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
+import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
+import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
+import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
 import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
 } from '@/features/cycle/presentation/cycle-labels';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
-import { formatDisplayDate } from '@/utils/format-date';
+import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
@@ -37,7 +38,7 @@ export default function HomeScreen() {
   const theme = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [dashboard, setDashboard] = useState<CycleDashboard | null>(null);
+  const [homeData, setHomeData] = useState<CycleHomeData | null>(null);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -49,16 +50,16 @@ export default function HomeScreen() {
       try {
         const today = getTodayLocalISODate();
         const db = await openAppDatabase();
-        const result = await getCycleDashboard(db, today);
+        const result = await getCycleHomeData(db, today);
 
         if (!isActive) {
           return;
         }
 
-        setDashboard(result);
+        setHomeData(result);
       } catch (error) {
         if (__DEV__) {
-          console.error('[home] could not load the cycle dashboard', error);
+          console.error('[home] could not load the cycle data', error);
         }
 
         if (!isActive) {
@@ -105,7 +106,7 @@ export default function HomeScreen() {
     );
   }
 
-  if (dashboard === null) {
+  if (homeData === null) {
     return (
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
@@ -116,6 +117,8 @@ export default function HomeScreen() {
       </ThemedView>
     );
   }
+
+  const { dashboard, calendarGrid } = homeData;
 
   const rows: { label: string; value: string; note?: string }[] = [
     {
@@ -175,6 +178,23 @@ export default function HomeScreen() {
                   )}
                 </View>
               ))}
+            </View>
+
+            <View style={styles.calendarSection}>
+              <ThemedText
+                accessibilityRole="header"
+                type="small"
+                themeColor="textSecondary">
+                Takvim
+              </ThemedText>
+
+              <ThemedText
+                accessibilityLabel={`${formatDisplayMonth(calendarGrid.year, calendarGrid.month)} takvimi`}
+                style={styles.monthHeading}>
+                {formatDisplayMonth(calendarGrid.year, calendarGrid.month)}
+              </ThemedText>
+
+              <CycleCalendar grid={calendarGrid} />
             </View>
           </View>
         </ScrollView>
@@ -240,5 +260,13 @@ const styles = StyleSheet.create({
   },
   rowNote: {
     marginTop: Spacing.one,
+  },
+  calendarSection: {
+    gap: Spacing.two,
+  },
+  monthHeading: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '600',
   },
 });

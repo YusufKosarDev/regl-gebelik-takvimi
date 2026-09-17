@@ -312,3 +312,122 @@ describe('HomeScreen scope', () => {
     expect(queryAllByRole('button')).toHaveLength(0);
   });
 });
+
+describe('HomeScreen calendar section', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('shows the section heading', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Takvim')).toBeTruthy();
+  });
+
+  it('shows the month today falls in', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Eylül 2026')).toBeTruthy();
+  });
+
+  it('names the month for assistive technology', async () => {
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Eylül 2026 takvimi')).toBeTruthy();
+  });
+
+  it('renders the weekday headers', async () => {
+    const { getByText } = await renderScreen();
+
+    for (const label of ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']) {
+      expect(getByText(label)).toBeTruthy();
+    }
+  });
+
+  it('renders every day of the month', async () => {
+    const { queryAllByTestId } = await renderScreen();
+
+    expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(30);
+  });
+
+  it('renders the first and last day of the month', async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(getByTestId('calendar-day-2026-09-01')).toBeTruthy();
+    expect(getByTestId('calendar-day-2026-09-30')).toBeTruthy();
+  });
+
+  it('does not reach into a neighbouring month', async () => {
+    const { queryByTestId } = await renderScreen();
+
+    expect(queryByTestId('calendar-day-2026-08-31')).toBeNull();
+    expect(queryByTestId('calendar-day-2026-10-01')).toBeNull();
+  });
+
+  it('follows today into another month', async () => {
+    getTodayMock.mockReturnValue('2026-10-05' as ISODate);
+
+    const { getByText, queryAllByTestId } = await renderScreen();
+
+    expect(getByText('Ekim 2026')).toBeTruthy();
+    expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(31);
+  });
+
+  it('keeps the summary alongside the calendar', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Bugün')).toBeTruthy();
+    expect(getByText('17. gün')).toBeTruthy();
+    expect(getByText('Takvim')).toBeTruthy();
+  });
+
+  it('reads the profile once for both halves', async () => {
+    await renderScreen();
+
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+  });
+
+  it('adds no legend yet', async () => {
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText(/Regl günü|Açıklama|Gösterge/)).toBeNull();
+  });
+
+  it('offers no month navigation or day selection', async () => {
+    const { queryAllByRole } = await renderScreen();
+
+    expect(queryAllByRole('button')).toHaveLength(0);
+  });
+});
+
+describe('HomeScreen calendar absence', () => {
+  it('shows no calendar while loading', async () => {
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const { queryByText, queryAllByTestId } = await render(<HomeScreen />);
+
+    expect(queryByText('Takvim')).toBeNull();
+    expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(0);
+  });
+
+  it('shows no calendar when there is no profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { getByText, queryByText, queryAllByTestId } = await renderScreen();
+
+    expect(getByText('Döngü bilgisi bulunamadı.')).toBeTruthy();
+    expect(queryByText('Takvim')).toBeNull();
+    expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(0);
+  });
+
+  it('shows no calendar when loading fails', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('corrupt row'));
+
+    const { getByText, queryByText, queryAllByTestId } = await renderScreen();
+
+    expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
+    expect(queryByText('Takvim')).toBeNull();
+    expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(0);
+  });
+});
