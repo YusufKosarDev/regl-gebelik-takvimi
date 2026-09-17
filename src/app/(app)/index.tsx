@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -115,43 +115,52 @@ export default function HomeScreen() {
     return getCycleHomeData(db, forDate);
   }, []);
 
-  useEffect(() => {
-    // Guards against setting state after the screen is gone, e.g. when the
-    // routing gate swaps groups while this read is still in flight.
-    let isActive = true;
+  // On focus rather than on mount, so coming back from a screen that changed the
+  // data shows the change instead of what was read before leaving. The callback
+  // is stable, so this is one read per focus: once on arrival, once on return,
+  // never on a re-render.
+  useFocusEffect(
+    useCallback(() => {
+      // Guards against setting state after the screen is gone, e.g. when the
+      // routing gate swaps groups while this read is still in flight.
+      let isActive = true;
 
-    const load = async () => {
-      try {
-        const data = await readCycleData();
+      const load = async () => {
+        try {
+          // No argument, so the clock is read again: a day that turned over
+          // while the app sat on another screen is picked up here.
+          const data = await readCycleData();
 
-        if (!isActive) {
-          return;
+          if (!isActive) {
+            return;
+          }
+
+          setHomeData(data);
+          setHasError(false);
+        } catch (error) {
+          if (__DEV__) {
+            console.error('[home] could not load the cycle data', error);
+          }
+
+          if (!isActive) {
+            return;
+          }
+
+          setHasError(true);
+        } finally {
+          if (isActive) {
+            setIsLoading(false);
+          }
         }
+      };
 
-        setHomeData(data);
-      } catch (error) {
-        if (__DEV__) {
-          console.error('[home] could not load the cycle data', error);
-        }
+      void load();
 
-        if (!isActive) {
-          return;
-        }
-
-        setHasError(true);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [readCycleData]);
+      return () => {
+        isActive = false;
+      };
+    }, [readCycleData])
+  );
 
   if (isLoading) {
     return (

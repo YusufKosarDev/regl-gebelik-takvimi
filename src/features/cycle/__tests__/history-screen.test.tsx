@@ -284,13 +284,16 @@ describe('HistoryScreen scope', () => {
     );
   });
 
-  it('offers no way to change a record', async () => {
+  it('offers back and one delete per record, and nothing else', async () => {
     const { queryAllByRole } = await renderScreen();
 
-    // Back is the only control on the screen.
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
-    ).toEqual(['Geri']);
+    ).toEqual([
+      'Geri',
+      '17 Eylül 2026 regl kaydını sil',
+      '2 Eylül 2026 regl kaydını sil',
+    ]);
   });
 
   it('writes nothing', async () => {
@@ -306,11 +309,294 @@ describe('HistoryScreen scope', () => {
     expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
   });
 
-  it('shows no edit or delete wording', async () => {
+  it('offers no way to edit or add a record', async () => {
     const { queryByText } = await renderScreen();
 
-    for (const forbidden of ['Düzenle', 'Sil', 'Kaydet', 'Ekle']) {
+    // Removing a wrong entry is offered; changing or adding one is not.
+    for (const forbidden of ['Düzenle', 'Kaydet', 'Ekle', 'Değiştir']) {
       expect(queryByText(forbidden)).toBeNull();
     }
+  });
+});
+
+describe('HistoryScreen delete action', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+        { id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' },
+      ])
+    );
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  it('offers a delete on every record', async () => {
+    const { getByLabelText, getAllByText } = await renderScreen();
+
+    expect(getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
+    expect(getByLabelText('2 Eylül 2026 regl kaydını sil')).toBeTruthy();
+    expect(getAllByText('Sil')).toHaveLength(2);
+  });
+
+  it('asks before deleting', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+
+    expect(screen.getByText('Bu regl kaydını silmek istiyor musun?')).toBeTruthy();
+    expect(screen.getByText('Bu işlem geri alınamaz.')).toBeTruthy();
+  });
+
+  it('names the record it would remove', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+
+    // The row's own date plus the one inside the confirmation.
+    expect(screen.getAllByText('2 Eylül 2026')).toHaveLength(2);
+  });
+
+  it('writes nothing while only asking', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('confirms one record at a time', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    expect(screen.queryAllByText('Bu regl kaydını silmek istiyor musun?')).toHaveLength(1);
+
+    // The other row still offers its own delete, and pressing it moves the
+    // confirmation rather than opening a second one.
+    await fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+
+    expect(screen.queryAllByText('Bu regl kaydını silmek istiyor musun?')).toHaveLength(1);
+    expect(screen.getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen delete cancel', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+    );
+  });
+
+  it('closes the confirmation', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
+    expect(screen.getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+
+  it('touches no storage', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HistoryScreen delete', () => {
+  function remaining(): CycleProfile {
+    return profile([{ id: 'onboarding-initial-period', startDate: '2026-09-02' }]);
+  }
+
+  async function deleteNewest() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    return screen;
+  }
+
+  beforeEach(() => {
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  it('stores the profile without that record', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+        { id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' },
+      ])
+    );
+
+    await deleteNewest();
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords.map((record) => record.id)).toEqual([
+      'onboarding-initial-period',
+    ]);
+  });
+
+  it('closes the confirmation', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(
+        profile([
+          { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+          { id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' },
+        ])
+      )
+      .mockResolvedValueOnce(
+        profile([
+          { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+          { id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' },
+        ])
+      )
+      .mockResolvedValue(remaining());
+
+    const screen = await deleteNewest();
+
+    expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
+  });
+
+  it('reloads and drops the deleted row', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(
+        profile([
+          { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+          { id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' },
+        ])
+      )
+      .mockResolvedValueOnce(
+        profile([
+          { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+          { id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' },
+        ])
+      )
+      .mockResolvedValue(remaining());
+
+    const screen = await deleteNewest();
+
+    expect(screen.queryByTestId('history-record-period-2026-09-17')).toBeNull();
+    expect(screen.getByTestId('history-record-onboarding-initial-period')).toBeTruthy();
+  });
+
+  it('removes a record that is still running', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(
+        profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true }])
+      )
+      .mockResolvedValueOnce(
+        profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true }])
+      )
+      .mockResolvedValue(profile([]));
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Devam ediyor')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords).toEqual([]);
+  });
+
+  it('says the list is empty once the last record is gone', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }]))
+      .mockResolvedValueOnce(profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }]))
+      .mockResolvedValue(profile([]));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(screen.getByText('Henüz kayıt bulunamadı.')).toBeTruthy();
+    expect(screen.queryAllByTestId(/^history-record-/)).toHaveLength(0);
+  });
+
+  it('deletes once however many times Sil is pressed', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    // The confirmation is gone after a successful delete, so there is nothing
+    // left to press again.
+    expect(screen.queryByLabelText('Vazgeç')).toBeNull();
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HistoryScreen delete failure', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+    );
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+  });
+
+  async function failToDelete() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    return screen;
+  }
+
+  it('reports it with its own message', async () => {
+    const screen = await failToDelete();
+
+    expect(screen.getByText('Kayıt silinemedi.')).toBeTruthy();
+    // Not the message for a failed read.
+    expect(screen.queryByText('Kayıtlar yüklenemedi.')).toBeNull();
+  });
+
+  it('announces it to assistive technology', async () => {
+    const screen = await failToDelete();
+
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('keeps the confirmation open so a retry is possible', async () => {
+    const screen = await failToDelete();
+
+    expect(screen.getByLabelText('Sil')).toBeTruthy();
+    expect(screen.getByLabelText('Vazgeç')).toBeTruthy();
+  });
+
+  it('retries on a second press', async () => {
+    const screen = await failToDelete();
+
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves the record on screen', async () => {
+    const screen = await failToDelete();
+
+    expect(screen.getByTestId('history-record-period-2026-09-17')).toBeTruthy();
+  });
+
+  it('clears the error when the confirmation is dismissed', async () => {
+    const screen = await failToDelete();
+
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+
+    expect(screen.queryByText('Kayıt silinemedi.')).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/index';
@@ -23,12 +23,53 @@ jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
 
-jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+/**
+ * `useFocusEffect` runs on arrival and again on every return. The mock does the
+ * same: once on mount, and once more for each simulated refocus, so a test can
+ * act out leaving the screen and coming back.
+ *
+ * The registry is published on `globalThis` because a jest.mock factory is
+ * hoisted and cannot close over anything declared outside it.
+ */
+jest.mock('expo-router', () => {
+  const react = jest.requireActual<typeof import('react')>('react');
+  const listeners: (() => void)[] = [];
+
+  (globalThis as Record<string, unknown>).__focusListeners = listeners;
+
+  return {
+    useRouter: jest.fn(),
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      const [focusCount, setFocusCount] = react.useState(0);
+
+      react.useEffect(() => {
+        const listener = () => setFocusCount((current) => current + 1);
+        listeners.push(listener);
+
+        return () => {
+          listeners.splice(listeners.indexOf(listener), 1);
+        };
+      }, []);
+
+      react.useEffect(effect, [effect, focusCount]);
+    },
+  };
+});
 
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const useRouterMock = useRouter as unknown as jest.Mock;
+const focusListeners = (globalThis as Record<string, unknown>).__focusListeners as (() => void)[];
+
+/** Acts out leaving the screen and coming back to it. */
+async function refocus() {
+  await act(async () => {
+    for (const listener of [...focusListeners]) {
+      listener();
+    }
+  });
+}
 
 let push: jest.Mock;
 
@@ -1896,5 +1937,126 @@ describe('HomeScreen history link', () => {
     const { queryByLabelText } = await renderScreen();
 
     expect(queryByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeNull();
+  });
+});
+
+describe('HomeScreen focus refresh', () => {
+  /** Onboarding's record plus one still running. */
+  function withOngoing(): CycleProfile {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' as ISODate, isOngoing: false },
+        { id: 'period-2026-09-17', startDate: '2026-09-17' as ISODate, isOngoing: true },
+      ],
+    };
+  }
+
+  it('reads once on arrival', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    await renderScreen();
+
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads again on returning to the screen', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    await renderScreen();
+    await refocus();
+
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not read on an ordinary re-render', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads the clock again on return', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    await renderScreen();
+    await refocus();
+
+    expect(getTodayMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('picks up a record deleted while it was away', async () => {
+    repository.loadCycleProfile.mockResolvedValue(withOngoing());
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Regl bitti')).toBeTruthy();
+
+    // The history screen removed the running record while Home was not focused.
+    repository.loadCycleProfile.mockResolvedValue(
+      onboardingProfile()
+    );
+
+    await refocus();
+
+    expect(screen.getByText('Regl başladı')).toBeTruthy();
+    expect(screen.queryByText('Regl bitti')).toBeNull();
+  });
+
+  it('recalculates the summary from what is left', async () => {
+    repository.loadCycleProfile.mockResolvedValue(withOngoing());
+
+    const screen = await renderScreen();
+
+    // Today is the start of the running period.
+    expect(screen.getByText('1. gün')).toBeTruthy();
+
+    repository.loadCycleProfile.mockResolvedValue(onboardingProfile());
+
+    await refocus();
+
+    // Back to counting from 2 September.
+    expect(screen.getByText('16. gün')).toBeTruthy();
+    expect(screen.queryByText('1. gün')).toBeNull();
+  });
+
+  it('copes with every record having been deleted', async () => {
+    repository.loadCycleProfile.mockResolvedValue(withOngoing());
+
+    const screen = await renderScreen();
+
+    repository.loadCycleProfile.mockResolvedValue({
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [],
+    });
+
+    await refocus();
+
+    expect(screen.getByText('Henüz başlamadı')).toBeTruthy();
+    expect(screen.getByText('Henüz hesaplanamıyor')).toBeTruthy();
+    expect(screen.getByText('Regl başladı')).toBeTruthy();
+    // The calendar is still there, just with nothing marked.
+    expect(screen.getByText('Takvim')).toBeTruthy();
+  });
+
+  it('clears a stale error once a later read succeeds', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('corrupt row'));
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Bilgiler yüklenemedi.')).toBeTruthy();
+
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    await refocus();
+
+    expect(screen.queryByText('Bilgiler yüklenemedi.')).toBeNull();
+    expect(screen.getByText('17. gün')).toBeTruthy();
   });
 });
