@@ -8,10 +8,13 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
 import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
+import { endCurrentPeriod } from '@/features/cycle/application/end-current-period';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
 import { CycleCalendarLegend } from '@/features/cycle/components/cycle-calendar-legend';
+import { getOpenPeriodRecord } from '@/features/cycle/domain/open-period';
+import type { CycleProfile } from '@/features/cycle/domain/types';
 import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
@@ -40,8 +43,24 @@ function selectedDayRows(day: CycleCalendarDay): { label: string; value: string 
   ];
 }
 
+/**
+ * Which period action the stored data allows, if any.
+ *
+ * `getOpenPeriodRecord` refuses to choose between several open records rather
+ * than closing one the person did not mean to close. The screen cannot act on
+ * that either, so it offers nothing instead of crashing on the way past.
+ */
+function resolvePeriodAction(profile: CycleProfile): 'start' | 'end' | 'none' {
+  try {
+    return getOpenPeriodRecord(profile) === null ? 'start' : 'end';
+  } catch {
+    return 'none';
+  }
+}
+
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Regl başlangıcı kaydedilemedi.';
+const END_SAVE_ERROR_MESSAGE = 'Regl bitişi kaydedilemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
 const FERTILITY_DISCLAIMER =
   'Doğurganlık bilgileri tahminidir ve gebelikten korunma yöntemi olarak kullanılmamalıdır.';
@@ -201,7 +220,10 @@ export default function HomeScreen() {
   // what clears a stale selection on a month change, with no reset to forget.
   const selectedDay = findDay(pickedDate) ?? findDay(dashboard.today);
 
-  const handleSavePeriodStart = async () => {
+  const periodAction = resolvePeriodAction(profile);
+  const isEnding = periodAction === 'end';
+
+  const handleSavePeriod = async () => {
     if (saveInFlight.current) {
       return;
     }
@@ -213,7 +235,11 @@ export default function HomeScreen() {
     try {
       const db = await openAppDatabase();
 
-      await addPeriodStart(db, { startDate: dashboard.today, today: dashboard.today });
+      if (isEnding) {
+        await endCurrentPeriod(db, { endDate: dashboard.today, today: dashboard.today });
+      } else {
+        await addPeriodStart(db, { startDate: dashboard.today, today: dashboard.today });
+      }
 
       // Both halves of the screen come from one fresh read, so the summary and
       // the calendar cannot end up describing different profiles.
@@ -223,7 +249,7 @@ export default function HomeScreen() {
       setIsConfirming(false);
     } catch (error) {
       if (__DEV__) {
-        console.error('[home] could not record the period start', error);
+        console.error('[home] could not record the period', error);
       }
 
       // The confirmation stays open with the error, so a rejected save is
@@ -295,10 +321,12 @@ export default function HomeScreen() {
               ))}
             </View>
 
-            {isConfirming ? (
+            {periodAction === 'none' ? null : isConfirming ? (
               <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Bugünü regl başlangıcı olarak kaydetmek istiyor musun?
+                  {isEnding
+                    ? 'Bugünü regl bitişi olarak kaydetmek istiyor musun?'
+                    : 'Bugünü regl başlangıcı olarak kaydetmek istiyor musun?'}
                 </ThemedText>
 
                 <ThemedText style={styles.rowValue}>
@@ -311,7 +339,7 @@ export default function HomeScreen() {
                     type="small"
                     themeColor="textSecondary"
                     style={styles.rowNote}>
-                    {SAVE_ERROR_MESSAGE}
+                    {isEnding ? END_SAVE_ERROR_MESSAGE : SAVE_ERROR_MESSAGE}
                   </ThemedText>
                 )}
 
@@ -340,7 +368,7 @@ export default function HomeScreen() {
                     accessibilityLabel="Kaydet"
                     accessibilityState={{ disabled: isSaving }}
                     disabled={isSaving}
-                    onPress={handleSavePeriodStart}
+                    onPress={handleSavePeriod}
                     style={({ pressed }) => [
                       styles.primaryButton,
                       { backgroundColor: theme.text },
@@ -356,7 +384,7 @@ export default function HomeScreen() {
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Regl başlangıcını kaydet"
+                accessibilityLabel={isEnding ? 'Regl bitişini kaydet' : 'Regl başlangıcını kaydet'}
                 onPress={() => setIsConfirming(true)}
                 style={({ pressed }) => [
                   styles.primaryButton,
@@ -364,7 +392,7 @@ export default function HomeScreen() {
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText type="smallBold" style={{ color: theme.background }}>
-                  Regl başladı
+                  {isEnding ? 'Regl bitti' : 'Regl başladı'}
                 </ThemedText>
               </Pressable>
             )}
