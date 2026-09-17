@@ -8,13 +8,19 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { deletePeriodRecord } from '@/features/cycle/application/delete-period-record';
 import { getPeriodHistory } from '@/features/cycle/application/get-period-history';
+import { updatePeriodEndDate } from '@/features/cycle/application/update-period-end-date';
+import { MAX_PERIOD_DURATION_DAYS } from '@/features/cycle/domain/limits';
 import type { PeriodRecord } from '@/features/cycle/domain/types';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import type { ISODate } from '@/types/iso-date';
+import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
+import { getTodayLocalISODate } from '@/utils/today';
 
 const LOAD_ERROR_MESSAGE = 'Kayıtlar yüklenemedi.';
 const DELETE_ERROR_MESSAGE = 'Kayıt silinemedi.';
+const UPDATE_ERROR_MESSAGE = 'Kayıt güncellenemedi.';
 const EMPTY_MESSAGE = 'Henüz kayıt bulunamadı.';
 const ONGOING_LABEL = 'Devam ediyor';
 const UNKNOWN_END_LABEL = 'Bitiş tarihi bilinmiyor';
@@ -32,6 +38,19 @@ function endLabel(record: PeriodRecord): string {
   }
 
   return record.endDate === undefined ? UNKNOWN_END_LABEL : formatDisplayDate(record.endDate);
+}
+
+/**
+ * The latest day a period could have finished.
+ *
+ * Whichever comes first: today, or the domain's limit on how long one record may
+ * span. The limit is imported rather than restated, so the picker and validation
+ * cannot drift apart.
+ */
+function maxSelectableEndDate(startDate: ISODate, today: ISODate): ISODate {
+  const durationLimit = addDays(startDate, MAX_PERIOD_DURATION_DAYS - 1);
+
+  return daysBetween(durationLimit, today) < 0 ? today : durationLimit;
 }
 
 function accessibilityLabelFor(record: PeriodRecord): string {
@@ -68,6 +87,20 @@ export default function HistoryScreen() {
   // A ref as well as the disabled prop: state updates are async, so two quick
   // taps could both read `isDeleting` as false before the re-render lands.
   const deleteInFlight = useRef(false);
+
+  // The record being edited, the date currently picked for it, and whether the
+  // person has asked to clear the end date instead of moving it.
+  const [recordUnderEdit, setRecordUnderEdit] = useState<PeriodRecord | null>(null);
+  const [selectedEndDate, setSelectedEndDate] = useState<ISODate | null>(null);
+  const [isRemovingEndDate, setIsRemovingEndDate] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [hasUpdateError, setHasUpdateError] = useState(false);
+
+  const updateInFlight = useRef(false);
+
+  // Read once for the screen, so every edit measures "not in the future"
+  // against the same day.
+  const [today] = useState<ISODate>(() => getTodayLocalISODate());
 
   /** Stable, so the mount effect can depend on it and the delete can reuse it. */
   const readHistory = useCallback(async () => {
@@ -149,6 +182,57 @@ export default function HistoryScreen() {
     setHasDeleteError(false);
   };
 
+  const closeEditor = () => {
+    setRecordUnderEdit(null);
+    setSelectedEndDate(null);
+    setIsRemovingEndDate(false);
+    setHasUpdateError(false);
+  };
+
+  const openEditor = (record: PeriodRecord) => {
+    // Only one panel at a time, so a pending delete gives way rather than both
+    // being open on the same card.
+    setRecordPendingDelete(null);
+    setHasDeleteError(false);
+
+    setRecordUnderEdit(record);
+    // A record with no recorded end starts at its own start date: the earliest
+    // day it could possibly have finished.
+    setSelectedEndDate(record.endDate ?? record.startDate);
+    setIsRemovingEndDate(false);
+    setHasUpdateError(false);
+  };
+
+  const applyEndDate = async (endDate: ISODate | undefined) => {
+    if (updateInFlight.current || recordUnderEdit === null) {
+      return;
+    }
+
+    updateInFlight.current = true;
+    setIsUpdating(true);
+    setHasUpdateError(false);
+
+    try {
+      const db = await openAppDatabase();
+
+      await updatePeriodEndDate(db, { recordId: recordUnderEdit.id, endDate, today });
+
+      setRecords(await readHistory());
+      closeEditor();
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[history] could not update the period end date', error);
+      }
+
+      // The editor stays open with the error, so a rejected change is visible
+      // next to the record it was for and can be tried again.
+      setHasUpdateError(true);
+    } finally {
+      updateInFlight.current = false;
+      setIsUpdating(false);
+    }
+  };
+
   // The stack hides its header, so back has to be offered here.
   const backButton = (
     <Pressable
@@ -221,7 +305,29 @@ export default function HistoryScreen() {
                     </ThemedText>
                     <ThemedText type="small">{endLabel(record)}</ThemedText>
 
-                    {recordPendingDelete?.id === record.id ? (
+                    {recordUnderEdit?.id === record.id ? (
+                      <EndDateEditor
+                        record={record}
+                        today={today}
+                        selectedEndDate={selectedEndDate ?? record.startDate}
+                        onSelectEndDate={setSelectedEndDate}
+                        isRemoving={isRemovingEndDate}
+                        onAskToRemove={() => {
+                          setIsRemovingEndDate(true);
+                          setHasUpdateError(false);
+                        }}
+                        onCancelRemove={() => {
+                          setIsRemovingEndDate(false);
+                          setHasUpdateError(false);
+                        }}
+                        isUpdating={isUpdating}
+                        hasError={hasUpdateError}
+                        onCancel={closeEditor}
+                        onSave={() => applyEndDate(selectedEndDate ?? record.startDate)}
+                        onRemove={() => applyEndDate(undefined)}
+                        theme={theme}
+                      />
+                    ) : recordPendingDelete?.id === record.id ? (
                       <View style={styles.confirmation}>
                         <ThemedText type="small">Bu regl kaydını silmek istiyor musun?</ThemedText>
 
@@ -280,21 +386,35 @@ export default function HistoryScreen() {
                         </View>
                       </View>
                     ) : (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydını sil`}
-                        onPress={() => {
-                          setRecordPendingDelete(record);
-                          setHasDeleteError(false);
-                        }}
-                        style={({ pressed }) => [
-                          styles.deleteButton,
-                          pressed && styles.pressed,
-                        ]}>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          Sil
-                        </ThemedText>
-                      </Pressable>
+                      <View style={styles.rowActions}>
+                        {/* A period that is still running is finished from Home,
+                            not corrected here. */}
+                        {!record.isOngoing && (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydının bitiş tarihini düzenle`}
+                            onPress={() => openEditor(record)}
+                            style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              Düzenle
+                            </ThemedText>
+                          </Pressable>
+                        )}
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydını sil`}
+                          onPress={() => {
+                            closeEditor();
+                            setRecordPendingDelete(record);
+                            setHasDeleteError(false);
+                          }}
+                          style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            Sil
+                          </ThemedText>
+                        </Pressable>
+                      </View>
                     )}
                   </View>
                 ))}
@@ -304,6 +424,208 @@ export default function HistoryScreen() {
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/**
+ * Corrects one record's end date.
+ *
+ * A pair of day steppers rather than a native picker: no extra dependency, and
+ * the range it can reach is exactly the range the domain would accept, so the
+ * control cannot offer a date that saving would refuse.
+ */
+function EndDateEditor({
+  record,
+  today,
+  selectedEndDate,
+  onSelectEndDate,
+  isRemoving,
+  onAskToRemove,
+  onCancelRemove,
+  isUpdating,
+  hasError,
+  onCancel,
+  onSave,
+  onRemove,
+  theme,
+}: {
+  record: PeriodRecord;
+  today: ISODate;
+  selectedEndDate: ISODate;
+  onSelectEndDate: (date: ISODate) => void;
+  isRemoving: boolean;
+  onAskToRemove: () => void;
+  onCancelRemove: () => void;
+  isUpdating: boolean;
+  hasError: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+  onRemove: () => void;
+  theme: { text: string; background: string };
+}) {
+  const maxDate = maxSelectableEndDate(record.startDate, today);
+
+  const canGoBack = daysBetween(record.startDate, selectedEndDate) > 0;
+  const canGoForward = daysBetween(selectedEndDate, maxDate) > 0;
+
+  if (isRemoving) {
+    return (
+      <View style={styles.confirmation}>
+        <ThemedText type="small">Bitiş tarihini kaldırmak istiyor musun?</ThemedText>
+
+        <ThemedText type="small" themeColor="textSecondary">
+          Bu kayıt bitiş tarihi bilinmiyor olarak gösterilecek.
+        </ThemedText>
+
+        {hasError && (
+          <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+            {UPDATE_ERROR_MESSAGE}
+          </ThemedText>
+        )}
+
+        <View style={styles.confirmActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Vazgeç"
+            accessibilityState={{ disabled: isUpdating }}
+            disabled={isUpdating}
+            onPress={onCancelRemove}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              isUpdating && styles.disabled,
+              pressed && !isUpdating && styles.pressed,
+            ]}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Vazgeç
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Kaldır"
+            accessibilityState={{ disabled: isUpdating }}
+            disabled={isUpdating}
+            onPress={onRemove}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              { backgroundColor: theme.text },
+              isUpdating && styles.disabled,
+              pressed && !isUpdating && styles.pressed,
+            ]}>
+            <ThemedText type="smallBold" style={{ color: theme.background }}>
+              {isUpdating ? 'Kaldırılıyor...' : 'Kaldır'}
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.confirmation}>
+      <ThemedText type="smallBold">Bitiş tarihini düzenle</ThemedText>
+
+      <ThemedText type="small" themeColor="textSecondary">
+        Başlangıç: {formatDisplayDate(record.startDate)}
+      </ThemedText>
+
+      <View style={styles.dateBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Önceki gün"
+          accessibilityState={{ disabled: !canGoBack }}
+          disabled={!canGoBack}
+          onPress={() => onSelectEndDate(addDays(selectedEndDate, -1))}
+          style={({ pressed }) => [
+            styles.dayButton,
+            !canGoBack && styles.disabled,
+            pressed && canGoBack && styles.pressed,
+          ]}>
+          <ThemedText style={styles.dayButtonLabel}>‹</ThemedText>
+        </Pressable>
+
+        <ThemedText
+          accessibilityLabel={`Seçilen bitiş tarihi: ${formatDisplayDate(selectedEndDate)}`}
+          type="smallBold"
+          style={styles.selectedDate}>
+          {formatDisplayDate(selectedEndDate)}
+        </ThemedText>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sonraki gün"
+          accessibilityState={{ disabled: !canGoForward }}
+          disabled={!canGoForward}
+          onPress={() => onSelectEndDate(addDays(selectedEndDate, 1))}
+          style={({ pressed }) => [
+            styles.dayButton,
+            !canGoForward && styles.disabled,
+            pressed && canGoForward && styles.pressed,
+          ]}>
+          <ThemedText style={styles.dayButtonLabel}>›</ThemedText>
+        </Pressable>
+      </View>
+
+      {hasError && (
+        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+          {UPDATE_ERROR_MESSAGE}
+        </ThemedText>
+      )}
+
+      <View style={styles.confirmActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Vazgeç"
+          accessibilityState={{ disabled: isUpdating }}
+          disabled={isUpdating}
+          onPress={onCancel}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            isUpdating && styles.disabled,
+            pressed && !isUpdating && styles.pressed,
+          ]}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Vazgeç
+          </ThemedText>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Bitiş tarihini kaydet"
+          accessibilityState={{ disabled: isUpdating }}
+          disabled={isUpdating}
+          onPress={onSave}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            { backgroundColor: theme.text },
+            isUpdating && styles.disabled,
+            pressed && !isUpdating && styles.pressed,
+          ]}>
+          <ThemedText type="smallBold" style={{ color: theme.background }}>
+            {isUpdating ? 'Kaydediliyor...' : 'Kaydet'}
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      {/* Only offered when there is something to remove. */}
+      {record.endDate !== undefined && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Bitiş tarihini kaldır"
+          accessibilityState={{ disabled: isUpdating }}
+          disabled={isUpdating}
+          onPress={onAskToRemove}
+          style={({ pressed }) => [
+            styles.removeButton,
+            isUpdating && styles.disabled,
+            pressed && !isUpdating && styles.pressed,
+          ]}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Bitiş tarihini kaldır
+          </ThemedText>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -370,12 +692,44 @@ const styles = StyleSheet.create({
   endLabel: {
     marginTop: Spacing.two,
   },
-  deleteButton: {
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.four,
+    marginTop: Spacing.two,
+  },
+  rowAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingRight: Spacing.two,
+  },
+  dateBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  dayButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Spacing.two,
+  },
+  dayButtonLabel: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  selectedDate: {
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  removeButton: {
     minHeight: 44,
     justifyContent: 'center',
     alignSelf: 'flex-start',
-    marginTop: Spacing.two,
-    paddingRight: Spacing.three,
+    marginTop: Spacing.one,
   },
   confirmation: {
     marginTop: Spacing.three,

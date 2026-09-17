@@ -1,5 +1,6 @@
 import {
   MAX_CYCLE_LENGTH_DAYS,
+  MAX_PERIOD_DURATION_DAYS,
   MAX_PERIOD_LENGTH_DAYS,
   MIN_CYCLE_LENGTH_DAYS,
   MIN_PERIOD_LENGTH_DAYS,
@@ -15,15 +16,6 @@ import { daysBetween, isISODate } from '@/utils/date';
  * breaks, and never mutates, reorders or copies the input. No storage, no React
  * and no clock access, so results depend only on the values passed in.
  */
-
-/**
- * Longest span a single period record may cover, counting both end days.
- *
- * Its own rule, about one recorded period rather than the profile's average, so
- * it stays a separate constant even though it currently matches
- * `MAX_PERIOD_LENGTH_DAYS`.
- */
-const MAX_PERIOD_DURATION_DAYS = 20;
 
 function assertIntegerInRange(value: number, field: string, min: number, max: number): void {
   if (!Number.isInteger(value)) {

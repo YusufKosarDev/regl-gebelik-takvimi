@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import HistoryScreen from '@/app/(app)/history';
 import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
+import { getTodayLocalISODate } from '@/utils/today';
 
 // The database is faked. The use case, the repository contract and the ordering
 // rule stay real, so what the screen lists is what the app would really read.
@@ -19,9 +20,14 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
+jest.mock('@/utils/today', () => ({
+  getTodayLocalISODate: jest.fn(),
+}));
+
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const useRouterMock = useRouter as unknown as jest.Mock;
+const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 
 let back: jest.Mock;
 
@@ -53,6 +59,9 @@ beforeEach(() => {
   back = jest.fn();
   useRouterMock.mockReset();
   useRouterMock.mockReturnValue({ back, push: jest.fn(), replace: jest.fn() });
+
+  getTodayMock.mockReset();
+  getTodayMock.mockReturnValue('2026-09-25' as ISODate);
 });
 
 async function renderScreen() {
@@ -284,14 +293,16 @@ describe('HistoryScreen scope', () => {
     );
   });
 
-  it('offers back and one delete per record, and nothing else', async () => {
+  it('offers back, and edit plus delete per record, and nothing else', async () => {
     const { queryAllByRole } = await renderScreen();
 
+    // The fixture's newest record is ongoing, so it offers no edit.
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
       'Geri',
       '17 Eylül 2026 regl kaydını sil',
+      '2 Eylül 2026 regl kaydının bitiş tarihini düzenle',
       '2 Eylül 2026 regl kaydını sil',
     ]);
   });
@@ -309,11 +320,12 @@ describe('HistoryScreen scope', () => {
     expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no way to edit or add a record', async () => {
+  it('offers no way to add a record or change its start date', async () => {
     const { queryByText } = await renderScreen();
 
-    // Removing a wrong entry is offered; changing or adding one is not.
-    for (const forbidden of ['Düzenle', 'Kaydet', 'Ekle', 'Değiştir']) {
+    // Correcting an end date and removing a record are offered; adding one, or
+    // moving when a period began, are not.
+    for (const forbidden of ['Ekle', 'Yeni kayıt', 'Başlangıcı düzenle']) {
       expect(queryByText(forbidden)).toBeNull();
     }
   });
@@ -598,5 +610,615 @@ describe('HistoryScreen delete failure', () => {
     await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
 
     expect(screen.queryByText('Kayıt silinemedi.')).toBeNull();
+  });
+});
+
+describe('HistoryScreen edit availability', () => {
+  it('offers edit and delete on a record with no recorded end', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')).toBeTruthy();
+    expect(getByLabelText('2 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+
+  it('offers edit and delete on a closed record', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')).toBeTruthy();
+    expect(getByLabelText('2 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+
+  it('offers only delete on a record that is still running', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-17', isOngoing: true }])
+    );
+
+    const { getByLabelText, queryByLabelText } = await renderScreen();
+
+    // Finishing a running period is Home's job, not a correction.
+    expect(queryByLabelText('17 Eylül 2026 regl kaydının bitiş tarihini düzenle')).toBeNull();
+    expect(getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen edit panel', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+  });
+
+  it('opens with the record it was asked about', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByText('Bitiş tarihini düzenle')).toBeTruthy();
+    expect(screen.getByText('Başlangıç: 2 Eylül 2026')).toBeTruthy();
+  });
+
+  it('starts on the recorded end date', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 7 Eylül 2026')).toBeTruthy();
+  });
+
+  it('starts on the start date when no end was recorded', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 2 Eylül 2026')).toBeTruthy();
+  });
+
+  it('writes nothing while only editing', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('HistoryScreen edit date navigation', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+  });
+
+  async function openEditor(startDate = '2026-09-02', endDate?: string) {
+    repository.loadCycleProfile.mockResolvedValue(profile([{ id: 'a', startDate, endDate }]));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText(
+        `${startDate === '2026-09-02' ? '2 Eylül 2026' : formatted(startDate)} regl kaydının bitiş tarihini düzenle`
+      )
+    );
+
+    return screen;
+  }
+
+  function formatted(iso: string): string {
+    const [, month, day] = iso.split('-');
+    const months = [
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık',
+    ];
+    return `${Number(day)} ${months[Number(month) - 1]} ${iso.slice(0, 4)}`;
+  }
+
+  it('moves a day forward', async () => {
+    const screen = await openEditor();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 3 Eylül 2026')).toBeTruthy();
+  });
+
+  it('moves a day back', async () => {
+    const screen = await openEditor('2026-09-02', '2026-09-07');
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 6 Eylül 2026')).toBeTruthy();
+  });
+
+  it('rolls over a month boundary', async () => {
+    getTodayMock.mockReturnValue('2026-10-10' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-28', endDate: '2026-09-30' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('28 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 1 Ekim 2026')).toBeTruthy();
+  });
+
+  it('rolls over a year boundary', async () => {
+    getTodayMock.mockReturnValue('2027-01-10' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-12-29', endDate: '2026-12-31' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('29 Aralık 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 1 Ocak 2027')).toBeTruthy();
+  });
+
+  it('cannot go earlier than the start date', async () => {
+    const screen = await openEditor();
+
+    // It opens on the start date, so back is already unavailable.
+    expect(screen.getByLabelText('Önceki gün').props.accessibilityState.disabled).toBe(true);
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 2 Eylül 2026')).toBeTruthy();
+  });
+
+  it('cannot go past today', async () => {
+    getTodayMock.mockReturnValue('2026-09-04' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-04' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(true);
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 4 Eylül 2026')).toBeTruthy();
+  });
+
+  it('cannot go past the longest span the domain allows', async () => {
+    // Today is far away, so the duration limit is what stops it: 2 September
+    // plus 19 days is 21 September.
+    getTodayMock.mockReturnValue('2026-12-01' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-21' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('allows stepping up to that limit', async () => {
+    getTodayMock.mockReturnValue('2026-12-01' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-20' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(false);
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 21 Eylül 2026')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen edit save', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  it('saves the date that was picked', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords[0]).toEqual({
+      id: 'a',
+      startDate: '2026-09-02',
+      endDate: '2026-09-04',
+      isOngoing: false,
+    });
+  });
+
+  it('closes the editor and shows the new date', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02' }]))
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02' }]))
+      .mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-03' }]));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    expect(screen.queryByText('Bitiş tarihini düzenle')).toBeNull();
+    expect(screen.getByText('3 Eylül 2026')).toBeTruthy();
+    expect(screen.queryByText('Bitiş tarihi bilinmiyor')).toBeNull();
+  });
+
+  it('leaves the ordering alone', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(
+        profile([
+          { id: 'old', startDate: '2026-09-02' },
+          { id: 'new', startDate: '2026-09-17', endDate: '2026-09-20' },
+        ])
+      )
+      .mockResolvedValueOnce(
+        profile([
+          { id: 'old', startDate: '2026-09-02' },
+          { id: 'new', startDate: '2026-09-17', endDate: '2026-09-20' },
+        ])
+      )
+      .mockResolvedValue(
+        profile([
+          { id: 'old', startDate: '2026-09-02', endDate: '2026-09-03' },
+          { id: 'new', startDate: '2026-09-17', endDate: '2026-09-20' },
+        ])
+      );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    expect(screen.queryAllByTestId(/^history-record-/).map((n) => n.props.testID)).toEqual([
+      'history-record-new',
+      'history-record-old',
+    ]);
+  });
+
+  it('saves once however many times Kaydet is pressed', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    expect(screen.queryByLabelText('Bitiş tarihini kaydet')).toBeNull();
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HistoryScreen edit cancel', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+  });
+
+  it('closes without writing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(screen.queryByText('Bitiş tarihini düzenle')).toBeNull();
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(screen.getByText('7 Eylül 2026')).toBeTruthy();
+  });
+
+  it('forgets the date that was picked', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 7 Eylül 2026')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen removing an end date', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  async function openRemove() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaldır'));
+
+    return screen;
+  }
+
+  it('is offered only when there is one to remove', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.queryByLabelText('Bitiş tarihini kaldır')).toBeNull();
+  });
+
+  it('asks first', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const screen = await openRemove();
+
+    expect(screen.getByText('Bitiş tarihini kaldırmak istiyor musun?')).toBeTruthy();
+    expect(
+      screen.getByText('Bu kayıt bitiş tarihi bilinmiyor olarak gösterilecek.')
+    ).toBeTruthy();
+  });
+
+  it('writes nothing while only asking', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    await openRemove();
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('goes back to the editor on Vazgeç', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const screen = await openRemove();
+
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(screen.getByText('Bitiş tarihini düzenle')).toBeTruthy();
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('clears the end date without making the record ongoing', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const screen = await openRemove();
+
+    await fireEvent.press(screen.getByLabelText('Kaldır'));
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords[0]).toEqual({
+      id: 'a',
+      startDate: '2026-09-02',
+      isOngoing: false,
+    });
+  });
+
+  it('shows the record as end unknown, not as running', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }]))
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }]))
+      .mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-02' }]));
+
+    const screen = await openRemove();
+
+    await fireEvent.press(screen.getByLabelText('Kaldır'));
+
+    expect(screen.getByText('Bitiş tarihi bilinmiyor')).toBeTruthy();
+    expect(screen.queryByText('Devam ediyor')).toBeNull();
+    expect(screen.queryByText('7 Eylül 2026')).toBeNull();
+  });
+});
+
+describe('HistoryScreen edit failure', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+  });
+
+  async function failToSave() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    return screen;
+  }
+
+  it('reports it with its own message', async () => {
+    const screen = await failToSave();
+
+    expect(screen.getByText('Kayıt güncellenemedi.')).toBeTruthy();
+    expect(screen.queryByText('Kayıtlar yüklenemedi.')).toBeNull();
+    expect(screen.queryByText('Kayıt silinemedi.')).toBeNull();
+  });
+
+  it('announces it to assistive technology', async () => {
+    const screen = await failToSave();
+
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('keeps the editor open so a retry is possible', async () => {
+    const screen = await failToSave();
+
+    expect(screen.getByLabelText('Bitiş tarihini kaydet')).toBeTruthy();
+    expect(screen.getByLabelText('Seçilen bitiş tarihi: 3 Eylül 2026')).toBeTruthy();
+  });
+
+  it('retries on a second press', async () => {
+    const screen = await failToSave();
+
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the error when the editor is closed', async () => {
+    const screen = await failToSave();
+
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.queryByText('Kayıt güncellenemedi.')).toBeNull();
+  });
+});
+
+describe('HistoryScreen edit and delete together', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+  });
+
+  it('shows only the editor on the card being edited', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    // That card's own actions give way to the editor, so the two can never be
+    // open on the same record at once.
+    expect(screen.queryByLabelText('2 Eylül 2026 regl kaydını sil')).toBeNull();
+    expect(screen.getByText('Bitiş tarihini düzenle')).toBeTruthy();
+  });
+
+  it('closes the editor when another card starts a delete', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' },
+        { id: 'b', startDate: '2026-09-17', endDate: '2026-09-20' },
+      ])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+
+    expect(screen.getByText('Bu regl kaydını silmek istiyor musun?')).toBeTruthy();
+    expect(screen.queryByText('Bitiş tarihini düzenle')).toBeNull();
+  });
+
+  it('closes the delete confirmation when an edit is started', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByText('Bitiş tarihini düzenle')).toBeTruthy();
+    expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
   });
 });

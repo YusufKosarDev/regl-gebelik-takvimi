@@ -17,3 +17,11 @@ export const MAX_CYCLE_LENGTH_DAYS = 90;
 
 export const MIN_PERIOD_LENGTH_DAYS = 1;
 export const MAX_PERIOD_LENGTH_DAYS = 20;
+
+/**
+ * Longest span a single recorded period may cover, counting both end days.
+ *
+ * Its own rule, about one record rather than the profile's average, so it stays
+ * a separate constant even though it currently matches `MAX_PERIOD_LENGTH_DAYS`.
+ */
+export const MAX_PERIOD_DURATION_DAYS = 20;
