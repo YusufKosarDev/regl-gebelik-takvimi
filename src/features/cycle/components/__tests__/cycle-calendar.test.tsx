@@ -1,4 +1,4 @@
-import { render, within } from '@testing-library/react-native';
+import { fireEvent, render, within } from '@testing-library/react-native';
 
 import { CycleCalendar } from '../cycle-calendar';
 
@@ -515,5 +515,210 @@ describe('CycleCalendar today does not replace the cycle state', () => {
     );
 
     expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+});
+
+describe('CycleCalendar without onSelectDay', () => {
+  it('makes no day pressable', async () => {
+    const screen = await renderCalendar();
+
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('keeps the day accessible as before', async () => {
+    const screen = await renderCalendar();
+
+    const cell = screen.getByTestId('calendar-day-2026-09-17');
+
+    expect(cell.props.accessible).toBe(true);
+    expect(cell.props.accessibilityLabel).toBe('17 Eylül 2026');
+    expect(cell.props.accessibilityRole).toBeUndefined();
+  });
+
+  it('marks nothing as selected even with a selectedDate', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} selectedDate={'2026-09-17' as ISODate} />
+    );
+
+    // Still not a button, but the label and state do reflect the selection.
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
+      '17 Eylül 2026, seçili'
+    );
+  });
+});
+
+describe('CycleCalendar with onSelectDay', () => {
+  function renderSelectable(selectedDate: ISODate | null = null) {
+    const onSelectDay = jest.fn();
+    const screen = render(
+      <CycleCalendar
+        grid={septemberGrid}
+        today={'2026-09-17' as ISODate}
+        selectedDate={selectedDate}
+        onSelectDay={onSelectDay}
+      />
+    );
+
+    return { screen, onSelectDay };
+  }
+
+  it('makes every real day a button', async () => {
+    const { screen } = renderSelectable();
+    const rendered = await screen;
+
+    expect(rendered.queryAllByRole('button')).toHaveLength(30);
+  });
+
+  it('leaves the padding cells alone', async () => {
+    const { screen } = renderSelectable();
+    const rendered = await screen;
+
+    for (const empty of rendered.queryAllByTestId(/^calendar-empty-/)) {
+      expect(empty.props.accessibilityRole).toBeUndefined();
+      expect(empty.props.onClick).toBeUndefined();
+      expect(empty.props.accessibilityLabel).toBeUndefined();
+    }
+  });
+
+  it('hands back the day that was pressed', async () => {
+    const { screen, onSelectDay } = renderSelectable();
+    const rendered = await screen;
+
+    await fireEvent.press(rendered.getByTestId('calendar-day-2026-09-17'));
+
+    expect(onSelectDay).toHaveBeenCalledTimes(1);
+    expect(onSelectDay).toHaveBeenCalledWith(dayOn('2026-09-17'));
+  });
+
+  it('hands back a different day', async () => {
+    const { screen, onSelectDay } = renderSelectable();
+    const rendered = await screen;
+
+    await fireEvent.press(rendered.getByTestId('calendar-day-2026-09-03'));
+
+    expect(onSelectDay).toHaveBeenCalledWith(dayOn('2026-09-03'));
+  });
+
+  it('reports which day is selected', async () => {
+    const { screen } = renderSelectable('2026-09-17' as ISODate);
+    const rendered = await screen;
+
+    expect(rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected).toBe(
+      true
+    );
+    expect(rendered.getByTestId('calendar-day-2026-09-16').props.accessibilityState.selected).toBe(
+      false
+    );
+  });
+
+  it('says so in the accessibility label', async () => {
+    const { screen } = renderSelectable('2026-09-03' as ISODate);
+    const rendered = await screen;
+
+    expect(rendered.getByTestId('calendar-day-2026-09-03').props.accessibilityLabel).toBe(
+      '3 Eylül 2026, Regl, seçili'
+    );
+  });
+
+  it('reads today and selected together', async () => {
+    const { screen } = renderSelectable('2026-09-17' as ISODate);
+    const rendered = await screen;
+
+    expect(rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
+      '17 Eylül 2026, bugün, seçili'
+    );
+    expect(rendered.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+  });
+
+  it('keeps the today label when another day is selected', async () => {
+    const { screen } = renderSelectable('2026-09-03' as ISODate);
+    const rendered = await screen;
+
+    // Today keeps its own mark and label; only "seçili" moves.
+    expect(rendered.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+    expect(rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
+      '17 Eylül 2026, bugün'
+    );
+    expect(
+      rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected
+    ).toBe(false);
+  });
+});
+
+describe('CycleCalendar selection keeps the cycle markers', () => {
+  async function renderSelected(date: string) {
+    return render(
+      <CycleCalendar
+        grid={septemberGrid}
+        today={'2026-09-17' as ISODate}
+        selectedDate={date as ISODate}
+        onSelectDay={jest.fn()}
+      />
+    );
+  }
+
+  it('keeps the period marker', async () => {
+    const screen = await renderSelected('2026-09-03');
+
+    expect(markersOn(screen, '2026-09-03')).toEqual(['R']);
+  });
+
+  it('keeps the ovulation marker', async () => {
+    const screen = await renderSelected('2026-09-14');
+
+    expect(markersOn(screen, '2026-09-14')).toEqual(['Y']);
+  });
+
+  it('keeps the raised fertility marker', async () => {
+    const screen = await renderSelected('2026-09-11');
+
+    expect(markersOn(screen, '2026-09-11')).toEqual(['○']);
+  });
+
+  it('keeps the predicted period marker', async () => {
+    const screen = await renderSelected('2026-09-29');
+
+    expect(markersOn(screen, '2026-09-29')).toEqual(['≈']);
+    expect(screen.getByTestId('calendar-day-2026-09-29').props.accessibilityLabel).toBe(
+      '29 Eylül 2026, sonraki regl başlangıcı tahmini, seçili'
+    );
+  });
+
+  it('still shows the day number', async () => {
+    const screen = await renderSelected('2026-09-17');
+
+    expect(within(screen.getByTestId('calendar-day-2026-09-17')).getByText('17')).toBeTruthy();
+  });
+});
+
+describe('CycleCalendar selection purity', () => {
+  it('does not mutate the grid', async () => {
+    const grid = buildCycleCalendarGrid(buildCycleCalendarMonth(profile, 2026, 9));
+    const snapshot = JSON.parse(JSON.stringify(grid));
+
+    const screen = await render(
+      <CycleCalendar
+        grid={grid}
+        selectedDate={'2026-09-17' as ISODate}
+        onSelectDay={jest.fn()}
+      />
+    );
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
+
+    expect(grid).toEqual(snapshot);
+  });
+
+  it('does not select anything by itself', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} onSelectDay={jest.fn()} />
+    );
+
+    for (const day of september.days) {
+      expect(
+        screen.getByTestId(`calendar-day-${day.date}`).props.accessibilityState.selected
+      ).toBe(false);
+    }
   });
 });

@@ -47,7 +47,7 @@ export function getFertilityLevelLabel(level: FertilityLevel | null): string {
  */
 export function getCalendarDayAccessibilityLabel(
   day: CycleCalendarDay,
-  options: { readonly isToday?: boolean } = {}
+  options: { readonly isToday?: boolean; readonly isSelected?: boolean } = {}
 ): string {
   const parts: string[] = [formatDisplayDate(day.date)];
 
@@ -66,6 +66,10 @@ export function getCalendarDayAccessibilityLabel(
   // Last, so the date and what the domain says about it are heard first.
   if (options.isToday === true) {
     parts.push('bugün');
+  }
+
+  if (options.isSelected === true) {
+    parts.push('seçili');
   }
 
   return parts.join(', ');

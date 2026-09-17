@@ -103,11 +103,12 @@ describe('HomeScreen with a saved profile', () => {
   });
 
   it("shows today's date", async () => {
-    const { getAllByText, getByText } = await renderScreen();
+    const { getAllByText } = await renderScreen();
 
     // Twice on purpose: the summary header, and the label inside today's square.
     expect(getAllByText('Bugün')).toHaveLength(2);
-    expect(getByText('17 Eylül 2026')).toBeTruthy();
+    // Twice too: the summary date, and the selected day, which starts on today.
+    expect(getAllByText('17 Eylül 2026')).toHaveLength(2);
   });
 
   it('shows the cycle day', async () => {
@@ -310,10 +311,16 @@ describe('HomeScreen scope', () => {
 
     const { queryAllByRole } = await renderScreen();
 
-    // Nothing else on the screen is pressable: no day cells, no summary rows.
-    expect(
-      queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
-    ).toEqual(['Önceki ay', 'Sonraki ay']);
+    // The two month steps plus one button per real day of the month, and
+    // nothing else: no summary rows, no padding cells.
+    const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
+
+    expect(labels).toHaveLength(32);
+    expect(labels.filter((label) => label === 'Önceki ay' || label === 'Sonraki ay')).toEqual([
+      'Önceki ay',
+      'Sonraki ay',
+    ]);
+    expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(1);
   });
 });
 
@@ -378,10 +385,10 @@ describe('HomeScreen calendar section', () => {
   });
 
   it('keeps the summary alongside the calendar', async () => {
-    const { getByText } = await renderScreen();
+    const { getByText, getAllByText } = await renderScreen();
 
-    expect(getByText('17 Eylül 2026')).toBeTruthy();
-    expect(getByText('17. gün')).toBeTruthy();
+    expect(getAllByText('17 Eylül 2026').length).toBeGreaterThan(0);
+    expect(getAllByText('17. gün').length).toBeGreaterThan(0);
     expect(getByText('Takvim')).toBeTruthy();
   });
 
@@ -426,12 +433,18 @@ describe('HomeScreen calendar section', () => {
     expect(queryByText('●')).toBeNull();
   });
 
-  it('offers no day selection', async () => {
-    const { queryAllByRole, getByTestId } = await renderScreen();
+  it('makes every real day pressable and no padding cell', async () => {
+    const { queryAllByRole, getByTestId, queryAllByTestId } = await renderScreen();
 
-    // The month steps are the only controls; a day cell is not pressable.
-    expect(queryAllByRole('button')).toHaveLength(2);
-    expect(getByTestId('calendar-day-2026-09-17').props.onClick).toBeUndefined();
+    expect(getByTestId('calendar-day-2026-09-17').props.accessibilityRole).toBe('button');
+
+    for (const empty of queryAllByTestId(/^calendar-empty-/)) {
+      expect(empty.props.accessibilityRole).toBeUndefined();
+      expect(empty.props.onClick).toBeUndefined();
+    }
+
+    // 30 days plus the two month steps.
+    expect(queryAllByRole('button')).toHaveLength(32);
   });
 });
 
@@ -517,8 +530,9 @@ describe('HomeScreen today highlight', () => {
   it('says so in the accessibility label', async () => {
     const { getByTestId } = await renderScreen();
 
+    // Today starts out selected, so the label says both.
     expect(getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
-      '17 Eylül 2026, bugün'
+      '17 Eylül 2026, bugün, seçili'
     );
   });
 
@@ -531,7 +545,7 @@ describe('HomeScreen today highlight', () => {
     expect(queryByTestId('calendar-today-2026-09-17')).toBeNull();
     // The cycle state survives the highlight.
     expect(getByTestId('calendar-day-2026-09-14').props.accessibilityLabel).toBe(
-      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün'
+      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün, seçili'
     );
   });
 
@@ -791,5 +805,236 @@ describe('HomeScreen month navigation absence', () => {
     const { queryByLabelText } = await renderScreen();
 
     expect(queryByLabelText('Önceki ay')).toBeNull();
+  });
+});
+
+describe('HomeScreen selected day', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('shows the section', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Seçilen gün')).toBeTruthy();
+  });
+
+  it('starts on today', async () => {
+    const { getByTestId, getByText } = await renderScreen();
+
+    expect(getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected).toBe(true);
+    expect(getByText('Döngü günü: 17. gün')).toBeTruthy();
+    expect(getByText('Döngü evresi: Luteal')).toBeTruthy();
+    expect(getByText('Doğurganlık tahmini: Düşük')).toBeTruthy();
+  });
+
+  it('follows a tap onto another day', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(screen.getByText('11 Eylül 2026')).toBeTruthy();
+    expect(screen.getByText('Döngü günü: 11. gün')).toBeTruthy();
+    expect(screen.getByText('Döngü evresi: Foliküler')).toBeTruthy();
+    expect(screen.getByText('Doğurganlık tahmini: Yüksek')).toBeTruthy();
+  });
+
+  it('moves the selection mark with the tap', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(screen.getByTestId('calendar-day-2026-09-11').props.accessibilityState.selected).toBe(
+      true
+    );
+    expect(screen.getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected).toBe(
+      false
+    );
+  });
+
+  it('keeps the today mark when another day is picked', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(screen.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+  });
+
+  it('shows the predicted period note on the predicted day', async () => {
+    const screen = await renderScreen();
+
+    // The legend already carries this wording for the same mark, so the detail
+    // note is the second occurrence rather than the only one.
+    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(1);
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-29'));
+
+    // Twice now: the summary's predicted date and the selected day's date.
+    expect(screen.getAllByText('29 Eylül 2026')).toHaveLength(2);
+    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(2);
+  });
+
+  it('shows no predicted note on an ordinary day', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-20'));
+
+    // Only the legend's row remains.
+    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(1);
+  });
+});
+
+describe('HomeScreen selected day before the first record', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile(['2026-09-10']));
+  });
+
+  it('reports an unknown day', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-01'));
+
+    expect(screen.getByText('1 Eylül 2026')).toBeTruthy();
+    expect(screen.getByText('Döngü günü: Henüz başlamadı')).toBeTruthy();
+    expect(screen.getByText('Döngü evresi: Bilinmiyor')).toBeTruthy();
+    expect(screen.getByText('Doğurganlık tahmini: Bilinmiyor')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen selection across months', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('clears the selection when the month changes', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    expect(screen.getByText('Bir gün seç.')).toBeTruthy();
+  });
+
+  it('leaves no stale date behind', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getAllByText('17 Eylül 2026')).toHaveLength(2);
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    // Only the summary still names it; the selected card does not.
+    expect(screen.getAllByText('17 Eylül 2026')).toHaveLength(1);
+    expect(screen.queryByText('Döngü günü: 17. gün')).toBeNull();
+  });
+
+  it('marks nothing as selected in another month', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    for (const cell of screen.queryAllByTestId(/^calendar-day-/)) {
+      expect(cell.props.accessibilityState.selected).toBe(false);
+    }
+  });
+
+  it('accepts a pick in the new month', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-10-02'));
+
+    expect(screen.getByText('2 Ekim 2026')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-10-02').props.accessibilityState.selected).toBe(
+      true
+    );
+  });
+
+  it('selects today again on the way back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-10-02'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+
+    expect(screen.getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected).toBe(
+      true
+    );
+    expect(screen.getByText('Döngü günü: 17. gün')).toBeTruthy();
+    expect(screen.queryByText('2 Ekim 2026')).toBeNull();
+  });
+
+  it('says to pick a day in a month without today', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+
+    expect(screen.getByText('Bir gün seç.')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen selection leaves the rest alone', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('does not change the summary', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
+
+    expect(screen.getByText('Döngü günü')).toBeTruthy();
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Luteal')).toBeTruthy();
+    expect(screen.getByText(FERTILITY_DISCLAIMER)).toBeTruthy();
+  });
+
+  it('keeps the legend', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
+
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+    expect(
+      screen.getByText('Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.')
+    ).toBeTruthy();
+  });
+
+  it('reads nothing from the database', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-10-02'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+    expect(getTodayMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HomeScreen selected day absence', () => {
+  it('shows no selected card while loading', async () => {
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const { queryByText } = await render(<HomeScreen />);
+
+    expect(queryByText('Seçilen gün')).toBeNull();
+  });
+
+  it('shows no selected card when there is no profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Seçilen gün')).toBeNull();
+    expect(queryByText('Bir gün seç.')).toBeNull();
+  });
+
+  it('shows no selected card when loading fails', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('corrupt row'));
+
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Seçilen gün')).toBeNull();
   });
 });

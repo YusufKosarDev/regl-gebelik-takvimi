@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CalendarGridCell, CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
@@ -22,6 +22,12 @@ type CycleCalendarProps = {
    * nothing is marked as today.
    */
   readonly today?: ISODate;
+  readonly selectedDate?: ISODate | null;
+  /**
+   * Left out, the days are not pressable at all rather than pressable and
+   * inert, so a screen reader never offers an action that does nothing.
+   */
+  readonly onSelectDay?: (day: CycleCalendarDay) => void;
 };
 
 /**
@@ -66,7 +72,7 @@ const PREDICTED_MARKER = '≈';
  * `grid.weekdayLabels` and `grid.cells` and lays them out, so the picture can
  * never disagree with the model behind it.
  */
-export function CycleCalendar({ grid, today }: CycleCalendarProps) {
+export function CycleCalendar({ grid, today, selectedDate, onSelectDay }: CycleCalendarProps) {
   return (
     <View style={styles.calendar}>
       <View style={styles.row}>
@@ -81,7 +87,14 @@ export function CycleCalendar({ grid, today }: CycleCalendarProps) {
 
       <View style={styles.row}>
         {grid.cells.map((cell, index) => (
-          <GridCell key={cellKey(cell, index)} cell={cell} index={index} today={today} />
+          <GridCell
+            key={cellKey(cell, index)}
+            cell={cell}
+            index={index}
+            today={today}
+            selectedDate={selectedDate}
+            onSelectDay={onSelectDay}
+          />
         ))}
       </View>
     </View>
@@ -96,69 +109,123 @@ function GridCell({
   cell,
   index,
   today,
+  selectedDate,
+  onSelectDay,
 }: {
   cell: CalendarGridCell;
   index: number;
   today?: ISODate;
+  selectedDate?: ISODate | null;
+  onSelectDay?: (day: CycleCalendarDay) => void;
 }) {
   if (cell.kind === 'empty') {
     // Holds the column open and nothing else: no number, and no accessible node
-    // for a screen reader to stop on. Padding is never today.
+    // for a screen reader to stop on. Padding is never today, never selected and
+    // never pressable.
     return <View testID={`calendar-empty-${index}`} style={styles.dayCell} />;
   }
 
-  return <DayCell day={cell.day} isToday={today === cell.day.date} />;
+  return (
+    <DayCell
+      day={cell.day}
+      isToday={today === cell.day.date}
+      isSelected={selectedDate === cell.day.date}
+      onSelectDay={onSelectDay}
+    />
+  );
 }
 
-function DayCell({ day, isToday }: { day: CycleCalendarDay; isToday: boolean }) {
+function DayCell({
+  day,
+  isToday,
+  isSelected,
+  onSelectDay,
+}: {
+  day: CycleCalendarDay;
+  isToday: boolean;
+  isSelected: boolean;
+  onSelectDay?: (day: CycleCalendarDay) => void;
+}) {
   const theme = useTheme();
   const state = resolveDayState(day);
   const marker = STATE_MARKERS[state];
 
-  return (
-    // The ring sits on the outer cell so it never competes with the fill or
-    // border the day's cycle state already uses on the box inside.
+  const label = getCalendarDayAccessibilityLabel(day, { isToday, isSelected });
+
+  const box = (
     <View
       testID={isToday ? `calendar-today-${day.date}` : undefined}
-      style={[styles.dayCell, isToday && { borderWidth: 1, borderColor: theme.textSecondary }]}>
-      <View
-        accessible
-        accessibilityLabel={getCalendarDayAccessibilityLabel(day, { isToday })}
-        testID={`calendar-day-${day.date}`}
+      style={[
+        styles.dayBox,
+        state === 'menstrual' && { backgroundColor: theme.backgroundSelected },
+        state === 'ovulatory' && { borderWidth: 1, borderColor: theme.text },
+        state === 'peak' && { borderWidth: 1, borderColor: theme.textSecondary },
+        state === 'elevated' && { backgroundColor: theme.backgroundElement },
+      ]}>
+      <ThemedText
+        type="small"
         style={[
-          styles.dayBox,
-          state === 'menstrual' && { backgroundColor: theme.backgroundSelected },
-          state === 'ovulatory' && { borderWidth: 1, borderColor: theme.text },
-          state === 'peak' && { borderWidth: 1, borderColor: theme.textSecondary },
-          state === 'elevated' && { backgroundColor: theme.backgroundElement },
+          styles.dayNumber,
+          (state === 'menstrual' || state === 'ovulatory') && styles.emphasised,
+          isSelected && styles.selectedNumber,
         ]}>
-        <ThemedText
-          type="small"
-          style={[styles.dayNumber, (state === 'menstrual' || state === 'ovulatory') && styles.emphasised]}>
-          {getDayOfMonth(day.date)}
-        </ThemedText>
+        {getDayOfMonth(day.date)}
+      </ThemedText>
 
-        <View style={styles.markerRow}>
-          {marker !== '' && (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
-              {marker}
-            </ThemedText>
-          )}
+      <View style={styles.markerRow}>
+        {marker !== '' && (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
+            {marker}
+          </ThemedText>
+        )}
 
-          {day.isPredictedPeriodStart && (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
-              {PREDICTED_MARKER}
-            </ThemedText>
-          )}
-        </View>
-
-        {isToday && (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
-            {TODAY_LABEL}
+        {day.isPredictedPeriodStart && (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
+            {PREDICTED_MARKER}
           </ThemedText>
         )}
       </View>
+
+      {isToday && (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
+          {TODAY_LABEL}
+        </ThemedText>
+      )}
     </View>
+  );
+
+  // Both rings sit on the outer cell so neither competes with the fill or border
+  // the day's cycle state already uses on the box inside. Selection is the
+  // heavier of the two and wins the ring; today keeps its written label, so a
+  // day that is both stays readable as both.
+  const outerStyle = [
+    styles.dayCell,
+    isToday && { borderWidth: 1, borderColor: theme.textSecondary },
+    isSelected && { borderWidth: 2, borderColor: theme.text },
+  ];
+
+  if (onSelectDay === undefined) {
+    return (
+      <View
+        accessible
+        accessibilityLabel={label}
+        testID={`calendar-day-${day.date}`}
+        style={outerStyle}>
+        {box}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: isSelected }}
+      testID={`calendar-day-${day.date}`}
+      onPress={() => onSelectDay(day)}
+      style={({ pressed }) => [...outerStyle, pressed && styles.pressed]}>
+      {box}
+    </Pressable>
   );
 }
 
@@ -215,5 +282,12 @@ const styles = StyleSheet.create({
   todayLabel: {
     fontSize: 9,
     lineHeight: 11,
+  },
+  selectedNumber: {
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

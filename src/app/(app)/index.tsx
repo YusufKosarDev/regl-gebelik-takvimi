@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
+import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
@@ -16,9 +17,27 @@ import {
 } from '@/features/cycle/presentation/cycle-labels';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+
+/**
+ * The selected day's rows, read straight off the day the calendar already holds.
+ *
+ * No domain function is called again here: `CycleCalendarDay` carries everything
+ * this card shows, so the card and the square it came from cannot disagree.
+ */
+function selectedDayRows(day: CycleCalendarDay): { label: string; value: string }[] {
+  return [
+    {
+      label: 'Döngü günü',
+      value: day.cycleDay === null ? 'Henüz başlamadı' : `${day.cycleDay}. gün`,
+    },
+    { label: 'Döngü evresi', value: getCyclePhaseLabel(day.phase) },
+    { label: 'Doğurganlık tahmini', value: getFertilityLevelLabel(day.fertilityLevel) },
+  ];
+}
 
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
@@ -48,6 +67,11 @@ export default function HomeScreen() {
   // so it needs no second initialisation once the data arrives. Session-only:
   // a restart opens on the current month again.
   const [monthOffset, setMonthOffset] = useState(0);
+
+  // The date the person tapped, not the day object: the object belongs to one
+  // month's grid, so keeping the date lets the selection be resolved against
+  // whichever month is on screen and fall away by itself when it is not there.
+  const [pickedDate, setPickedDate] = useState<ISODate | null>(null);
 
   useEffect(() => {
     // Guards against setting state after the screen is gone, e.g. when the
@@ -138,6 +162,25 @@ export default function HomeScreen() {
 
   const canGoBack = canShiftYearMonth(year, month, -1);
   const canGoForward = canShiftYearMonth(year, month, 1);
+
+  const findDay = (date: ISODate | null): CycleCalendarDay | null => {
+    if (date === null) {
+      return null;
+    }
+
+    for (const cell of calendarGrid.cells) {
+      if (cell.kind === 'day' && cell.day.date === date) {
+        return cell.day;
+      }
+    }
+
+    return null;
+  };
+
+  // A pick only stands while its month is on screen; otherwise the month falls
+  // back to today when it holds today, and to nothing when it does not. That is
+  // what clears a stale selection on a month change, with no reset to forget.
+  const selectedDay = findDay(pickedDate) ?? findDay(dashboard.today);
 
   const rows: { label: string; value: string; note?: string }[] = [
     {
@@ -243,7 +286,42 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
 
-              <CycleCalendar grid={calendarGrid} today={dashboard.today} />
+              <CycleCalendar
+                grid={calendarGrid}
+                today={dashboard.today}
+                selectedDate={selectedDay?.date ?? null}
+                onSelectDay={(day) => setPickedDate(day.date)}
+              />
+
+              <View style={styles.selectedSection}>
+                <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
+                  Seçilen gün
+                </ThemedText>
+
+                {selectedDay === null ? (
+                  <ThemedText themeColor="textSecondary">Bir gün seç.</ThemedText>
+                ) : (
+                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                    <ThemedText accessibilityRole="header" style={styles.selectedDate}>
+                      {formatDisplayDate(selectedDay.date)}
+                    </ThemedText>
+
+                    {/* The visible text already reads "label: value", so it
+                        needs no separate accessibility label. */}
+                    {selectedDayRows(selectedDay).map((row) => (
+                      <ThemedText key={row.label} type="small">
+                        {row.label}: {row.value}
+                      </ThemedText>
+                    ))}
+
+                    {selectedDay.isPredictedPeriodStart && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Sonraki regl başlangıcı tahmini
+                      </ThemedText>
+                    )}
+                  </View>
+                )}
+              </View>
 
               <CycleCalendarLegend />
             </View>
@@ -314,6 +392,14 @@ const styles = StyleSheet.create({
   },
   calendarSection: {
     gap: Spacing.two,
+  },
+  selectedSection: {
+    gap: Spacing.two,
+  },
+  selectedDate: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '600',
   },
   monthBar: {
     flexDirection: 'row',
