@@ -6,16 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MAX_CYCLE_LENGTH_DAYS, MIN_CYCLE_LENGTH_DAYS } from '@/features/cycle/domain/limits';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
  * First onboarding input: average cycle length.
  *
- * The bounds mirror the domain rule in `validateCycleSettings`, which stays the
- * authority — the stepper simply cannot produce a value that rule would reject.
+ * The bounds come straight from the domain, which stays the authority — the
+ * stepper simply cannot produce a value `validateCycleSettings` would reject.
  */
-const MIN_CYCLE_LENGTH_DAYS = 15;
-const MAX_CYCLE_LENGTH_DAYS = 90;
 const DEFAULT_CYCLE_LENGTH_DAYS = 28;
 
 export default function CycleSettingsScreen() {

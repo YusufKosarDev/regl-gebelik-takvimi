@@ -1,15 +1,14 @@
+import { MAX_CYCLE_LENGTH_DAYS, MIN_CYCLE_LENGTH_DAYS } from '@/features/cycle/domain/limits';
+
 /**
  * Reads the `cycleLength` route param.
  *
  * Route params arrive as loose strings and can legally be an array, so the value
  * is checked rather than trusted: anything that is not a single whole number in
- * the domain's 15–90 range comes back as `null`. Callers are expected to stop,
+ * the domain's allowed range comes back as `null`. Callers are expected to stop,
  * not to substitute a default — a wrong cycle length would silently distort
  * every later prediction.
  */
-
-const MIN_CYCLE_LENGTH_DAYS = 15;
-const MAX_CYCLE_LENGTH_DAYS = 90;
 
 /** Digits only: rejects '28.5', '-1', '+28', ' 28' and the empty string. */
 const WHOLE_NUMBER_PATTERN = /^\d+$/;

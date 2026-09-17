@@ -1,13 +1,12 @@
+import { MAX_PERIOD_LENGTH_DAYS, MIN_PERIOD_LENGTH_DAYS } from '@/features/cycle/domain/limits';
+
 /**
  * Reads the `periodLength` route param.
  *
- * Mirrors the domain rules in `validateCycleSettings`: a whole number from 1 to
- * 20 that is never longer than the cycle. Anything else comes back as `null` so
- * the caller stops rather than substituting a default.
+ * Mirrors the domain rules in `validateCycleSettings`: a whole number inside the
+ * domain's period bounds that is never longer than the cycle. Anything else
+ * comes back as `null` so the caller stops rather than substituting a default.
  */
-
-const MIN_PERIOD_LENGTH_DAYS = 1;
-const MAX_PERIOD_LENGTH_DAYS = 20;
 
 /** Digits only: rejects '5.5', '-5', '+5', ' 5' and the empty string. */
 const WHOLE_NUMBER_PATTERN = /^\d+$/;

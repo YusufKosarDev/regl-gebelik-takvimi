@@ -1,3 +1,9 @@
+import {
+  MAX_CYCLE_LENGTH_DAYS,
+  MAX_PERIOD_LENGTH_DAYS,
+  MIN_CYCLE_LENGTH_DAYS,
+  MIN_PERIOD_LENGTH_DAYS,
+} from './limits';
 import type { CycleProfile, CycleSettings, PeriodRecord } from './types';
 
 import { daysBetween, isISODate } from '@/utils/date';
@@ -10,12 +16,13 @@ import { daysBetween, isISODate } from '@/utils/date';
  * and no clock access, so results depend only on the values passed in.
  */
 
-const MIN_CYCLE_LENGTH_DAYS = 15;
-const MAX_CYCLE_LENGTH_DAYS = 90;
-const MIN_PERIOD_LENGTH_DAYS = 1;
-const MAX_PERIOD_LENGTH_DAYS = 20;
-
-/** Longest span a single period record may cover, counting both end days. */
+/**
+ * Longest span a single period record may cover, counting both end days.
+ *
+ * Its own rule, about one recorded period rather than the profile's average, so
+ * it stays a separate constant even though it currently matches
+ * `MAX_PERIOD_LENGTH_DAYS`.
+ */
 const MAX_PERIOD_DURATION_DAYS = 20;
 
 function assertIntegerInRange(value: number, field: string, min: number, max: number): void {

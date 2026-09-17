@@ -6,18 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MAX_PERIOD_LENGTH_DAYS, MIN_PERIOD_LENGTH_DAYS } from '@/features/cycle/domain/limits';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
  * Second onboarding input: average period length.
  *
- * The bounds mirror the domain rules in `validateCycleSettings` — 1 to 20 days,
- * and never longer than the cycle — so the stepper cannot produce a pair that
- * rule would reject.
+ * The bounds come straight from the domain — its period range, and never longer
+ * than the cycle — so the stepper cannot produce a pair `validateCycleSettings`
+ * would reject.
  */
-const MIN_PERIOD_LENGTH_DAYS = 1;
-const MAX_PERIOD_LENGTH_DAYS = 20;
 const DEFAULT_PERIOD_LENGTH_DAYS = 5;
 
 export default function PeriodLengthScreen() {
