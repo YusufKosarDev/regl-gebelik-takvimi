@@ -62,6 +62,7 @@ beforeEach(() => {
   db.openAppDatabase.mockResolvedValue({});
   repository.loadCycleProfile.mockReset();
   repository.saveCycleProfile.mockReset();
+  repository.saveCycleProfile.mockResolvedValue(undefined);
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
 });
@@ -311,15 +312,17 @@ describe('HomeScreen scope', () => {
 
     const { queryAllByRole } = await renderScreen();
 
-    // The two month steps plus one button per real day of the month, and
-    // nothing else: no summary rows, no padding cells.
+    // The record action, the two month steps and one button per real day of the
+    // month, and nothing else: no summary rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(32);
-    expect(labels.filter((label) => label === 'Önceki ay' || label === 'Sonraki ay')).toEqual([
-      'Önceki ay',
-      'Sonraki ay',
-    ]);
+    expect(labels).toHaveLength(33);
+    expect(
+      labels.filter(
+        (label) =>
+          label === 'Regl başlangıcını kaydet' || label === 'Önceki ay' || label === 'Sonraki ay'
+      )
+    ).toEqual(['Regl başlangıcını kaydet', 'Önceki ay', 'Sonraki ay']);
     expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(1);
   });
 });
@@ -443,8 +446,8 @@ describe('HomeScreen calendar section', () => {
       expect(empty.props.onClick).toBeUndefined();
     }
 
-    // 30 days plus the two month steps.
-    expect(queryAllByRole('button')).toHaveLength(32);
+    // 30 days, the two month steps and the record action.
+    expect(queryAllByRole('button')).toHaveLength(33);
   });
 });
 
@@ -1036,5 +1039,351 @@ describe('HomeScreen selected day absence', () => {
     const { queryByText } = await renderScreen();
 
     expect(queryByText('Seçilen gün')).toBeNull();
+  });
+});
+
+describe('HomeScreen period start action', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('offers the action', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
+    expect(getByText('Regl başladı')).toBeTruthy();
+  });
+
+  it('shows no confirmation until asked', async () => {
+    const { queryByText } = await renderScreen();
+
+    expect(
+      queryByText('Bugünü regl başlangıcı olarak kaydetmek istiyor musun?')
+    ).toBeNull();
+  });
+
+  it('asks before saving', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+
+    expect(
+      screen.getByText('Bugünü regl başlangıcı olarak kaydetmek istiyor musun?')
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Vazgeç')).toBeTruthy();
+    expect(screen.getByLabelText('Kaydet')).toBeTruthy();
+  });
+
+  it('names the date it would record', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+
+    // Three times now: the summary, the selected day and the confirmation.
+    expect(screen.getAllByText('17 Eylül 2026')).toHaveLength(3);
+  });
+
+  it('writes nothing while only asking', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('HomeScreen period start cancel', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('closes the confirmation', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(
+      screen.queryByText('Bugünü regl başlangıcı olarak kaydetmek istiyor musun?')
+    ).toBeNull();
+    expect(screen.getByText('Regl başladı')).toBeTruthy();
+  });
+
+  it('touches no storage', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HomeScreen period start save', () => {
+  /** What the repository returns once today has been recorded. */
+  function profileWithToday(): CycleProfile {
+    return {
+      settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+      periodRecords: [
+        { id: 'record-0', startDate: '2026-09-01' as ISODate },
+        { id: 'period-2026-09-17', startDate: '2026-09-17' as ISODate },
+      ],
+    };
+  }
+
+  async function saveToday() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    return screen;
+  }
+
+  it('stores the profile with today added', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    await saveToday();
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords.map((record) => record.startDate)).toEqual([
+      '2026-09-01',
+      '2026-09-17',
+    ]);
+    expect(saved.periodRecords[1].id).toBe('period-2026-09-17');
+    expect(saved.periodRecords[1].endDate).toBeUndefined();
+  });
+
+  it('closes the confirmation', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await saveToday();
+
+    expect(
+      screen.queryByText('Bugünü regl başlangıcı olarak kaydetmek istiyor musun?')
+    ).toBeNull();
+  });
+
+  it('reloads the data', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    await saveToday();
+
+    // Once on mount, once inside the use case, once for the refresh.
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows the new summary', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    const screen = await saveToday();
+
+    expect(screen.getByText('1. gün')).toBeTruthy();
+    expect(screen.getByText('Regl')).toBeTruthy();
+    expect(screen.getByText('15 Ekim 2026')).toBeTruthy();
+  });
+
+  it('shows the new calendar', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    const screen = await saveToday();
+
+    expect(screen.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
+      '17 Eylül 2026, Regl, bugün, seçili'
+    );
+  });
+
+  it('keeps today marked and selected', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    const screen = await saveToday();
+
+    expect(screen.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected).toBe(
+      true
+    );
+  });
+
+  it('keeps the calendar and legend working', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    const screen = await saveToday();
+
+    expect(screen.getByText('Eylül 2026')).toBeTruthy();
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+    expect(screen.queryAllByTestId(/^calendar-day-/)).toHaveLength(30);
+  });
+
+  it('leaves month navigation working', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    const screen = await saveToday();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    expect(screen.getByText('Ekim 2026')).toBeTruthy();
+    expect(screen.getByText('Bir gün seç.')).toBeTruthy();
+  });
+
+  it('leaves day selection working', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(profileWithToday());
+
+    const screen = await saveToday();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-20'));
+
+    expect(screen.getByText('20 Eylül 2026')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen period start double submit', () => {
+  it('saves once however many times Kaydet is pressed', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    // The confirmation is gone after a successful save, so there is nothing
+    // left to press a second time.
+    expect(screen.queryByLabelText('Kaydet')).toBeNull();
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HomeScreen period start failure', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('reports a rejected save', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByText('Regl başlangıcı kaydedilemedi.')).toBeTruthy();
+  });
+
+  it('announces the failure to assistive technology', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('keeps the confirmation open so the failure sits next to the action', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByLabelText('Kaydet')).toBeTruthy();
+    expect(screen.getByLabelText('Vazgeç')).toBeTruthy();
+  });
+
+  it('leaves the shown data alone', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Luteal')).toBeTruthy();
+    expect(screen.getByText('Eylül 2026')).toBeTruthy();
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+  });
+
+  it('rejects a date already recorded without corrupting anything', async () => {
+    // Today is already on file, so the use case refuses it.
+    repository.loadCycleProfile.mockResolvedValue({
+      settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+      periodRecords: [{ id: 'period-2026-09-17', startDate: '2026-09-17' as ISODate }],
+    });
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByText('Regl başlangıcı kaydedilemedi.')).toBeTruthy();
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(screen.getByText('1. gün')).toBeTruthy();
+  });
+
+  it('clears the error when the confirmation is dismissed', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+
+    expect(screen.queryByText('Regl başlangıcı kaydedilemedi.')).toBeNull();
+  });
+});
+
+describe('HomeScreen period start absence', () => {
+  it('offers nothing to record while loading', async () => {
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const { queryByLabelText } = await render(<HomeScreen />);
+
+    expect(queryByLabelText('Regl başlangıcını kaydet')).toBeNull();
+  });
+
+  it('offers nothing to record without a profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Regl başlangıcını kaydet')).toBeNull();
+  });
+
+  it('offers nothing to record when loading failed', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('corrupt row'));
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Regl başlangıcını kaydet')).toBeNull();
   });
 });

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { addPeriodStart } from '@/features/cycle/application/add-period-start';
 import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
@@ -40,6 +41,7 @@ function selectedDayRows(day: CycleCalendarDay): { label: string; value: string 
 }
 
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
+const SAVE_ERROR_MESSAGE = 'Regl başlangıcı kaydedilemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
 const FERTILITY_DISCLAIMER =
   'Doğurganlık bilgileri tahminidir ve gebelikten korunma yöntemi olarak kullanılmamalıdır.';
@@ -73,6 +75,25 @@ export default function HomeScreen() {
   // whichever month is on screen and fall away by itself when it is not there.
   const [pickedDate, setPickedDate] = useState<ISODate | null>(null);
 
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasSaveError, setHasSaveError] = useState(false);
+
+  // A ref as well as the disabled prop: state updates are async, so two quick
+  // taps could both read `isSaving` as false before the re-render lands.
+  const saveInFlight = useRef(false);
+
+  /**
+   * Reads everything the screen shows. Stable, so the mount effect can depend on
+   * it without re-running, and the save path can reuse it.
+   */
+  const readCycleData = useCallback(async (today?: ISODate) => {
+    const forDate = today ?? getTodayLocalISODate();
+    const db = await openAppDatabase();
+
+    return getCycleHomeData(db, forDate);
+  }, []);
+
   useEffect(() => {
     // Guards against setting state after the screen is gone, e.g. when the
     // routing gate swaps groups while this read is still in flight.
@@ -80,15 +101,13 @@ export default function HomeScreen() {
 
     const load = async () => {
       try {
-        const today = getTodayLocalISODate();
-        const db = await openAppDatabase();
-        const result = await getCycleHomeData(db, today);
+        const data = await readCycleData();
 
         if (!isActive) {
           return;
         }
 
-        setHomeData(result);
+        setHomeData(data);
       } catch (error) {
         if (__DEV__) {
           console.error('[home] could not load the cycle data', error);
@@ -111,7 +130,7 @@ export default function HomeScreen() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [readCycleData]);
 
   if (isLoading) {
     return (
@@ -182,6 +201,40 @@ export default function HomeScreen() {
   // what clears a stale selection on a month change, with no reset to forget.
   const selectedDay = findDay(pickedDate) ?? findDay(dashboard.today);
 
+  const handleSavePeriodStart = async () => {
+    if (saveInFlight.current) {
+      return;
+    }
+
+    saveInFlight.current = true;
+    setIsSaving(true);
+    setHasSaveError(false);
+
+    try {
+      const db = await openAppDatabase();
+
+      await addPeriodStart(db, { startDate: dashboard.today, today: dashboard.today });
+
+      // Both halves of the screen come from one fresh read, so the summary and
+      // the calendar cannot end up describing different profiles.
+      const data = await readCycleData(dashboard.today);
+
+      setHomeData(data);
+      setIsConfirming(false);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[home] could not record the period start', error);
+      }
+
+      // The confirmation stays open with the error, so a rejected save is
+      // visible next to the thing that was rejected.
+      setHasSaveError(true);
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
+  };
+
   const rows: { label: string; value: string; note?: string }[] = [
     {
       label: 'Döngü günü',
@@ -241,6 +294,80 @@ export default function HomeScreen() {
                 </View>
               ))}
             </View>
+
+            {isConfirming ? (
+              <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Bugünü regl başlangıcı olarak kaydetmek istiyor musun?
+                </ThemedText>
+
+                <ThemedText style={styles.rowValue}>
+                  {formatDisplayDate(dashboard.today)}
+                </ThemedText>
+
+                {hasSaveError && (
+                  <ThemedText
+                    accessibilityRole="alert"
+                    type="small"
+                    themeColor="textSecondary"
+                    style={styles.rowNote}>
+                    {SAVE_ERROR_MESSAGE}
+                  </ThemedText>
+                )}
+
+                <View style={styles.confirmActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Vazgeç"
+                    accessibilityState={{ disabled: isSaving }}
+                    disabled={isSaving}
+                    onPress={() => {
+                      setIsConfirming(false);
+                      setHasSaveError(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      isSaving && styles.disabled,
+                      pressed && !isSaving && styles.pressed,
+                    ]}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Vazgeç
+                    </ThemedText>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Kaydet"
+                    accessibilityState={{ disabled: isSaving }}
+                    disabled={isSaving}
+                    onPress={handleSavePeriodStart}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      { backgroundColor: theme.text },
+                      isSaving && styles.disabled,
+                      pressed && !isSaving && styles.pressed,
+                    ]}>
+                    <ThemedText type="smallBold" style={{ color: theme.background }}>
+                      {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Regl başlangıcını kaydet"
+                onPress={() => setIsConfirming(true)}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  { backgroundColor: theme.text },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold" style={{ color: theme.background }}>
+                  Regl başladı
+                </ThemedText>
+              </Pressable>
+            )}
 
             <View style={styles.calendarSection}>
               <ThemedText
@@ -392,6 +519,29 @@ const styles = StyleSheet.create({
   },
   calendarSection: {
     gap: Spacing.two,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  primaryButton: {
+    minHeight: 48,
+    borderRadius: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  secondaryButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   selectedSection: {
     gap: Spacing.two,
