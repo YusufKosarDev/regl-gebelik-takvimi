@@ -147,6 +147,61 @@ export function getDaysInMonth(year: number, month: number): number {
   return daysInMonth(year, month);
 }
 
+/** Months since year 0, month 1. Keeps the shift arithmetic in one place. */
+function toMonthNumber(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
+function assertYearMonth(caller: string, year: number, month: number): void {
+  if (!Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR) {
+    throw new Error(`${caller} expects a year between ${MIN_YEAR} and ${MAX_YEAR}, received ${year}.`);
+  }
+
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error(`${caller} expects a month between 1 and 12, received ${month}.`);
+  }
+}
+
+/**
+ * True when shifting by `deltaMonths` stays inside the supported years.
+ *
+ * Lets a caller disable a control rather than find out by catching.
+ */
+export function canShiftYearMonth(year: number, month: number, deltaMonths: number): boolean {
+  assertYearMonth('canShiftYearMonth', year, month);
+
+  if (!Number.isInteger(deltaMonths)) {
+    throw new Error(`canShiftYearMonth expects an integer delta, received ${deltaMonths}.`);
+  }
+
+  const shifted = toMonthNumber(year, month) + deltaMonths;
+
+  return shifted >= toMonthNumber(MIN_YEAR, 1) && shifted <= toMonthNumber(MAX_YEAR, 12);
+}
+
+/**
+ * Moves a calendar month by whole months, rolling the year over at both ends.
+ *
+ * Throws rather than returning a month outside the supported years: a silently
+ * clamped result would quietly show the wrong month.
+ */
+export function shiftYearMonth(
+  year: number,
+  month: number,
+  deltaMonths: number
+): { year: number; month: number } {
+  if (!canShiftYearMonth(year, month, deltaMonths)) {
+    throw new Error(
+      `shiftYearMonth cannot move ${year}-${month} by ${deltaMonths} months: ` +
+        `the result is outside ${MIN_YEAR}-${MAX_YEAR}.`
+    );
+  }
+
+  const shifted = toMonthNumber(year, month) + deltaMonths;
+
+  return { year: floorDiv(shifted, 12), month: (((shifted % 12) + 12) % 12) + 1 };
+}
+
 /** The calendar month a date falls in, with `month` in 1-12. */
 export function getYearMonth(date: ISODate): { year: number; month: number } {
   const parts = parseParts(date);

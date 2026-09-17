@@ -1,11 +1,13 @@
 import {
   addDays,
+  canShiftYearMonth,
   daysBetween,
   formatLocalDate,
   getDayOfMonth,
   getDaysInMonth,
   getISOWeekday,
   getYearMonth,
+  shiftYearMonth,
   isISODate,
   toISODate,
 } from '@/utils/date';
@@ -327,5 +329,103 @@ describe('getYearMonth', () => {
 
   it('rejects a value that is not a real calendar date', () => {
     expect(() => getYearMonth('2026-02-30' as never)).toThrow(/Invalid ISODate/);
+  });
+});
+
+describe('shiftYearMonth', () => {
+  it.each<[number, number, number, number, number]>([
+    [2026, 9, 1, 2026, 10],
+    [2026, 9, -1, 2026, 8],
+    [2026, 12, 1, 2027, 1],
+    [2026, 1, -1, 2025, 12],
+    [2026, 9, 0, 2026, 9],
+  ])('moves %i-%i by %i to %i-%i', (year, month, delta, expectedYear, expectedMonth) => {
+    expect(shiftYearMonth(year, month, delta)).toEqual({
+      year: expectedYear,
+      month: expectedMonth,
+    });
+  });
+
+  it('moves by more than a year', () => {
+    expect(shiftYearMonth(2026, 9, 12)).toEqual({ year: 2027, month: 9 });
+    expect(shiftYearMonth(2026, 9, -12)).toEqual({ year: 2025, month: 9 });
+    expect(shiftYearMonth(2026, 9, 16)).toEqual({ year: 2028, month: 1 });
+    expect(shiftYearMonth(2026, 9, -21)).toEqual({ year: 2024, month: 12 });
+  });
+
+  it('always lands on a month in 1-12', () => {
+    for (let delta = -30; delta <= 30; delta += 1) {
+      const { month } = shiftYearMonth(2026, 6, delta);
+
+      expect(month).toBeGreaterThanOrEqual(1);
+      expect(month).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it('is reversible', () => {
+    for (let delta = -18; delta <= 18; delta += 1) {
+      const moved = shiftYearMonth(2026, 4, delta);
+
+      expect(shiftYearMonth(moved.year, moved.month, -delta)).toEqual({ year: 2026, month: 4 });
+    }
+  });
+
+  it('refuses to step before year 0', () => {
+    expect(() => shiftYearMonth(0, 1, -1)).toThrow(/outside 0-9999/);
+  });
+
+  it('refuses to step past year 9999', () => {
+    expect(() => shiftYearMonth(9999, 12, 1)).toThrow(/outside 0-9999/);
+  });
+
+  it('allows the very edges themselves', () => {
+    expect(shiftYearMonth(0, 2, -1)).toEqual({ year: 0, month: 1 });
+    expect(shiftYearMonth(9999, 11, 1)).toEqual({ year: 9999, month: 12 });
+  });
+
+  it('rejects an invalid starting month', () => {
+    expect(() => shiftYearMonth(2026, 0, 1)).toThrow(/month between 1 and 12/);
+    expect(() => shiftYearMonth(2026, 13, 1)).toThrow(/month between 1 and 12/);
+  });
+
+  it('rejects a non-integer delta', () => {
+    expect(() => shiftYearMonth(2026, 9, 1.5)).toThrow(/integer delta/);
+  });
+});
+
+describe('canShiftYearMonth', () => {
+  it('allows an ordinary step', () => {
+    expect(canShiftYearMonth(2026, 9, -1)).toBe(true);
+    expect(canShiftYearMonth(2026, 9, 1)).toBe(true);
+  });
+
+  it('allows stepping across a year boundary', () => {
+    expect(canShiftYearMonth(2026, 12, 1)).toBe(true);
+    expect(canShiftYearMonth(2026, 1, -1)).toBe(true);
+  });
+
+  it('refuses to leave the supported years', () => {
+    expect(canShiftYearMonth(0, 1, -1)).toBe(false);
+    expect(canShiftYearMonth(9999, 12, 1)).toBe(false);
+  });
+
+  it('allows reaching the edges', () => {
+    expect(canShiftYearMonth(0, 2, -1)).toBe(true);
+    expect(canShiftYearMonth(9999, 11, 1)).toBe(true);
+  });
+
+  it('agrees with shiftYearMonth', () => {
+    for (const [year, month, delta] of [
+      [2026, 9, 1],
+      [0, 1, -1],
+      [9999, 12, 1],
+      [2026, 12, 1],
+    ] as const) {
+      if (canShiftYearMonth(year, month, delta)) {
+        expect(() => shiftYearMonth(year, month, delta)).not.toThrow();
+      } else {
+        expect(() => shiftYearMonth(year, month, delta)).toThrow();
+      }
+    }
   });
 });

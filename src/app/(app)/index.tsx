@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
@@ -15,6 +16,7 @@ import {
 } from '@/features/cycle/presentation/cycle-labels';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 
@@ -41,6 +43,11 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [homeData, setHomeData] = useState<CycleHomeData | null>(null);
   const [hasError, setHasError] = useState(false);
+
+  // Months away from the month containing today, rather than an absolute month,
+  // so it needs no second initialisation once the data arrives. Session-only:
+  // a restart opens on the current month again.
+  const [monthOffset, setMonthOffset] = useState(0);
 
   useEffect(() => {
     // Guards against setting state after the screen is gone, e.g. when the
@@ -119,7 +126,18 @@ export default function HomeScreen() {
     );
   }
 
-  const { dashboard, calendarGrid } = homeData;
+  const { dashboard, profile } = homeData;
+
+  const todayMonth = getYearMonth(dashboard.today);
+  const { year, month } = shiftYearMonth(todayMonth.year, todayMonth.month, monthOffset);
+
+  // Cheap enough to redo on render: at most 31 days of integer arithmetic, and
+  // the profile is already in memory, so no database read is involved.
+  const calendarGrid = buildCycleCalendarGridForMonth(profile, year, month);
+  const monthHeading = formatDisplayMonth(year, month);
+
+  const canGoBack = canShiftYearMonth(year, month, -1);
+  const canGoForward = canShiftYearMonth(year, month, 1);
 
   const rows: { label: string; value: string; note?: string }[] = [
     {
@@ -189,11 +207,41 @@ export default function HomeScreen() {
                 Takvim
               </ThemedText>
 
-              <ThemedText
-                accessibilityLabel={`${formatDisplayMonth(calendarGrid.year, calendarGrid.month)} takvimi`}
-                style={styles.monthHeading}>
-                {formatDisplayMonth(calendarGrid.year, calendarGrid.month)}
-              </ThemedText>
+              <View style={styles.monthBar}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Önceki ay"
+                  accessibilityState={{ disabled: !canGoBack }}
+                  disabled={!canGoBack}
+                  onPress={() => setMonthOffset((current) => current - 1)}
+                  style={({ pressed }) => [
+                    styles.monthButton,
+                    !canGoBack && styles.monthButtonDisabled,
+                    pressed && canGoBack && styles.pressed,
+                  ]}>
+                  <ThemedText style={styles.monthButtonLabel}>‹</ThemedText>
+                </Pressable>
+
+                <ThemedText
+                  accessibilityLabel={`${monthHeading} takvimi`}
+                  style={styles.monthHeading}>
+                  {monthHeading}
+                </ThemedText>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Sonraki ay"
+                  accessibilityState={{ disabled: !canGoForward }}
+                  disabled={!canGoForward}
+                  onPress={() => setMonthOffset((current) => current + 1)}
+                  style={({ pressed }) => [
+                    styles.monthButton,
+                    !canGoForward && styles.monthButtonDisabled,
+                    pressed && canGoForward && styles.pressed,
+                  ]}>
+                  <ThemedText style={styles.monthButtonLabel}>›</ThemedText>
+                </Pressable>
+              </View>
 
               <CycleCalendar grid={calendarGrid} today={dashboard.today} />
 
@@ -267,9 +315,34 @@ const styles = StyleSheet.create({
   calendarSection: {
     gap: Spacing.two,
   },
+  monthBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   monthHeading: {
     fontSize: 20,
     lineHeight: 28,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  monthButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Spacing.two,
+  },
+  monthButtonDisabled: {
+    opacity: 0.3,
+  },
+  monthButtonLabel: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

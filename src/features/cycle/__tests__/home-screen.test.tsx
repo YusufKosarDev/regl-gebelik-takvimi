@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import HomeScreen from '@/app/(app)/index';
 import type { CycleProfile } from '@/features/cycle/domain/types';
@@ -305,12 +305,15 @@ describe('HomeScreen scope', () => {
     expect(visibleText).toContain(FERTILITY_DISCLAIMER);
   });
 
-  it('offers no actions to tap', async () => {
+  it('offers only the two month steps to tap', async () => {
     repository.loadCycleProfile.mockResolvedValue(profile());
 
     const { queryAllByRole } = await renderScreen();
 
-    expect(queryAllByRole('button')).toHaveLength(0);
+    // Nothing else on the screen is pressable: no day cells, no summary rows.
+    expect(
+      queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
+    ).toEqual(['Önceki ay', 'Sonraki ay']);
   });
 });
 
@@ -423,10 +426,12 @@ describe('HomeScreen calendar section', () => {
     expect(queryByText('●')).toBeNull();
   });
 
-  it('offers no month navigation or day selection', async () => {
-    const { queryAllByRole } = await renderScreen();
+  it('offers no day selection', async () => {
+    const { queryAllByRole, getByTestId } = await renderScreen();
 
-    expect(queryAllByRole('button')).toHaveLength(0);
+    // The month steps are the only controls; a day cell is not pressable.
+    expect(queryAllByRole('button')).toHaveLength(2);
+    expect(getByTestId('calendar-day-2026-09-17').props.onClick).toBeUndefined();
   });
 });
 
@@ -541,5 +546,250 @@ describe('HomeScreen today highlight', () => {
 
     expect(getByText('Regl günü')).toBeTruthy();
     expect(queryByText('Bugünün tarihi')).toBeNull();
+  });
+});
+
+describe('HomeScreen month navigation', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  async function renderWithNavigation() {
+    const screen = await renderScreen();
+
+    return {
+      ...screen,
+      previous: () => screen.getByLabelText('Önceki ay'),
+      next: () => screen.getByLabelText('Sonraki ay'),
+    };
+  }
+
+  it('opens on the month today falls in', async () => {
+    const { getByText } = await renderWithNavigation();
+
+    expect(getByText('Eylül 2026')).toBeTruthy();
+  });
+
+  it('offers a step in each direction', async () => {
+    const { previous, next } = await renderWithNavigation();
+
+    expect(previous()).toBeTruthy();
+    expect(next()).toBeTruthy();
+  });
+
+  it('moves forward a month', async () => {
+    const screen = await renderWithNavigation();
+
+    await fireEvent.press(screen.next());
+
+    expect(screen.getByText('Ekim 2026')).toBeTruthy();
+    expect(screen.queryByText('Eylül 2026')).toBeNull();
+  });
+
+  it('shows the new month in the grid', async () => {
+    const screen = await renderWithNavigation();
+
+    await fireEvent.press(screen.next());
+
+    expect(screen.queryAllByTestId(/^calendar-day-/)).toHaveLength(31);
+    expect(screen.getByTestId('calendar-day-2026-10-01')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-10-31')).toBeTruthy();
+    expect(screen.queryByTestId('calendar-day-2026-09-17')).toBeNull();
+  });
+
+  it('moves back to the current month', async () => {
+    const screen = await renderWithNavigation();
+
+    await fireEvent.press(screen.next());
+    await fireEvent.press(screen.previous());
+
+    expect(screen.getByText('Eylül 2026')).toBeTruthy();
+    expect(screen.queryAllByTestId(/^calendar-day-/)).toHaveLength(30);
+  });
+
+  it('moves back past the current month', async () => {
+    const screen = await renderWithNavigation();
+
+    await fireEvent.press(screen.previous());
+
+    expect(screen.getByText('Ağustos 2026')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-08-31')).toBeTruthy();
+  });
+
+  it('steps across a year boundary', async () => {
+    getTodayMock.mockReturnValue('2026-12-15' as ISODate);
+
+    const screen = await renderWithNavigation();
+
+    expect(screen.getByText('Aralık 2026')).toBeTruthy();
+
+    await fireEvent.press(screen.next());
+
+    expect(screen.getByText('Ocak 2027')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2027-01-31')).toBeTruthy();
+  });
+
+  it('steps back across a year boundary', async () => {
+    getTodayMock.mockReturnValue('2026-01-15' as ISODate);
+
+    const screen = await renderWithNavigation();
+
+    await fireEvent.press(screen.previous());
+
+    expect(screen.getByText('Aralık 2025')).toBeTruthy();
+  });
+
+  it('keeps moving in the same direction', async () => {
+    const screen = await renderWithNavigation();
+
+    await fireEvent.press(screen.next());
+    await fireEvent.press(screen.next());
+    await fireEvent.press(screen.next());
+
+    expect(screen.getByText('Aralık 2026')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen month navigation leaves the summary alone', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('keeps the summary of today when the calendar moves', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    expect(screen.getByText('Ekim 2026')).toBeTruthy();
+    expect(screen.getByText('17 Eylül 2026')).toBeTruthy();
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Luteal')).toBeTruthy();
+    expect(screen.getByText('29 Eylül 2026')).toBeTruthy();
+  });
+
+  it('keeps the legend on every month', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+    expect(screen.getByText('Tahmini yumurtlama günü')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen month navigation and today', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('marks today on the month it falls in', async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+  });
+
+  it('marks nothing on the next month', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    expect(screen.queryAllByTestId(/^calendar-today-/)).toHaveLength(0);
+  });
+
+  it('marks nothing on the previous month', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+
+    expect(screen.queryAllByTestId(/^calendar-today-/)).toHaveLength(0);
+  });
+
+  it('marks today again on the way back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+
+    expect(screen.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen month navigation does not touch the database', () => {
+  it('reads the profile once across several months', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+    await fireEvent.press(screen.getByLabelText('Önceki ay'));
+
+    expect(screen.getByText('Ağustos 2026')).toBeTruthy();
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+    expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
+    expect(getTodayMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('never shows the loading screen again', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    expect(screen.queryByTestId('cycle-dashboard-loading')).toBeNull();
+    expect(screen.queryByText('Veriler yükleniyor')).toBeNull();
+  });
+});
+
+describe('HomeScreen month navigation boundaries', () => {
+  it('disables stepping back before year 0', async () => {
+    getTodayMock.mockReturnValue('0000-01-15' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile(['0000-01-02']));
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Önceki ay').props.accessibilityState.disabled).toBe(true);
+    expect(getByLabelText('Sonraki ay').props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('disables stepping past year 9999', async () => {
+    getTodayMock.mockReturnValue('9999-12-15' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile(['9999-12-02']));
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Sonraki ay').props.accessibilityState.disabled).toBe(true);
+    expect(getByLabelText('Önceki ay').props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('enables both steps in an ordinary month', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Önceki ay').props.accessibilityState.disabled).toBe(false);
+    expect(getByLabelText('Sonraki ay').props.accessibilityState.disabled).toBe(false);
+  });
+});
+
+describe('HomeScreen month navigation absence', () => {
+  it('offers no navigation when there is no profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Önceki ay')).toBeNull();
+    expect(queryByLabelText('Sonraki ay')).toBeNull();
+  });
+
+  it('offers no navigation when loading fails', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('corrupt row'));
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Önceki ay')).toBeNull();
   });
 });
