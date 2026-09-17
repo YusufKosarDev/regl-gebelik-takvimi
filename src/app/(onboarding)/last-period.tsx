@@ -6,12 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { formatOnboardingDate } from '@/features/onboarding/format-onboarding-date';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
 import { useTheme } from '@/hooks/use-theme';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
+import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 
 /**
@@ -51,7 +51,7 @@ export default function LastPeriodScreen() {
     );
   }
 
-  const readableDate = formatOnboardingDate(selectedDate);
+  const readableDate = formatDisplayDate(selectedDate);
   const canGoToNextDay = daysBetween(selectedDate, today) > 0;
 
   return (

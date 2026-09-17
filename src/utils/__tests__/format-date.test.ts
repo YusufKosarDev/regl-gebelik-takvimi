@@ -1,11 +1,11 @@
 import type { ISODate } from '@/types/iso-date';
 import { toISODate } from '@/utils/date';
 
-import { formatOnboardingDate } from '../format-onboarding-date';
+import { formatDisplayDate } from '../format-date';
 
-describe('formatOnboardingDate', () => {
+describe('formatDisplayDate', () => {
   it('formats a date in Turkish', () => {
-    expect(formatOnboardingDate(toISODate('2026-09-17'))).toBe('17 Eylül 2026');
+    expect(formatDisplayDate(toISODate('2026-09-17'))).toBe('17 Eylül 2026');
   });
 
   it.each<[string, string]>([
@@ -22,20 +22,20 @@ describe('formatOnboardingDate', () => {
     ['2026-11-11', '11 Kasım 2026'],
     ['2026-12-31', '31 Aralık 2026'],
   ])('formats %s as %s', (iso, expected) => {
-    expect(formatOnboardingDate(toISODate(iso))).toBe(expected);
+    expect(formatDisplayDate(toISODate(iso))).toBe(expected);
   });
 
   it('drops the leading zero from single digit days', () => {
-    expect(formatOnboardingDate(toISODate('2026-09-01'))).toBe('1 Eylül 2026');
+    expect(formatDisplayDate(toISODate('2026-09-01'))).toBe('1 Eylül 2026');
   });
 
   it('formats a leap day', () => {
-    expect(formatOnboardingDate(toISODate('2024-02-29'))).toBe('29 Şubat 2024');
+    expect(formatDisplayDate(toISODate('2024-02-29'))).toBe('29 Şubat 2024');
   });
 
   it('does not depend on the device locale', () => {
     // A fixed table, so the output cannot change with Intl availability.
-    const formatted = formatOnboardingDate('2026-09-17' as ISODate);
+    const formatted = formatDisplayDate('2026-09-17' as ISODate);
 
     expect(formatted).toBe('17 Eylül 2026');
     expect(formatted).not.toMatch(/September|Sep/);

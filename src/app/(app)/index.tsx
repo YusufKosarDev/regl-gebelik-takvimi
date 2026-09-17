@@ -11,11 +11,9 @@ import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
 } from '@/features/cycle/presentation/cycle-labels';
-// Shared display formatter. It lives under `onboarding/` for now; nothing about
-// it is onboarding-specific.
-import { formatOnboardingDate } from '@/features/onboarding/format-onboarding-date';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
@@ -138,7 +136,7 @@ export default function HomeScreen() {
       value:
         dashboard.nextPeriodStart === null
           ? 'Henüz hesaplanamıyor'
-          : formatOnboardingDate(dashboard.nextPeriodStart),
+          : formatDisplayDate(dashboard.nextPeriodStart),
     },
   ];
 
@@ -155,7 +153,7 @@ export default function HomeScreen() {
               </ThemedText>
 
               <ThemedText type="subtitle" style={styles.date}>
-                {formatOnboardingDate(dashboard.today)}
+                {formatDisplayDate(dashboard.today)}
               </ThemedText>
             </View>
 

@@ -26,7 +26,7 @@ const MONTH_NAMES_TR = [
   'Aralık',
 ] as const;
 
-export function formatOnboardingDate(date: ISODate): string {
+export function formatDisplayDate(date: ISODate): string {
   const [year, month, day] = date.split('-');
   const monthName = MONTH_NAMES_TR[Number(month) - 1];
 

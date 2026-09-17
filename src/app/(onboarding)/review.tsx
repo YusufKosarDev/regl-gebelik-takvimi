@@ -6,12 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { formatOnboardingDate } from '@/features/onboarding/format-onboarding-date';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
 import { parseLastPeriodStartDateParam } from '@/features/onboarding/parse-last-period-start-date-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
 import { useTheme } from '@/hooks/use-theme';
 import type { ISODate } from '@/types/iso-date';
+import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 
 /**
@@ -53,7 +53,7 @@ export default function ReviewScreen() {
   const rows: { label: string; value: string }[] = [
     { label: 'Döngü uzunluğu', value: `${cycleLength} gün` },
     { label: 'Regl süresi', value: `${periodLength} gün` },
-    { label: 'Son regl başlangıcı', value: formatOnboardingDate(lastPeriodStartDate) },
+    { label: 'Son regl başlangıcı', value: formatDisplayDate(lastPeriodStartDate) },
   ];
 
   return (
