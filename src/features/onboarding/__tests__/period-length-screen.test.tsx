@@ -1,7 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import LastPeriodScreen from '@/app/(onboarding)/last-period';
 import PeriodLengthScreen from '@/app/(onboarding)/period-length';
 
 jest.mock('expo-router', () => ({
@@ -321,17 +320,3 @@ describe('PeriodLengthScreen scope', () => {
   });
 });
 
-describe('LastPeriodScreen', () => {
-  it('renders the placeholder', async () => {
-    const { getByText } = await render(<LastPeriodScreen />);
-
-    expect(getByText('Last period')).toBeTruthy();
-  });
-
-  it('contains no form controls yet', async () => {
-    const { toJSON, queryAllByRole } = await render(<LastPeriodScreen />);
-
-    expect(countHostNodes(toJSON(), 'TextInput')).toBe(0);
-    expect(queryAllByRole('button')).toHaveLength(0);
-  });
-});
