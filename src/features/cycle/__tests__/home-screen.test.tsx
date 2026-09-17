@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/index';
 import type { CycleProfile } from '@/features/cycle/domain/types';
@@ -22,9 +23,14 @@ jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
 
+jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
+const useRouterMock = useRouter as unknown as jest.Mock;
+
+let push: jest.Mock;
 
 const FERTILITY_DISCLAIMER =
   'Doğurganlık bilgileri tahminidir ve gebelikten korunma yöntemi olarak kullanılmamalıdır.';
@@ -91,6 +97,10 @@ beforeEach(() => {
   repository.saveCycleProfile.mockResolvedValue(undefined);
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
+
+  push = jest.fn();
+  useRouterMock.mockReset();
+  useRouterMock.mockReturnValue({ push, back: jest.fn(), replace: jest.fn() });
 });
 
 async function renderScreen() {
@@ -342,13 +352,21 @@ describe('HomeScreen scope', () => {
     // month, and nothing else: no summary rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(33);
+    expect(labels).toHaveLength(34);
     expect(
       labels.filter(
         (label) =>
-          label === 'Regl başlangıcını kaydet' || label === 'Önceki ay' || label === 'Sonraki ay'
+          label === 'Regl başlangıcını kaydet' ||
+          label === 'Önceki ay' ||
+          label === 'Sonraki ay' ||
+          label === 'Geçmiş regl kayıtlarını görüntüle'
       )
-    ).toEqual(['Regl başlangıcını kaydet', 'Önceki ay', 'Sonraki ay']);
+    ).toEqual([
+      'Regl başlangıcını kaydet',
+      'Önceki ay',
+      'Sonraki ay',
+      'Geçmiş regl kayıtlarını görüntüle',
+    ]);
     expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(1);
   });
 });
@@ -472,8 +490,8 @@ describe('HomeScreen calendar section', () => {
       expect(empty.props.onClick).toBeUndefined();
     }
 
-    // 30 days, the two month steps and the record action.
-    expect(queryAllByRole('button')).toHaveLength(33);
+    // 30 days, the two month steps, the record action and the history link.
+    expect(queryAllByRole('button')).toHaveLength(34);
   });
 });
 
@@ -1832,5 +1850,51 @@ describe('HomeScreen through a whole period', () => {
       startDate: '2026-09-02',
       isOngoing: false,
     });
+  });
+});
+
+describe('HomeScreen history link', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('offers the link', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(getByText('Geçmiş kayıtlar')).toBeTruthy();
+  });
+
+  it('opens the history route', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle'));
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith('/(app)/history');
+  });
+
+  it('navigates nothing on its own', async () => {
+    await renderScreen();
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('leaves the rest of the screen in place', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Takvim')).toBeTruthy();
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+    expect(screen.getByText('Seçilen gün')).toBeTruthy();
+    expect(screen.getByText('Regl başladı')).toBeTruthy();
+  });
+
+  it('is absent without a profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeNull();
   });
 });

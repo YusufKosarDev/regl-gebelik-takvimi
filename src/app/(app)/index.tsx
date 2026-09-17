@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -78,6 +79,7 @@ const FERTILITY_DISCLAIMER =
  * second thing to keep in sync.
  */
 export default function HomeScreen() {
+  const router = useRouter();
   const theme = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -480,6 +482,16 @@ export default function HomeScreen() {
 
               <CycleCalendarLegend />
             </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Geçmiş regl kayıtlarını görüntüle"
+              onPress={() => router.push('/(app)/history')}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Geçmiş kayıtlar
+              </ThemedText>
+            </Pressable>
           </View>
         </ScrollView>
       </SafeAreaView>
