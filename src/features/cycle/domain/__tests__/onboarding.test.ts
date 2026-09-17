@@ -167,3 +167,26 @@ describe('createInitialCycleProfile', () => {
     expect(first.periodRecords).toEqual(second.periodRecords);
   });
 });
+
+describe('createInitialCycleProfile and the ongoing flag', () => {
+  it('records the remembered period as finished, not happening now', () => {
+    const profile = createInitialCycleProfile({
+      averageCycleLengthDays: 30,
+      averagePeriodLengthDays: 6,
+      lastPeriodStartDate: toISODate('2026-09-02'),
+    });
+
+    expect(profile.periodRecords[0].isOngoing).toBe(false);
+  });
+
+  it('invents no end date for it', () => {
+    const profile = createInitialCycleProfile({
+      averageCycleLengthDays: 30,
+      averagePeriodLengthDays: 6,
+      lastPeriodStartDate: toISODate('2026-09-02'),
+    });
+
+    // The average period length is known, but when this one stopped is not.
+    expect(profile.periodRecords[0].endDate).toBeUndefined();
+  });
+});

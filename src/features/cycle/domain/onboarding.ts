@@ -71,6 +71,10 @@ export function createInitialCycleProfile(input: CycleOnboardingInput): CyclePro
       {
         id: INITIAL_PERIOD_RECORD_ID,
         startDate: input.lastPeriodStartDate,
+        // Not ongoing: this is the last period the person remembers starting,
+        // not one they are in. No end date is invented for it either — when it
+        // stopped was never asked, so it stays unknown.
+        isOngoing: false,
       },
     ],
   };

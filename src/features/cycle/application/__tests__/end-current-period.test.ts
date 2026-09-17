@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { endCurrentPeriod } from '../end-current-period';
 
-import type { CycleProfile } from '@/features/cycle/domain/types';
+import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 
 // Only the database is faked. Domain validation stays real, so a profile this
@@ -19,22 +19,35 @@ const saveCycleProfile = repository.saveCycleProfile as jest.Mock;
 const db = {} as SQLiteDatabase;
 const TODAY = '2026-09-17' as ISODate;
 
-function profile(records: { id: string; startDate: string; endDate?: string }[]): CycleProfile {
+type Spec = {
+  id: string;
+  startDate: string;
+  endDate?: string;
+  isOngoing?: boolean;
+};
+
+function profile(records: Spec[]): CycleProfile {
   return {
     settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
-    periodRecords: records.map((record) => ({
-      id: record.id,
-      startDate: record.startDate as ISODate,
-      ...(record.endDate === undefined ? {} : { endDate: record.endDate as ISODate }),
-    })),
+    periodRecords: records.map((record) => {
+      const built: PeriodRecord = {
+        id: record.id,
+        startDate: record.startDate as ISODate,
+        isOngoing: record.isOngoing === true,
+      };
+
+      return record.endDate === undefined
+        ? built
+        : { ...built, endDate: record.endDate as ISODate };
+    }),
   };
 }
 
-/** One closed record and one open one starting today. */
+/** One closed record and one ongoing one starting today. */
 function typicalProfile(): CycleProfile {
   return profile([
     { id: 'period-2026-08-02', startDate: '2026-08-02', endDate: '2026-08-07' },
-    { id: 'period-2026-09-17', startDate: '2026-09-17' },
+    { id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true },
   ]);
 }
 
@@ -102,13 +115,13 @@ describe('endCurrentPeriod without something to end', () => {
   it('refuses when several periods are open', async () => {
     loadCycleProfile.mockResolvedValue(
       profile([
-        { id: 'a', startDate: '2026-09-02' },
-        { id: 'b', startDate: '2026-09-17' },
+        { id: 'a', startDate: '2026-09-02', isOngoing: true },
+        { id: 'b', startDate: '2026-09-17', isOngoing: true },
       ])
     );
 
     await expect(endCurrentPeriod(db, { endDate: TODAY, today: TODAY })).rejects.toThrow(
-      /found 2 periods without an end date/
+      /found 2 ongoing periods/
     );
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
@@ -137,7 +150,7 @@ describe('endCurrentPeriod date order', () => {
 
   it('accepts a later end date', async () => {
     loadCycleProfile.mockResolvedValue(
-      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true }])
     );
 
     const updated = await endCurrentPeriod(db, {
@@ -153,7 +166,7 @@ describe('endCurrentPeriod duration rule', () => {
   it('leaves the length limit to the domain', async () => {
     // 2026-09-01 to 2026-09-21 is 21 days, past the domain's maximum of 20.
     loadCycleProfile.mockResolvedValue(
-      profile([{ id: 'period-2026-09-01', startDate: '2026-09-01' }])
+      profile([{ id: 'period-2026-09-01', startDate: '2026-09-01', isOngoing: true }])
     );
 
     await expect(
@@ -165,7 +178,7 @@ describe('endCurrentPeriod duration rule', () => {
 
   it('accepts the longest allowed span', async () => {
     loadCycleProfile.mockResolvedValue(
-      profile([{ id: 'period-2026-09-01', startDate: '2026-09-01' }])
+      profile([{ id: 'period-2026-09-01', startDate: '2026-09-01', isOngoing: true }])
     );
 
     const updated = await endCurrentPeriod(db, {
@@ -182,7 +195,7 @@ describe('endCurrentPeriod changes only the open record', () => {
     loadCycleProfile.mockResolvedValue(
       profile([
         { id: 'period-2026-07-04', startDate: '2026-07-04', endDate: '2026-07-09' },
-        { id: 'period-2026-09-17', startDate: '2026-09-17' },
+        { id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true },
         { id: 'period-2026-08-02', startDate: '2026-08-02', endDate: '2026-08-07' },
       ])
     );
@@ -195,11 +208,13 @@ describe('endCurrentPeriod changes only the open record', () => {
       id: 'period-2026-07-04',
       startDate: '2026-07-04',
       endDate: '2026-07-09',
+      isOngoing: false,
     });
     expect(updated.periodRecords[2]).toEqual({
       id: 'period-2026-08-02',
       startDate: '2026-08-02',
       endDate: '2026-08-07',
+      isOngoing: false,
     });
   });
 
@@ -220,6 +235,7 @@ describe('endCurrentPeriod changes only the open record', () => {
       id: 'period-2026-09-17',
       startDate: '2026-09-17',
       endDate: '2026-09-17',
+      isOngoing: false,
     });
   });
 
@@ -315,5 +331,62 @@ describe('endCurrentPeriod purity', () => {
     const updated = await endCurrentPeriod(db, { endDate: TODAY, today: TODAY });
 
     expect(updated.periodRecords[0]).toBe(stored.periodRecords[0]);
+  });
+});
+
+describe('endCurrentPeriod and the ongoing flag', () => {
+  it('clears the flag on the record it closes', async () => {
+    loadCycleProfile.mockResolvedValue(typicalProfile());
+
+    const updated = await endCurrentPeriod(db, { endDate: TODAY, today: TODAY });
+    const closed = updated.periodRecords.find((record) => record.id === 'period-2026-09-17');
+
+    expect(closed?.isOngoing).toBe(false);
+    expect(closed?.endDate).toBe('2026-09-17');
+  });
+
+  it('never picks a finished record whose end was never written down', async () => {
+    // The onboarding record. Offering to "finish" it would close a period from
+    // weeks ago on today's date.
+    loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'onboarding-initial-period', startDate: '2026-09-02' }])
+    );
+
+    await expect(endCurrentPeriod(db, { endDate: TODAY, today: TODAY })).rejects.toThrow(
+      /no open period to end/
+    );
+
+    expect(saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('picks the ongoing record over one with no recorded end', async () => {
+    loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' },
+        { id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true },
+      ])
+    );
+
+    const updated = await endCurrentPeriod(db, { endDate: TODAY, today: TODAY });
+
+    expect(updated.periodRecords[0]).toEqual({
+      id: 'onboarding-initial-period',
+      startDate: '2026-09-02',
+      isOngoing: false,
+    });
+    expect(updated.periodRecords[1]).toEqual({
+      id: 'period-2026-09-17',
+      startDate: '2026-09-17',
+      endDate: '2026-09-17',
+      isOngoing: false,
+    });
+  });
+
+  it('leaves nothing ongoing afterwards', async () => {
+    loadCycleProfile.mockResolvedValue(typicalProfile());
+
+    const updated = await endCurrentPeriod(db, { endDate: TODAY, today: TODAY });
+
+    expect(updated.periodRecords.filter((record) => record.isOngoing)).toHaveLength(0);
   });
 });

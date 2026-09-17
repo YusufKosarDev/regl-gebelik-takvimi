@@ -6,8 +6,8 @@ import { addDays, toISODate } from '@/utils/date';
 
 function record(id: string, startDate: string, endDate?: string): PeriodRecord {
   return endDate === undefined
-    ? { id, startDate: toISODate(startDate) }
-    : { id, startDate: toISODate(startDate), endDate: toISODate(endDate) };
+    ? { id, startDate: toISODate(startDate), isOngoing: false }
+    : { id, startDate: toISODate(startDate), endDate: toISODate(endDate), isOngoing: false };
 }
 
 function profile(

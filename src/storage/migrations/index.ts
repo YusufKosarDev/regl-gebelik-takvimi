@@ -7,7 +7,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 1;
+export const LATEST_SCHEMA_VERSION = 2;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -52,6 +52,35 @@ async function migrateToVersion1(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 2: says outright whether a period is still running.
+ *
+ * A missing `end_date` alone could not tell "still bleeding" from "history, end
+ * never recorded", so the column carries that instead of it being guessed.
+ *
+ * Existing rows default to 0. This is a pre-release app, and reading an old
+ * development row as ongoing would be a guess about someone's body rather than a
+ * fact, so the safe reading wins.
+ */
+const MIGRATION_V2 = `
+  ALTER TABLE period_records
+  ADD COLUMN is_ongoing INTEGER NOT NULL DEFAULT 0 CHECK (is_ongoing IN (0, 1));
+`;
+
+/**
+ * Adds the ongoing flag.
+ *
+ * Same bargain as version 1: the column and the version bump share one
+ * transaction, so a failure leaves the database still reporting version 1 rather
+ * than claiming a column it does not have.
+ */
+async function migrateToVersion2(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V2);
+    await db.execAsync('PRAGMA user_version = 2');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -81,7 +110,13 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     return;
   }
 
+  // Each step commits its own version, so an interrupted upgrade resumes from
+  // where it stopped rather than replaying a migration that already ran.
   if (currentVersion < 1) {
     await migrateToVersion1(db);
+  }
+
+  if (currentVersion < 2) {
+    await migrateToVersion2(db);
   }
 }

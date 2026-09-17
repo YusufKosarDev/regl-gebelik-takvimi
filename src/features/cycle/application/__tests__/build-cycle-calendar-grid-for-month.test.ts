@@ -12,6 +12,7 @@ function profile(startDates: string[] = ['2026-09-01']): CycleProfile {
     periodRecords: startDates.map((startDate, index) => ({
       id: `record-${index}`,
       startDate: startDate as ISODate,
+      isOngoing: false,
     })),
   };
 }
@@ -62,7 +63,7 @@ describe('buildCycleCalendarGridForMonth', () => {
     // Cycle 30 from 2026-09-02 predicts 2026-10-02.
     const subject: CycleProfile = {
       settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
-      periodRecords: [{ id: 'a', startDate: '2026-09-02' as ISODate }],
+      periodRecords: [{ id: 'a', startDate: '2026-09-02' as ISODate , isOngoing: false }],
     };
 
     const september = buildCycleCalendarGridForMonth(subject, 2026, 9);

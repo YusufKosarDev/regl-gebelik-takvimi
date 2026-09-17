@@ -12,7 +12,7 @@ import { getDaysInMonth, getISOWeekday, toISODate } from '@/utils/date';
 /** Cycle 28, period 5 -> ovulation on day 14, fertile window days 9-15. */
 const profile: CycleProfile = {
   settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
-  periodRecords: [{ id: 'record-0', startDate: '2026-09-01' as ISODate }],
+  periodRecords: [{ id: 'record-0', startDate: '2026-09-01' as ISODate , isOngoing: false }],
 };
 
 function gridFor(year: number, month: number) {

@@ -27,6 +27,7 @@ function profile(startDates: string[] = ['2026-09-01']): CycleProfile {
     periodRecords: startDates.map((startDate, index) => ({
       id: `record-${index}`,
       startDate: startDate as ISODate,
+      isOngoing: false,
     })),
   };
 }

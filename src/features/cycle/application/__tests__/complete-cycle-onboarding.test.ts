@@ -72,7 +72,7 @@ describe('completeCycleOnboarding with valid input', () => {
     expect(result).toEqual({
       settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
       periodRecords: [
-        { id: 'onboarding-initial-period', startDate: '2026-09-01' as ISODate },
+        { id: 'onboarding-initial-period', startDate: '2026-09-01' as ISODate , isOngoing: false },
       ],
     });
   });

@@ -27,7 +27,24 @@ type PeriodRow = {
   readonly id: string;
   readonly start_date: string;
   readonly end_date: string | null;
+  readonly is_ongoing: unknown;
 };
+
+/**
+ * SQLite has no boolean, so the column stores 0 or 1.
+ *
+ * Anything else is corruption rather than something to coerce: `Boolean(2)` and
+ * `Boolean("0")` would both quietly say a period is running.
+ */
+function toIsOngoing(id: string, value: unknown): boolean {
+  if (value === 0) return false;
+  if (value === 1) return true;
+
+  throw new Error(
+    `PeriodRecord "${id}" has an invalid is_ongoing value: ${JSON.stringify(value)}. ` +
+      'Expected 0 or 1.'
+  );
+}
 
 const UPSERT_SETTINGS = `
   INSERT INTO cycle_settings (id, average_cycle_length_days, average_period_length_days)
@@ -40,7 +57,7 @@ const UPSERT_SETTINGS = `
 const DELETE_PERIOD_RECORDS = 'DELETE FROM period_records';
 
 const INSERT_PERIOD_RECORD =
-  'INSERT INTO period_records (id, start_date, end_date) VALUES (?, ?, ?)';
+  'INSERT INTO period_records (id, start_date, end_date, is_ongoing) VALUES (?, ?, ?, ?)';
 
 const SELECT_SETTINGS = `
   SELECT average_cycle_length_days, average_period_length_days
@@ -49,7 +66,7 @@ const SELECT_SETTINGS = `
 `;
 
 const SELECT_PERIOD_RECORDS = `
-  SELECT id, start_date, end_date
+  SELECT id, start_date, end_date, is_ongoing
   FROM period_records
   ORDER BY start_date ASC
 `;
@@ -86,7 +103,8 @@ export async function saveCycleProfile(
         INSERT_PERIOD_RECORD,
         record.id,
         record.startDate,
-        record.endDate ?? null
+        record.endDate ?? null,
+        record.isOngoing ? 1 : 0
       );
     }
   });
@@ -114,10 +132,11 @@ export async function loadCycleProfile(db: SQLiteDatabase): Promise<CycleProfile
 
   const periodRecords: PeriodRecord[] = periodRows.map((row) => {
     const startDate = toISODate(row.start_date);
+    const isOngoing = toIsOngoing(row.id, row.is_ongoing);
 
     return row.end_date === null || row.end_date === undefined
-      ? { id: row.id, startDate }
-      : { id: row.id, startDate, endDate: toISODate(row.end_date) };
+      ? { id: row.id, startDate, isOngoing }
+      : { id: row.id, startDate, endDate: toISODate(row.end_date), isOngoing };
   });
 
   const profile: CycleProfile = {

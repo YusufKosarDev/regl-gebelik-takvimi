@@ -24,6 +24,7 @@ function profile(startDates: string[] = ['2026-09-01']): CycleProfile {
     periodRecords: startDates.map((startDate, index) => ({
       id: `record-${index}`,
       startDate: startDate as ISODate,
+      isOngoing: false,
     })),
   };
 }
@@ -145,7 +146,7 @@ describe('getCycleDashboard with a saved profile', () => {
   it('follows the saved cycle length when predicting', async () => {
     loadCycleProfile.mockResolvedValue({
       settings: { averageCycleLengthDays: 35, averagePeriodLengthDays: 7 },
-      periodRecords: [{ id: 'a', startDate: '2026-09-01' as ISODate }],
+      periodRecords: [{ id: 'a', startDate: '2026-09-01' as ISODate , isOngoing: false }],
     });
 
     expect(await getCycleDashboard(db, '2026-09-17' as ISODate)).toMatchObject({

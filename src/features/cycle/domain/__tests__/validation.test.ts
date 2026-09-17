@@ -17,8 +17,8 @@ function settings(
 
 function record(id: string, startDate: string, endDate?: string): PeriodRecord {
   return endDate === undefined
-    ? { id, startDate: toISODate(startDate) }
-    : { id, startDate: toISODate(startDate), endDate: toISODate(endDate) };
+    ? { id, startDate: toISODate(startDate), isOngoing: false }
+    : { id, startDate: toISODate(startDate), endDate: toISODate(endDate), isOngoing: false };
 }
 
 describe('validateCycleSettings', () => {
@@ -113,7 +113,7 @@ describe('validatePeriodRecord', () => {
   });
 
   it('rejects a start date that is not a real calendar date', () => {
-    const invalid: PeriodRecord = { id: 'a', startDate: '2026-02-30' as ISODate };
+    const invalid: PeriodRecord = { id: 'a', startDate: '2026-02-30' as ISODate , isOngoing: false };
 
     expect(() => validatePeriodRecord(invalid)).toThrow(/invalid startDate/);
   });
@@ -123,6 +123,7 @@ describe('validatePeriodRecord', () => {
       id: 'a',
       startDate: toISODate('2026-01-01'),
       endDate: '2026-13-01' as ISODate,
+      isOngoing: false,
     };
 
     expect(() => validatePeriodRecord(invalid)).toThrow(/invalid endDate/);
@@ -208,5 +209,102 @@ describe('validateCycleProfile', () => {
     expect(records.map((entry) => entry.id)).toEqual(['c', 'a', 'b']);
     expect(JSON.parse(JSON.stringify(records))).toEqual(snapshot);
     expect(profile.periodRecords).toBe(records);
+  });
+});
+
+describe('validatePeriodRecord and the ongoing flag', () => {
+  it('accepts a finished period whose end was never recorded', () => {
+    // The shape onboarding leaves behind.
+    expect(() =>
+      validatePeriodRecord({
+        id: 'onboarding-initial-period',
+        startDate: toISODate('2026-09-02'),
+        isOngoing: false,
+      })
+    ).not.toThrow();
+  });
+
+  it('accepts a period happening now', () => {
+    expect(() =>
+      validatePeriodRecord({
+        id: 'a',
+        startDate: toISODate('2026-09-17'),
+        isOngoing: true,
+      })
+    ).not.toThrow();
+  });
+
+  it('accepts a period that finished on a known day', () => {
+    expect(() =>
+      validatePeriodRecord({
+        id: 'a',
+        startDate: toISODate('2026-09-17'),
+        endDate: toISODate('2026-09-22'),
+        isOngoing: false,
+      })
+    ).not.toThrow();
+  });
+
+  it('rejects a period that is both ongoing and ended', () => {
+    expect(() =>
+      validatePeriodRecord({
+        id: 'a',
+        startDate: toISODate('2026-09-17'),
+        endDate: toISODate('2026-09-22'),
+        isOngoing: true,
+      })
+    ).toThrow(/marked ongoing but already ends on 2026-09-22/);
+  });
+
+  it('rejects a non-boolean flag', () => {
+    expect(() =>
+      validatePeriodRecord({
+        id: 'a',
+        startDate: toISODate('2026-09-17'),
+        isOngoing: undefined as unknown as boolean,
+      })
+    ).toThrow(/non-boolean isOngoing/);
+  });
+});
+
+describe('validateCycleProfile and the ongoing flag', () => {
+  function withRecords(records: PeriodRecord[]): CycleProfile {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: records,
+    };
+  }
+
+  it('accepts a profile with one ongoing period', () => {
+    expect(() =>
+      validateCycleProfile(
+        withRecords([
+          { id: 'a', startDate: toISODate('2026-08-02'), endDate: toISODate('2026-08-07'), isOngoing: false },
+          { id: 'b', startDate: toISODate('2026-09-17'), isOngoing: true },
+        ])
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts a profile with none ongoing', () => {
+    expect(() =>
+      validateCycleProfile(
+        withRecords([
+          { id: 'a', startDate: toISODate('2026-08-02'), isOngoing: false },
+          { id: 'b', startDate: toISODate('2026-09-17'), isOngoing: false },
+        ])
+      )
+    ).not.toThrow();
+  });
+
+  it('rejects a profile with two ongoing periods', () => {
+    expect(() =>
+      validateCycleProfile(
+        withRecords([
+          { id: 'a', startDate: toISODate('2026-09-02'), isOngoing: true },
+          { id: 'b', startDate: toISODate('2026-09-17'), isOngoing: true },
+        ])
+      )
+    ).toThrow(/has 2 ongoing period records; at most 1 is valid/);
   });
 });

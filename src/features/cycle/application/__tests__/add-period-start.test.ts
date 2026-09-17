@@ -25,6 +25,7 @@ function profile(startDates: string[] = ['2026-09-02']): CycleProfile {
     periodRecords: startDates.map((startDate, index) => ({
       id: `record-${index}`,
       startDate: startDate as ISODate,
+      isOngoing: false,
     })),
   };
 }
@@ -117,7 +118,9 @@ describe('addPeriodStart with a valid date', () => {
 
     const updated = await addPeriodStart(db, { startDate: TODAY, today: TODAY });
 
-    expect(updated.periodRecords).toEqual([{ id: 'period-2026-09-17', startDate: '2026-09-17' }]);
+    expect(updated.periodRecords).toEqual([
+      { id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true },
+    ]);
   });
 });
 
@@ -251,5 +254,68 @@ describe('addPeriodStart purity', () => {
     const updated = await addPeriodStart(db, { startDate: TODAY, today: TODAY });
 
     expect(updated.periodRecords).not.toBe(stored.periodRecords);
+  });
+});
+
+describe('addPeriodStart and the ongoing flag', () => {
+  it('marks the new record as ongoing', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    const updated = await addPeriodStart(db, { startDate: TODAY, today: TODAY });
+    const added = updated.periodRecords.find((record) => record.startDate === TODAY);
+
+    expect(added?.isOngoing).toBe(true);
+    expect(added?.endDate).toBeUndefined();
+  });
+
+  it('adds a start when the only record is finished with no recorded end', async () => {
+    // The state onboarding leaves behind. This has to keep working: it is the
+    // very first thing a person does after onboarding.
+    loadCycleProfile.mockResolvedValue({
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' as ISODate, isOngoing: false },
+      ],
+    });
+
+    const updated = await addPeriodStart(db, { startDate: TODAY, today: TODAY });
+
+    expect(updated.periodRecords).toHaveLength(2);
+    expect(updated.periodRecords[1]).toEqual({
+      id: 'period-2026-09-17',
+      startDate: '2026-09-17',
+      isOngoing: true,
+    });
+    expect(saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses while another period is ongoing', async () => {
+    loadCycleProfile.mockResolvedValue({
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        { id: 'period-2026-09-10', startDate: '2026-09-10' as ISODate, isOngoing: true },
+      ],
+    });
+
+    await expect(addPeriodStart(db, { startDate: TODAY, today: TODAY })).rejects.toThrow(
+      /already ongoing; end it first/
+    );
+
+    expect(saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('leaves the existing records alone when it refuses', async () => {
+    const stored = {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        { id: 'period-2026-09-10', startDate: '2026-09-10' as ISODate, isOngoing: true },
+      ],
+    };
+    const snapshot = JSON.parse(JSON.stringify(stored));
+    loadCycleProfile.mockResolvedValue(stored);
+
+    await expect(addPeriodStart(db, { startDate: TODAY, today: TODAY })).rejects.toThrow();
+
+    expect(stored).toEqual(snapshot);
   });
 });

@@ -49,21 +49,37 @@ function collectText(node: unknown): string[] {
 /**
  * Cycle 28, period 5 -> ovulation on day 14, fertile window days 9-15.
  *
- * Records are closed unless asked for otherwise, so the screen offers the start
- * action. `endDate` plays no part in the cycle day, phase, fertility or
- * prediction, so closing them changes nothing the summary or calendar shows.
+ * Records are finished unless asked for otherwise, so the screen offers the
+ * start action. Neither `endDate` nor `isOngoing` plays any part in the cycle
+ * day, phase, fertility or prediction.
  */
 function profile(
   startDates: string[] = ['2026-09-01'],
   options: { open?: boolean } = {}
 ): CycleProfile {
+  const isOngoing = options.open === true;
+
   return {
     settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
     periodRecords: startDates.map((startDate, index) => ({
       id: `record-${index}`,
       startDate: startDate as ISODate,
-      ...(options.open === true ? {} : { endDate: startDate as ISODate }),
+      ...(isOngoing ? {} : { endDate: startDate as ISODate }),
+      isOngoing,
     })),
+  };
+}
+
+/**
+ * The shape onboarding leaves behind: a past period whose end was never asked
+ * for. Not ongoing, and no end date invented for it.
+ */
+function onboardingProfile(startDate = '2026-09-02'): CycleProfile {
+  return {
+    settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+    periodRecords: [
+      { id: 'onboarding-initial-period', startDate: startDate as ISODate, isOngoing: false },
+    ],
   };
 }
 
@@ -205,7 +221,7 @@ describe('HomeScreen tracks the real cycle', () => {
   it('follows a different saved cycle length', async () => {
     repository.loadCycleProfile.mockResolvedValue({
       settings: { averageCycleLengthDays: 35, averagePeriodLengthDays: 7 },
-      periodRecords: [{ id: 'a', startDate: '2026-09-01' as ISODate }],
+      periodRecords: [{ id: 'a', startDate: '2026-09-01' as ISODate , isOngoing: false }],
     });
 
     const { getByText } = await renderScreen();
@@ -1137,8 +1153,8 @@ describe('HomeScreen period start save', () => {
     return {
       settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
       periodRecords: [
-        { id: 'record-0', startDate: '2026-09-01' as ISODate },
-        { id: 'period-2026-09-17', startDate: '2026-09-17' as ISODate },
+        { id: 'record-0', startDate: '2026-09-01' as ISODate , isOngoing: false },
+        { id: 'period-2026-09-17', startDate: '2026-09-17' as ISODate , isOngoing: false },
       ],
     };
   }
@@ -1351,6 +1367,7 @@ describe('HomeScreen period start failure', () => {
           id: 'period-2026-09-17',
           startDate: '2026-09-17' as ISODate,
           endDate: '2026-09-17' as ISODate,
+          isOngoing: false,
         },
       ],
     });
@@ -1428,18 +1445,22 @@ describe('HomeScreen period action choice', () => {
     expect(queryByText('Regl başladı')).toBeNull();
   });
 
-  it('offers neither when the data has several open periods', async () => {
-    repository.loadCycleProfile.mockResolvedValue(
-      profile(['2026-09-01', '2026-09-17'], { open: true })
-    );
+  it('never sees several ongoing periods, because validation rejects them first', async () => {
+    repository.loadCycleProfile.mockResolvedValue({
+      settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+      periodRecords: [
+        { id: 'a', startDate: '2026-09-01' as ISODate, isOngoing: true },
+        { id: 'b', startDate: '2026-09-17' as ISODate, isOngoing: true },
+      ],
+    });
 
     const { queryByLabelText, getByText } = await renderScreen();
 
+    // The domain invariant fires before anything is rendered, so the screen
+    // reports the failure rather than showing an action it cannot carry out.
+    expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
     expect(queryByLabelText('Regl başlangıcını kaydet')).toBeNull();
     expect(queryByLabelText('Regl bitişini kaydet')).toBeNull();
-    // The rest of the screen still works.
-    expect(getByText('Takvim')).toBeTruthy();
-    expect(getByText('Regl günü')).toBeTruthy();
   });
 });
 
@@ -1499,6 +1520,7 @@ describe('HomeScreen period end save', () => {
           id: 'record-0',
           startDate: '2026-09-17' as ISODate,
           endDate: '2026-09-17' as ISODate,
+          isOngoing: false,
         },
       ],
     };
@@ -1523,7 +1545,7 @@ describe('HomeScreen period end save', () => {
     const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
 
     expect(saved.periodRecords).toEqual([
-      { id: 'record-0', startDate: '2026-09-17', endDate: '2026-09-17' },
+      { id: 'record-0', startDate: '2026-09-17', endDate: '2026-09-17' , isOngoing: false },
     ]);
   });
 
@@ -1681,5 +1703,134 @@ describe('HomeScreen period end absence', () => {
     const { queryByLabelText } = await renderScreen();
 
     expect(queryByLabelText('Regl bitişini kaydet')).toBeNull();
+  });
+});
+
+describe('HomeScreen straight after onboarding', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(onboardingProfile());
+  });
+
+  it('offers to record a period start', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
+    expect(getByText('Regl başladı')).toBeTruthy();
+  });
+
+  it('does not offer to end anything', async () => {
+    const { queryByLabelText, queryByText } = await renderScreen();
+
+    // The onboarding record has no end date, but it is not happening now.
+    expect(queryByLabelText('Regl bitişini kaydet')).toBeNull();
+    expect(queryByText('Regl bitti')).toBeNull();
+  });
+
+  it('still shows the summary and the calendar', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('16. gün')).toBeTruthy();
+    expect(getByText('Yumurtlama')).toBeTruthy();
+    expect(getByText('Takvim')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen through a whole period', () => {
+  /** Onboarding record plus today, still running. */
+  function withOngoingToday(): CycleProfile {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' as ISODate, isOngoing: false },
+        { id: 'period-2026-09-17', startDate: '2026-09-17' as ISODate, isOngoing: true },
+      ],
+    };
+  }
+
+  /** The same, once today has been closed. */
+  function withClosedToday(): CycleProfile {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        { id: 'onboarding-initial-period', startDate: '2026-09-02' as ISODate, isOngoing: false },
+        {
+          id: 'period-2026-09-17',
+          startDate: '2026-09-17' as ISODate,
+          endDate: '2026-09-17' as ISODate,
+          isOngoing: false,
+        },
+      ],
+    };
+  }
+
+  it('offers to end once a start has been recorded', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(onboardingProfile())
+      .mockResolvedValueOnce(onboardingProfile())
+      .mockResolvedValue(withOngoingToday());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByText('Regl bitti')).toBeTruthy();
+    expect(screen.queryByText('Regl başladı')).toBeNull();
+  });
+
+  it('stores the start as ongoing', async () => {
+    repository.loadCycleProfile.mockResolvedValue(onboardingProfile());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords[1]).toEqual({
+      id: 'period-2026-09-17',
+      startDate: '2026-09-17',
+      isOngoing: true,
+    });
+  });
+
+  it('offers to start again once the period has ended', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(withOngoingToday())
+      .mockResolvedValueOnce(withOngoingToday())
+      .mockResolvedValue(withClosedToday());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl bitişini kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(screen.getByText('Regl başladı')).toBeTruthy();
+    expect(screen.queryByText('Regl bitti')).toBeNull();
+  });
+
+  it('stores the end with the flag cleared', async () => {
+    repository.loadCycleProfile.mockResolvedValue(withOngoingToday());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl bitişini kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    const [, saved] = repository.saveCycleProfile.mock.calls[0] as [unknown, CycleProfile];
+
+    expect(saved.periodRecords[1]).toEqual({
+      id: 'period-2026-09-17',
+      startDate: '2026-09-17',
+      endDate: '2026-09-17',
+      isOngoing: false,
+    });
+    // The onboarding record is untouched, end date still unknown.
+    expect(saved.periodRecords[0]).toEqual({
+      id: 'onboarding-initial-period',
+      startDate: '2026-09-02',
+      isOngoing: false,
+    });
   });
 });

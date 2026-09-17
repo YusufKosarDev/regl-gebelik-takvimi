@@ -66,6 +66,20 @@ export function validatePeriodRecord(record: PeriodRecord): void {
     throw new Error(`PeriodRecord "${record.id}" has an invalid startDate: "${record.startDate}".`);
   }
 
+  if (typeof record.isOngoing !== 'boolean') {
+    throw new Error(
+      `PeriodRecord "${record.id}" has a non-boolean isOngoing: ${JSON.stringify(record.isOngoing)}.`
+    );
+  }
+
+  if (record.isOngoing && record.endDate !== undefined) {
+    throw new Error(
+      `PeriodRecord "${record.id}" is marked ongoing but already ends on ${record.endDate}.`
+    );
+  }
+
+  // A finished period with no recorded end date is fine: that is history nobody
+  // wrote the end of, not a period still running.
   if (record.endDate === undefined) {
     return;
   }
@@ -98,9 +112,14 @@ export function validateCycleProfile(profile: CycleProfile): void {
 
   const seenIds = new Set<string>();
   const seenStartDates = new Set<string>();
+  let ongoingCount = 0;
 
   for (const record of profile.periodRecords) {
     validatePeriodRecord(record);
+
+    if (record.isOngoing) {
+      ongoingCount += 1;
+    }
 
     if (seenIds.has(record.id)) {
       throw new Error(`Duplicate PeriodRecord id: "${record.id}".`);
@@ -111,5 +130,11 @@ export function validateCycleProfile(profile: CycleProfile): void {
       throw new Error(`Duplicate PeriodRecord startDate: "${record.startDate}".`);
     }
     seenStartDates.add(record.startDate);
+  }
+
+  // Only one period can be happening at a time, so more than one is corruption
+  // rather than a state to interpret.
+  if (ongoingCount > 1) {
+    throw new Error(`CycleProfile has ${ongoingCount} ongoing period records; at most 1 is valid.`);
   }
 }

@@ -4,7 +4,7 @@ import type { CycleProfile, PeriodRecord } from '../types';
 import { toISODate } from '@/utils/date';
 
 function record(id: string, startDate: string): PeriodRecord {
-  return { id, startDate: toISODate(startDate) };
+  return { id, startDate: toISODate(startDate), isOngoing: false };
 }
 
 function profile(

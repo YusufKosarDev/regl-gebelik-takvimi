@@ -68,8 +68,8 @@ function runCalls(spy: DatabaseSpy): { sql: string; params: unknown[] }[] {
 
 function record(id: string, startDate: string, endDate?: string): PeriodRecord {
   return endDate === undefined
-    ? { id, startDate: toISODate(startDate) }
-    : { id, startDate: toISODate(startDate), endDate: toISODate(endDate) };
+    ? { id, startDate: toISODate(startDate), isOngoing: false }
+    : { id, startDate: toISODate(startDate), endDate: toISODate(endDate), isOngoing: false };
 }
 
 function profile(periodRecords: readonly PeriodRecord[] = []): CycleProfile {
@@ -169,9 +169,9 @@ describe('saveCycleProfile', () => {
 
     expect(inserts).toHaveLength(3);
     expect(inserts.map((call) => call.params)).toEqual([
-      ['a', '2026-01-01', '2026-01-05'],
-      ['b', '2026-01-29', null],
-      ['c', '2026-02-26', '2026-03-01'],
+      ['a', '2026-01-01', '2026-01-05', 0],
+      ['b', '2026-01-29', null, 0],
+      ['c', '2026-02-26', '2026-03-01', 0],
     ]);
   });
 
@@ -264,13 +264,13 @@ describe('loadCycleProfile', () => {
   it('maps a single period record', async () => {
     const spy = createDatabaseSpy({
       settingsRow,
-      periodRows: [{ id: 'a', start_date: '2026-01-01', end_date: '2026-01-05' }],
+      periodRows: [{ id: 'a', start_date: '2026-01-01', end_date: '2026-01-05', is_ongoing: 0 }],
     });
 
     const result = await loadCycleProfile(spy.db);
 
     expect(result?.periodRecords).toEqual([
-      { id: 'a', startDate: '2026-01-01', endDate: '2026-01-05' },
+      { id: 'a', startDate: '2026-01-01', endDate: '2026-01-05' , isOngoing: false },
     ]);
   });
 
@@ -278,9 +278,9 @@ describe('loadCycleProfile', () => {
     const spy = createDatabaseSpy({
       settingsRow,
       periodRows: [
-        { id: 'a', start_date: '2026-01-01', end_date: '2026-01-05' },
-        { id: 'b', start_date: '2026-01-29', end_date: null },
-        { id: 'c', start_date: '2026-02-26', end_date: '2026-03-01' },
+        { id: 'a', start_date: '2026-01-01', end_date: '2026-01-05', is_ongoing: 0 },
+        { id: 'b', start_date: '2026-01-29', end_date: null, is_ongoing: 0 },
+        { id: 'c', start_date: '2026-02-26', end_date: '2026-03-01', is_ongoing: 0 },
       ],
     });
 
@@ -293,7 +293,7 @@ describe('loadCycleProfile', () => {
   it('turns a NULL end_date into an undefined endDate', async () => {
     const spy = createDatabaseSpy({
       settingsRow,
-      periodRows: [{ id: 'a', start_date: '2026-01-01', end_date: null }],
+      periodRows: [{ id: 'a', start_date: '2026-01-01', end_date: null, is_ongoing: 0 }],
     });
 
     const result = await loadCycleProfile(spy.db);
@@ -313,8 +313,8 @@ describe('loadCycleProfile', () => {
     const spy = createDatabaseSpy({
       settingsRow,
       periodRows: [
-        { id: 'a', start_date: '2026-01-01', end_date: '2026-01-05' },
-        { id: 'b', start_date: '2026-01-29', end_date: null },
+        { id: 'a', start_date: '2026-01-01', end_date: '2026-01-05', is_ongoing: 0 },
+        { id: 'b', start_date: '2026-01-29', end_date: null, is_ongoing: 0 },
       ],
     });
 
@@ -327,7 +327,7 @@ describe('loadCycleProfile', () => {
   it('raises on a stored start_date that is not a real calendar date', async () => {
     const spy = createDatabaseSpy({
       settingsRow,
-      periodRows: [{ id: 'a', start_date: '2026-02-30', end_date: null }],
+      periodRows: [{ id: 'a', start_date: '2026-02-30', end_date: null, is_ongoing: 0 }],
     });
 
     await expect(loadCycleProfile(spy.db)).rejects.toThrow(/Invalid ISO date/);
@@ -336,7 +336,7 @@ describe('loadCycleProfile', () => {
   it('raises on a stored end_date that is not a real calendar date', async () => {
     const spy = createDatabaseSpy({
       settingsRow,
-      periodRows: [{ id: 'a', start_date: '2026-01-01', end_date: '2026-13-01' }],
+      periodRows: [{ id: 'a', start_date: '2026-01-01', end_date: '2026-13-01', is_ongoing: 0 }],
     });
 
     await expect(loadCycleProfile(spy.db)).rejects.toThrow(/Invalid ISO date/);
@@ -357,8 +357,8 @@ describe('loadCycleProfile', () => {
     const spy = createDatabaseSpy({
       settingsRow,
       periodRows: [
-        { id: 'a', start_date: '2026-01-01', end_date: null },
-        { id: 'b', start_date: '2026-01-01', end_date: null },
+        { id: 'a', start_date: '2026-01-01', end_date: null, is_ongoing: 0 },
+        { id: 'b', start_date: '2026-01-01', end_date: null, is_ongoing: 0 },
       ],
     });
 
@@ -369,8 +369,8 @@ describe('loadCycleProfile', () => {
     const spy = createDatabaseSpy({
       settingsRow,
       periodRows: [
-        { id: 'a', start_date: '2026-01-01', end_date: null },
-        { id: 'a', start_date: '2026-01-29', end_date: null },
+        { id: 'a', start_date: '2026-01-01', end_date: null, is_ongoing: 0 },
+        { id: 'a', start_date: '2026-01-29', end_date: null, is_ongoing: 0 },
       ],
     });
 
@@ -380,7 +380,7 @@ describe('loadCycleProfile', () => {
   it('does not repair corrupt data silently', async () => {
     const spy = createDatabaseSpy({
       settingsRow,
-      periodRows: [{ id: '', start_date: '2026-01-01', end_date: null }],
+      periodRows: [{ id: '', start_date: '2026-01-01', end_date: null, is_ongoing: 0 }],
     });
 
     await expect(loadCycleProfile(spy.db)).rejects.toThrow(/non-empty string/);
@@ -404,6 +404,7 @@ describe('save and load round trip', () => {
         id: call.params[0] as string,
         start_date: call.params[1] as string,
         end_date: call.params[2] as string | null,
+        is_ongoing: call.params[3] as number,
       }));
 
     const settingsCall = runCalls(writeSpy)[0];
@@ -421,9 +422,115 @@ describe('save and load round trip', () => {
     expect(reloaded).toEqual({
       settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
       periodRecords: [
-        { id: 'a', startDate: '2026-01-01' as ISODate, endDate: '2026-01-05' as ISODate },
-        { id: 'b', startDate: '2026-01-29' as ISODate },
+        { id: 'a', startDate: '2026-01-01' as ISODate, endDate: '2026-01-05' as ISODate , isOngoing: false },
+        { id: 'b', startDate: '2026-01-29' as ISODate , isOngoing: false },
       ],
     });
+  });
+});
+
+describe('saveCycleProfile and the ongoing flag', () => {
+  it('writes 1 for an ongoing period', async () => {
+    const spy = createDatabaseSpy();
+    const ongoing: PeriodRecord = {
+      id: 'a',
+      startDate: toISODate('2026-09-17'),
+      isOngoing: true,
+    };
+
+    await saveCycleProfile(spy.db, profile([ongoing]));
+    const insert = runCalls(spy).find((call) => /INSERT INTO period_records/i.test(call.sql));
+
+    expect(insert?.params[3]).toBe(1);
+  });
+
+  it('writes 0 for a finished period', async () => {
+    const spy = createDatabaseSpy();
+
+    await saveCycleProfile(spy.db, profile([record('a', '2026-09-17', '2026-09-22')]));
+    const insert = runCalls(spy).find((call) => /INSERT INTO period_records/i.test(call.sql));
+
+    expect(insert?.params[3]).toBe(0);
+  });
+
+  it('writes 0 for a finished period with no recorded end', async () => {
+    const spy = createDatabaseSpy();
+
+    await saveCycleProfile(spy.db, profile([record('a', '2026-09-17')]));
+    const insert = runCalls(spy).find((call) => /INSERT INTO period_records/i.test(call.sql));
+
+    expect(insert?.params[2]).toBeNull();
+    expect(insert?.params[3]).toBe(0);
+  });
+
+  it('binds the flag rather than interpolating it', async () => {
+    const spy = createDatabaseSpy();
+
+    await saveCycleProfile(spy.db, profile([record('a', '2026-09-17')]));
+    const insert = runCalls(spy).find((call) => /INSERT INTO period_records/i.test(call.sql));
+
+    expect(insert?.sql).toMatch(/VALUES \(\?, \?, \?, \?\)/);
+    expect(insert?.sql).not.toMatch(/is_ongoing\s*=/);
+  });
+});
+
+describe('loadCycleProfile and the ongoing flag', () => {
+  it('reads 0 as finished', async () => {
+    const spy = createDatabaseSpy({
+      settingsRow: { average_cycle_length_days: 28, average_period_length_days: 5 },
+      periodRows: [{ id: 'a', start_date: '2026-09-17', end_date: null, is_ongoing: 0 }],
+    });
+
+    const loaded = await loadCycleProfile(spy.db);
+
+    expect(loaded?.periodRecords[0].isOngoing).toBe(false);
+  });
+
+  it('reads 1 as ongoing', async () => {
+    const spy = createDatabaseSpy({
+      settingsRow: { average_cycle_length_days: 28, average_period_length_days: 5 },
+      periodRows: [{ id: 'a', start_date: '2026-09-17', end_date: null, is_ongoing: 1 }],
+    });
+
+    const loaded = await loadCycleProfile(spy.db);
+
+    expect(loaded?.periodRecords[0].isOngoing).toBe(true);
+  });
+
+  it.each<[string, unknown]>([
+    ['2', 2],
+    ['-1', -1],
+    ['null', null],
+    ['a string', '1'],
+    ['a missing column', undefined],
+    ['a boolean', true],
+  ])('raises on %s', async (_label, value) => {
+    const spy = createDatabaseSpy({
+      settingsRow: { average_cycle_length_days: 28, average_period_length_days: 5 },
+      periodRows: [{ id: 'a', start_date: '2026-09-17', end_date: null, is_ongoing: value }],
+    });
+
+    await expect(loadCycleProfile(spy.db)).rejects.toThrow(/invalid is_ongoing value/);
+  });
+
+  it('names the record it could not read', async () => {
+    const spy = createDatabaseSpy({
+      settingsRow: { average_cycle_length_days: 28, average_period_length_days: 5 },
+      periodRows: [{ id: 'broken', start_date: '2026-09-17', end_date: null, is_ongoing: 9 }],
+    });
+
+    await expect(loadCycleProfile(spy.db)).rejects.toThrow(/PeriodRecord "broken"/);
+  });
+
+  it('refuses two ongoing records', async () => {
+    const spy = createDatabaseSpy({
+      settingsRow: { average_cycle_length_days: 28, average_period_length_days: 5 },
+      periodRows: [
+        { id: 'a', start_date: '2026-09-02', end_date: null, is_ongoing: 1 },
+        { id: 'b', start_date: '2026-09-17', end_date: null, is_ongoing: 1 },
+      ],
+    });
+
+    await expect(loadCycleProfile(spy.db)).rejects.toThrow(/2 ongoing period records/);
   });
 });

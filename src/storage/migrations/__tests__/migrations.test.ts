@@ -56,20 +56,20 @@ function statementsFrom(spy: DatabaseSpy): string[] {
 }
 
 describe('LATEST_SCHEMA_VERSION', () => {
-  it('is 1', () => {
-    expect(LATEST_SCHEMA_VERSION).toBe(1);
+  it('is 2', () => {
+    expect(LATEST_SCHEMA_VERSION).toBe(2);
   });
 });
 
 describe('runMigrations when the database is already current', () => {
   it('resolves without error', async () => {
-    const spy = createDatabaseSpy({ user_version: 1 });
+    const spy = createDatabaseSpy({ user_version: 2 });
 
     await expect(runMigrations(spy.db)).resolves.toBeUndefined();
   });
 
   it('reads the version with PRAGMA user_version', async () => {
-    const spy = createDatabaseSpy({ user_version: 1 });
+    const spy = createDatabaseSpy({ user_version: 2 });
 
     await runMigrations(spy.db);
 
@@ -78,7 +78,7 @@ describe('runMigrations when the database is already current', () => {
   });
 
   it('runs no statements and opens no transaction', async () => {
-    const spy = createDatabaseSpy({ user_version: 1 });
+    const spy = createDatabaseSpy({ user_version: 2 });
 
     await runMigrations(spy.db);
 
@@ -91,7 +91,7 @@ describe('runMigrations when the database is already current', () => {
 
 describe('runMigrations when the database is newer than this build', () => {
   it('throws rather than continuing', async () => {
-    const spy = createDatabaseSpy({ user_version: 2 });
+    const spy = createDatabaseSpy({ user_version: 3 });
 
     await expect(runMigrations(spy.db)).rejects.toThrow(/newer than supported version/);
   });
@@ -100,12 +100,12 @@ describe('runMigrations when the database is newer than this build', () => {
     const spy = createDatabaseSpy({ user_version: 7 });
 
     await expect(runMigrations(spy.db)).rejects.toThrow(
-      'Database schema version 7 is newer than supported version 1.'
+      'Database schema version 7 is newer than supported version 2.'
     );
   });
 
   it('runs no statements before throwing', async () => {
-    const spy = createDatabaseSpy({ user_version: 2 });
+    const spy = createDatabaseSpy({ user_version: 3 });
 
     await expect(runMigrations(spy.db)).rejects.toThrow();
 
@@ -265,12 +265,14 @@ describe('runMigrations applying version 1 to an empty database', () => {
     expect(spy.runAsync).not.toHaveBeenCalled();
   });
 
-  it('runs inside a single transaction', async () => {
+  it('gives each version its own transaction', async () => {
     const spy = createDatabaseSpy({ user_version: 0 });
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(1);
+    // One for version 1 and one for version 2, so an interrupted upgrade keeps
+    // whichever step already committed.
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(2);
   });
 
   it('issues no statements outside that transaction', async () => {
@@ -280,7 +282,7 @@ describe('runMigrations applying version 1 to an empty database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(1);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(2);
     expect(spy.execAsync).not.toHaveBeenCalled();
   });
 
@@ -332,7 +334,7 @@ describe('runMigrations when the version 1 schema fails', () => {
 
 describe('runMigrations and the database handle', () => {
   it('does not replace or mutate the handle it is given', async () => {
-    const spy = createDatabaseSpy({ user_version: 1 });
+    const spy = createDatabaseSpy({ user_version: 2 });
     const keysBefore = Object.keys(spy.db as unknown as Record<string, unknown>).sort();
     const getFirstBefore = (spy.db as unknown as Record<string, unknown>).getFirstAsync;
 
@@ -340,5 +342,118 @@ describe('runMigrations and the database handle', () => {
 
     expect(Object.keys(spy.db as unknown as Record<string, unknown>).sort()).toEqual(keysBefore);
     expect((spy.db as unknown as Record<string, unknown>).getFirstAsync).toBe(getFirstBefore);
+  });
+});
+
+describe('runMigrations applying version 2 to an empty database', () => {
+  it('adds the ongoing column', async () => {
+    const spy = createDatabaseSpy({ user_version: 0 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).toMatch(/ALTER TABLE period_records ADD COLUMN is_ongoing INTEGER/i);
+  });
+
+  it('makes the column NOT NULL with a default of 0', async () => {
+    const spy = createDatabaseSpy({ user_version: 0 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).toMatch(/is_ongoing INTEGER NOT NULL DEFAULT 0/i);
+  });
+
+  it('constrains the column to 0 or 1', async () => {
+    const spy = createDatabaseSpy({ user_version: 0 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).toMatch(/CHECK \(is_ongoing IN \(0, 1\)\)/i);
+  });
+
+  it('creates the table before altering it', async () => {
+    const spy = createDatabaseSpy({ user_version: 0 });
+
+    await runMigrations(spy.db);
+    const statements = statementsFrom(spy);
+
+    const created = statements.findIndex((sql) => /CREATE TABLE period_records/i.test(sql));
+    const altered = statements.findIndex((sql) => /ALTER TABLE period_records/i.test(sql));
+
+    expect(created).toBeGreaterThanOrEqual(0);
+    expect(altered).toBeGreaterThan(created);
+  });
+
+  it('ends at version 2', async () => {
+    const spy = createDatabaseSpy({ user_version: 0 });
+
+    await runMigrations(spy.db);
+    const statements = statementsFrom(spy);
+
+    expect(statements).toContain('PRAGMA user_version = 1');
+    expect(statements).toContain('PRAGMA user_version = 2');
+    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 2');
+  });
+});
+
+describe('runMigrations upgrading a version 1 database', () => {
+  it('resolves without error', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 });
+
+    await expect(runMigrations(spy.db)).resolves.toBeUndefined();
+  });
+
+  it('does not create the tables again', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).not.toMatch(/CREATE TABLE/i);
+  });
+
+  it('adds only the ongoing column', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).toMatch(/ALTER TABLE period_records ADD COLUMN is_ongoing/i);
+  });
+
+  it('bumps the version to 2 and not through 1 again', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 });
+
+    await runMigrations(spy.db);
+    const statements = statementsFrom(spy);
+
+    expect(statements).toContain('PRAGMA user_version = 2');
+    expect(statements).not.toContain('PRAGMA user_version = 1');
+  });
+
+  it('uses a single transaction', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 });
+
+    await runMigrations(spy.db);
+
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runMigrations when the version 2 step fails', () => {
+  it('rejects with the underlying error', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 }, { execError: new Error('disk is full') });
+
+    await expect(runMigrations(spy.db)).rejects.toThrow('disk is full');
+  });
+
+  it('never bumps user_version to 2', async () => {
+    const spy = createDatabaseSpy({ user_version: 1 }, { execError: new Error('disk is full') });
+
+    await expect(runMigrations(spy.db)).rejects.toThrow();
+
+    expect(statementsFrom(spy)).not.toContain('PRAGMA user_version = 2');
   });
 });

@@ -72,7 +72,7 @@ export async function endCurrentPeriod(
   const updated: CycleProfile = {
     settings: profile.settings,
     periodRecords: profile.periodRecords.map((record) =>
-      record.id === open.id ? { ...record, endDate } : record
+      record.id === open.id ? { ...record, endDate, isOngoing: false } : record
     ),
   };
 
