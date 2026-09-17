@@ -338,3 +338,182 @@ describe('CycleCalendar scope', () => {
     expect(getByTestId('calendar-empty-5')).toBeTruthy();
   });
 });
+
+/** Reads the small label rendered inside today's square. */
+function todayLabelsIn(screen: Awaited<ReturnType<typeof renderCalendar>>): unknown[] {
+  return screen.queryAllByText('Bugün');
+}
+
+describe('CycleCalendar without a today prop', () => {
+  it('marks nothing as today', async () => {
+    const screen = await renderCalendar();
+
+    expect(todayLabelsIn(screen)).toHaveLength(0);
+    expect(screen.queryAllByTestId(/^calendar-today-/)).toHaveLength(0);
+  });
+
+  it('leaves every accessibility label unchanged', async () => {
+    const screen = await renderCalendar();
+
+    for (const day of september.days) {
+      const label = screen.getByTestId(`calendar-day-${day.date}`).props
+        .accessibilityLabel as string;
+
+      expect(label).not.toMatch(/bugün/);
+    }
+  });
+
+  it('keeps the markers it had before', async () => {
+    const screen = await renderCalendar();
+
+    expect(markersOn(screen, '2026-09-03')).toEqual(['R']);
+    expect(markersOn(screen, '2026-09-14')).toEqual(['Y']);
+    expect(markersOn(screen, '2026-09-11')).toEqual(['○']);
+  });
+});
+
+describe('CycleCalendar with today inside the month', () => {
+  async function renderWithToday(today = '2026-09-17') {
+    return render(<CycleCalendar grid={septemberGrid} today={today as ISODate} />);
+  }
+
+  it('marks exactly one cell', async () => {
+    const screen = await renderWithToday();
+
+    expect(todayLabelsIn(screen)).toHaveLength(1);
+    expect(screen.queryAllByTestId(/^calendar-today-/)).toHaveLength(1);
+  });
+
+  it('marks the right cell', async () => {
+    const screen = await renderWithToday();
+
+    expect(screen.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+  });
+
+  it('says so in the accessibility label', async () => {
+    const screen = await renderWithToday();
+
+    expect(
+      screen.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel as string
+    ).toMatch(/, bugün$/);
+  });
+
+  it('leaves the neighbouring days alone', async () => {
+    const screen = await renderWithToday();
+
+    for (const date of ['2026-09-16', '2026-09-18']) {
+      expect(screen.queryByTestId(`calendar-today-${date}`)).toBeNull();
+      expect(screen.getByTestId(`calendar-day-${date}`).props.accessibilityLabel).not.toMatch(
+        /bugün/
+      );
+    }
+  });
+
+  it('marks no empty cell', async () => {
+    const screen = await renderWithToday();
+
+    expect(screen.getByTestId('calendar-empty-0').props.accessibilityLabel).toBeUndefined();
+    expect(screen.queryAllByTestId(/^calendar-today-/)).toHaveLength(1);
+  });
+});
+
+describe('CycleCalendar with today outside the month', () => {
+  it('marks nothing when today is in the next month', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-10-01' as ISODate} />
+    );
+
+    expect(todayLabelsIn(screen)).toHaveLength(0);
+    expect(screen.queryAllByTestId(/^calendar-today-/)).toHaveLength(0);
+  });
+
+  it('marks nothing when today is in the previous month', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-08-31' as ISODate} />
+    );
+
+    expect(todayLabelsIn(screen)).toHaveLength(0);
+  });
+
+  it('marks nothing when today is in another year', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2027-09-17' as ISODate} />
+    );
+
+    expect(todayLabelsIn(screen)).toHaveLength(0);
+  });
+});
+
+describe('CycleCalendar today does not replace the cycle state', () => {
+  it('keeps the period marker', async () => {
+    expect(dayOn('2026-09-03').phase).toBe('menstrual');
+
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-03' as ISODate} />
+    );
+
+    expect(markersOn(screen, '2026-09-03')).toEqual(['R']);
+    expect(screen.getByTestId('calendar-today-2026-09-03')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-09-03').props.accessibilityLabel).toBe(
+      '3 Eylül 2026, Regl, bugün'
+    );
+  });
+
+  it('keeps the ovulation marker', async () => {
+    expect(dayOn('2026-09-14').phase).toBe('ovulatory');
+
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-14' as ISODate} />
+    );
+
+    expect(markersOn(screen, '2026-09-14')).toEqual(['Y']);
+    expect(screen.getByTestId('calendar-today-2026-09-14')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-09-14').props.accessibilityLabel).toBe(
+      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün'
+    );
+  });
+
+  it('keeps the raised fertility marker', async () => {
+    expect(dayOn('2026-09-11').fertilityLevel).toBe('elevated');
+
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-11' as ISODate} />
+    );
+
+    expect(markersOn(screen, '2026-09-11')).toEqual(['○']);
+    expect(screen.getByTestId('calendar-today-2026-09-11')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-09-11').props.accessibilityLabel).toBe(
+      '11 Eylül 2026, doğurganlık yüksek, bugün'
+    );
+  });
+
+  it('keeps the predicted period marker', async () => {
+    expect(dayOn('2026-09-29').isPredictedPeriodStart).toBe(true);
+
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-29' as ISODate} />
+    );
+
+    expect(markersOn(screen, '2026-09-29')).toEqual(['≈']);
+    expect(screen.getByTestId('calendar-today-2026-09-29')).toBeTruthy();
+    expect(screen.getByTestId('calendar-day-2026-09-29').props.accessibilityLabel).toBe(
+      '29 Eylül 2026, sonraki regl başlangıcı tahmini, bugün'
+    );
+  });
+
+  it('still shows the day number', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-17' as ISODate} />
+    );
+
+    expect(within(screen.getByTestId('calendar-day-2026-09-17')).getByText('17')).toBeTruthy();
+  });
+
+  it('adds nothing to press', async () => {
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-17' as ISODate} />
+    );
+
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+});

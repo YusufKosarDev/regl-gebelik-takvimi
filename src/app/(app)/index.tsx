@@ -195,7 +195,7 @@ export default function HomeScreen() {
                 {formatDisplayMonth(calendarGrid.year, calendarGrid.month)}
               </ThemedText>
 
-              <CycleCalendar grid={calendarGrid} />
+              <CycleCalendar grid={calendarGrid} today={dashboard.today} />
 
               <CycleCalendarLegend />
             </View>

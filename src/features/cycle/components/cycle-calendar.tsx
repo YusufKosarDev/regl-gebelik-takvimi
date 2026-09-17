@@ -7,13 +7,21 @@ import { getCalendarDayAccessibilityLabel } from '../presentation/cycle-labels';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import type { ISODate } from '@/types/iso-date';
 import { getDayOfMonth } from '@/utils/date';
 
 /** 100 / 7, wide enough that seven columns still fit on one row. */
 const COLUMN_WIDTH = '14.2857%';
 
+const TODAY_LABEL = 'Bugün';
+
 type CycleCalendarProps = {
   readonly grid: CycleCalendarGrid;
+  /**
+   * Optional, so the component still renders any month on its own. Left out,
+   * nothing is marked as today.
+   */
+  readonly today?: ISODate;
 };
 
 /**
@@ -58,7 +66,7 @@ const PREDICTED_MARKER = '≈';
  * `grid.weekdayLabels` and `grid.cells` and lays them out, so the picture can
  * never disagree with the model behind it.
  */
-export function CycleCalendar({ grid }: CycleCalendarProps) {
+export function CycleCalendar({ grid, today }: CycleCalendarProps) {
   return (
     <View style={styles.calendar}>
       <View style={styles.row}>
@@ -73,7 +81,7 @@ export function CycleCalendar({ grid }: CycleCalendarProps) {
 
       <View style={styles.row}>
         {grid.cells.map((cell, index) => (
-          <GridCell key={cellKey(cell, index)} cell={cell} index={index} />
+          <GridCell key={cellKey(cell, index)} cell={cell} index={index} today={today} />
         ))}
       </View>
     </View>
@@ -84,26 +92,38 @@ function cellKey(cell: CalendarGridCell, index: number): string {
   return cell.kind === 'day' ? cell.day.date : `empty-${index}`;
 }
 
-function GridCell({ cell, index }: { cell: CalendarGridCell; index: number }) {
+function GridCell({
+  cell,
+  index,
+  today,
+}: {
+  cell: CalendarGridCell;
+  index: number;
+  today?: ISODate;
+}) {
   if (cell.kind === 'empty') {
     // Holds the column open and nothing else: no number, and no accessible node
-    // for a screen reader to stop on.
+    // for a screen reader to stop on. Padding is never today.
     return <View testID={`calendar-empty-${index}`} style={styles.dayCell} />;
   }
 
-  return <DayCell day={cell.day} />;
+  return <DayCell day={cell.day} isToday={today === cell.day.date} />;
 }
 
-function DayCell({ day }: { day: CycleCalendarDay }) {
+function DayCell({ day, isToday }: { day: CycleCalendarDay; isToday: boolean }) {
   const theme = useTheme();
   const state = resolveDayState(day);
   const marker = STATE_MARKERS[state];
 
   return (
-    <View style={styles.dayCell}>
+    // The ring sits on the outer cell so it never competes with the fill or
+    // border the day's cycle state already uses on the box inside.
+    <View
+      testID={isToday ? `calendar-today-${day.date}` : undefined}
+      style={[styles.dayCell, isToday && { borderWidth: 1, borderColor: theme.textSecondary }]}>
       <View
         accessible
-        accessibilityLabel={getCalendarDayAccessibilityLabel(day)}
+        accessibilityLabel={getCalendarDayAccessibilityLabel(day, { isToday })}
         testID={`calendar-day-${day.date}`}
         style={[
           styles.dayBox,
@@ -131,6 +151,12 @@ function DayCell({ day }: { day: CycleCalendarDay }) {
             </ThemedText>
           )}
         </View>
+
+        {isToday && (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
+            {TODAY_LABEL}
+          </ThemedText>
+        )}
       </View>
     </View>
   );
@@ -156,6 +182,10 @@ const styles = StyleSheet.create({
     width: COLUMN_WIDTH,
     aspectRatio: 1,
     padding: Spacing.half,
+    // Reserved so the today ring does not shrink that one cell's contents.
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: Spacing.two + Spacing.half,
   },
   dayBox: {
     flex: 1,
@@ -181,5 +211,9 @@ const styles = StyleSheet.create({
   marker: {
     fontSize: 10,
     lineHeight: 12,
+  },
+  todayLabel: {
+    fontSize: 9,
+    lineHeight: 11,
   },
 });

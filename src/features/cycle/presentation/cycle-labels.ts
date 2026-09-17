@@ -45,7 +45,10 @@ export function getFertilityLevelLabel(level: FertilityLevel | null): string {
  * raised. Naming every day's phase would turn a month into thirty near-identical
  * sentences to listen through.
  */
-export function getCalendarDayAccessibilityLabel(day: CycleCalendarDay): string {
+export function getCalendarDayAccessibilityLabel(
+  day: CycleCalendarDay,
+  options: { readonly isToday?: boolean } = {}
+): string {
   const parts: string[] = [formatDisplayDate(day.date)];
 
   if (day.phase === 'menstrual' || day.phase === 'ovulatory') {
@@ -58,6 +61,11 @@ export function getCalendarDayAccessibilityLabel(day: CycleCalendarDay): string 
 
   if (day.isPredictedPeriodStart) {
     parts.push('sonraki regl başlangıcı tahmini');
+  }
+
+  // Last, so the date and what the domain says about it are heard first.
+  if (options.isToday === true) {
+    parts.push('bugün');
   }
 
   return parts.join(', ');

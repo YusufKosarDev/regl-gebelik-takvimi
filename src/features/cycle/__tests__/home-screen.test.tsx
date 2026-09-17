@@ -103,9 +103,10 @@ describe('HomeScreen with a saved profile', () => {
   });
 
   it("shows today's date", async () => {
-    const { getByText } = await renderScreen();
+    const { getAllByText, getByText } = await renderScreen();
 
-    expect(getByText('Bugün')).toBeTruthy();
+    // Twice on purpose: the summary header, and the label inside today's square.
+    expect(getAllByText('Bugün')).toHaveLength(2);
     expect(getByText('17 Eylül 2026')).toBeTruthy();
   });
 
@@ -376,7 +377,7 @@ describe('HomeScreen calendar section', () => {
   it('keeps the summary alongside the calendar', async () => {
     const { getByText } = await renderScreen();
 
-    expect(getByText('Bugün')).toBeTruthy();
+    expect(getByText('17 Eylül 2026')).toBeTruthy();
     expect(getByText('17. gün')).toBeTruthy();
     expect(getByText('Takvim')).toBeTruthy();
   });
@@ -488,5 +489,57 @@ describe('HomeScreen legend absence', () => {
     expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
     expect(queryByText('Regl günü')).toBeNull();
     expect(queryByText('Tahmini yumurtlama günü')).toBeNull();
+  });
+});
+
+describe('HomeScreen today highlight', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it("marks today's square in the calendar", async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(getByTestId('calendar-today-2026-09-17')).toBeTruthy();
+  });
+
+  it('marks exactly one square', async () => {
+    const { queryAllByTestId } = await renderScreen();
+
+    expect(queryAllByTestId(/^calendar-today-/)).toHaveLength(1);
+  });
+
+  it('says so in the accessibility label', async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
+      '17 Eylül 2026, bugün'
+    );
+  });
+
+  it('follows the date the use case reported', async () => {
+    getTodayMock.mockReturnValue('2026-09-14' as ISODate);
+
+    const { getByTestId, queryByTestId } = await renderScreen();
+
+    expect(getByTestId('calendar-today-2026-09-14')).toBeTruthy();
+    expect(queryByTestId('calendar-today-2026-09-17')).toBeNull();
+    // The cycle state survives the highlight.
+    expect(getByTestId('calendar-day-2026-09-14').props.accessibilityLabel).toBe(
+      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün'
+    );
+  });
+
+  it('reads the clock once for both the summary and the highlight', async () => {
+    await renderScreen();
+
+    expect(getTodayMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the legend alone', async () => {
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('Regl günü')).toBeTruthy();
+    expect(queryByText('Bugünün tarihi')).toBeNull();
   });
 });
