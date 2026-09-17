@@ -126,6 +126,27 @@ export function formatLocalDate(year: number, month: number, day: number): ISODa
   return `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}` as ISODate;
 }
 
+/**
+ * Number of days in a calendar month, with `month` in 1-12.
+ *
+ * Exposes the table the other helpers already use. Counting to the first of the
+ * next month would need 10000-01-01, which is outside the supported range, so
+ * December 9999 is answerable only this way.
+ */
+export function getDaysInMonth(year: number, month: number): number {
+  if (!Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR) {
+    throw new Error(
+      `getDaysInMonth expects a year between ${MIN_YEAR} and ${MAX_YEAR}, received ${year}.`
+    );
+  }
+
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error(`getDaysInMonth expects a month between 1 and 12, received ${month}.`);
+  }
+
+  return daysInMonth(year, month);
+}
+
 /** Shifts a calendar date by whole days. `amount` may be negative. */
 export function addDays(date: ISODate, amount: number): ISODate {
   if (!Number.isInteger(amount)) {

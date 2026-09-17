@@ -2,6 +2,7 @@ import {
   addDays,
   daysBetween,
   formatLocalDate,
+  getDaysInMonth,
   isISODate,
   toISODate,
 } from '@/utils/date';
@@ -156,5 +157,62 @@ describe('daysBetween', () => {
     const start = toISODate('2026-02-10');
     expect(daysBetween(start, addDays(start, 45))).toBe(45);
     expect(daysBetween(start, addDays(start, -45))).toBe(-45);
+  });
+});
+
+describe('getDaysInMonth', () => {
+  it.each<[number, number, number]>([
+    [2026, 1, 31],
+    [2026, 2, 28],
+    [2026, 3, 31],
+    [2026, 4, 30],
+    [2026, 5, 31],
+    [2026, 6, 30],
+    [2026, 7, 31],
+    [2026, 8, 31],
+    [2026, 9, 30],
+    [2026, 10, 31],
+    [2026, 11, 30],
+    [2026, 12, 31],
+  ])('counts %i-%i as %i days', (year, month, expected) => {
+    expect(getDaysInMonth(year, month)).toBe(expected);
+  });
+
+  it('follows the leap year rules for February', () => {
+    expect(getDaysInMonth(2024, 2)).toBe(29);
+    expect(getDaysInMonth(2026, 2)).toBe(28);
+    expect(getDaysInMonth(2000, 2)).toBe(29);
+    expect(getDaysInMonth(1900, 2)).toBe(28);
+  });
+
+  it('answers for December 9999, where counting to the next month cannot reach', () => {
+    expect(getDaysInMonth(9999, 12)).toBe(31);
+  });
+
+  it('agrees with counting to the first of the next month', () => {
+    for (let month = 1; month <= 11; month += 1) {
+      const first = formatLocalDate(2024, month, 1);
+      const nextFirst = formatLocalDate(2024, month + 1, 1);
+
+      expect(getDaysInMonth(2024, month)).toBe(daysBetween(first, nextFirst));
+    }
+  });
+
+  it('rejects a month outside 1-12', () => {
+    expect(() => getDaysInMonth(2026, 0)).toThrow(/month between 1 and 12/);
+    expect(() => getDaysInMonth(2026, 13)).toThrow(/month between 1 and 12/);
+  });
+
+  it('rejects a non-integer month', () => {
+    expect(() => getDaysInMonth(2026, 1.5)).toThrow(/month between 1 and 12/);
+  });
+
+  it('rejects a year outside 0-9999', () => {
+    expect(() => getDaysInMonth(-1, 1)).toThrow(/year between 0 and 9999/);
+    expect(() => getDaysInMonth(10000, 1)).toThrow(/year between 0 and 9999/);
+  });
+
+  it('rejects a non-integer year', () => {
+    expect(() => getDaysInMonth(2026.5, 1)).toThrow(/year between 0 and 9999/);
   });
 });
