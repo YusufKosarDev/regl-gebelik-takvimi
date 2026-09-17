@@ -8,6 +8,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
+import { CycleCalendarLegend } from '@/features/cycle/components/cycle-calendar-legend';
 import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
@@ -195,6 +196,8 @@ export default function HomeScreen() {
               </ThemedText>
 
               <CycleCalendar grid={calendarGrid} />
+
+              <CycleCalendarLegend />
             </View>
           </View>
         </ScrollView>

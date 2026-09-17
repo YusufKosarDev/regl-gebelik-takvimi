@@ -388,10 +388,38 @@ describe('HomeScreen calendar section', () => {
     expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
   });
 
-  it('adds no legend yet', async () => {
+  it('explains the calendar marks', async () => {
+    const { getByText } = await renderScreen();
+
+    for (const label of [
+      'Regl günü',
+      'Tahmini yumurtlama günü',
+      'Doğurganlığın yüksek olduğu tahmini gün',
+      'Sonraki regl başlangıcı tahmini',
+    ]) {
+      expect(getByText(label)).toBeTruthy();
+    }
+  });
+
+  it('says the calendar information is an estimate', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(
+      getByText('Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.')
+    ).toBeTruthy();
+  });
+
+  it('keeps the contraception disclaimer alongside the legend', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(FERTILITY_DISCLAIMER)).toBeTruthy();
+    expect(getByText('Regl günü')).toBeTruthy();
+  });
+
+  it('explains no mark the calendar does not draw', async () => {
     const { queryByText } = await renderScreen();
 
-    expect(queryByText(/Regl günü|Açıklama|Gösterge/)).toBeNull();
+    expect(queryByText('●')).toBeNull();
   });
 
   it('offers no month navigation or day selection', async () => {
@@ -429,5 +457,36 @@ describe('HomeScreen calendar absence', () => {
     expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
     expect(queryByText('Takvim')).toBeNull();
     expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(0);
+  });
+});
+
+describe('HomeScreen legend absence', () => {
+  it('shows no legend while loading', async () => {
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const { queryByText } = await render(<HomeScreen />);
+
+    expect(queryByText('Regl günü')).toBeNull();
+    expect(queryByText('Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.')).toBeNull();
+  });
+
+  it('shows no legend when there is no profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('Döngü bilgisi bulunamadı.')).toBeTruthy();
+    expect(queryByText('Regl günü')).toBeNull();
+    expect(queryByText('Tahmini yumurtlama günü')).toBeNull();
+  });
+
+  it('shows no legend when loading fails', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('corrupt row'));
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
+    expect(queryByText('Regl günü')).toBeNull();
+    expect(queryByText('Tahmini yumurtlama günü')).toBeNull();
   });
 });
