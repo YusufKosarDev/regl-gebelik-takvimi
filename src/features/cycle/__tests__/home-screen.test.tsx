@@ -393,20 +393,22 @@ describe('HomeScreen scope', () => {
     // month, and nothing else: no summary rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(34);
+    expect(labels).toHaveLength(35);
     expect(
       labels.filter(
         (label) =>
           label === 'Regl başlangıcını kaydet' ||
           label === 'Önceki ay' ||
           label === 'Sonraki ay' ||
-          label === 'Geçmiş regl kayıtlarını görüntüle'
+          label === 'Geçmiş regl kayıtlarını görüntüle' ||
+          label === 'Döngü ayarlarını düzenle'
       )
     ).toEqual([
       'Regl başlangıcını kaydet',
       'Önceki ay',
       'Sonraki ay',
       'Geçmiş regl kayıtlarını görüntüle',
+      'Döngü ayarlarını düzenle',
     ]);
     expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(1);
   });
@@ -531,8 +533,9 @@ describe('HomeScreen calendar section', () => {
       expect(empty.props.onClick).toBeUndefined();
     }
 
-    // 30 days, the two month steps, the record action and the history link.
-    expect(queryAllByRole('button')).toHaveLength(34);
+    // 30 days, the two month steps, the record action, the history link and the
+    // settings link.
+    expect(queryAllByRole('button')).toHaveLength(35);
   });
 });
 
@@ -2058,5 +2061,63 @@ describe('HomeScreen focus refresh', () => {
 
     expect(screen.queryByText('Bilgiler yüklenemedi.')).toBeNull();
     expect(screen.getByText('17. gün')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen settings link', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('offers the link', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+    expect(getByText('Ayarlar')).toBeTruthy();
+  });
+
+  it('opens the settings route', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını düzenle'));
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith('/(app)/settings');
+  });
+
+  it('leaves the history link alone', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/history');
+  });
+
+  it('writes nothing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını düzenle'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('leaves the rest of the screen in place', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Takvim')).toBeTruthy();
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+    expect(screen.getByText('Seçilen gün')).toBeTruthy();
+    expect(screen.getByText('Regl başladı')).toBeTruthy();
+  });
+
+  it('is absent without a profile', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Döngü ayarlarını düzenle')).toBeNull();
   });
 });

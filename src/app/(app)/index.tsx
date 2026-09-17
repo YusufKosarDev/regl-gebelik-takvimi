@@ -501,6 +501,16 @@ export default function HomeScreen() {
                 Geçmiş kayıtlar
               </ThemedText>
             </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Döngü ayarlarını düzenle"
+              onPress={() => router.push('/(app)/settings')}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Ayarlar
+              </ThemedText>
+            </Pressable>
           </View>
         </ScrollView>
       </SafeAreaView>
