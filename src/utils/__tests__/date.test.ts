@@ -3,6 +3,7 @@ import {
   daysBetween,
   formatLocalDate,
   getDaysInMonth,
+  getISOWeekday,
   isISODate,
   toISODate,
 } from '@/utils/date';
@@ -214,5 +215,69 @@ describe('getDaysInMonth', () => {
 
   it('rejects a non-integer year', () => {
     expect(() => getDaysInMonth(2026.5, 1)).toThrow(/year between 0 and 9999/);
+  });
+});
+
+describe('getISOWeekday', () => {
+  it.each<[string, number, string]>([
+    ['2026-09-17', 4, 'Thursday'],
+    ['2026-09-01', 2, 'Tuesday'],
+    ['2026-01-01', 4, 'Thursday'],
+    ['2024-02-29', 4, 'Thursday'],
+    ['2000-01-01', 6, 'Saturday'],
+    ['1970-01-01', 4, 'Thursday'],
+  ])('reads %s as %i (%s)', (iso, expected) => {
+    expect(getISOWeekday(toISODate(iso))).toBe(expected);
+  });
+
+  it('runs Monday to Sunday as 1 to 7', () => {
+    // 2026-06-01 is a Monday.
+    const monday = toISODate('2026-06-01');
+
+    for (let offset = 0; offset < 7; offset += 1) {
+      expect(getISOWeekday(addDays(monday, offset))).toBe(offset + 1);
+    }
+  });
+
+  it('advances by one and wraps after Sunday', () => {
+    const start = toISODate('2026-09-01');
+
+    for (let offset = 0; offset < 40; offset += 1) {
+      const current = getISOWeekday(addDays(start, offset));
+      const next = getISOWeekday(addDays(start, offset + 1));
+
+      expect(next).toBe((current % 7) + 1);
+    }
+  });
+
+  it('stays in range for dates before 1970', () => {
+    // Floor-mod check: a plain `%` would go negative here.
+    expect(getISOWeekday(toISODate('1969-12-31'))).toBe(3);
+    expect(getISOWeekday(toISODate('1900-01-01'))).toBe(1);
+  });
+
+  it('holds at the year 0 boundary', () => {
+    expect(() => getISOWeekday(toISODate('0000-01-01'))).not.toThrow();
+
+    const weekday = getISOWeekday(toISODate('0000-01-01'));
+
+    expect(Number.isInteger(weekday)).toBe(true);
+    expect(weekday).toBeGreaterThanOrEqual(1);
+    expect(weekday).toBeLessThanOrEqual(7);
+  });
+
+  it('never leaves 1-7 across a long span', () => {
+    const start = toISODate('2020-01-01');
+
+    for (let offset = 0; offset < 3000; offset += 7) {
+      const weekday = getISOWeekday(addDays(start, offset));
+
+      expect(weekday).toBeGreaterThanOrEqual(1);
+      expect(weekday).toBeLessThanOrEqual(7);
+    }
+  });
+
+  it('rejects a value that is not a real calendar date', () => {
+    expect(() => getISOWeekday('2026-02-30' as never)).toThrow(/Invalid ISODate/);
   });
 });

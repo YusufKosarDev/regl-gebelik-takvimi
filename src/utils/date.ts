@@ -147,6 +147,21 @@ export function getDaysInMonth(year: number, month: number): number {
   return daysInMonth(year, month);
 }
 
+/**
+ * ISO-8601 weekday: 1 is Monday through 7 is Sunday.
+ *
+ * Derived from the same integer day number the rest of this module uses, so it
+ * holds for dates before 1970 as well. 1970-01-01 is day 0 and a Thursday, which
+ * is where the +3 shift comes from.
+ */
+export function getISOWeekday(date: ISODate): number {
+  const dayNumber = toDayNumber(date);
+
+  // Floor-mod: JS `%` keeps the sign of the dividend, which would give a
+  // negative index for dates before 1970.
+  return (((dayNumber + 3) % 7) + 7) % 7 + 1;
+}
+
 /** Shifts a calendar date by whole days. `amount` may be negative. */
 export function addDays(date: ISODate, amount: number): ISODate {
   if (!Number.isInteger(amount)) {
