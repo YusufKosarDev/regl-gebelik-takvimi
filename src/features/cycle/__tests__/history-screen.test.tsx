@@ -293,15 +293,16 @@ describe('HistoryScreen scope', () => {
     );
   });
 
-  it('offers back, and edit plus delete per record, and nothing else', async () => {
+  it('offers back, and both edits plus delete per record, and nothing else', async () => {
     const { queryAllByRole } = await renderScreen();
 
-    // The fixture's newest record is ongoing, so it offers no edit.
+    // The fixture's newest record is ongoing, so it offers neither edit.
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
       'Geri',
       '17 Eylül 2026 regl kaydını sil',
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
       '2 Eylül 2026 regl kaydının bitiş tarihini düzenle',
       '2 Eylül 2026 regl kaydını sil',
     ]);
@@ -320,12 +321,12 @@ describe('HistoryScreen scope', () => {
     expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no way to add a record or change its start date', async () => {
+  it('offers no way to add a record', async () => {
     const { queryByText } = await renderScreen();
 
-    // Correcting an end date and removing a record are offered; adding one, or
-    // moving when a period began, are not.
-    for (const forbidden of ['Ekle', 'Yeni kayıt', 'Başlangıcı düzenle']) {
+    // Correcting either end of a record and removing one are offered; creating
+    // a record from here is not.
+    for (const forbidden of ['Ekle', 'Yeni kayıt']) {
       expect(queryByText(forbidden)).toBeNull();
     }
   });
@@ -1219,6 +1220,616 @@ describe('HistoryScreen edit and delete together', () => {
     );
 
     expect(screen.getByText('Bitiş tarihini düzenle')).toBeTruthy();
+    expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
+  });
+});
+
+describe('HistoryScreen start edit availability', () => {
+  it('offers a start edit on a record with no recorded end', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')).toBeTruthy();
+  });
+
+  it('offers a start edit on a closed record', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')).toBeTruthy();
+  });
+
+  it('names the two edits apart', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Başlangıcı düzenle')).toBeTruthy();
+    expect(getByText('Bitişi düzenle')).toBeTruthy();
+  });
+
+  it('offers only delete on a record that is still running', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-17', isOngoing: true }])
+    );
+
+    const { getByLabelText, queryByLabelText } = await renderScreen();
+
+    // When a running period began is what the person is living through, and
+    // when it ends is Home's job: neither end is corrected here.
+    expect(
+      queryByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    ).toBeNull();
+    expect(queryByLabelText('17 Eylül 2026 regl kaydının bitiş tarihini düzenle')).toBeNull();
+    expect(getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen start edit panel', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+  });
+
+  async function openStartEditor(records: Spec[], label: string) {
+    repository.loadCycleProfile.mockResolvedValue(profile(records));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(label));
+
+    return screen;
+  }
+
+  it('opens on the record it was asked about', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    expect(screen.getByText('Başlangıç tarihini düzenle')).toBeTruthy();
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 2 Eylül 2026')).toBeTruthy();
+  });
+
+  it('shows the end date without offering to change it', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    expect(screen.getByText('Bitiş: 7 Eylül 2026')).toBeTruthy();
+    expect(screen.queryByLabelText('Seçilen bitiş tarihi: 7 Eylül 2026')).toBeNull();
+    expect(screen.queryByLabelText('Bitiş tarihini kaldır')).toBeNull();
+  });
+
+  it('says so when the end was never recorded', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    expect(screen.getByText('Bitiş: Bitiş tarihi bilinmiyor')).toBeTruthy();
+  });
+
+  it('steps back a day', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 1 Eylül 2026')).toBeTruthy();
+  });
+
+  it('steps forward a day', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 3 Eylül 2026')).toBeTruthy();
+  });
+
+  it('rolls over into the previous month', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-01', endDate: '2026-09-05' }],
+      '1 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 31 Ağustos 2026')).toBeTruthy();
+  });
+
+  it('rolls over into the previous year', async () => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-01-01', endDate: '2026-01-05' }],
+      '1 Ocak 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 31 Aralık 2025')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen start edit boundaries', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+  });
+
+  async function openStartEditor(records: Spec[], label: string) {
+    repository.loadCycleProfile.mockResolvedValue(profile(records));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(label));
+
+    return screen;
+  }
+
+  it('stops at the day the period ended', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-06', endDate: '2026-09-07' }],
+      '6 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 7 Eylül 2026')).toBeTruthy();
+    expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('will not step past the end date', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-07', endDate: '2026-09-07' }],
+      '7 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 7 Eylül 2026')).toBeTruthy();
+  });
+
+  it('stops at today when the end was never recorded', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-24' }],
+      '24 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 25 Eylül 2026')).toBeTruthy();
+    expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('stops at the earliest day the domain would still accept', async () => {
+    // 20 days inclusive back from 2026-09-20 is 2026-09-01.
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-20' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 1 Eylül 2026')).toBeTruthy();
+    expect(screen.getByLabelText('Önceki gün').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('will not step past that earliest day', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-01', endDate: '2026-09-20' }],
+      '1 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 1 Eylül 2026')).toBeTruthy();
+  });
+
+  it('leaves the past open when the end was never recorded', async () => {
+    const screen = await openStartEditor(
+      [{ id: 'a', startDate: '2026-09-02' }],
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle'
+    );
+
+    // Nothing to measure a maximum duration against, so there is no floor.
+    for (let step = 0; step < 30; step += 1) {
+      await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    }
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 3 Ağustos 2026')).toBeTruthy();
+    expect(screen.getByLabelText('Önceki gün').props.accessibilityState.disabled).toBe(false);
+  });
+});
+
+describe('HistoryScreen start edit save', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  it('sends the original record id, the new date and today', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    const saved = repository.saveCycleProfile.mock.calls[0][1] as CycleProfile;
+
+    expect(saved.periodRecords).toEqual([
+      {
+        id: 'period-2026-09-16',
+        startDate: '2026-09-16',
+        endDate: '2026-09-17',
+        isOngoing: false,
+      },
+    ]);
+  });
+
+  it('keeps the onboarding record its own id', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'onboarding-initial-period', startDate: '2026-09-02' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    const saved = repository.saveCycleProfile.mock.calls[0][1] as CycleProfile;
+
+    expect(saved.periodRecords).toEqual([
+      { id: 'onboarding-initial-period', startDate: '2026-09-01', isOngoing: false },
+    ]);
+  });
+
+  it('closes the editor and shows the new date', async () => {
+    repository.loadCycleProfile
+      // The mount read, then the use case's own read of what is stored now.
+      .mockResolvedValueOnce(
+        profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' }])
+      )
+      .mockResolvedValueOnce(
+        profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' }])
+      )
+      .mockResolvedValue(
+        profile([{ id: 'period-2026-09-16', startDate: '2026-09-16', endDate: '2026-09-17' }])
+      );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(screen.queryByText('Başlangıç tarihini düzenle')).toBeNull();
+    expect(screen.getByText('16 Eylül 2026')).toBeTruthy();
+    expect(screen.queryByTestId('history-record-period-2026-09-17')).toBeNull();
+    expect(screen.getByTestId('history-record-period-2026-09-16')).toBeTruthy();
+  });
+
+  it('reorders the list when the record moves past another', async () => {
+    // 'a' has no recorded end, so nothing stops it moving forward past 'b'.
+    const stored = () =>
+      profile([
+        { id: 'a', startDate: '2026-09-02' },
+        { id: 'b', startDate: '2026-09-10', endDate: '2026-09-12' },
+      ]);
+
+    repository.loadCycleProfile
+      // The mount read, then the use case's own read of what is stored now.
+      .mockResolvedValueOnce(stored())
+      .mockResolvedValueOnce(stored())
+      // What the reload would find after 'a' moves past 'b'.
+      .mockResolvedValue(
+        profile([
+          { id: 'a', startDate: '2026-09-11' },
+          { id: 'b', startDate: '2026-09-10', endDate: '2026-09-12' },
+        ])
+      );
+
+    const screen = await renderScreen();
+
+    const order = () =>
+      screen.queryAllByTestId(/^history-record-/).map((node) => node.props.testID as string);
+
+    expect(order()).toEqual(['history-record-b', 'history-record-a']);
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    for (let step = 0; step < 9; step += 1) {
+      await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    }
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    // Newest first is the use case's rule, so the reload alone reorders them.
+    expect(order()).toEqual(['history-record-a', 'history-record-b']);
+  });
+
+  it('writes nothing when the date has not moved', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(screen.queryByText('Başlangıç tarihini düzenle')).toBeNull();
+  });
+
+  it('saves once however many times Kaydet is pressed', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(screen.queryByLabelText('Başlangıç tarihini kaydet')).toBeNull();
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HistoryScreen start edit cancel', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+  });
+
+  it('writes nothing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('closes the panel and brings the actions back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(screen.queryByText('Başlangıç tarihini düzenle')).toBeNull();
+    expect(screen.getByLabelText('2 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+
+  it('forgets the date that was picked', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 2 Eylül 2026')).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen start edit failure', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', endDate: '2026-09-17' }])
+    );
+  });
+
+  async function failToSave() {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    return screen;
+  }
+
+  it('says so', async () => {
+    const screen = await failToSave();
+
+    expect(screen.getByText('Kayıt güncellenemedi.')).toBeTruthy();
+  });
+
+  it('announces it', async () => {
+    const screen = await failToSave();
+
+    expect(screen.getByText('Kayıt güncellenemedi.').props.accessibilityRole).toBe('alert');
+  });
+
+  it('keeps the panel open on the date that was picked', async () => {
+    const screen = await failToSave();
+
+    expect(screen.getByText('Başlangıç tarihini düzenle')).toBeTruthy();
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 16 Eylül 2026')).toBeTruthy();
+  });
+
+  it('leaves the record showing its old date', async () => {
+    const screen = await failToSave();
+
+    // Nothing was written, so the card still reads as it did before the edit.
+    expect(
+      screen.getByLabelText('Başlangıç: 17 Eylül 2026, bitiş: 17 Eylül 2026')
+    ).toBeTruthy();
+    expect(screen.getByTestId('history-record-period-2026-09-17')).toBeTruthy();
+    expect(screen.queryByTestId('history-record-period-2026-09-16')).toBeNull();
+  });
+
+  it('can be tried again', async () => {
+    const screen = await failToSave();
+
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the error when the panel is closed', async () => {
+    const screen = await failToSave();
+
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    expect(screen.queryByText('Kayıt güncellenemedi.')).toBeNull();
+  });
+});
+
+describe('HistoryScreen panel exclusivity', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+  });
+
+  it('replaces the start editor with the end editor', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    // The card's own actions give way to the panel, so the end edit has to be
+    // reached by closing this one first.
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByText('Bitiş tarihini düzenle')).toBeTruthy();
+    expect(screen.queryByText('Başlangıç tarihini düzenle')).toBeNull();
+  });
+
+  it('replaces the end editor with the start editor', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    expect(screen.getByText('Başlangıç tarihini düzenle')).toBeTruthy();
+    expect(screen.queryByText('Bitiş tarihini düzenle')).toBeNull();
+  });
+
+  it('shows only the start editor on the card being edited', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    expect(screen.queryByLabelText('2 Eylül 2026 regl kaydını sil')).toBeNull();
+    expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
+  });
+
+  it('closes the start editor when another card starts a delete', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' },
+        { id: 'b', startDate: '2026-09-17', endDate: '2026-09-20' },
+      ])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+
+    expect(screen.getByText('Bu regl kaydını silmek istiyor musun?')).toBeTruthy();
+    expect(screen.queryByText('Başlangıç tarihini düzenle')).toBeNull();
+  });
+
+  it('closes the start editor when another card starts a start edit', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' },
+        { id: 'b', startDate: '2026-09-17', endDate: '2026-09-20' },
+      ])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Seçilen başlangıç tarihi: 17 Eylül 2026')).toBeTruthy();
+    expect(screen.queryByLabelText('Seçilen başlangıç tarihi: 2 Eylül 2026')).toBeNull();
+  });
+
+  it('closes the delete confirmation when a start edit is started', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    expect(screen.getByText('Başlangıç tarihini düzenle')).toBeTruthy();
     expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
   });
 });

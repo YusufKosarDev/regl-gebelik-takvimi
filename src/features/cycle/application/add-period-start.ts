@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { loadCycleProfile, saveCycleProfile } from '../data/cycle-repository';
 import { getOpenPeriodRecord } from '../domain/open-period';
+import { canonicalPeriodRecordId } from '../domain/period-record-id';
 import type { CycleProfile, PeriodRecord } from '../domain/types';
 import { validateCycleProfile } from '../domain/validation';
 
@@ -16,11 +17,6 @@ export type AddPeriodStartInput = {
   readonly startDate: ISODate;
   readonly today: ISODate;
 };
-
-/** Stable and derived from the date, so no clock or random source is involved. */
-function periodRecordId(startDate: ISODate): string {
-  return `period-${startDate}`;
-}
 
 /**
  * Records the day a period started.
@@ -71,7 +67,11 @@ export async function addPeriodStart(
     throw new Error('addPeriodStart found a period already ongoing; end it first.');
   }
 
-  const record: PeriodRecord = { id: periodRecordId(startDate), startDate, isOngoing: true };
+  const record: PeriodRecord = {
+    id: canonicalPeriodRecordId(startDate),
+    startDate,
+    isOngoing: true,
+  };
 
   // Appended, not inserted in order: the repository reads records back sorted,
   // and every domain function finds its own reference date rather than trusting

@@ -9,6 +9,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { deletePeriodRecord } from '@/features/cycle/application/delete-period-record';
 import { getPeriodHistory } from '@/features/cycle/application/get-period-history';
 import { updatePeriodEndDate } from '@/features/cycle/application/update-period-end-date';
+import { updatePeriodStartDate } from '@/features/cycle/application/update-period-start-date';
 import { MAX_PERIOD_DURATION_DAYS } from '@/features/cycle/domain/limits';
 import type { PeriodRecord } from '@/features/cycle/domain/types';
 import { useTheme } from '@/hooks/use-theme';
@@ -53,6 +54,36 @@ function maxSelectableEndDate(startDate: ISODate, today: ISODate): ISODate {
   return daysBetween(durationLimit, today) < 0 ? today : durationLimit;
 }
 
+/**
+ * The latest day a period could have begun.
+ *
+ * Never after today, and never after the day it ended: a period that finished on
+ * the 7th cannot have started on the 9th.
+ */
+function maxSelectableStartDate(record: PeriodRecord, today: ISODate): ISODate {
+  if (record.endDate === undefined) {
+    return today;
+  }
+
+  return daysBetween(record.endDate, today) < 0 ? today : record.endDate;
+}
+
+/**
+ * The earliest day a period could have begun, or `null` when nothing bounds it.
+ *
+ * A recorded end date pins the other side: reaching further back would make the
+ * record span more days than the domain allows. With no end date there is
+ * nothing to measure against, so the stepper is left open rather than given an
+ * invented floor.
+ */
+function minSelectableStartDate(record: PeriodRecord): ISODate | null {
+  if (record.endDate === undefined) {
+    return null;
+  }
+
+  return addDays(record.endDate, -(MAX_PERIOD_DURATION_DAYS - 1));
+}
+
 function accessibilityLabelFor(record: PeriodRecord): string {
   const start = `Başlangıç: ${formatDisplayDate(record.startDate)}`;
 
@@ -66,10 +97,11 @@ function accessibilityLabelFor(record: PeriodRecord): string {
 }
 
 /**
- * The recorded periods, read only.
+ * The recorded periods, and the corrections that can be made to them.
  *
- * Nothing here writes, and no row offers an action: this step is about being
- * able to look at what was saved. The list is already ordered by the use case.
+ * A finished record can have either end of it moved, or be removed entirely. A
+ * period that is still running can only be removed: when it began is what the
+ * person is living through, and when it ends is Home's job to record.
  */
 export default function HistoryScreen() {
   const router = useRouter();
@@ -84,25 +116,32 @@ export default function HistoryScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasDeleteError, setHasDeleteError] = useState(false);
 
-  // A ref as well as the disabled prop: state updates are async, so two quick
-  // taps could both read `isDeleting` as false before the re-render lands.
-  const deleteInFlight = useRef(false);
-
-  // The record being edited, the date currently picked for it, and whether the
-  // person has asked to clear the end date instead of moving it.
-  const [recordUnderEdit, setRecordUnderEdit] = useState<PeriodRecord | null>(null);
+  // The record whose end date is being corrected, the date currently picked for
+  // it, and whether the person has asked to clear the end date instead.
+  const [recordUnderEndEdit, setRecordUnderEndEdit] = useState<PeriodRecord | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<ISODate | null>(null);
   const [isRemovingEndDate, setIsRemovingEndDate] = useState(false);
+
+  // The record whose start date is being corrected. The record is held rather
+  // than just its id, because correcting the start date can rename the record
+  // and the mutation has to be sent with the id it had when the edit began.
+  const [recordUnderStartEdit, setRecordUnderStartEdit] = useState<PeriodRecord | null>(null);
+  const [selectedStartDate, setSelectedStartDate] = useState<ISODate | null>(null);
+
   const [isUpdating, setIsUpdating] = useState(false);
   const [hasUpdateError, setHasUpdateError] = useState(false);
 
-  const updateInFlight = useRef(false);
+  // One lock for the whole screen rather than one per action: state updates are
+  // async, so two quick taps could both read the disabled flag as false before
+  // the re-render lands, and a delete racing an edit would write a profile built
+  // from what the other one had already replaced.
+  const mutationInFlight = useRef(false);
 
   // Read once for the screen, so every edit measures "not in the future"
   // against the same day.
   const [today] = useState<ISODate>(() => getTodayLocalISODate());
 
-  /** Stable, so the mount effect can depend on it and the delete can reuse it. */
+  /** Stable, so the mount effect can depend on it and the mutations can reuse it. */
   const readHistory = useCallback(async () => {
     const db = await openAppDatabase();
 
@@ -147,12 +186,56 @@ export default function HistoryScreen() {
     };
   }, [readHistory]);
 
+  /**
+   * Closes whichever panel is open and forgets what it was editing.
+   *
+   * Only one is ever shown, so every action that opens one starts by closing the
+   * rest: two open panels on the same card would ask two questions at once, and
+   * a panel left holding a record that a save has since renamed would be editing
+   * something that no longer exists.
+   */
+  const closePanels = () => {
+    setRecordPendingDelete(null);
+    setHasDeleteError(false);
+
+    setRecordUnderEndEdit(null);
+    setSelectedEndDate(null);
+    setIsRemovingEndDate(false);
+
+    setRecordUnderStartEdit(null);
+    setSelectedStartDate(null);
+
+    setHasUpdateError(false);
+  };
+
+  const openStartEditor = (record: PeriodRecord) => {
+    closePanels();
+
+    setRecordUnderStartEdit(record);
+    setSelectedStartDate(record.startDate);
+  };
+
+  const openEndEditor = (record: PeriodRecord) => {
+    closePanels();
+
+    setRecordUnderEndEdit(record);
+    // A record with no recorded end starts at its own start date: the earliest
+    // day it could possibly have finished.
+    setSelectedEndDate(record.endDate ?? record.startDate);
+  };
+
+  const askToDelete = (record: PeriodRecord) => {
+    closePanels();
+
+    setRecordPendingDelete(record);
+  };
+
   const handleDelete = async () => {
-    if (deleteInFlight.current || recordPendingDelete === null) {
+    if (mutationInFlight.current || recordPendingDelete === null) {
       return;
     }
 
-    deleteInFlight.current = true;
+    mutationInFlight.current = true;
     setIsDeleting(true);
     setHasDeleteError(false);
 
@@ -172,53 +255,27 @@ export default function HistoryScreen() {
       // visible next to the record it was for and can be tried again.
       setHasDeleteError(true);
     } finally {
-      deleteInFlight.current = false;
+      mutationInFlight.current = false;
       setIsDeleting(false);
     }
   };
 
-  const dismissConfirmation = () => {
-    setRecordPendingDelete(null);
-    setHasDeleteError(false);
-  };
-
-  const closeEditor = () => {
-    setRecordUnderEdit(null);
-    setSelectedEndDate(null);
-    setIsRemovingEndDate(false);
-    setHasUpdateError(false);
-  };
-
-  const openEditor = (record: PeriodRecord) => {
-    // Only one panel at a time, so a pending delete gives way rather than both
-    // being open on the same card.
-    setRecordPendingDelete(null);
-    setHasDeleteError(false);
-
-    setRecordUnderEdit(record);
-    // A record with no recorded end starts at its own start date: the earliest
-    // day it could possibly have finished.
-    setSelectedEndDate(record.endDate ?? record.startDate);
-    setIsRemovingEndDate(false);
-    setHasUpdateError(false);
-  };
-
   const applyEndDate = async (endDate: ISODate | undefined) => {
-    if (updateInFlight.current || recordUnderEdit === null) {
+    if (mutationInFlight.current || recordUnderEndEdit === null) {
       return;
     }
 
-    updateInFlight.current = true;
+    mutationInFlight.current = true;
     setIsUpdating(true);
     setHasUpdateError(false);
 
     try {
       const db = await openAppDatabase();
 
-      await updatePeriodEndDate(db, { recordId: recordUnderEdit.id, endDate, today });
+      await updatePeriodEndDate(db, { recordId: recordUnderEndEdit.id, endDate, today });
 
       setRecords(await readHistory());
-      closeEditor();
+      closePanels();
     } catch (error) {
       if (__DEV__) {
         console.error('[history] could not update the period end date', error);
@@ -228,7 +285,42 @@ export default function HistoryScreen() {
       // next to the record it was for and can be tried again.
       setHasUpdateError(true);
     } finally {
-      updateInFlight.current = false;
+      mutationInFlight.current = false;
+      setIsUpdating(false);
+    }
+  };
+
+  const applyStartDate = async (startDate: ISODate) => {
+    if (mutationInFlight.current || recordUnderStartEdit === null) {
+      return;
+    }
+
+    mutationInFlight.current = true;
+    setIsUpdating(true);
+    setHasUpdateError(false);
+
+    try {
+      const db = await openAppDatabase();
+
+      // Sent with the id the record had when the edit began. The use case may
+      // give it a new one, which is why nothing here keeps hold of it after the
+      // save: the reloaded list is the only thing that knows the record now.
+      await updatePeriodStartDate(db, {
+        recordId: recordUnderStartEdit.id,
+        startDate,
+        today,
+      });
+
+      setRecords(await readHistory());
+      closePanels();
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[history] could not update the period start date', error);
+      }
+
+      setHasUpdateError(true);
+    } finally {
+      mutationInFlight.current = false;
       setIsUpdating(false);
     }
   };
@@ -305,7 +397,19 @@ export default function HistoryScreen() {
                     </ThemedText>
                     <ThemedText type="small">{endLabel(record)}</ThemedText>
 
-                    {recordUnderEdit?.id === record.id ? (
+                    {recordUnderStartEdit?.id === record.id ? (
+                      <StartDateEditor
+                        record={record}
+                        today={today}
+                        selectedStartDate={selectedStartDate ?? record.startDate}
+                        onSelectStartDate={setSelectedStartDate}
+                        isUpdating={isUpdating}
+                        hasError={hasUpdateError}
+                        onCancel={closePanels}
+                        onSave={() => applyStartDate(selectedStartDate ?? record.startDate)}
+                        theme={theme}
+                      />
+                    ) : recordUnderEndEdit?.id === record.id ? (
                       <EndDateEditor
                         record={record}
                         today={today}
@@ -322,7 +426,7 @@ export default function HistoryScreen() {
                         }}
                         isUpdating={isUpdating}
                         hasError={hasUpdateError}
-                        onCancel={closeEditor}
+                        onCancel={closePanels}
                         onSave={() => applyEndDate(selectedEndDate ?? record.startDate)}
                         onRemove={() => applyEndDate(undefined)}
                         theme={theme}
@@ -354,7 +458,7 @@ export default function HistoryScreen() {
                             accessibilityLabel="Vazgeç"
                             accessibilityState={{ disabled: isDeleting }}
                             disabled={isDeleting}
-                            onPress={dismissConfirmation}
+                            onPress={closePanels}
                             style={({ pressed }) => [
                               styles.secondaryButton,
                               isDeleting && styles.disabled,
@@ -388,27 +492,42 @@ export default function HistoryScreen() {
                     ) : (
                       <View style={styles.rowActions}>
                         {/* A period that is still running is finished from Home,
-                            not corrected here. */}
+                            and began on the day the person said it did: neither
+                            end of it is corrected here. */}
                         {!record.isOngoing && (
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydının bitiş tarihini düzenle`}
-                            onPress={() => openEditor(record)}
-                            style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
-                            <ThemedText type="small" themeColor="textSecondary">
-                              Düzenle
-                            </ThemedText>
-                          </Pressable>
+                          <>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydının başlangıç tarihini düzenle`}
+                              onPress={() => openStartEditor(record)}
+                              style={({ pressed }) => [
+                                styles.rowAction,
+                                pressed && styles.pressed,
+                              ]}>
+                              <ThemedText type="small" themeColor="textSecondary">
+                                Başlangıcı düzenle
+                              </ThemedText>
+                            </Pressable>
+
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydının bitiş tarihini düzenle`}
+                              onPress={() => openEndEditor(record)}
+                              style={({ pressed }) => [
+                                styles.rowAction,
+                                pressed && styles.pressed,
+                              ]}>
+                              <ThemedText type="small" themeColor="textSecondary">
+                                Bitişi düzenle
+                              </ThemedText>
+                            </Pressable>
+                          </>
                         )}
 
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydını sil`}
-                          onPress={() => {
-                            closeEditor();
-                            setRecordPendingDelete(record);
-                            setHasDeleteError(false);
-                          }}
+                          onPress={() => askToDelete(record)}
                           style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
                           <ThemedText type="small" themeColor="textSecondary">
                             Sil
@@ -424,6 +543,134 @@ export default function HistoryScreen() {
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/**
+ * Corrects one record's start date.
+ *
+ * The end date is shown but not editable: this panel answers only "it began on a
+ * different day". Moving both ends at once would make it impossible to say which
+ * correction was meant, and correcting the end has its own panel.
+ *
+ * The same day steppers as the end editor, bounded so the control cannot offer a
+ * date that saving would refuse.
+ */
+function StartDateEditor({
+  record,
+  today,
+  selectedStartDate,
+  onSelectStartDate,
+  isUpdating,
+  hasError,
+  onCancel,
+  onSave,
+  theme,
+}: {
+  record: PeriodRecord;
+  today: ISODate;
+  selectedStartDate: ISODate;
+  onSelectStartDate: (date: ISODate) => void;
+  isUpdating: boolean;
+  hasError: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+  theme: { text: string; background: string };
+}) {
+  const maxDate = maxSelectableStartDate(record, today);
+  const minDate = minSelectableStartDate(record);
+
+  // With no recorded end there is no maximum duration to measure against, so
+  // nothing bounds how far back the person may reach.
+  const canGoBack = minDate === null || daysBetween(minDate, selectedStartDate) > 0;
+  const canGoForward = daysBetween(selectedStartDate, maxDate) > 0;
+
+  return (
+    <View style={styles.confirmation}>
+      <ThemedText type="smallBold">Başlangıç tarihini düzenle</ThemedText>
+
+      <ThemedText type="small" themeColor="textSecondary">
+        Bitiş: {endLabel(record)}
+      </ThemedText>
+
+      <View style={styles.dateBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Önceki gün"
+          accessibilityState={{ disabled: !canGoBack }}
+          disabled={!canGoBack}
+          onPress={() => onSelectStartDate(addDays(selectedStartDate, -1))}
+          style={({ pressed }) => [
+            styles.dayButton,
+            !canGoBack && styles.disabled,
+            pressed && canGoBack && styles.pressed,
+          ]}>
+          <ThemedText style={styles.dayButtonLabel}>‹</ThemedText>
+        </Pressable>
+
+        <ThemedText
+          accessibilityLabel={`Seçilen başlangıç tarihi: ${formatDisplayDate(selectedStartDate)}`}
+          type="smallBold"
+          style={styles.selectedDate}>
+          {formatDisplayDate(selectedStartDate)}
+        </ThemedText>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sonraki gün"
+          accessibilityState={{ disabled: !canGoForward }}
+          disabled={!canGoForward}
+          onPress={() => onSelectStartDate(addDays(selectedStartDate, 1))}
+          style={({ pressed }) => [
+            styles.dayButton,
+            !canGoForward && styles.disabled,
+            pressed && canGoForward && styles.pressed,
+          ]}>
+          <ThemedText style={styles.dayButtonLabel}>›</ThemedText>
+        </Pressable>
+      </View>
+
+      {hasError && (
+        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+          {UPDATE_ERROR_MESSAGE}
+        </ThemedText>
+      )}
+
+      <View style={styles.confirmActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Vazgeç"
+          accessibilityState={{ disabled: isUpdating }}
+          disabled={isUpdating}
+          onPress={onCancel}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            isUpdating && styles.disabled,
+            pressed && !isUpdating && styles.pressed,
+          ]}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Vazgeç
+          </ThemedText>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Başlangıç tarihini kaydet"
+          accessibilityState={{ disabled: isUpdating }}
+          disabled={isUpdating}
+          onPress={onSave}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            { backgroundColor: theme.text },
+            isUpdating && styles.disabled,
+            pressed && !isUpdating && styles.pressed,
+          ]}>
+          <ThemedText type="smallBold" style={{ color: theme.background }}>
+            {isUpdating ? 'Kaydediliyor...' : 'Kaydet'}
+          </ThemedText>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -695,6 +942,7 @@ const styles = StyleSheet.create({
   rowActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.four,
     marginTop: Spacing.two,
   },
