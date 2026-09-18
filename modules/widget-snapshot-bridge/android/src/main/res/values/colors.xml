@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget's own colours, with a night variant beside them.
+
+  A widget is drawn in the launcher's process, so it cannot read the app's theme
+  and a `?attr` would resolve against whatever the launcher happens to use.
+  Naming them here and overriding them in values-night is what makes the card
+  follow the system without a dependency and without Dynamic Color.
+
+  Every pair is chosen for contrast against its own surface rather than for
+  looking quiet: a home screen is read at a glance and often in sunlight.
+-->
+<resources>
+  <color name="widget_surface">#FFFFFFFF</color>
+  <color name="widget_text_primary">#FF101010</color>
+  <color name="widget_text_secondary">#FF4A4F57</color>
+  <color name="widget_text_body">#FF22262B</color>
+</resources>

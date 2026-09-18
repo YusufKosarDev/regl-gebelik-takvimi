@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The default 4x2, and the size the widget is added at.
+  A taller cell, where the message gets room and the moods get a line each.
 
   Every id here also exists in the other two layouts, so the provider binds one
   set of views whatever size it is drawing. Only the avatar's size, the text
@@ -18,13 +18,13 @@
   android:background="@drawable/widget_snapshot_background"
   android:orientation="horizontal"
   android:gravity="center_vertical"
-  android:padding="14dp">
+  android:padding="18dp">
 
   <ImageView
     android:id="@+id/widget_avatar"
-    android:layout_width="64dp"
-    android:layout_height="64dp"
-    android:layout_marginEnd="14dp"
+    android:layout_width="96dp"
+    android:layout_height="96dp"
+    android:layout_marginEnd="18dp"
     android:adjustViewBounds="true"
     android:scaleType="fitCenter" />
 
@@ -41,7 +41,7 @@
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:textColor="@color/widget_text_primary"
-      android:textSize="16sp"
+      android:textSize="19sp"
       android:textStyle="bold"
       android:maxLines="1"
       android:ellipsize="end" />
@@ -52,7 +52,7 @@
       android:layout_height="wrap_content"
       android:layout_marginTop="1dp"
       android:textColor="@color/widget_text_secondary"
-      android:textSize="13sp"
+      android:textSize="14sp"
       android:maxLines="1"
       android:ellipsize="end" />
 
@@ -60,21 +60,21 @@
       android:id="@+id/widget_message"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_marginTop="4dp"
+      android:layout_marginTop="6dp"
       android:textColor="@color/widget_text_body"
-      android:textSize="12sp"
-      android:maxLines="3"
+      android:textSize="14sp"
+      android:maxLines="5"
       android:ellipsize="end" />
 
     <TextView
       android:id="@+id/widget_moods"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_marginTop="4dp"
+      android:layout_marginTop="6dp"
       android:textColor="@color/widget_text_secondary"
-      android:textSize="11sp"
+      android:textSize="13sp"
       android:lineSpacingExtra="2dp"
-      android:maxLines="2"
+      android:maxLines="3"
       android:ellipsize="end" />
   </LinearLayout>
 
@@ -85,7 +85,7 @@
     android:layout_weight="1"
     android:text="@string/widget_snapshot_empty"
     android:textColor="@color/widget_text_secondary"
-    android:textSize="13sp"
-    android:maxLines="3"
+    android:textSize="15sp"
+    android:maxLines="4"
     android:ellipsize="end" />
 </LinearLayout>
