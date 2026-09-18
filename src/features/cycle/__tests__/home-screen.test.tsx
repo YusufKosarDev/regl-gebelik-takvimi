@@ -2796,9 +2796,11 @@ describe('HomeScreen sources without week content', () => {
     repository.loadCycleProfile.mockResolvedValue(profile());
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
 
-    const { queryByText, getByLabelText } = await renderScreen();
+    const { queryByLabelText, getByLabelText } = await renderScreen();
 
-    expect(queryByText('Kaynaklar')).toBeNull();
+    // "Kaynaklar" is not pregnancy's alone any more — the cycle view cites its
+    // own — so what has to be absent is the pregnancy pages themselves.
+    expect(queryByLabelText(/You and your baby/)).toBeNull();
     expect(getByLabelText('Gebelik takibini başlat')).toBeTruthy();
   });
 });
@@ -2987,10 +2989,12 @@ describe('HomeScreen after the pregnancy tracking is stopped', () => {
       'Tahmini doğum tarihi',
       'Bu hafta',
       'Bu hafta gelişenler',
-      'Kaynaklar',
     ]) {
       expect(screen.queryByText(gone)).toBeNull();
     }
+
+    // The cycle view cites sources too, so the pregnancy pages are what must go.
+    expect(screen.queryByLabelText(/You and your baby/)).toBeNull();
   });
 
   it('offers to start again', async () => {
@@ -3239,10 +3243,13 @@ describe('HomeScreen views stay separate', () => {
       'Tahmini doğum tarihi',
       'Bu hafta',
       'Bu hafta gelişenler',
-      'Kaynaklar',
     ]) {
       expect(screen.queryByText(pregnancyOnly)).toBeNull();
     }
+
+    // The cycle view has a "Kaynaklar" of its own, so the pregnancy pages rather
+    // than the heading are what tells the two views apart.
+    expect(screen.queryByLabelText(/You and your baby/)).toBeNull();
 
     expect(screen.queryByLabelText('Gebelik ayarlarını düzenle')).toBeNull();
   });
@@ -3667,5 +3674,316 @@ describe('HomeScreen week navigation when there is no week to browse', () => {
     await fireEvent.press(screen.getByLabelText('Gebelik'));
 
     expect(screen.getByLabelText('Gösterilen hafta: 3. hafta')).toBeTruthy();
+  });
+});
+
+/**
+ * The cycle view's daily support.
+ *
+ * Cycle 28 from 2026-09-01: days 1-5 menstrual, 6-13 follicular, 14 ovulatory,
+ * 15 on luteal. A date before the first record has no cycle day and so no phase.
+ */
+describe('HomeScreen cycle daily support', () => {
+  const OWH_HEALTH =
+    'https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle-and-your-health';
+  const SUPPORT_DISCLAIMER = 'Bu bilgiler geneldir; kişiden kişiye ve aydan aya değişebilir.';
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it.each(['2026-09-03', '2026-09-10', '2026-09-20'])(
+    'lists the moods written for the phase on %s',
+    async (today) => {
+      getTodayMock.mockReturnValue(today as ISODate);
+
+      const { getByText, getAllByText } = await renderScreen();
+
+      expect(getByText('Olası ruh hali')).toBeTruthy();
+      expect(getAllByText(/^• .*(abilir|ebilir)$/).length).toBeGreaterThan(0);
+    }
+  );
+
+  it('shows the moods the phase carries, not a neighbouring phase', async () => {
+    getTodayMock.mockReturnValue('2026-09-20' as ISODate);
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('• Ruh hali dalgalanmaları olabilir')).toBeTruthy();
+    expect(queryByText('• Ağrı eşiği daha yüksek olabilir')).toBeNull();
+  });
+
+  it('shows the follicular moods on a follicular day', async () => {
+    getTodayMock.mockReturnValue('2026-09-10' as ISODate);
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('• Ağrı eşiği daha yüksek olabilir')).toBeTruthy();
+    expect(queryByText('• Ruh hali dalgalanmaları olabilir')).toBeNull();
+  });
+
+  it('shows the menstrual moods on a menstrual day', async () => {
+    getTodayMock.mockReturnValue('2026-09-03' as ISODate);
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('• Kramplar olabilir')).toBeTruthy();
+    expect(queryByText('• Unutkanlık olabilir')).toBeNull();
+  });
+
+  it('heads no mood section on an ovulatory day, but still says something', async () => {
+    // Nothing in the sources isolates ovulation's effect on mood, so there is no
+    // list — and a heading with nothing under it would read as a failed load.
+    getTodayMock.mockReturnValue('2026-09-14' as ISODate);
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(queryByText('Olası ruh hali')).toBeNull();
+    expect(getByText('Bugünün mesajı')).toBeTruthy();
+    expect(getByText(/Yumurtlama günlerinde/)).toBeTruthy();
+  });
+
+  it.each(['2026-09-03', '2026-09-10', '2026-09-14', '2026-09-20'])(
+    'carries the message and the note on %s',
+    async (today) => {
+      getTodayMock.mockReturnValue(today as ISODate);
+
+      const { getByText } = await renderScreen();
+
+      expect(getByText('Bugünün mesajı')).toBeTruthy();
+      expect(getByText(SUPPORT_DISCLAIMER)).toBeTruthy();
+    }
+  );
+
+  it('shows the luteal message rather than a neighbouring one', async () => {
+    getTodayMock.mockReturnValue('2026-09-20' as ISODate);
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText(/Regl öncesi günlerde belirtiler herkeste aynı değildir/)).toBeTruthy();
+  });
+
+  it('shows the menstrual message on a menstrual day', async () => {
+    getTodayMock.mockReturnValue('2026-09-03' as ISODate);
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText(/hafif bir yürüyüş bazı kişilere iyi gelebilir/)).toBeTruthy();
+  });
+
+  it('drops the whole section on a day with no phase', async () => {
+    getTodayMock.mockReturnValue('2026-08-25' as ISODate);
+
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Olası ruh hali')).toBeNull();
+    expect(queryByText('Bugünün mesajı')).toBeNull();
+    expect(queryByText(SUPPORT_DISCLAIMER)).toBeNull();
+    expect(queryByText(OWH_HEALTH)).toBeNull();
+  });
+
+  it('follows the day, so the content changes when the day does', async () => {
+    getTodayMock.mockReturnValue('2026-09-10' as ISODate);
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Olası ruh hali')).toBeTruthy();
+
+    getTodayMock.mockReturnValue('2026-09-14' as ISODate);
+    await refocus();
+
+    expect(screen.queryByText('Olası ruh hali')).toBeNull();
+    expect(screen.getByText(/Yumurtlama günlerinde/)).toBeTruthy();
+  });
+
+  it('renders the section once', async () => {
+    getTodayMock.mockReturnValue('2026-09-20' as ISODate);
+
+    const { queryAllByText } = await renderScreen();
+
+    expect(queryAllByText('Olası ruh hali')).toHaveLength(1);
+    expect(queryAllByText('Bugünün mesajı')).toHaveLength(1);
+    expect(queryAllByText(SUPPORT_DISCLAIMER)).toHaveLength(1);
+  });
+
+  it('leaves the rest of the cycle screen where it was', async () => {
+    getTodayMock.mockReturnValue('2026-09-20' as ISODate);
+
+    const { getByText, getByLabelText } = await renderScreen();
+
+    expect(getByText('Takvim')).toBeTruthy();
+    expect(getByText('Seçilen gün')).toBeTruthy();
+    expect(getByText(FERTILITY_DISCLAIMER)).toBeTruthy();
+    expect(getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
+    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen cycle daily support sources', () => {
+  const OWH_HEALTH =
+    'https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle-and-your-health';
+  const OWH_ACTIVITY = 'https://womenshealth.gov/getting-active/physical-activity-menstrual-cycle';
+  const NHS_PMS = 'https://www.nhs.uk/conditions/pre-menstrual-syndrome/';
+  const NHS_PMS_NAME = 'NHS — Premenstrual syndrome (PMS)';
+
+  let openURL: jest.SpyInstance;
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    getTodayMock.mockReturnValue('2026-09-20' as ISODate);
+
+    openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    openURL.mockRestore();
+  });
+
+  it('heads the section', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Kaynaklar')).toBeTruthy();
+  });
+
+  it('names each source and shows its address', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(NHS_PMS_NAME)).toBeTruthy();
+    expect(getByText(NHS_PMS)).toBeTruthy();
+    expect(getByText(OWH_HEALTH)).toBeTruthy();
+    expect(getByText(OWH_ACTIVITY)).toBeTruthy();
+  });
+
+  it('opens a source at its own address', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${NHS_PMS_NAME} kaynağını aç`));
+
+    expect(openURL).toHaveBeenCalledTimes(1);
+    expect(openURL).toHaveBeenCalledWith(NHS_PMS);
+  });
+
+  it('opens each of the others at theirs', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText(/Your menstrual cycle and your health kaynağını aç/)
+    );
+    expect(openURL).toHaveBeenLastCalledWith(OWH_HEALTH);
+
+    await fireEvent.press(
+      screen.getByLabelText(/Physical activity and your menstrual cycle kaynağını aç/)
+    );
+    expect(openURL).toHaveBeenLastCalledWith(OWH_ACTIVITY);
+  });
+
+  it('follows the phase, so an ovulatory day cites its own pages', async () => {
+    getTodayMock.mockReturnValue('2026-09-14' as ISODate);
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText(OWH_HEALTH)).toBeTruthy();
+    expect(queryByText(NHS_PMS)).toBeNull();
+  });
+
+  it('says so when a source will not open', async () => {
+    openURL.mockRejectedValue(new Error('no handler'));
+
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Kaynak açılamadı.')).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText(`${NHS_PMS_NAME} kaynağını aç`));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kaynak açılamadı.')).toBeTruthy();
+    });
+  });
+
+  it('keeps the screen when a source will not open', async () => {
+    openURL.mockRejectedValue(new Error('no handler'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${NHS_PMS_NAME} kaynağını aç`));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kaynak açılamadı.')).toBeTruthy();
+    });
+
+    expect(screen.getByText('Bugünün mesajı')).toBeTruthy();
+    expect(screen.getByText('Takvim')).toBeTruthy();
+  });
+
+  it('clears the refusal once a source opens', async () => {
+    openURL.mockRejectedValueOnce(new Error('no handler'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${NHS_PMS_NAME} kaynağını aç`));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kaynak açılamadı.')).toBeTruthy();
+    });
+
+    await fireEvent.press(
+      screen.getByLabelText(/Your menstrual cycle and your health kaynağını aç/)
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Kaynak açılamadı.')).toBeNull();
+    });
+  });
+
+  it('shows no source section on a day with no phase', async () => {
+    getTodayMock.mockReturnValue('2026-08-25' as ISODate);
+
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Kaynaklar')).toBeNull();
+    expect(queryByText(NHS_PMS)).toBeNull();
+  });
+});
+
+describe('HomeScreen cycle daily support in the pregnancy view', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-07-11' as ISODate,
+      estimatedDueDate: '2027-04-17' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+    getTodayMock.mockReturnValue('2026-09-20' as ISODate);
+  });
+
+  it('keeps the whole section out of it', async () => {
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Olası ruh hali')).toBeNull();
+    expect(queryByText('Bugünün mesajı')).toBeNull();
+    expect(
+      queryByText('Bu bilgiler geneldir; kişiden kişiye ve aydan aya değişebilir.')
+    ).toBeNull();
+  });
+
+  it('cites no cycle source in it', async () => {
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('NHS — Premenstrual syndrome (PMS)')).toBeNull();
+    expect(queryByText('https://www.nhs.uk/conditions/pre-menstrual-syndrome/')).toBeNull();
+  });
+
+  it('brings it back when the mode returns to cycle', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Bugünün mesajı')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Döngü'));
+    });
+
+    expect(screen.getByText('Bugünün mesajı')).toBeTruthy();
+    expect(screen.getByText('Olası ruh hali')).toBeTruthy();
   });
 });

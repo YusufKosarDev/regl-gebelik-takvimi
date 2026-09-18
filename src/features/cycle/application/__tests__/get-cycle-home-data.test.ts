@@ -139,3 +139,71 @@ describe('getCycleHomeData failures', () => {
     await expect(getCycleHomeData(db, '2026-02-30' as ISODate)).rejects.toThrow();
   });
 });
+
+describe('getCycleHomeData daily support', () => {
+  // Cycle 28 from 2026-09-01: days 1-5 menstrual, 6-13 follicular, 14 ovulatory,
+  // 15 on luteal. A date before the first record has no cycle day at all.
+  it.each([
+    ['2026-09-03', 'menstrual'],
+    ['2026-09-10', 'follicular'],
+    ['2026-09-14', 'ovulatory'],
+    ['2026-09-20', 'luteal'],
+  ] as const)('hands back the %s content for the %s phase', async (today, phase) => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    const result = await getCycleHomeData(db, today as ISODate);
+
+    expect(result?.dailySupport?.phase).toBe(phase);
+  });
+
+  it('answers with the phase the dashboard reports, not one of its own', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    const result = await getCycleHomeData(db, '2026-09-10' as ISODate);
+
+    expect(result?.dailySupport?.phase).toBe(result?.dashboard.phase);
+  });
+
+  it('is null on a day with no phase', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    const result = await getCycleHomeData(db, '2026-08-25' as ISODate);
+
+    expect(result?.dashboard.phase).toBeNull();
+    expect(result?.dailySupport).toBeNull();
+  });
+
+  it('carries the sources the content was written from', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    const result = await getCycleHomeData(db, '2026-09-20' as ISODate);
+
+    expect(result?.dailySupport?.sources.length).toBeGreaterThan(0);
+    result?.dailySupport?.sources.forEach((source) => {
+      expect(source.url).toMatch(/^https?:\/\/.+/);
+    });
+  });
+
+  it('leaves the ovulatory phase without moods', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    const result = await getCycleHomeData(db, '2026-09-14' as ISODate);
+
+    expect(result?.dailySupport?.moodLabels).toBeUndefined();
+    expect(result?.dailySupport?.supportMessage).toBeTruthy();
+  });
+
+  it('still reads the database only once', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    await getCycleHomeData(db, '2026-09-20' as ISODate);
+
+    expect(loadCycleProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not look anything up when there is no profile', async () => {
+    loadCycleProfile.mockResolvedValue(null);
+
+    await expect(getCycleHomeData(db, '2026-09-20' as ISODate)).resolves.toBeNull();
+  });
+});
