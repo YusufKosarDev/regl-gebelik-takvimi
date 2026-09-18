@@ -1,4 +1,4 @@
-import type { PregnancyWeeklyContent } from './types';
+import type { PregnancyContentSource, PregnancyWeeklyContent } from './types';
 
 /**
  * The weeks a pregnancy is written about.
@@ -30,6 +30,62 @@ function assertText(week: number, field: string, value: string): void {
       `PregnancyWeeklyContent for week ${week} has a blank ${field}: ${JSON.stringify(value)}.`
     );
   }
+}
+
+/**
+ * A link someone could actually follow.
+ *
+ * Only the scheme is checked, and only for the two that can be opened: anything
+ * stricter would start rejecting real URLs over punctuation. A scheme with
+ * nothing after it names nothing, so it counts as blank rather than as a URL.
+ */
+function isFollowableUrl(value: string): boolean {
+  return /^https?:\/\/.+/.test(value.trim());
+}
+
+/**
+ * Checks where one week's content came from.
+ *
+ * At least one source, because this is text about someone's pregnancy and a
+ * claim with nothing behind it should not be showable. The same URL twice is
+ * refused too — it is one source listed twice, which reads as more corroboration
+ * than there is.
+ */
+function assertSources(week: number, sources: readonly PregnancyContentSource[]): void {
+  if (!Array.isArray(sources)) {
+    throw new Error(
+      `PregnancyWeeklyContent for week ${week} has a non-array sources: ` +
+        `${JSON.stringify(sources)}.`
+    );
+  }
+
+  if (sources.length === 0) {
+    throw new Error(`PregnancyWeeklyContent for week ${week} cites no sources.`);
+  }
+
+  const seenUrls = new Set<string>();
+
+  sources.forEach((source, index) => {
+    assertText(week, `sources[${index}].name`, source?.name);
+    assertText(week, `sources[${index}].url`, source?.url);
+
+    if (!isFollowableUrl(source.url)) {
+      throw new Error(
+        `PregnancyWeeklyContent for week ${week} has a sources[${index}].url that is not ` +
+          `an http or https address: ${JSON.stringify(source.url)}.`
+      );
+    }
+
+    const url = source.url.trim();
+
+    if (seenUrls.has(url)) {
+      throw new Error(
+        `PregnancyWeeklyContent for week ${week} cites ${JSON.stringify(url)} more than once.`
+      );
+    }
+
+    seenUrls.add(url);
+  });
 }
 
 /**
@@ -65,6 +121,8 @@ export function validatePregnancyWeeklyContent(content: PregnancyWeeklyContent):
   content.developingFeatures.forEach((feature, index) => {
     assertText(content.week, `developingFeatures[${index}]`, feature);
   });
+
+  assertSources(content.week, content.sources);
 }
 
 /**

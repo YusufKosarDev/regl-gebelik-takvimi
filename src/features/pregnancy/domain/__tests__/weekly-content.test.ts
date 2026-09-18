@@ -1,4 +1,4 @@
-import type { PregnancyWeeklyContent } from '../types';
+import type { PregnancyContentSource, PregnancyWeeklyContent } from '../types';
 import {
   MAX_PREGNANCY_WEEK,
   MIN_PREGNANCY_WEEK,
@@ -22,6 +22,7 @@ function content(
     sizeComparison: `${week} numaralı karşılaştırma`,
     developmentSummary: `${week}. hafta özeti`,
     developingFeatures: [`${week}. hafta özelliği`],
+    sources: [{ name: `${week}. hafta kaynağı`, url: `https://example.test/hafta-${week}` }],
     ...overrides,
   };
 }
@@ -290,6 +291,310 @@ describe('getPregnancyWeeklyContent purity', () => {
 
   it('hands back the entry the list holds, not a copy', () => {
     const contents = [content(12)];
+
+    expect(getPregnancyWeeklyContent(contents, 12)).toBe(contents[0]);
+  });
+});
+
+describe('validatePregnancyWeeklyContent with usable sources', () => {
+  it('accepts one source', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { sources: [{ name: 'NHS', url: 'https://www.nhs.uk/pregnancy/' }] })
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts several sources', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'NHS', url: 'https://www.nhs.uk/pregnancy/' },
+            { name: 'ACOG', url: 'https://www.acog.org/womens-health' },
+            { name: 'WHO', url: 'http://www.who.int/health-topics/maternal-health' },
+          ],
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts plain http as well as https', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { sources: [{ name: 'Kaynak', url: 'http://example.test/a' }] })
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts two sources that differ only by path', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'Kaynak', url: 'https://example.test/a' },
+            { name: 'Kaynak', url: 'https://example.test/b' },
+          ],
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts the same name twice when the pages differ', () => {
+    // One publisher can be the source of two different pages.
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'NHS', url: 'https://www.nhs.uk/pregnancy/week-12' },
+            { name: 'NHS', url: 'https://www.nhs.uk/pregnancy/scans' },
+          ],
+        })
+      )
+    ).not.toThrow();
+  });
+});
+
+describe('validatePregnancyWeeklyContent with missing sources', () => {
+  it('refuses an empty list', () => {
+    expect(() => validatePregnancyWeeklyContent(content(12, { sources: [] }))).toThrow(
+      /cites no sources/
+    );
+  });
+
+  it('names the week that cites nothing', () => {
+    expect(() => validatePregnancyWeeklyContent(content(7, { sources: [] }))).toThrow(
+      /for week 7 cites no sources/
+    );
+  });
+
+  it('refuses a list that is not a list', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: 'https://example.test/a' as unknown as PregnancyContentSource[],
+        })
+      )
+    ).toThrow(/non-array sources/);
+  });
+});
+
+describe('validatePregnancyWeeklyContent with a blank source field', () => {
+  it('refuses an empty name', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { sources: [{ name: '', url: 'https://example.test/a' }] })
+      )
+    ).toThrow(/blank sources\[0\]\.name/);
+  });
+
+  it('refuses a whitespace-only name', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { sources: [{ name: '   ', url: 'https://example.test/a' }] })
+      )
+    ).toThrow(/blank sources\[0\]\.name/);
+  });
+
+  it('refuses an empty url', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { sources: [{ name: 'NHS', url: '' }] }))
+    ).toThrow(/blank sources\[0\]\.url/);
+  });
+
+  it('refuses a whitespace-only url', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { sources: [{ name: 'NHS', url: '  ' }] }))
+    ).toThrow(/blank sources\[0\]\.url/);
+  });
+
+  it('points at the source that is wrong', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'NHS', url: 'https://example.test/a' },
+            { name: '', url: 'https://example.test/b' },
+          ],
+        })
+      )
+    ).toThrow(/blank sources\[1\]\.name/);
+  });
+
+  it('refuses a name that is not text', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [{ name: 3 as unknown as string, url: 'https://example.test/a' }],
+        })
+      )
+    ).toThrow(/blank sources\[0\]\.name/);
+  });
+});
+
+describe('validatePregnancyWeeklyContent with a url it cannot follow', () => {
+  it.each([
+    ['no scheme', 'www.nhs.uk/pregnancy/'],
+    ['a bare domain', 'example.test'],
+    ['ftp', 'ftp://example.test/a'],
+    ['a file path', 'file:///etc/hosts'],
+    ['a javascript url', 'javascript:alert(1)'],
+    ['a scheme with nothing after it', 'https://'],
+    ['a scheme missing its slashes', 'https:example.test'],
+    ['a relative path', '/pregnancy/week-12'],
+  ])('refuses %s', (_label, url) => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { sources: [{ name: 'Kaynak', url }] }))
+    ).toThrow(/not an http or https address/);
+  });
+
+  it('names the offending url', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { sources: [{ name: 'Kaynak', url: 'ftp://example.test/a' }] })
+      )
+    ).toThrow(/"ftp:\/\/example\.test\/a"/);
+  });
+
+  it('points at the source that is wrong', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'Kaynak', url: 'https://example.test/a' },
+            { name: 'Kaynak', url: 'example.test' },
+          ],
+        })
+      )
+    ).toThrow(/sources\[1\]\.url/);
+  });
+});
+
+describe('validatePregnancyWeeklyContent with a repeated source', () => {
+  it('refuses the same url twice', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'NHS', url: 'https://example.test/a' },
+            { name: 'NHS', url: 'https://example.test/a' },
+          ],
+        })
+      )
+    ).toThrow(/cites "https:\/\/example\.test\/a" more than once/);
+  });
+
+  it('refuses it under a different name too', () => {
+    // One page credited twice is still one source, whatever it is called.
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'NHS', url: 'https://example.test/a' },
+            { name: 'Başka kurum', url: 'https://example.test/a' },
+          ],
+        })
+      )
+    ).toThrow(/more than once/);
+  });
+
+  it('refuses a repeat that differs only by surrounding whitespace', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'NHS', url: 'https://example.test/a' },
+            { name: 'NHS', url: '  https://example.test/a  ' },
+          ],
+        })
+      )
+    ).toThrow(/more than once/);
+  });
+
+  it('refuses a repeat that is not adjacent', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          sources: [
+            { name: 'A', url: 'https://example.test/a' },
+            { name: 'B', url: 'https://example.test/b' },
+            { name: 'C', url: 'https://example.test/a' },
+          ],
+        })
+      )
+    ).toThrow(/more than once/);
+  });
+});
+
+describe('source validation purity', () => {
+  it('leaves the sources as it found them', () => {
+    const week = content(12, {
+      sources: [
+        { name: 'NHS', url: 'https://example.test/a' },
+        { name: 'ACOG', url: 'https://example.test/b' },
+      ],
+    });
+    const before = JSON.stringify(week);
+
+    validatePregnancyWeeklyContent(week);
+
+    expect(JSON.stringify(week)).toBe(before);
+  });
+
+  it('does not reorder them to find duplicates', () => {
+    const week = content(12, {
+      sources: [
+        { name: 'C', url: 'https://example.test/c' },
+        { name: 'A', url: 'https://example.test/a' },
+        { name: 'B', url: 'https://example.test/b' },
+      ],
+    });
+
+    validatePregnancyWeeklyContent(week);
+
+    expect(week.sources.map((source) => source.name)).toEqual(['C', 'A', 'B']);
+  });
+
+  it('leaves them alone even when it rejects them', () => {
+    const week = content(12, {
+      sources: [
+        { name: 'NHS', url: 'https://example.test/a' },
+        { name: 'NHS', url: 'https://example.test/a' },
+      ],
+    });
+    const before = JSON.stringify(week);
+
+    expect(() => validatePregnancyWeeklyContent(week)).toThrow();
+
+    expect(JSON.stringify(week)).toBe(before);
+  });
+
+  it('does not trim the stored url as a side effect', () => {
+    const week = content(12, {
+      sources: [{ name: 'NHS', url: '  https://example.test/a  ' }],
+    });
+
+    validatePregnancyWeeklyContent(week);
+
+    expect(week.sources[0].url).toBe('  https://example.test/a  ');
+  });
+});
+
+describe('the lookup is unchanged by provenance', () => {
+  it('still finds a week without looking at its sources', () => {
+    const contents = [content(8), content(12)];
+
+    expect(getPregnancyWeeklyContent(contents, 12)).toBe(contents[1]);
+  });
+
+  it('still returns null for an unwritten week', () => {
+    expect(getPregnancyWeeklyContent([content(8)], 9)).toBeNull();
+  });
+
+  it('does not validate the entries it searches', () => {
+    // The lookup answers about weeks; whether an entry is well-formed is
+    // validation's question, asked separately.
+    const contents = [content(12, { sources: [] })];
 
     expect(getPregnancyWeeklyContent(contents, 12)).toBe(contents[0]);
   });

@@ -45,6 +45,17 @@ export type PregnancyWeek = {
 };
 
 /**
+ * Where a piece of content came from.
+ *
+ * `name` is what to credit it as, `url` where it can be read. Both are required:
+ * a citation nobody can follow is not a citation.
+ */
+export type PregnancyContentSource = {
+  readonly name: string;
+  readonly url: string;
+};
+
+/**
  * What there is to say about one week of a pregnancy.
  *
  * Content, not measurement: every field is written text meant to be read as-is,
@@ -55,6 +66,10 @@ export type PregnancyWeek = {
  * thing it is being compared to. They are separate because a screen may want the
  * measurement without the comparison, and because a translation will not always
  * keep the same object.
+ *
+ * `sources` is required rather than optional. This is text about someone's
+ * pregnancy, and a claim with nothing behind it should not be writable in the
+ * first place — the type is where that is easiest to enforce.
  */
 export type PregnancyWeeklyContent = {
   readonly week: number;
@@ -62,4 +77,5 @@ export type PregnancyWeeklyContent = {
   readonly sizeComparison: string;
   readonly developmentSummary: string;
   readonly developingFeatures: readonly string[];
+  readonly sources: readonly PregnancyContentSource[];
 };
