@@ -12,6 +12,7 @@ jest.mock('@/features/auth/data/auth-repository', () => ({
   observeAuthUser: jest.fn(),
   signInWithEmail: jest.fn(),
   signUpWithEmail: jest.fn(),
+  sendPasswordReset: jest.fn(),
   signOut: jest.fn(),
   getCurrentAuthUser: jest.fn(),
 }));
@@ -95,6 +96,8 @@ beforeEach(() => {
   repository.signUpWithEmail.mockResolvedValue(USER);
   repository.signOut.mockReset();
   repository.signOut.mockResolvedValue(undefined);
+  repository.sendPasswordReset.mockReset();
+  repository.sendPasswordReset.mockResolvedValue(undefined);
 
   firebase.isFirebaseConfigured.mockReset();
   firebase.isFirebaseConfigured.mockReturnValue(true);
@@ -588,5 +591,300 @@ describe('AccountScreen stops watching when it goes away', () => {
     await screen.unmount();
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+});
+
+const RESET_SENT = 'Eğer bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.';
+
+/** Opens the reset form from the signed-out state. */
+async function openReset(screen: Awaited<ReturnType<typeof renderSignedOut>>) {
+  await fireEvent.press(screen.getByLabelText('Şifremi unuttum'));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText('Sıfırlama bağlantısı gönder')).toBeTruthy();
+  });
+}
+
+describe('AccountScreen opening the reset form', () => {
+  it('offers it to someone who is signed out', async () => {
+    const screen = await renderSignedOut();
+
+    expect(screen.getByLabelText('Şifremi unuttum')).toBeTruthy();
+  });
+
+  it('swaps the sign-in buttons for the reset ones', async () => {
+    const screen = await renderSignedOut();
+
+    await openReset(screen);
+
+    expect(screen.getByLabelText('Sıfırlama bağlantısı gönder')).toBeTruthy();
+    expect(screen.getByLabelText('Vazgeç')).toBeTruthy();
+    expect(screen.queryByLabelText('Giriş yap')).toBeNull();
+    expect(screen.queryByLabelText('Hesap oluştur')).toBeNull();
+  });
+
+  it('asks for no password, because a reset request has none', async () => {
+    const screen = await renderSignedOut();
+
+    await openReset(screen);
+
+    expect(screen.queryByLabelText('Şifre')).toBeNull();
+  });
+
+  it('keeps the address that was already typed', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen, EMAIL, PASSWORD);
+    await openReset(screen);
+
+    expect(screen.getByLabelText('E-posta').props.value).toBe(EMAIL);
+  });
+
+  it('says where the link leads', async () => {
+    const screen = await renderSignedOut();
+
+    await openReset(screen);
+
+    expect(screen.getByText(/şifre sıfırlama bağlantısı gönderelim/)).toBeTruthy();
+  });
+
+  it('goes back to signing in on Vazgeç', async () => {
+    const screen = await renderSignedOut();
+
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Giriş yap')).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText('Şifre')).toBeTruthy();
+    expect(screen.queryByLabelText('Sıfırlama bağlantısı gönder')).toBeNull();
+  });
+
+  it('sends nothing when it is only opened and closed', async () => {
+    const screen = await renderSignedOut();
+
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(repository.sendPasswordReset).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen asking for a reset link', () => {
+  it('sends the address that was typed', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(repository.sendPasswordReset).toHaveBeenCalledWith(EMAIL);
+    expect(repository.sendPasswordReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('trims it on the way', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen, `  ${EMAIL}  `);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(repository.sendPasswordReset).toHaveBeenCalledWith(EMAIL);
+  });
+
+  it('sends no password with it', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(repository.sendPasswordReset.mock.calls[0]).toEqual([EMAIL]);
+  });
+
+  it('asks for an address rather than sending an empty one', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen, '   ');
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(screen.getByText('E-posta adresi gerekli.')).toBeTruthy();
+    expect(repository.sendPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it('signs nobody in and creates nothing', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(repository.signInWithEmail).not.toHaveBeenCalled();
+    expect(repository.signUpWithEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen after a reset request', () => {
+  it('gives the same answer whether or not the address has an account', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(await screen.findByText(RESET_SENT)).toBeTruthy();
+  });
+
+  it('announces it', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect((await screen.findByText(RESET_SENT)).props.accessibilityRole).toBe('alert');
+  });
+
+  it('says nothing about whether an account was found', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    await screen.findByText(RESET_SENT);
+
+    for (const forbidden of [
+      /hesap bulunamadı/i,
+      /böyle bir hesap/i,
+      /kayıtlı değil/i,
+      /bulundu/i,
+    ]) {
+      expect(screen.queryByText(forbidden)).toBeNull();
+    }
+  });
+
+  it('goes back to signing in with the answer above it', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    await screen.findByText(RESET_SENT);
+
+    expect(screen.getByLabelText('Giriş yap')).toBeTruthy();
+  });
+
+  it.each([
+    ['invalid-email', 'Geçerli bir e-posta adresi gir.'],
+    ['too-many-requests', 'Çok fazla deneme yapıldı. Biraz sonra tekrar dene.'],
+    ['network-failed', 'İşlem tamamlanamadı.'],
+    ['unknown', 'İşlem tamamlanamadı.'],
+  ] as readonly (readonly [AuthErrorCode, string])[])(
+    'shows this app’s own sentence for %s',
+    async (code, message) => {
+      repository.sendPasswordReset.mockRejectedValue(authError(code));
+
+      const screen = await renderSignedOut();
+
+      await fill(screen);
+      await openReset(screen);
+      await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+      expect(await screen.findByText(message)).toBeTruthy();
+    }
+  );
+
+  it('shows nothing the SDK wrote', async () => {
+    const raw = new Error(
+      `Firebase: There is no user record corresponding to ${EMAIL}. (auth/user-not-found).`
+    ) as Error & { code: string };
+    raw.code = 'auth/user-not-found';
+    repository.sendPasswordReset.mockRejectedValue(raw);
+
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(await screen.findByText('İşlem tamamlanamadı.')).toBeTruthy();
+    expect(screen.queryByText(/Firebase|auth\/|user record/)).toBeNull();
+  });
+
+  it('keeps the form usable after a refusal', async () => {
+    repository.sendPasswordReset.mockRejectedValue(authError('invalid-email'));
+
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    await screen.findByText('Geçerli bir e-posta adresi gir.');
+
+    expect(screen.getByLabelText('Sıfırlama bağlantısı gönder')).toBeTruthy();
+    expect(screen.getByLabelText('Vazgeç')).toBeTruthy();
+  });
+
+  it('writes nothing to the log or the console', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+    await screen.findByText(RESET_SENT);
+
+    expect(logging.logEvent).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+
+    jest.restoreAllMocks();
+  });
+
+  it('reads no health data', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen);
+    await openReset(screen);
+    await fireEvent.press(screen.getByLabelText('Sıfırlama bağlantısı gönder'));
+
+    expect(db.openAppDatabase).not.toHaveBeenCalled();
+    expect(cycleRepository.loadCycleProfile).not.toHaveBeenCalled();
+    expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen reset form in the other states', () => {
+  it('is not offered in a build with no Firebase project', async () => {
+    firebase.isFirebaseConfigured.mockReturnValue(false);
+
+    const screen = await render(<AccountScreen />);
+
+    await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
+
+    expect(screen.queryByLabelText('Şifremi unuttum')).toBeNull();
+    expect(screen.queryByLabelText('Sıfırlama bağlantısı gönder')).toBeNull();
+  });
+
+  it('is not offered to someone already signed in', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.queryByLabelText('Şifremi unuttum')).toBeNull();
+  });
+
+  it('is not offered while the session is still being read', async () => {
+    const screen = await render(<AccountScreen />);
+
+    expect(screen.queryByLabelText('Şifremi unuttum')).toBeNull();
   });
 });

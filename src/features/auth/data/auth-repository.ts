@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
@@ -112,5 +113,41 @@ export async function signOut(): Promise<void> {
     await firebaseSignOut(requireFirebaseAuth());
   } catch (error) {
     throw toAuthError(error);
+  }
+}
+
+/**
+ * Asks Firebase to send a password reset link to an address.
+ *
+ * Resolving says the request was made, and nothing more. In particular it does
+ * not say that an account exists: an address with no account is answered the
+ * same way as one with an account, because the alternative is a form that tells
+ * anyone who types an address whether its owner tracks their period here.
+ *
+ * That is why `auth/user-not-found` is swallowed rather than raised. Firebase
+ * itself hides it when email enumeration protection is on, and this makes the
+ * answer the same either way rather than depending on a console setting.
+ *
+ * The address is trimmed, because a keyboard that capitalises and a paste that
+ * brings a space are not the person getting their own address wrong.
+ *
+ * No `ActionCodeSettings`: the link goes to the page Firebase hosts, which
+ * needs no deep link, no custom handler and nothing built here to receive it.
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(requireFirebaseAuth(), email.trim());
+  } catch (error) {
+    const mapped = toAuthError(error);
+
+    // `auth/user-not-found` lands on this code, and answering it would tell
+    // the asker whose address is registered here. The other failures behind the
+    // same code — a wrong password, a disabled sign-in — cannot come from a
+    // request that carries no password.
+    if (mapped.code === 'invalid-credentials') {
+      return;
+    }
+
+    throw mapped;
   }
 }

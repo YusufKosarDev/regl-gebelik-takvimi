@@ -32,3 +32,34 @@ export function authErrorMessage(code: AuthErrorCode | string): string {
 /** What to say when the form was sent with something missing. */
 export const EMPTY_EMAIL_MESSAGE = 'E-posta adresi gerekli.';
 export const EMPTY_PASSWORD_MESSAGE = 'Şifre gerekli.';
+
+/**
+ * What the reset form says when the request could not be made.
+ *
+ * Its own table rather than the sign-in one: "bu e-posta adresi kullanılamıyor"
+ * is the right answer to an address that cannot hold an account, and the wrong
+ * answer to an address that was simply typed wrong.
+ *
+ * Nothing here distinguishes an address with an account from one without,
+ * because the repository does not tell this screen which it was.
+ */
+const RESET_MESSAGES: Readonly<Partial<Record<AuthErrorCode, string>>> = {
+  'invalid-email': 'Geçerli bir e-posta adresi gir.',
+  'too-many-requests': 'Çok fazla deneme yapıldı. Biraz sonra tekrar dene.',
+};
+
+/** The message for a failed reset request, generic unless it is worth more. */
+export function passwordResetErrorMessage(code: AuthErrorCode | string): string {
+  return RESET_MESSAGES[code as AuthErrorCode] ?? MESSAGES.unknown;
+}
+
+/**
+ * What a reset request says when it worked.
+ *
+ * The same sentence whether or not an account exists, because the app is not
+ * told which it was — and because a form that said "no account with that
+ * address" would answer, for anyone who typed one in, whether its owner tracks
+ * their period here.
+ */
+export const PASSWORD_RESET_SENT_MESSAGE =
+  'Eğer bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.';

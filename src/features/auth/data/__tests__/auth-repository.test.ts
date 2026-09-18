@@ -2,6 +2,7 @@ import { AuthError } from '../../domain/auth-error';
 import {
   getCurrentAuthUser,
   observeAuthUser,
+  sendPasswordReset,
   signInWithEmail,
   signOut,
   signUpWithEmail,
@@ -13,6 +14,7 @@ import {
 jest.mock('firebase/auth', () => ({
   createUserWithEmailAndPassword: jest.fn(),
   signInWithEmailAndPassword: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
   onAuthStateChanged: jest.fn(),
   signOut: jest.fn(),
 }));
@@ -85,6 +87,8 @@ beforeEach(() => {
   sdk.onAuthStateChanged.mockReturnValue(jest.fn());
   sdk.signOut.mockReset();
   sdk.signOut.mockResolvedValue(undefined);
+  sdk.sendPasswordResetEmail.mockReset();
+  sdk.sendPasswordResetEmail.mockResolvedValue(undefined);
 
   cycleRepository.loadCycleProfile.mockReset();
   cycleRepository.saveCycleProfile.mockReset();
@@ -372,5 +376,133 @@ describe('what the repository never reaches for', () => {
     await signUpWithEmail(EMAIL, PASSWORD);
 
     expect(cycleRepository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendPasswordReset', () => {
+  it('asks the SDK to send the link', async () => {
+    await sendPasswordReset(EMAIL);
+
+    expect(sdk.sendPasswordResetEmail).toHaveBeenCalledWith(auth, EMAIL);
+    expect(sdk.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('trims the address before sending it', async () => {
+    await sendPasswordReset(`  ${EMAIL}\n`);
+
+    expect(sdk.sendPasswordResetEmail).toHaveBeenCalledWith(auth, EMAIL);
+  });
+
+  it('sends no settings, so the link opens the page Firebase hosts', async () => {
+    await sendPasswordReset(EMAIL);
+
+    expect(sdk.sendPasswordResetEmail.mock.calls[0]).toHaveLength(2);
+  });
+
+  it('carries no password, because a reset request has none', async () => {
+    await sendPasswordReset(EMAIL);
+
+    expect(JSON.stringify(sdk.sendPasswordResetEmail.mock.calls)).not.toContain(PASSWORD);
+  });
+
+  it.each([
+    ['auth/invalid-email', 'invalid-email'],
+    ['auth/missing-email', 'invalid-email'],
+    ['auth/too-many-requests', 'too-many-requests'],
+    ['auth/network-request-failed', 'network-failed'],
+  ])('turns %s into %s', async (code, expected) => {
+    sdk.sendPasswordResetEmail.mockRejectedValue(sdkError(code));
+
+    await expect(sendPasswordReset(EMAIL)).rejects.toMatchObject({ code: expected });
+  });
+
+  it('calls a failure it has never seen unknown', async () => {
+    sdk.sendPasswordResetEmail.mockRejectedValue(new Error('something the SDK made up'));
+
+    await expect(sendPasswordReset(EMAIL)).rejects.toMatchObject({ code: 'unknown' });
+  });
+
+  it('refuses in a build with no Firebase project', async () => {
+    firebase.requireFirebaseAuth.mockImplementation(() => {
+      throw new AuthError('not-configured');
+    });
+
+    await expect(sendPasswordReset(EMAIL)).rejects.toMatchObject({ code: 'not-configured' });
+  });
+});
+
+describe('sendPasswordReset and whether an account exists', () => {
+  it('answers the same way for an address with no account', async () => {
+    sdk.sendPasswordResetEmail.mockRejectedValue(sdkError('auth/user-not-found'));
+
+    await expect(sendPasswordReset(EMAIL)).resolves.toBeUndefined();
+  });
+
+  it('answers the same way for an address with one', async () => {
+    await expect(sendPasswordReset(EMAIL)).resolves.toBeUndefined();
+  });
+
+  it('returns nothing either way, so there is nothing to tell apart', async () => {
+    const withAccount = await sendPasswordReset(EMAIL);
+
+    sdk.sendPasswordResetEmail.mockRejectedValue(sdkError('auth/user-not-found'));
+    const without = await sendPasswordReset(EMAIL);
+
+    expect(withAccount).toEqual(without);
+  });
+
+  it('still refuses an address that is not an address', async () => {
+    // Not enumeration: this is about the text, not about who owns it.
+    sdk.sendPasswordResetEmail.mockRejectedValue(sdkError('auth/invalid-email'));
+
+    await expect(sendPasswordReset('not-an-address')).rejects.toMatchObject({
+      code: 'invalid-email',
+    });
+  });
+});
+
+describe('what a reset request never lets out', () => {
+  it.each([
+    ['the address', sdkError('auth/user-not-found', `There is no user record for ${EMAIL}.`)],
+    ['an internal message', sdkError('auth/internal-error', `Internal error for ${EMAIL}.`)],
+  ])('keeps %s out of what comes back', async (_label, thrown) => {
+    sdk.sendPasswordResetEmail.mockRejectedValue(thrown);
+
+    const result = await sendPasswordReset(EMAIL).then(
+      () => null,
+      (caught: unknown) => caught as Error
+    );
+
+    expect(result?.message ?? '').not.toMatch(/someone@example\.com/);
+  });
+
+  it('writes nothing to the log', async () => {
+    sdk.sendPasswordResetEmail.mockRejectedValue(sdkError('auth/internal-error'));
+
+    await sendPasswordReset(EMAIL).catch(() => undefined);
+    await sendPasswordReset(EMAIL).catch(() => undefined);
+
+    expect(logging.logEvent).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing to the console either', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await sendPasswordReset(EMAIL);
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+
+    jest.restoreAllMocks();
+  });
+
+  it('reads no health data on the way', async () => {
+    await sendPasswordReset(EMAIL);
+
+    expect(cycleRepository.loadCycleProfile).not.toHaveBeenCalled();
+    expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
   });
 });

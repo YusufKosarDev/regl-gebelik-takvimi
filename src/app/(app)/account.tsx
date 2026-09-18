@@ -8,6 +8,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
 import {
+  sendPasswordReset,
   signInWithEmail,
   signOut,
   signUpWithEmail,
@@ -16,7 +17,9 @@ import { toAuthError } from '@/features/auth/domain/auth-error';
 import {
   EMPTY_EMAIL_MESSAGE,
   EMPTY_PASSWORD_MESSAGE,
+  PASSWORD_RESET_SENT_MESSAGE,
   authErrorMessage,
+  passwordResetErrorMessage,
 } from '@/features/auth/presentation/auth-messages';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -42,6 +45,11 @@ export default function AccountScreen() {
   const [isBusy, setIsBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // The reset form is a mode of the signed-out state rather than a screen of
+  // its own: it asks for the address that is already typed in, and going back
+  // to signing in should not be a navigation.
+  const [isResetting, setIsResetting] = useState(false);
+
   // A ref as well as the disabled prop: two quick taps could both read `isBusy`
   // as false before the re-render lands, and the second would be a second
   // attempt with the same credentials.
@@ -50,6 +58,7 @@ export default function AccountScreen() {
   const clearForm = () => {
     setEmail('');
     setPassword('');
+    setIsResetting(false);
   };
 
   /**
@@ -93,6 +102,45 @@ export default function AccountScreen() {
       // and not logged.
       setNotice(authErrorMessage(toAuthError(error).code));
       setPassword('');
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  /**
+   * Asks for a reset link.
+   *
+   * The answer is the same sentence whichever way it went, because the
+   * repository does not say whether the address had an account and this screen
+   * must not appear to know either.
+   */
+  const handleSendReset = async () => {
+    if (inFlight.current) {
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+
+    if (trimmedEmail === '') {
+      setNotice(EMPTY_EMAIL_MESSAGE);
+
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setNotice(null);
+
+    try {
+      await sendPasswordReset(trimmedEmail);
+
+      // Back to signing in, with the answer above it: the next thing to do is
+      // read the mail and come back.
+      setIsResetting(false);
+      setNotice(PASSWORD_RESET_SENT_MESSAGE);
+    } catch (error) {
+      setNotice(passwordResetErrorMessage(toAuthError(error).code));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -238,34 +286,43 @@ export default function AccountScreen() {
                   />
                 </View>
 
-                <View style={styles.field}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Şifre
-                  </ThemedText>
+                {!isResetting && (
+                  <View style={styles.field}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Şifre
+                    </ThemedText>
 
-                  <TextInput
-                    accessibilityLabel="Şifre"
-                    value={password}
-                    onChangeText={(next) => {
-                      setPassword(next);
-                      setNotice(null);
-                    }}
-                    editable={!isBusy}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    // The field is masked and kept out of the keyboard's own
-                    // learning, which is where a typed password otherwise ends
-                    // up being remembered.
-                    secureTextEntry
-                    textContentType="password"
-                    placeholder="En az 6 karakter"
-                    placeholderTextColor={theme.textSecondary}
-                    style={[
-                      styles.input,
-                      { borderColor: theme.backgroundSelected, color: theme.text },
-                    ]}
-                  />
-                </View>
+                    <TextInput
+                      accessibilityLabel="Şifre"
+                      value={password}
+                      onChangeText={(next) => {
+                        setPassword(next);
+                        setNotice(null);
+                      }}
+                      editable={!isBusy}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      // The field is masked and kept out of the keyboard's own
+                      // learning, which is where a typed password otherwise
+                      // ends up being remembered.
+                      secureTextEntry
+                      textContentType="password"
+                      placeholder="En az 6 karakter"
+                      placeholderTextColor={theme.textSecondary}
+                      style={[
+                        styles.input,
+                        { borderColor: theme.backgroundSelected, color: theme.text },
+                      ]}
+                    />
+                  </View>
+                )}
+
+                {isResetting && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Bu adrese şifre sıfırlama bağlantısı gönderelim. Bağlantı, tarayıcıda
+                    açılan bir sayfaya götürür.
+                  </ThemedText>
+                )}
 
                 {notice !== null && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
@@ -273,37 +330,99 @@ export default function AccountScreen() {
                   </ThemedText>
                 )}
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Giriş yap"
-                  accessibilityState={{ disabled: isBusy }}
-                  disabled={isBusy}
-                  onPress={() => attempt(signInWithEmail)}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    { backgroundColor: theme.text },
-                    isBusy && styles.disabled,
-                    pressed && !isBusy && styles.pressed,
-                  ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.background }}>
-                    {isBusy ? 'Gönderiliyor...' : 'Giriş yap'}
-                  </ThemedText>
-                </Pressable>
+                {isResetting ? (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Sıfırlama bağlantısı gönder"
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={handleSendReset}
+                      style={({ pressed }) => [
+                        styles.primaryButton,
+                        { backgroundColor: theme.text },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold" style={{ color: theme.background }}>
+                        {isBusy ? 'Gönderiliyor...' : 'Sıfırlama bağlantısı gönder'}
+                      </ThemedText>
+                    </Pressable>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Hesap oluştur"
-                  accessibilityState={{ disabled: isBusy }}
-                  disabled={isBusy}
-                  onPress={() => attempt(signUpWithEmail)}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    { borderColor: theme.backgroundSelected },
-                    isBusy && styles.disabled,
-                    pressed && !isBusy && styles.pressed,
-                  ]}>
-                  <ThemedText type="smallBold">Hesap oluştur</ThemedText>
-                </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Vazgeç"
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => {
+                        setIsResetting(false);
+                        setNotice(null);
+                      }}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold">Vazgeç</ThemedText>
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Giriş yap"
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => attempt(signInWithEmail)}
+                      style={({ pressed }) => [
+                        styles.primaryButton,
+                        { backgroundColor: theme.text },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold" style={{ color: theme.background }}>
+                        {isBusy ? 'Gönderiliyor...' : 'Giriş yap'}
+                      </ThemedText>
+                    </Pressable>
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Hesap oluştur"
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => attempt(signUpWithEmail)}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold">Hesap oluştur</ThemedText>
+                    </Pressable>
+
+                    {/* Last, and quiet: it is the way out of a form that did
+                        not work, not one of the two things to do here. */}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Şifremi unuttum"
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => {
+                        setIsResetting(true);
+                        setNotice(null);
+                      }}
+                      style={({ pressed }) => [
+                        styles.linkButton,
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Şifremi unuttum
+                      </ThemedText>
+                    </Pressable>
+                  </>
+                )}
               </View>
             )}
           </View>
@@ -386,6 +505,11 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: Spacing.three,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkButton: {
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
