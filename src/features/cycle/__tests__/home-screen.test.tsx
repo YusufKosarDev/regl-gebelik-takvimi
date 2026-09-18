@@ -37,6 +37,13 @@ jest.mock('@/features/avatar/data/avatar-repository', () => ({
   saveAvatarConfig: jest.fn(),
 }));
 
+// The widget sync is faked so the screen's calls to it can be counted. It is
+// quiet by contract, so the real one would do nothing under Jest anyway.
+jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
+  syncWidgetSnapshotQuietly: jest.fn(),
+  syncWidgetSnapshot: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
@@ -86,6 +93,7 @@ const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
 const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
+const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 
@@ -176,6 +184,8 @@ beforeEach(() => {
   avatarRepository.loadAvatarConfig.mockReset();
   avatarRepository.loadAvatarConfig.mockResolvedValue(null);
   avatarRepository.saveAvatarConfig.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
 
@@ -4176,5 +4186,204 @@ describe('HomeScreen avatar in the pregnancy view', () => {
 
     expect(screen.getByTestId('home-avatar-preview')).toBeTruthy();
     expect(screen.getByLabelText('Avatarı düzenle')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen widget snapshot sync', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('syncs once when the screen first loads', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('syncs for the day the screen is showing', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(
+        expect.anything(),
+        '2026-09-17'
+      );
+    });
+  });
+
+  it('reuses the database the screen already opened', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalled();
+    });
+
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync again on every focus', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await refocus();
+    await refocus();
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs even when no cycle profile is saved', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(
+        expect.anything(),
+        '2026-09-17'
+      );
+    });
+  });
+
+  it('does not sync when the screen could not load', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('disk is gone'));
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+
+  it('shows the screen even when the sync fails', async () => {
+    // Quiet by contract, but a rejected promise must not surface here either.
+    widgetSync.syncWidgetSnapshotQuietly.mockRejectedValue(new Error('no bridge'));
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('Döngü günü')).toBeTruthy();
+    expect(queryByText('Bilgiler yüklenemedi.')).toBeNull();
+  });
+});
+
+describe('HomeScreen syncs the widget after a period change', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile(['2026-09-01']));
+  });
+
+  it('syncs after a period start is saved', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(2);
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs after a period end is saved', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile(['2026-09-16'], { open: true }));
+
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Regl bitişini kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(2);
+  });
+
+  it('syncs only after the write succeeded', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Regl başlangıcı kaydedilemedi.')).toBeTruthy();
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the save successful when the sync fails', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    widgetSync.syncWidgetSnapshotQuietly.mockResolvedValueOnce(null);
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    // The database write is what the person asked for; it stands.
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Regl başlangıcı kaydedilemedi.')).toBeNull();
+  });
+});
+
+describe('HomeScreen does not sync for pregnancy changes', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-07-11' as ISODate,
+      estimatedDueDate: '2027-04-17' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+  });
+
+  it('syncs only the once on load, whatever the mode', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not sync when the week being read changes', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Önceki hafta'));
+
+    // The snapshot carries no pregnancy, so nothing about it is worth writing.
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync when the mode changes', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Döngü'));
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
   });
 });

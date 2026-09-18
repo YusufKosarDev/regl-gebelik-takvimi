@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 
 const SAVE_ERROR_MESSAGE = 'Bilgiler kaydedilemedi. Lütfen tekrar dene.';
@@ -81,6 +82,10 @@ export default function FinishScreen() {
         averagePeriodLengthDays: periodLength,
         lastPeriodStartDate,
       });
+
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, today);
 
       // Only now is the run considered finished. The root gate reacts to this.
       await completeOnboarding();

@@ -17,6 +17,7 @@ import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 
 const LOAD_ERROR_MESSAGE = 'Kayıtlar yüklenemedi.';
@@ -244,6 +245,10 @@ export default function HistoryScreen() {
 
       await deletePeriodRecord(db, { recordId: recordPendingDelete.id });
 
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, today);
+
       setRecords(await readHistory());
       setRecordPendingDelete(null);
     } catch (error) {
@@ -273,6 +278,10 @@ export default function HistoryScreen() {
       const db = await openAppDatabase();
 
       await updatePeriodEndDate(db, { recordId: recordUnderEndEdit.id, endDate, today });
+
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, today);
 
       setRecords(await readHistory());
       closePanels();
@@ -310,6 +319,10 @@ export default function HistoryScreen() {
         startDate,
         today,
       });
+
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, today);
 
       setRecords(await readHistory());
       closePanels();

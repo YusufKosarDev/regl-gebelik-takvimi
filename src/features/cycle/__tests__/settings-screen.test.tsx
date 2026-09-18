@@ -25,8 +25,16 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
+// The widget sync is faked so the screen's calls to it can be counted. It is
+// quiet by contract, so the real one would do nothing under Jest anyway.
+jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
+  syncWidgetSnapshotQuietly: jest.fn(),
+  syncWidgetSnapshot: jest.fn(),
+}));
+
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
+const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
@@ -50,6 +58,8 @@ beforeEach(() => {
   db.openAppDatabase.mockResolvedValue({});
   repository.loadCycleProfile.mockReset();
   repository.saveCycleProfile.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
   repository.saveCycleProfile.mockResolvedValue(undefined);
 
   back = jest.fn();
@@ -550,5 +560,55 @@ describe('SettingsScreen scope', () => {
     ]) {
       expect(queryByText(forbidden)).toBeNull();
     }
+  });
+});
+
+describe('SettingsScreen widget snapshot sync', () => {
+  it('syncs after the settings are saved', async () => {
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs with the database the screen opened', async () => {
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly.mock.calls[0][0]).toBe(
+      await db.openAppDatabase.mock.results[0].value
+    );
+  });
+
+  it('does not sync when the save failed', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Ayarlar kaydedilemedi.')).toBeTruthy();
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the save successful when the sync writes nothing', async () => {
+    widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Ayarlar kaydedilemedi.')).toBeNull();
   });
 });

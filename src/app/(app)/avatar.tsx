@@ -17,8 +17,10 @@ import {
 import { loadAvatarConfig, saveAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { AvatarOption } from '@/features/avatar/domain/avatar-option';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import { getTodayLocalISODate } from '@/utils/today';
 
 const LOAD_ERROR_MESSAGE = 'Avatar yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Avatar kaydedilemedi.';
@@ -147,6 +149,10 @@ export default function AvatarScreen() {
       const db = await openAppDatabase();
 
       await saveAvatarConfig(db, config);
+
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, getTodayLocalISODate());
 
       // Home reads again when it regains focus, so going back is enough to show
       // the saved avatar there.

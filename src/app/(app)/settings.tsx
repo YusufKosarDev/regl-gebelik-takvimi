@@ -15,8 +15,10 @@ import {
   MIN_PERIOD_LENGTH_DAYS,
 } from '@/features/cycle/domain/limits';
 import type { CycleSettings } from '@/features/cycle/domain/types';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import { getTodayLocalISODate } from '@/utils/today';
 
 const LOAD_ERROR_MESSAGE = 'Ayarlar yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Ayarlar kaydedilemedi.';
@@ -147,6 +149,10 @@ export default function SettingsScreen() {
         averageCycleLengthDays: cycleLength,
         averagePeriodLengthDays: periodLength,
       });
+
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, getTodayLocalISODate());
 
       // Home reads again when it regains focus, so going back is enough to show
       // the predictions the new settings produce.

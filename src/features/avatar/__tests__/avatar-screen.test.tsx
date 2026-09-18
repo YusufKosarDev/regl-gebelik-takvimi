@@ -20,8 +20,16 @@ jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
 }));
 
+// The widget sync is faked so the screen's calls to it can be counted. It is
+// quiet by contract, so the real one would do nothing under Jest anyway.
+jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
+  syncWidgetSnapshotQuietly: jest.fn(),
+  syncWidgetSnapshot: jest.fn(),
+}));
+
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/avatar/data/avatar-repository');
+const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
@@ -51,6 +59,8 @@ beforeEach(() => {
   repository.loadAvatarConfig.mockReset();
   repository.loadAvatarConfig.mockResolvedValue(null);
   repository.saveAvatarConfig.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
   repository.saveAvatarConfig.mockResolvedValue(undefined);
 
   back = jest.fn();
@@ -532,5 +542,61 @@ describe('AvatarScreen navigation', () => {
     await fireEvent.press(screen.getByLabelText('Geri'));
 
     expect(repository.saveAvatarConfig).not.toHaveBeenCalled();
+  });
+});
+
+describe('AvatarScreen widget snapshot sync', () => {
+  it('syncs after the avatar is saved', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledTimes(1);
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs with the database the screen opened', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly.mock.calls[0][0]).toBe(
+      await db.openAppDatabase.mock.results[0].value
+    );
+  });
+
+  it('does not sync when the save failed', async () => {
+    repository.saveAvatarConfig.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Avatar kaydedilemedi.')).toBeTruthy();
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the save successful when the sync writes nothing', async () => {
+    widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledTimes(1);
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Avatar kaydedilemedi.')).toBeNull();
+  });
+
+  it('does not sync when the screen is only opened and left', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Ten tonu: 5. ton'));
+    await fireEvent.press(screen.getByLabelText('Geri'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
   });
 });

@@ -44,6 +44,14 @@ const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const openAppDatabaseMock = openAppDatabase as unknown as jest.Mock;
 const completeCycleOnboardingMock = completeCycleOnboarding as unknown as jest.Mock;
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
+const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+
+// The widget sync is faked so the screen's calls to it can be counted. It is
+// quiet by contract, so the real one would do nothing under Jest anyway.
+jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
+  syncWidgetSnapshotQuietly: jest.fn(),
+  syncWidgetSnapshot: jest.fn(),
+}));
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 
 let push: jest.Mock;
@@ -65,6 +73,8 @@ beforeEach(() => {
 
   openAppDatabaseMock.mockReset().mockResolvedValue(FAKE_DB);
   completeCycleOnboardingMock.mockReset().mockResolvedValue(undefined);
+  widgetSync.syncWidgetSnapshotQuietly.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
 
   completeOnboarding = jest.fn().mockResolvedValue(undefined);
   useAppStore.setState({
@@ -424,5 +434,53 @@ describe('FinishScreen with unusable params', () => {
     expect(completeOnboarding).not.toHaveBeenCalled();
     expect(repository.saveCycleProfile).not.toHaveBeenCalled();
     expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
+  });
+});
+
+describe('FinishScreen widget snapshot sync', () => {
+  it('syncs once the onboarding write succeeded', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(completeCycleOnboardingMock).toHaveBeenCalledTimes(1);
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs for the day onboarding finished on', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-09-17'
+    );
+  });
+
+  it('does not sync when the onboarding write failed', async () => {
+    completeCycleOnboardingMock.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+
+  it('finishes onboarding even when the sync writes nothing', async () => {
+    widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(completeOnboarding).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync when the screen is only shown', async () => {
+    await renderScreen();
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
   });
 });

@@ -20,12 +20,20 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
+// The widget sync is faked so the screen's calls to it can be counted. It is
+// quiet by contract, so the real one would do nothing under Jest anyway.
+jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
+  syncWidgetSnapshotQuietly: jest.fn(),
+  syncWidgetSnapshot: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
 
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
+const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const useRouterMock = useRouter as unknown as jest.Mock;
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 
@@ -55,6 +63,8 @@ beforeEach(() => {
   db.openAppDatabase.mockResolvedValue({});
   repository.loadCycleProfile.mockReset();
   repository.saveCycleProfile.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
 
   back = jest.fn();
   useRouterMock.mockReset();
@@ -1831,5 +1841,79 @@ describe('HistoryScreen panel exclusivity', () => {
 
     expect(screen.getByText('Başlangıç tarihini düzenle')).toBeTruthy();
     expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
+  });
+});
+
+describe('HistoryScreen widget snapshot sync', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+    );
+  });
+
+  it('syncs after a record is deleted', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs after a start date is edited', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle'));
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs for the day the screen is working with', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-09-25'
+    );
+  });
+
+  it('does not sync when the delete failed', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kayıt silinemedi.')).toBeTruthy();
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the delete successful when the sync writes nothing', async () => {
+    widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Kayıt silinemedi.')).toBeNull();
+  });
+
+  it('does not sync when nothing is changed', async () => {
+    await renderScreen();
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
   });
 });

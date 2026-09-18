@@ -43,6 +43,7 @@ import {
   MAX_PREGNANCY_WEEK,
   MIN_PREGNANCY_WEEK,
 } from '@/features/pregnancy/domain/weekly-content';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
@@ -180,6 +181,12 @@ export default function HomeScreen() {
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
 
+  // The widget snapshot is brought up to date once, when the app opens. Every
+  // change to cycle or avatar data syncs itself, so returning to this screen
+  // has nothing new to copy and syncing again on each focus would be writing
+  // the same bytes over and over.
+  const hasSyncedWidget = useRef(false);
+
   // Set when a source link could not be handed to the browser. Cleared on the
   // next attempt, so a failure does not linger over a link that works.
   const [hasSourceError, setHasSourceError] = useState(false);
@@ -203,7 +210,7 @@ export default function HomeScreen() {
       loadAvatarConfig(db),
     ]);
 
-    return { cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig };
+    return { db, cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig };
   }, []);
 
   // On focus rather than on mount, so coming back from a screen that changed the
@@ -230,6 +237,27 @@ export default function HomeScreen() {
           setPregnancy(data.pregnancy);
           setAvatar(data.avatar);
           setHasError(false);
+
+          // Best effort, and only once: this catches changes made while the app
+          // was closed, such as the day rolling over. It is deliberately not
+          // awaited into the screen's own state — a widget that could not be
+          // updated is not something to tell the person about here, and it must
+          // not stop the screen it is riding along with.
+          if (!hasSyncedWidget.current) {
+            hasSyncedWidget.current = true;
+
+            // Caught as well as quiet: this promise is not awaited, so a
+            // rejection would have nowhere to go but an unhandled one, and the
+            // screen must not depend on the sync keeping its own promise.
+            syncWidgetSnapshotQuietly(
+              data.db,
+              data.cycle?.dashboard.today ?? getTodayLocalISODate()
+            ).catch((syncError: unknown) => {
+              if (__DEV__) {
+                console.error('[home] could not sync the widget snapshot', syncError);
+              }
+            });
+          }
         } catch (error) {
           if (__DEV__) {
             console.error('[home] could not load the cycle data', error);
@@ -423,6 +451,10 @@ export default function HomeScreen() {
       } else {
         await addPeriodStart(db, { startDate: dashboard.today, today: dashboard.today });
       }
+
+      // The write is already durable, and the widget only holds a copy of it,
+      // so a failed update here must not undo what was just saved.
+      await syncWidgetSnapshotQuietly(db, dashboard.today);
 
       // Both halves of the screen come from one fresh read, so the summary and
       // the calendar cannot end up describing different profiles.
