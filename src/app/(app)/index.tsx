@@ -28,11 +28,18 @@ import {
   getFertilityLevelLabel,
 } from '@/features/cycle/presentation/cycle-labels';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
-import { getPregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
+import {
+  getPregnancyDashboard,
+  getWeeklyContentForWeek,
+} from '@/features/pregnancy/application/get-pregnancy-dashboard';
 import type {
   PregnancyDueDateSource,
   PregnancyWeeklyContent,
 } from '@/features/pregnancy/domain/types';
+import {
+  MAX_PREGNANCY_WEEK,
+  MIN_PREGNANCY_WEEK,
+} from '@/features/pregnancy/domain/weekly-content';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
@@ -167,6 +174,11 @@ export default function HomeScreen() {
   // next attempt, so a failure does not linger over a link that works.
   const [hasSourceError, setHasSourceError] = useState(false);
 
+  // The week being read about, or null while that is simply the current one.
+  // Local and unsaved on purpose: browsing ahead is a look, not a setting, and
+  // should not still be where it was left days later.
+  const [previewWeek, setPreviewWeek] = useState<number | null>(null);
+
   /**
    * Reads everything the screen shows. Stable, so the mount effect can depend on
    * it without re-running, and the save path can reuse it.
@@ -248,6 +260,15 @@ export default function HomeScreen() {
     }
   }, [isLoading, mode, pregnancy, setMode]);
 
+  // A preview outlives nothing: when there is no week to browse, it goes.
+  const canBrowseWeeks = pregnancy?.weeklyContent != null;
+
+  useEffect(() => {
+    if (!canBrowseWeeks && previewWeek !== null) {
+      setPreviewWeek(null);
+    }
+  }, [canBrowseWeeks, previewWeek]);
+
   const chooseMode = (next: 'cycle' | 'pregnancy') => {
     if (next === mode) {
       return;
@@ -278,6 +299,27 @@ export default function HomeScreen() {
 
       setHasSourceError(true);
     }
+  };
+
+  // The week on screen, and what is written for it. The dashboard's own week and
+  // due date are untouched by this — only the reading below them changes.
+  const currentWeek = canBrowseWeeks ? (pregnancy?.pregnancyWeek?.week ?? null) : null;
+  const shownWeek = canBrowseWeeks ? (previewWeek ?? currentWeek) : null;
+  const shownContent = shownWeek === null ? null : getWeeklyContentForWeek(shownWeek);
+
+  const stepWeek = (delta: number) => {
+    if (shownWeek === null) {
+      return;
+    }
+
+    const next = shownWeek + delta;
+
+    if (next < MIN_PREGNANCY_WEEK || next > MAX_PREGNANCY_WEEK) {
+      return;
+    }
+
+    setPreviewWeek(next);
+    setHasSourceError(false);
   };
 
   if (isLoading) {
@@ -685,38 +727,95 @@ export default function HomeScreen() {
 
                 {/* Absent before the pregnancy starts and past week 40, where
                     there is nothing written to show. */}
-                {pregnancy.weeklyContent !== null && (
+                {shownContent !== null && shownWeek !== null && (
                   <>
+                    <View style={styles.weekBar}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Önceki hafta"
+                        accessibilityState={{ disabled: shownWeek <= MIN_PREGNANCY_WEEK }}
+                        disabled={shownWeek <= MIN_PREGNANCY_WEEK}
+                        onPress={() => stepWeek(-1)}
+                        style={({ pressed }) => [
+                          styles.weekButton,
+                          shownWeek <= MIN_PREGNANCY_WEEK && styles.disabled,
+                          pressed && shownWeek > MIN_PREGNANCY_WEEK && styles.pressed,
+                        ]}>
+                        <ThemedText style={styles.weekButtonLabel}>‹</ThemedText>
+                      </Pressable>
+
+                      <ThemedText
+                        accessibilityLabel={`Gösterilen hafta: ${shownWeek}. hafta`}
+                        type="smallBold"
+                        style={styles.selectedWeek}>
+                        {shownWeek}. hafta
+                      </ThemedText>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Sonraki hafta"
+                        accessibilityState={{ disabled: shownWeek >= MAX_PREGNANCY_WEEK }}
+                        disabled={shownWeek >= MAX_PREGNANCY_WEEK}
+                        onPress={() => stepWeek(1)}
+                        style={({ pressed }) => [
+                          styles.weekButton,
+                          shownWeek >= MAX_PREGNANCY_WEEK && styles.disabled,
+                          pressed && shownWeek < MAX_PREGNANCY_WEEK && styles.pressed,
+                        ]}>
+                        <ThemedText style={styles.weekButtonLabel}>›</ThemedText>
+                      </Pressable>
+                    </View>
+
+                    {/* Only worth offering once the reading has wandered off the
+                        week the pregnancy is actually in. */}
+                    {shownWeek !== currentWeek && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Bugünkü haftaya dön"
+                        onPress={() => {
+                          setPreviewWeek(null);
+                          setHasSourceError(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.secondaryButton,
+                          pressed && styles.pressed,
+                        ]}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Bugünkü haftaya dön
+                        </ThemedText>
+                      </Pressable>
+                    )}
+
                     <View
                       accessible
-                      accessibilityLabel={`Bu hafta: ${weeklyHighlight(pregnancy.weeklyContent)}`}
+                      accessibilityLabel={`Bu hafta: ${weeklyHighlight(shownContent)}`}
                       style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                       <ThemedText type="small" themeColor="textSecondary">
                         Bu hafta
                       </ThemedText>
 
                       {/* Only the weeks that have a size show one. */}
-                      {pregnancy.weeklyContent.size !== undefined && (
+                      {shownContent.size !== undefined && (
                         <ThemedText style={styles.rowValue}>
-                          {pregnancy.weeklyContent.size.label} —{' '}
-                          {pregnancy.weeklyContent.size.comparison}
+                          {shownContent.size.label} —{' '}
+                          {shownContent.size.comparison}
                         </ThemedText>
                       )}
 
                       <ThemedText type="small" style={styles.weeklySummary}>
-                        {pregnancy.weeklyContent.developmentSummary}
+                        {shownContent.developmentSummary}
                       </ThemedText>
                     </View>
 
                     <View
                       accessible
-                      accessibilityLabel={`Bu hafta gelişenler: ${pregnancy.weeklyContent.developingFeatures.join(', ')}`}
+                      accessibilityLabel={`Bu hafta gelişenler: ${shownContent.developingFeatures.join(', ')}`}
                       style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                       <ThemedText type="small" themeColor="textSecondary">
                         Bu hafta gelişenler
                       </ThemedText>
 
-                      {pregnancy.weeklyContent.developingFeatures.map((feature) => (
+                      {shownContent.developingFeatures.map((feature) => (
                         <ThemedText key={feature} type="small" style={styles.weeklyFeature}>
                           • {feature}
                         </ThemedText>
@@ -726,7 +825,7 @@ export default function HomeScreen() {
                     {/* The domain requires at least one source, but the section
                         is still conditional: an empty heading would be worse
                         than no heading. */}
-                    {pregnancy.weeklyContent.sources.length > 0 && (
+                    {shownContent.sources.length > 0 && (
                       <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                         <ThemedText type="small" themeColor="textSecondary">
                           Kaynaklar
@@ -742,7 +841,7 @@ export default function HomeScreen() {
                           </ThemedText>
                         )}
 
-                        {pregnancy.weeklyContent.sources.map((source) => (
+                        {shownContent.sources.map((source) => (
                           <Pressable
                             key={source.url}
                             accessibilityRole="link"
@@ -879,6 +978,29 @@ const styles = StyleSheet.create({
   },
   rowNote: {
     marginTop: Spacing.one,
+  },
+  weekBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  weekButtonLabel: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  weekButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Spacing.two,
+  },
+  selectedWeek: {
+    flexShrink: 1,
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
   },
   modeSwitch: {
     flexDirection: 'row',

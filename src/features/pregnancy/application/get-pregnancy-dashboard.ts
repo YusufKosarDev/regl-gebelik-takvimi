@@ -37,23 +37,24 @@ export type PregnancyDashboard = {
 };
 
 /**
- * What is written for the week a pregnancy is in, if anything is.
+ * What is written for one week, or `null` when nothing is.
  *
- * A pregnancy that has run past week 40 is asked about nothing: the lookup
- * refuses a week outside the range it covers, and that is a question this should
- * not be asking rather than an error to show someone. The bounds come from the
- * domain rather than being repeated here.
+ * A week outside the range the content covers is answered with `null` rather
+ * than the refusal the lookup would give: a caller browsing weeks is asking a
+ * reasonable question, and "nothing written for that one" is the answer. The
+ * bounds come from the domain rather than being repeated here.
  */
+export function getWeeklyContentForWeek(week: number): PregnancyWeeklyContent | null {
+  if (!Number.isInteger(week) || week < MIN_PREGNANCY_WEEK || week > MAX_PREGNANCY_WEEK) {
+    return null;
+  }
+
+  return getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week);
+}
+
+/** The same question, asked about the week a pregnancy is currently in. */
 function weeklyContentFor(week: PregnancyWeek | null): PregnancyWeeklyContent | null {
-  if (week === null) {
-    return null;
-  }
-
-  if (week.week < MIN_PREGNANCY_WEEK || week.week > MAX_PREGNANCY_WEEK) {
-    return null;
-  }
-
-  return getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week.week);
+  return week === null ? null : getWeeklyContentForWeek(week.week);
 }
 
 /**

@@ -3309,3 +3309,363 @@ describe('HomeScreen views stay separate', () => {
     expect(screen.getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
   });
 });
+
+describe('HomeScreen pregnancy week navigation', () => {
+  // 2 September is day 1, so 17 September is day 16: week 3, day 2.
+  function pregnancyProfile(lastMenstrualPeriodStartDate = '2026-09-02') {
+    return {
+      lastMenstrualPeriodStartDate: lastMenstrualPeriodStartDate as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    };
+  }
+
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancyProfile());
+  });
+
+  it('opens on the week the pregnancy is in', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Gösterilen hafta: 3. hafta')).toBeTruthy();
+    expect(screen.getByText('3. hafta')).toBeTruthy();
+  });
+
+  it('offers both steps', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Önceki hafta')).toBeTruthy();
+    expect(screen.getByLabelText('Sonraki hafta')).toBeTruthy();
+  });
+
+  it('steps forward a week', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.getByLabelText('Gösterilen hafta: 4. hafta')).toBeTruthy();
+  });
+
+  it('steps back a week', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Önceki hafta'));
+
+    expect(screen.getByLabelText('Gösterilen hafta: 2. hafta')).toBeTruthy();
+  });
+
+  it('shows the content of the week it moved to', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText(/Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.queryByText(/Döllenme bu hafta gerçekleşir/)).toBeNull();
+    // Narrow enough to match the summary rather than the feature beside it.
+    expect(screen.getByText(/içi sıvı dolu amniyotik kesenin/)).toBeTruthy();
+  });
+
+  it('brings the size with it', async () => {
+    const screen = await renderScreen();
+
+    // Week 3 has no size; week 4 is the first that does.
+    expect(screen.queryByText(/^yaklaşık .+ — .+$/)).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.getByText('yaklaşık 2 mm — haşhaş tohumu')).toBeTruthy();
+  });
+
+  it('brings the developing features with it', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('• Sperm ve yumurta birleşerek zigotu oluşturur')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.queryByText('• Sperm ve yumurta birleşerek zigotu oluşturur')).toBeNull();
+    expect(screen.getByText('• Embriyo amniyotik kesenin içinde gelişir')).toBeTruthy();
+  });
+
+  it('brings the sources with it', async () => {
+    const screen = await renderScreen();
+
+    // Week 3 cites Cleveland Clinic alone; week 4 adds its own NHS page.
+    expect(screen.queryByText(/nhs\.uk/)).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(
+      screen.getByText('https://www.nhs.uk/pregnancy/week-by-week/1-to-12/4-weeks/')
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText('NHS — You and your baby at 4 weeks pregnant kaynağını aç')
+    ).toBeTruthy();
+  });
+
+  it('walks several weeks at a time', async () => {
+    const screen = await renderScreen();
+
+    for (let step = 0; step < 7; step += 1) {
+      await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    }
+
+    expect(screen.getByLabelText('Gösterilen hafta: 10. hafta')).toBeTruthy();
+    expect(screen.getByText('yaklaşık 30 mm — küçük kayısı')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen pregnancy week navigation boundaries', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('stops at week 1', async () => {
+    // The last menstrual period is today, so the pregnancy is in week 1.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-17' as ISODate,
+      estimatedDueDate: '2027-06-24' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Gösterilen hafta: 1. hafta')).toBeTruthy();
+
+    const back = screen.getByLabelText('Önceki hafta');
+
+    expect(back.props.accessibilityState.disabled).toBe(true);
+
+    await fireEvent.press(back);
+
+    expect(screen.getByLabelText('Gösterilen hafta: 1. hafta')).toBeTruthy();
+  });
+
+  it('stops at week 40', async () => {
+    // 274 days before 17 September 2026 is week 40, day 1.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2025-12-18' as ISODate,
+      estimatedDueDate: '2026-09-24' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Gösterilen hafta: 40. hafta')).toBeTruthy();
+
+    const forward = screen.getByLabelText('Sonraki hafta');
+
+    expect(forward.props.accessibilityState.disabled).toBe(true);
+
+    await fireEvent.press(forward);
+
+    expect(screen.getByLabelText('Gösterilen hafta: 40. hafta')).toBeTruthy();
+  });
+
+  it('walks all the way from 1 to 40 without falling off either end', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-17' as ISODate,
+      estimatedDueDate: '2027-06-24' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const screen = await renderScreen();
+
+    for (let step = 0; step < 45; step += 1) {
+      await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    }
+
+    expect(screen.getByLabelText('Gösterilen hafta: 40. hafta')).toBeTruthy();
+    expect(screen.getByText('yaklaşık 51,2 cm — balkabağı')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen returning to the current week', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+  });
+
+  it('is not offered while the current week is showing', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByLabelText('Bugünkü haftaya dön')).toBeNull();
+  });
+
+  it('appears once the reading has moved', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.getByLabelText('Bugünkü haftaya dön')).toBeTruthy();
+    expect(screen.getByText('Bugünkü haftaya dön')).toBeTruthy();
+  });
+
+  it('goes back to the current week and its content', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Bugünkü haftaya dön'));
+
+    expect(screen.getByLabelText('Gösterilen hafta: 3. hafta')).toBeTruthy();
+    expect(screen.getByText(/Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+  });
+
+  it('goes away again once it is back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Bugünkü haftaya dön'));
+
+    expect(screen.queryByLabelText('Bugünkü haftaya dön')).toBeNull();
+  });
+
+  it('also goes away when stepping lands back on the current week', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Önceki hafta'));
+
+    expect(screen.queryByLabelText('Bugünkü haftaya dön')).toBeNull();
+  });
+});
+
+describe('HomeScreen week navigation leaves the rest alone', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+  });
+
+  it('does not move the pregnancy the person is actually in', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.getByLabelText('Gebelik haftası: 3. hafta 2. gün')).toBeTruthy();
+    expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
+  });
+
+  it('does not move the due date', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    expect(screen.getByText('9 Haziran 2027')).toBeTruthy();
+    expect(screen.getByText('Son regl tarihine göre')).toBeTruthy();
+  });
+
+  it('writes nothing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+
+    // Browsing is a look, not a setting: no store write and no database write.
+    expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
+    expect(pregnancyRepository.savePregnancyProfile).not.toHaveBeenCalled();
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('leaves the cycle view untouched', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await fireEvent.press(screen.getByLabelText('Döngü'));
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Takvim')).toBeTruthy();
+    expect(screen.queryByLabelText('Sonraki hafta')).toBeNull();
+  });
+
+  it('keeps the reading where it was put across a focus refresh', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    await refocus();
+
+    expect(screen.getByLabelText('Gösterilen hafta: 4. hafta')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen week navigation when there is no week to browse', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('offers none before the pregnancy began', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-10-01' as ISODate,
+      estimatedDueDate: '2027-07-08' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const screen = await renderScreen();
+
+    expect(screen.queryByLabelText('Önceki hafta')).toBeNull();
+    expect(screen.queryByLabelText('Sonraki hafta')).toBeNull();
+    expect(screen.queryByLabelText('Bugünkü haftaya dön')).toBeNull();
+    // The safe state it already had is kept.
+    expect(screen.getByText('Gebelik başlangıç tarihi henüz gelmedi.')).toBeTruthy();
+    expect(screen.getByText('8 Temmuz 2027')).toBeTruthy();
+  });
+
+  it('offers none past the last written week', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2025-12-10' as ISODate,
+      estimatedDueDate: '2026-09-16' as ISODate,
+      dueDateSource: 'adjusted' as const,
+    });
+
+    const screen = await renderScreen();
+
+    expect(screen.queryByLabelText('Önceki hafta')).toBeNull();
+    expect(screen.queryByLabelText('Sonraki hafta')).toBeNull();
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+    expect(screen.getByText('Tahmini doğum tarihi')).toBeTruthy();
+  });
+
+  it('forgets a reading left behind when the pregnancy stops', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
+    expect(screen.getByLabelText('Gösterilen hafta: 4. hafta')).toBeTruthy();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    await refocus();
+
+    // The view falls back to the cycle, and nothing is left holding week 4.
+    expect(screen.getByText('17. gün')).toBeTruthy();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+    await refocus();
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    expect(screen.getByLabelText('Gösterilen hafta: 3. hafta')).toBeTruthy();
+  });
+});
