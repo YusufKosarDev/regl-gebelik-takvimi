@@ -102,7 +102,13 @@ describe('health data reaches no service', () => {
     ['fetch', /\bfetch\s*\(/],
     ['XMLHttpRequest', /XMLHttpRequest/],
     ['WebSocket', /\bnew WebSocket\b/],
-    ['an analytics or crash reporter', /analytics|Sentry|firebase|amplitude|posthog|bugsnag/i],
+    // Imported or required, not merely mentioned: the privacy boundary has to
+    // be able to say the word "Firebase" in a comment to explain what it keeps
+    // out.
+    [
+      'an analytics or crash reporter',
+      /(from|require\()\s*['"][^'"]*(analytics|sentry|firebase|amplitude|posthog|bugsnag)/i,
+    ],
   ])('makes no use of %s', (_label, pattern) => {
     const offenders = appSources().filter((path) => pattern.test(read(path)));
 
