@@ -2,6 +2,18 @@ import type { CyclePhase } from './phases';
 import { isCyclePhase } from './phases';
 
 /**
+ * Where a phase's content comes from.
+ *
+ * A name someone would recognise and a link they can open. Both are shown, so
+ * neither is decoration: the name is what makes the citation readable and the
+ * URL is what makes it checkable.
+ */
+export type CycleSupportSource = {
+  readonly name: string;
+  readonly url: string;
+};
+
+/**
  * What there is to say alongside a cycle phase.
  *
  * `moodLabels` are things some people notice in a phase, not a reading of how
@@ -21,11 +33,16 @@ import { isCyclePhase } from './phases';
  *
  * `supportMessage` is required and offered in the same spirit: something that
  * may help, not advice and not a diagnosis.
+ *
+ * `sources` is required and is not optional in the way moods are. Saying nothing
+ * about mood is a defensible answer; saying something with nothing behind it is
+ * not. A phase that cannot name where its text came from should not be written.
  */
 export type CycleDailySupport = {
   readonly phase: CyclePhase;
   readonly moodLabels?: readonly string[];
   readonly supportMessage: string;
+  readonly sources: readonly CycleSupportSource[];
 };
 
 function assertPhase(caller: string, phase: CyclePhase): void {
@@ -85,6 +102,62 @@ function assertMoodLabels(phase: CyclePhase, moodLabels: readonly string[] | und
 }
 
 /**
+ * A link someone could actually follow.
+ *
+ * Only the scheme is checked, and only for the two that can be opened: anything
+ * stricter would start rejecting real URLs over punctuation. A scheme with
+ * nothing after it names nothing, so it counts as blank rather than as a URL.
+ */
+function isFollowableUrl(value: string): boolean {
+  return /^https?:\/\/.+/.test(value.trim());
+}
+
+/**
+ * Checks where one phase's content came from.
+ *
+ * At least one source, because this is text about how someone might be feeling
+ * and a claim with nothing behind it should not be showable. The same URL twice
+ * is refused too — it is one source listed twice, which reads as more
+ * corroboration than there is.
+ */
+function assertSources(phase: CyclePhase, sources: readonly CycleSupportSource[]): void {
+  if (!Array.isArray(sources)) {
+    throw new Error(
+      `CycleDailySupport for the ${phase} phase has a non-array sources: ` +
+        `${JSON.stringify(sources)}.`
+    );
+  }
+
+  if (sources.length === 0) {
+    throw new Error(`CycleDailySupport for the ${phase} phase cites no sources.`);
+  }
+
+  const seenUrls = new Set<string>();
+
+  sources.forEach((source, index) => {
+    assertText(phase, `sources[${index}].name`, source?.name);
+    assertText(phase, `sources[${index}].url`, source?.url);
+
+    if (!isFollowableUrl(source.url)) {
+      throw new Error(
+        `CycleDailySupport for the ${phase} phase has a sources[${index}].url that is not ` +
+          `an http or https address: ${JSON.stringify(source.url)}.`
+      );
+    }
+
+    const url = source.url.trim();
+
+    if (seenUrls.has(url)) {
+      throw new Error(
+        `CycleDailySupport for the ${phase} phase cites ${JSON.stringify(url)} more than once.`
+      );
+    }
+
+    seenUrls.add(url);
+  });
+}
+
+/**
  * Checks one phase's content, throwing on the first rule it breaks.
  *
  * Blank text is refused rather than tolerated: a mood that renders as an empty
@@ -99,6 +172,8 @@ export function validateCycleDailySupport(support: CycleDailySupport): void {
   assertMoodLabels(support.phase, support.moodLabels);
 
   assertText(support.phase, 'supportMessage', support.supportMessage);
+
+  assertSources(support.phase, support.sources);
 }
 
 /**

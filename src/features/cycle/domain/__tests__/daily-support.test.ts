@@ -1,4 +1,4 @@
-import type { CycleDailySupport } from '../daily-support';
+import type { CycleDailySupport, CycleSupportSource } from '../daily-support';
 import { getCycleDailySupport, validateCycleDailySupport } from '../daily-support';
 import type { CyclePhase } from '../phases';
 import { CYCLE_PHASES } from '../phases';
@@ -6,9 +6,10 @@ import { CYCLE_PHASES } from '../phases';
 /**
  * Stand-in text, not a mood mapping.
  *
- * Nothing real is written for any phase yet. Inventing it in a test fixture
- * would be worse than leaving it out, and what someone might notice in a phase
- * is not something to make up to fill a table.
+ * The real phases live in `data/cycle-daily-support.ts` and are tested against
+ * their sources there. What these fixtures exercise is the rules, so the text is
+ * deliberately meaningless: a mood invented here to fill a table would end up
+ * read as content.
  */
 function support(
   phase: CyclePhase,
@@ -18,6 +19,19 @@ function support(
     phase,
     moodLabels: [`${phase} birinci ifade`, `${phase} ikinci ifade`],
     supportMessage: `${phase} için örnek destek metni`,
+    sources: [source(phase)],
+    ...overrides,
+  };
+}
+
+/** A stand-in citation, shaped like a real one and pointing nowhere. */
+function source(
+  phase: CyclePhase,
+  overrides: Partial<CycleSupportSource> = {}
+): CycleSupportSource {
+  return {
+    name: `${phase} örnek kaynak`,
+    url: `https://example.org/${phase}`,
     ...overrides,
   };
 }
@@ -406,5 +420,141 @@ describe('getCycleDailySupport with phases written either way', () => {
     getCycleDailySupport(contents, 'luteal');
 
     expect(JSON.stringify(contents)).toBe(before);
+  });
+});
+
+describe('validateCycleDailySupport with usable sources', () => {
+  it.each(CYCLE_PHASES)('accepts one source for the %s phase', (phase) => {
+    expect(() => validateCycleDailySupport(support(phase))).not.toThrow();
+  });
+
+  it('accepts several sources', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', {
+          sources: [
+            source('luteal', { url: 'https://example.org/bir' }),
+            source('luteal', { url: 'https://example.org/iki' }),
+            source('luteal', { url: 'http://example.org/uc' }),
+          ],
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts a source alongside a phase that names no moods', () => {
+    const { moodLabels, ...rest } = support('ovulatory');
+
+    void moodLabels;
+
+    expect(() => validateCycleDailySupport(rest)).not.toThrow();
+  });
+});
+
+describe('validateCycleDailySupport with unusable sources', () => {
+  it('refuses a phase that cites none', () => {
+    expect(() => validateCycleDailySupport(support('luteal', { sources: [] }))).toThrow(
+      /cites no sources/
+    );
+  });
+
+  it('refuses a missing list', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', { sources: undefined as unknown as readonly CycleSupportSource[] })
+      )
+    ).toThrow(/non-array sources/);
+  });
+
+  it('refuses a list that is not a list', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', {
+          sources: { name: 'NHS', url: 'https://example.org' } as unknown as readonly CycleSupportSource[],
+        })
+      )
+    ).toThrow(/non-array sources/);
+  });
+
+  it('refuses a blank name', () => {
+    expect(() =>
+      validateCycleDailySupport(support('luteal', { sources: [source('luteal', { name: '' })] }))
+    ).toThrow(/blank sources\[0\]\.name/);
+  });
+
+  it('refuses a whitespace-only name', () => {
+    expect(() =>
+      validateCycleDailySupport(support('luteal', { sources: [source('luteal', { name: '   ' })] }))
+    ).toThrow(/blank sources\[0\]\.name/);
+  });
+
+  it('refuses a blank url', () => {
+    expect(() =>
+      validateCycleDailySupport(support('luteal', { sources: [source('luteal', { url: '' })] }))
+    ).toThrow(/blank sources\[0\]\.url/);
+  });
+
+  it.each(['womenshealth.gov', 'ftp://example.org/a', 'https://', 'mailto:a@example.org'])(
+    'refuses %s, which is not an http or https address',
+    (url) => {
+      expect(() =>
+        validateCycleDailySupport(support('luteal', { sources: [source('luteal', { url })] }))
+      ).toThrow(/blank sources\[0\]\.url|not an http or https address/);
+    }
+  );
+
+  it('refuses the same url twice', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', { sources: [source('luteal'), source('luteal', { name: 'Ayn\u0131 sayfa' })] })
+      )
+    ).toThrow(/cites "https:\/\/example\.org\/luteal" more than once/);
+  });
+
+  it('refuses a repeat that differs only by surrounding whitespace', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', {
+          sources: [source('luteal'), source('luteal', { url: ' https://example.org/luteal ' })],
+        })
+      )
+    ).toThrow(/more than once/);
+  });
+
+  it('allows the same name under two different urls', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', {
+          sources: [
+            source('luteal', { name: 'NHS' }),
+            source('luteal', { name: 'NHS', url: 'https://example.org/baska' }),
+          ],
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it('names the phase the bad source belongs to', () => {
+    expect(() => validateCycleDailySupport(support('follicular', { sources: [] }))).toThrow(
+      /follicular phase cites no sources/
+    );
+  });
+
+  it('points at the source that broke the rule', () => {
+    expect(() =>
+      validateCycleDailySupport(
+        support('luteal', {
+          sources: [source('luteal'), source('luteal', { url: 'example.org/iki' })],
+        })
+      )
+    ).toThrow(/sources\[1\]\.url/);
+  });
+
+  it('does not trim the stored url as a side effect', () => {
+    const entry = support('luteal', { sources: [source('luteal', { url: ' https://example.org/a ' })] });
+    const before = JSON.stringify(entry);
+
+    expect(() => validateCycleDailySupport(entry)).not.toThrow();
+    expect(JSON.stringify(entry)).toBe(before);
   });
 });
