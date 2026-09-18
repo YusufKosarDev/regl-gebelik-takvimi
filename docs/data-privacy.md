@@ -6,23 +6,33 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
 
 ## Bugünkü durum
 
-- **Ağ isteği yok.** Uygulamada `fetch`, XHR, WebSocket ya da herhangi bir API
-  çağrısı yok. Tek dış bağlantı, kullanıcı bir kaynak bağlantısına dokunduğunda
-  telefonun tarayıcısını açmak (`Linking.openURL`) — oraya giden şey uygulamanın
-  kendi gömülü kaynak adresi, kullanıcının verisi değil.
-- **Firebase yok, analytics yok, crash reporting yok.** Bağımlılık listesinde de
-  yok; bir tarama testi bunu her çalıştırmada doğruluyor.
-- **Hesap yok, auth yok.**
+- **Sağlık verisi hiçbir yere gönderilmiyor.** Regl kayıtları, gebelik, avatar ve
+  hatırlatıcı tercihleri cihazdan çıkmıyor; bunu taşıyacak tek biçim olan
+  `CloudSyncPayloadV1` hiçbir yere yüklenmiyor.
+- **Firebase Auth altyapısı var, Firestore yok.** Yalnızca hesap açma, giriş ve
+  çıkış için Firebase Auth kullanılıyor; Firebase'e giden tek şey e-posta ve
+  parola. Firestore, Storage, Messaging, Analytics ve Crashlytics yok —
+  bağımlılık listesinde de yok, bir tarama testi her çalıştırmada doğruluyor.
+- **Henüz giriş ekranı yok.** Bu adım altyapı: uygulamada bu çağrıları
+  tetikleyen bir ekran bulunmuyor, dolayısıyla normal kullanımda hiçbir istek
+  çıkmıyor.
+- **Uygulamanın kendi kodunda ağ çağrısı yok.** `fetch`, XHR, WebSocket
+  kullanılmıyor; ağa çıkan tek şey Firebase Auth SDK'sının kendi istekleri. Tek
+  diğer dış bağlantı, kullanıcı bir kaynak bağlantısına dokunduğunda telefonun
+  tarayıcısını açmak (`Linking.openURL`) — oraya giden şey uygulamanın kendi
+  gömülü kaynak adresi, kullanıcının verisi değil.
+- **Firebase config kaynak koda gömülü değil.** `EXPO_PUBLIC_FIREBASE_*`
+  environment variable'larından okunuyor.
 - **Sağlık verisi cihazda.** Her şey uygulamanın kendi SQLite dosyasında
   (`regl-gebelik.db`) ve uygulamaya özel Android depolamasında duruyor.
 - **Loglar ham sağlık verisi içermez.** Konsola yalnızca kapalı bir listeden
   gelen genel olay adları yazılır (`[app] widget sync failed` gibi); tarih,
   kayıt, avatar ya da hata mesajı yazılmaz. Bkz. `src/shared/logging/`.
 
-Firebase ya da başka bir bulut, ancak **açık bir kullanıcı hesabı ve kullanıcının
-kendi açtığı bir senkronizasyon özelliğiyle** eklenecek. Eklendiğinde de
-taşıyabileceği tek şey aşağıdaki "cloud adayı: evet" satırları ve tek biçim
-`CloudSyncPayloadV1`.
+Bir hesap artık açılabiliyor, ama hesap **henüz hiçbir şey taşımıyor**. Sağlık
+verisinin buluta çıkması, ancak kullanıcının kendi açtığı bir senkronizasyon
+özelliğiyle olacak; o geldiğinde de taşıyabileceği tek şey aşağıdaki "cloud
+adayı: evet" satırları ve tek biçim `CloudSyncPayloadV1`.
 
 ## Envanter
 
@@ -34,6 +44,7 @@ taşıyabileceği tek şey aşağıdaki "cloud adayı: evet" satırları ve tek 
 | `avatar-config` | evet | evet | Kişinin seçtiği görünüm; yeni cihazda yeniden seçtirmek gereksiz. |
 | `notification-preferences` | evet | evet | Kişinin açıp kapattığı hatırlatıcılar; tercih, cihaz durumu değil. |
 | `widget-snapshot` | evet | **hayır** | Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir. |
+| `auth-session` | evet | **hayır** | Firebase Auth oturumu ve tokeni; bu cihaza ait, zaten hesabın kendisinde duruyor. |
 | `shared-preferences` | evet | **hayır** | Android tarafındaki yerel depolama; içeriği bu cihaza ait. |
 | `scheduled-notifications` | evet | **hayır** | Sistem kuyruğundaki alarmlar ve kimlikleri; her cihaz kendi kuyruğunu tercihlerden kurar. |
 | `app-mode` | evet | **hayır** | Hangi sekmenin açık olduğu gibi arayüz durumu; kişisel kayıt değil. |

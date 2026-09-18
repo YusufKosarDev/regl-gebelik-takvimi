@@ -107,7 +107,7 @@ describe('health data reaches no service', () => {
     // out.
     [
       'an analytics or crash reporter',
-      /(from|require\()\s*['"][^'"]*(analytics|sentry|firebase|amplitude|posthog|bugsnag)/i,
+      /(from|require\()\s*['"][^'"]*(analytics|sentry|amplitude|posthog|bugsnag|crashlytics)/i,
     ],
   ])('makes no use of %s', (_label, pattern) => {
     const offenders = appSources().filter((path) => pattern.test(read(path)));
@@ -123,8 +123,60 @@ describe('health data reaches no service', () => {
     const names = Object.keys(manifest.dependencies);
 
     expect(
-      names.filter((name) => /axios|firebase|sentry|analytics|amplitude|posthog|bugsnag/i.test(name))
+      names.filter((name) =>
+        /axios|sentry|analytics|amplitude|posthog|bugsnag|crashlytics/i.test(name)
+      )
     ).toEqual([]);
+  });
+
+  describe('the one service this app talks to', () => {
+    const FIREBASE_IMPORT = /(from|require\()\s*['"]firebase(\/[a-z-]+)?['"]/;
+
+    /**
+     * The file that sets the SDK up, and the declaration that says what the
+     * React Native build of it exports. Neither calls anything.
+     */
+    const ALLOWED = [
+      'src/features/auth/infrastructure/firebase.ts',
+      'src/types/firebase-auth-react-native.d.ts',
+    ];
+
+    it('is Firebase, and only from where the boundary says', () => {
+      const importers = appSources()
+        .filter((path) => FIREBASE_IMPORT.test(read(path)))
+        .map(relative)
+        .filter((path) => !ALLOWED.includes(path));
+
+      // The auth repository imports `firebase/auth` for its own calls; every
+      // other file speaks this app's own types.
+      expect(importers).toEqual(['src/features/auth/data/auth-repository.ts']);
+    });
+
+    it('is only ever auth: no Firestore, no storage, no messaging', () => {
+      const offenders = appSources().filter((path) =>
+        /(from|require\()\s*['"]firebase\/(firestore|database|storage|messaging|functions|analytics|remote-config|performance|app-check)/.test(
+          read(path)
+        )
+      );
+
+      expect(offenders.map(relative)).toEqual([]);
+    });
+
+    it('carries no health data to it: nothing imports the sync payload alongside it', () => {
+      const importers = appSources().filter((path) => FIREBASE_IMPORT.test(read(path)));
+
+      for (const path of importers) {
+        expect(read(path)).not.toMatch(/CloudSyncPayload|cycle-repository|pregnancy-repository/);
+      }
+    });
+
+    it('is configured from the environment rather than from the source', () => {
+      const firebase = read(join(ROOT, 'src', 'features', 'auth', 'infrastructure', 'firebase.ts'));
+
+      // A key in the source is a key that cannot be rotated without a release.
+      expect(firebase).not.toMatch(/AIzaSy|\.firebaseapp\.com['"]|\.appspot\.com['"]/);
+      expect(firebase).toMatch(/process\.env\.EXPO_PUBLIC_FIREBASE_API_KEY/);
+    });
   });
 
   it('opens links only to the source addresses it displays', () => {

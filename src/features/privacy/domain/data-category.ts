@@ -38,6 +38,7 @@ export type DataCategory = (typeof DATA_CATEGORIES)[number];
  */
 export const EXCLUDED_FROM_CLOUD_SYNC = [
   'widget-snapshot',
+  'auth-session',
   'shared-preferences',
   'scheduled-notifications',
   'app-mode',
@@ -101,6 +102,13 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
     cloudSyncCandidate: false,
     reason:
       'Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir.',
+  },
+  {
+    id: 'auth-session',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Firebase Auth oturumu ve tokeni; bu cihaza ait, zaten hesabın kendisinde duruyor.',
   },
   {
     id: 'shared-preferences',

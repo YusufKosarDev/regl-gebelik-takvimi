@@ -37,6 +37,7 @@ describe('what stays on the device', () => {
   it('names each thing this device works out or keeps for itself', () => {
     expect([...EXCLUDED_FROM_CLOUD_SYNC]).toEqual([
       'widget-snapshot',
+      'auth-session',
       'shared-preferences',
       'scheduled-notifications',
       'app-mode',
@@ -126,10 +127,17 @@ describe('the inventory and the document say the same thing', () => {
     }
   });
 
-  it('says out loud that nothing syncs yet', () => {
-    expect(DOC).toContain('Ağ isteği yok');
-    expect(DOC).toContain('Firebase yok, analytics yok, crash reporting yok');
+  it('says out loud that no health data is sent', () => {
+    expect(DOC).toContain('Sağlık verisi hiçbir yere gönderilmiyor');
     expect(DOC).toContain('Sağlık verisi cihazda');
     expect(DOC).toContain('Loglar ham sağlık verisi içermez');
+  });
+
+  it('says what the one service is used for, and what it is not', () => {
+    // An account exists now; the document has to say so, and has to say that
+    // having one still carries nothing.
+    expect(DOC).toContain('Firebase Auth altyapısı var, Firestore yok');
+    expect(DOC).toContain('henüz hiçbir şey taşımıyor');
+    expect(DOC).toContain('Firebase config kaynak koda gömülü değil');
   });
 });
