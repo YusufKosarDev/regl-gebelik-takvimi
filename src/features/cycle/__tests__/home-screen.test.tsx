@@ -51,6 +51,14 @@ jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
   syncPeriodReminder: jest.fn(),
 }));
 
+// The weekly pregnancy reminder is put back on the way in too. Faked so the
+// calls can be counted; it is quiet by contract, so the real one would do
+// nothing here.
+jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder', () => ({
+  syncPregnancyWeeklyReminderQuietly: jest.fn(),
+  syncPregnancyWeeklyReminder: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
@@ -102,6 +110,9 @@ const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnanc
 const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
+const pregnancyReminderSync = jest.requireMock(
+  '@/features/notifications/application/sync-pregnancy-weekly-reminder'
+);
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 
@@ -196,6 +207,8 @@ beforeEach(() => {
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
   reminderSync.syncPeriodReminderQuietly.mockReset();
   reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+  pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockReset();
+  pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
 
@@ -4492,5 +4505,104 @@ describe('HomeScreen period reminder sync', () => {
 
     expect(getByText('Döngü günü')).toBeTruthy();
     expect(queryByText('Bilgiler yüklenemedi.')).toBeNull();
+  });
+});
+
+describe('HomeScreen pregnancy weekly reminder sync', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('syncs once when the screen first loads, putting back what was dropped', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('syncs on the database the screen already opened', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledWith(
+        expect.anything()
+      );
+    });
+  });
+
+  it('takes no date, because the weekday and time are fixed', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mock.calls[0]
+    ).toHaveLength(1);
+  });
+
+  it('syncs in pregnancy mode as well', async () => {
+    setStoredMode('pregnancy');
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not sync again on every focus', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await refocus();
+    await refocus();
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync again after a period start is saved, which moves no week', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the screen even when the reminder sync rejects', async () => {
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockRejectedValue(
+      new Error('no queue')
+    );
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('Döngü günü')).toBeTruthy();
+    expect(queryByText('Bilgiler yüklenemedi.')).toBeNull();
+  });
+
+  it('leaves the period reminder to sync on its own', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
   });
 });

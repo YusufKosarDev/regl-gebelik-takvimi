@@ -51,10 +51,20 @@ jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
   syncPeriodReminder: jest.fn(),
 }));
 
+// The weekly pregnancy reminder syncs off its own toggle. Faked so the calls can
+// be counted; it is quiet by contract, so the real one would do nothing here.
+jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder', () => ({
+  syncPregnancyWeeklyReminderQuietly: jest.fn(),
+  syncPregnancyWeeklyReminder: jest.fn(),
+}));
+
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
+const pregnancyReminderSync = jest.requireMock(
+  '@/features/notifications/application/sync-pregnancy-weekly-reminder'
+);
 const reminderRepository = jest.requireMock(
   '@/features/notifications/data/notification-preferences-repository'
 );
@@ -86,6 +96,8 @@ beforeEach(() => {
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
   reminderSync.syncPeriodReminderQuietly.mockReset();
   reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+  pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockReset();
+  pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
   reminderRepository.loadNotificationPreferences.mockReset();
   reminderRepository.loadNotificationPreferences.mockResolvedValue({
     periodReminderEnabled: false,
@@ -911,7 +923,7 @@ describe('SettingsScreen period reminder sync', () => {
     expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
   });
 
-  it('does not sync for the pregnancy reminder, which schedules nothing yet', async () => {
+  it('does not sync for the pregnancy reminder, which is a different type', async () => {
     const screen = await renderLoaded();
 
     await act(async () => {
@@ -947,5 +959,82 @@ describe('SettingsScreen period reminder sync', () => {
 
     expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
     expect(screen.queryByText('Hatırlatıcı ayarı kaydedilemedi.')).toBeNull();
+  });
+});
+
+describe('SettingsScreen pregnancy weekly reminder sync', () => {
+  it('syncs after the pregnancy reminder is switched on', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Haftalık gebelik hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs after it is switched off, so the queued one goes', async () => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: false,
+      pregnancyWeeklyReminderEnabled: true,
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Haftalık gebelik hatırlatıcısı'), 'valueChange', false);
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync for the period reminder, which is a different type', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('does not sync when the cycle settings are saved, which change no week', async () => {
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('does not sync when the preference could not be written', async () => {
+    reminders.setReminderEnabled.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Haftalık gebelik hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the toggle successful when the reminder could not be scheduled', async () => {
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Haftalık gebelik hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(isOn(screen, 'Haftalık gebelik hatırlatıcısı')).toBe(true);
+    expect(screen.queryByText('Hatırlatıcı ayarı kaydedilemedi.')).toBeNull();
+  });
+
+  it('does not sync when the screen is only opened', async () => {
+    await renderLoaded();
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
   });
 });

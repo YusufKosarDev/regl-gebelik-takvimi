@@ -45,6 +45,7 @@ import {
 } from '@/features/pregnancy/domain/weekly-content';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
@@ -263,6 +264,15 @@ export default function HomeScreen() {
             syncPeriodReminderQuietly(data.db, syncDate).catch((syncError: unknown) => {
               if (__DEV__) {
                 console.error('[home] could not sync the period reminder', syncError);
+              }
+            });
+
+            // A weekly reminder the system dropped — on a restore, or after the
+            // app was told to stop — is put back here, whichever half of the app
+            // this screen is showing.
+            syncPregnancyWeeklyReminderQuietly(data.db).catch((syncError: unknown) => {
+              if (__DEV__) {
+                console.error('[home] could not sync the pregnancy reminder', syncError);
               }
             });
           }

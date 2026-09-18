@@ -21,6 +21,7 @@ import { loadNotificationPreferences } from '@/features/notifications/data/notif
 import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domain/notification-preferences';
 import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
+import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -71,8 +72,8 @@ export default function SettingsScreen() {
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
 
-  // The reminders are read here but never acted on: nothing is scheduled yet,
-  // and no permission is asked for until someone switches one on.
+  // Read on the way in, so the switches show what is stored. No permission is
+  // asked for until someone switches one on.
   const [reminders, setReminders] = useState<NotificationPreferences>(
     DEFAULT_NOTIFICATION_PREFERENCES
   );
@@ -184,10 +185,14 @@ export default function SettingsScreen() {
 
       setReminders(result.preferences);
 
-      // Switching the period reminder is the most direct reason for the queue to
-      // change: on schedules it, off takes it back out.
+      // Switching a reminder is the most direct reason for its queue to change:
+      // on schedules it, off takes it back out. Each one syncs only its own type.
       if (field === 'periodReminderEnabled') {
         await syncPeriodReminderQuietly(db, getTodayLocalISODate());
+      }
+
+      if (field === 'pregnancyWeeklyReminderEnabled') {
+        await syncPregnancyWeeklyReminderQuietly(db);
       }
 
       if (enabled && result.permission !== 'granted') {

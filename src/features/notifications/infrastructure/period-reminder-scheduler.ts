@@ -7,9 +7,11 @@ import {
   PERIOD_REMINDER_CHANNEL_NAME,
   PERIOD_REMINDER_HOUR,
   PERIOD_REMINDER_TITLE,
-  isPeriodReminderData,
+  PERIOD_REMINDER_TYPE,
   periodReminderData,
 } from '../domain/period-reminder';
+
+import { cancelScheduledRemindersOfType } from './scheduled-reminders';
 
 import type { ISODate } from '@/types/iso-date';
 
@@ -58,14 +60,7 @@ export async function ensurePeriodReminderChannel(): Promise<void> {
  * Returns how many went, which is what makes "exactly one reminder" testable.
  */
 export async function cancelPeriodReminders(): Promise<number> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  const ours = scheduled.filter((request) => isPeriodReminderData(request.content?.data));
-
-  for (const request of ours) {
-    await Notifications.cancelScheduledNotificationAsync(request.identifier);
-  }
-
-  return ours.length;
+  return cancelScheduledRemindersOfType(PERIOD_REMINDER_TYPE);
 }
 
 /**

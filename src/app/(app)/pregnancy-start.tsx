@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { startPregnancyTracking } from '@/features/pregnancy/application/start-pregnancy-tracking';
+import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -64,6 +65,10 @@ export default function PregnancyStartScreen() {
       const db = await openAppDatabase();
 
       await startPregnancyTracking(db, { lmp, today });
+
+      // The write is already durable; a reminder that could not be queued must
+      // not undo what was just saved.
+      await syncPregnancyWeeklyReminderQuietly(db);
 
       // Home reads again when it regains focus, so going back is enough for it
       // to notice that a pregnancy is now being tracked.

@@ -22,12 +22,21 @@ jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
+// The weekly pregnancy reminder syncs after a start or a stop. Faked so the
+// calls can be counted; it is quiet by contract, so the real one would do
+// nothing here.
+jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder', () => ({
+  syncPregnancyWeeklyReminderQuietly: jest.fn(),
+  syncPregnancyWeeklyReminder: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
 
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
+const reminderSync = jest.requireMock('@/features/notifications/application/sync-pregnancy-weekly-reminder');
 const useRouterMock = useRouter as unknown as jest.Mock;
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 
@@ -54,6 +63,8 @@ function savedProfile(): PregnancyProfile {
 beforeEach(() => {
   db.openAppDatabase.mockReset();
   db.openAppDatabase.mockResolvedValue({});
+  reminderSync.syncPregnancyWeeklyReminderQuietly.mockReset();
+  reminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
   repository.loadPregnancyProfile.mockReset();
   repository.loadPregnancyProfile.mockResolvedValue(profile());
   repository.savePregnancyProfile.mockReset();
@@ -621,5 +632,70 @@ describe('PregnancySettingsScreen when stopping fails', () => {
 
     expect(repository.clearPregnancyProfile).toHaveBeenCalledTimes(1);
     expect(back).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PregnancySettingsScreen weekly reminder sync', () => {
+  async function stop(screen: Awaited<ReturnType<typeof renderScreen>>) {
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+  }
+
+  it('syncs once the pregnancy is cleared, so the nudges stop', async () => {
+    const screen = await renderScreen();
+
+    await stop(screen);
+
+    expect(repository.clearPregnancyProfile).toHaveBeenCalledTimes(1);
+    expect(reminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs on the database the screen already opened', async () => {
+    const handle = {};
+    db.openAppDatabase.mockResolvedValue(handle);
+
+    const screen = await renderScreen();
+
+    await stop(screen);
+
+    expect(reminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledWith(handle);
+  });
+
+  it('does not sync when the stop failed', async () => {
+    repository.clearPregnancyProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await stop(screen);
+
+    expect(reminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the stop successful when the reminder could not be dequeued', async () => {
+    reminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await stop(screen);
+
+    expect(screen.queryByText('Gebelik takibi sonlandırılamadı.')).toBeNull();
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync for a due date edit, which moves no reminder', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Tahmini doğum tarihini düzenle'));
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Tahmini doğum tarihini kaydet'));
+
+    expect(repository.savePregnancyProfile).toHaveBeenCalledTimes(1);
+    expect(reminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('does not sync when the screen is only opened', async () => {
+    await renderScreen();
+
+    expect(reminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
   });
 });

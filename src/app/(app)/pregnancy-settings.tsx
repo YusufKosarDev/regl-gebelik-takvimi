@@ -14,6 +14,7 @@ import type {
   PregnancyDueDateSource,
   PregnancyProfile,
 } from '@/features/pregnancy/domain/types';
+import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -160,6 +161,10 @@ export default function PregnancySettingsScreen() {
       const db = await openAppDatabase();
 
       await stopPregnancyTracking(db);
+
+      // The write is already durable; a reminder that could not be queued must
+      // not undo what was just saved.
+      await syncPregnancyWeeklyReminderQuietly(db);
 
       router.back();
     } catch (error) {
