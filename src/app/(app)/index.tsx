@@ -20,6 +20,7 @@ import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
 } from '@/features/cycle/presentation/cycle-labels';
+import { getPregnancyProfile } from '@/features/pregnancy/application/get-pregnancy-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -86,6 +87,10 @@ export default function HomeScreen() {
   const [homeData, setHomeData] = useState<CycleHomeData | null>(null);
   const [hasError, setHasError] = useState(false);
 
+  // Whether a pregnancy is being tracked, rather than the pregnancy itself: the
+  // only thing this screen does with it is decide whether to offer to start one.
+  const [isTrackingPregnancy, setIsTrackingPregnancy] = useState(false);
+
   // Months away from the month containing today, rather than an absolute month,
   // so it needs no second initialisation once the data arrives. Session-only:
   // a restart opens on the current month again.
@@ -112,7 +117,12 @@ export default function HomeScreen() {
     const forDate = today ?? getTodayLocalISODate();
     const db = await openAppDatabase();
 
-    return getCycleHomeData(db, forDate);
+    const [cycle, pregnancy] = await Promise.all([
+      getCycleHomeData(db, forDate),
+      getPregnancyProfile(db),
+    ]);
+
+    return { cycle, isTrackingPregnancy: pregnancy !== null };
   }, []);
 
   // On focus rather than on mount, so coming back from a screen that changed the
@@ -135,7 +145,8 @@ export default function HomeScreen() {
             return;
           }
 
-          setHomeData(data);
+          setHomeData(data.cycle);
+          setIsTrackingPregnancy(data.isTrackingPregnancy);
           setHasError(false);
         } catch (error) {
           if (__DEV__) {
@@ -256,7 +267,8 @@ export default function HomeScreen() {
       // the calendar cannot end up describing different profiles.
       const data = await readCycleData(dashboard.today);
 
-      setHomeData(data);
+      setHomeData(data.cycle);
+      setIsTrackingPregnancy(data.isTrackingPregnancy);
       setIsConfirming(false);
     } catch (error) {
       if (__DEV__) {
@@ -511,6 +523,21 @@ export default function HomeScreen() {
                 Ayarlar
               </ThemedText>
             </Pressable>
+
+            {/* Offered only when there is no pregnancy to track yet. A temporary
+                way in: where pregnancy tracking really belongs is a decision for
+                when there is something to show once it has started. */}
+            {!isTrackingPregnancy && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Gebelik takibini başlat"
+                onPress={() => router.push('/(app)/pregnancy-start')}
+                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Gebelik takibini başlat
+                </ThemedText>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>

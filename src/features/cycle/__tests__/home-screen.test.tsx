@@ -19,6 +19,14 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
   saveCycleProfile: jest.fn(),
 }));
 
+// The screen also asks whether a pregnancy is being tracked, to decide whether
+// to offer to start one. Defaults to none, which is what most of these tests are
+// about; the pregnancy link has its own describe block.
+jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
+  loadPregnancyProfile: jest.fn(),
+  savePregnancyProfile: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
@@ -58,6 +66,7 @@ jest.mock('expo-router', () => {
 
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
+const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const useRouterMock = useRouter as unknown as jest.Mock;
 const focusListeners = (globalThis as Record<string, unknown>).__focusListeners as (() => void)[];
@@ -136,6 +145,9 @@ beforeEach(() => {
   repository.loadCycleProfile.mockReset();
   repository.saveCycleProfile.mockReset();
   repository.saveCycleProfile.mockResolvedValue(undefined);
+  pregnancyRepository.loadPregnancyProfile.mockReset();
+  pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+  pregnancyRepository.savePregnancyProfile.mockReset();
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
 
@@ -393,7 +405,7 @@ describe('HomeScreen scope', () => {
     // month, and nothing else: no summary rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(35);
+    expect(labels).toHaveLength(36);
     expect(
       labels.filter(
         (label) =>
@@ -401,7 +413,8 @@ describe('HomeScreen scope', () => {
           label === 'Önceki ay' ||
           label === 'Sonraki ay' ||
           label === 'Geçmiş regl kayıtlarını görüntüle' ||
-          label === 'Döngü ayarlarını düzenle'
+          label === 'Döngü ayarlarını düzenle' ||
+          label === 'Gebelik takibini başlat'
       )
     ).toEqual([
       'Regl başlangıcını kaydet',
@@ -409,6 +422,7 @@ describe('HomeScreen scope', () => {
       'Sonraki ay',
       'Geçmiş regl kayıtlarını görüntüle',
       'Döngü ayarlarını düzenle',
+      'Gebelik takibini başlat',
     ]);
     expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(1);
   });
@@ -533,9 +547,9 @@ describe('HomeScreen calendar section', () => {
       expect(empty.props.onClick).toBeUndefined();
     }
 
-    // 30 days, the two month steps, the record action, the history link and the
-    // settings link.
-    expect(queryAllByRole('button')).toHaveLength(35);
+    // 30 days, the two month steps, the record action, the history link, the
+    // settings link and the pregnancy link.
+    expect(queryAllByRole('button')).toHaveLength(36);
   });
 });
 
@@ -2119,5 +2133,103 @@ describe('HomeScreen settings link', () => {
     const { queryByLabelText } = await renderScreen();
 
     expect(queryByLabelText('Döngü ayarlarını düzenle')).toBeNull();
+  });
+});
+
+describe('HomeScreen pregnancy link', () => {
+  function pregnancy() {
+    return {
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    };
+  }
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('offers to start tracking when no pregnancy is stored', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Gebelik takibini başlat')).toBeTruthy();
+    expect(getByText('Gebelik takibini başlat')).toBeTruthy();
+  });
+
+  it('opens the start route', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini başlat'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/pregnancy-start');
+  });
+
+  it('does not offer it once a pregnancy is being tracked', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancy());
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Gebelik takibini başlat')).toBeNull();
+  });
+
+  it('leaves the other links in place either way', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancy());
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+  });
+
+  it('stops offering it after a pregnancy is started elsewhere', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Gebelik takibini başlat')).toBeTruthy();
+
+    // What returning from the start screen looks like: the row is there now.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancy());
+    await refocus();
+
+    expect(screen.queryByLabelText('Gebelik takibini başlat')).toBeNull();
+  });
+
+  it('reads the pregnancy again on every focus', async () => {
+    await renderScreen();
+
+    expect(pregnancyRepository.loadPregnancyProfile).toHaveBeenCalledTimes(1);
+
+    await refocus();
+
+    expect(pregnancyRepository.loadPregnancyProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it('writes no pregnancy of its own', async () => {
+    await renderScreen();
+
+    expect(pregnancyRepository.savePregnancyProfile).not.toHaveBeenCalled();
+  });
+
+  it('shows nothing about the pregnancy beyond the link', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancy());
+
+    const { queryByText } = await renderScreen();
+
+    // No dashboard, no week count, no due date, no mode switch in this step.
+    for (const forbidden of [
+      'Tahmini doğum tarihi',
+      'Gebelik haftası',
+      '9 Haziran 2027',
+      'Gebelik modu',
+    ]) {
+      expect(queryByText(forbidden)).toBeNull();
+    }
+  });
+
+  it('reports a failed pregnancy read as a load failure rather than hiding it', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockRejectedValue(new Error('database is locked'));
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Bilgiler yüklenemedi.')).toBeTruthy();
   });
 });
