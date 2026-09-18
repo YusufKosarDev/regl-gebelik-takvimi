@@ -5,15 +5,15 @@ import {
 import { PREGNANCY_WEEKLY_CONTENT } from '../pregnancy-weekly-content';
 
 describe('PREGNANCY_WEEKLY_CONTENT', () => {
-  it('covers weeks 1 to 10 and nothing else yet', () => {
-    expect(PREGNANCY_WEEKLY_CONTENT).toHaveLength(10);
+  it('covers weeks 1 to 20 and nothing else yet', () => {
+    expect(PREGNANCY_WEEKLY_CONTENT).toHaveLength(20);
     expect(PREGNANCY_WEEKLY_CONTENT.map((entry) => entry.week)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     ]);
   });
 
   it('leaves no gap in the weeks it covers', () => {
-    for (let week = 1; week <= 10; week += 1) {
+    for (let week = 1; week <= 20; week += 1) {
       expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week)).not.toBeNull();
     }
   });
@@ -44,6 +44,16 @@ describe('PREGNANCY_WEEKLY_CONTENT sizes', () => {
     8: { label: 'yaklaşık 16 mm', comparison: 'ahududu' },
     9: { label: 'yaklaşık 22 mm', comparison: 'çilek' },
     10: { label: 'yaklaşık 30 mm', comparison: 'küçük kayısı' },
+    11: { label: 'yaklaşık 41 mm', comparison: 'incir' },
+    12: { label: 'yaklaşık 5,4 cm', comparison: 'erik' },
+    13: { label: 'yaklaşık 7,4 cm', comparison: 'şeftali' },
+    14: { label: 'yaklaşık 8,5 cm', comparison: 'kivi' },
+    15: { label: 'yaklaşık 10,1 cm', comparison: 'elma' },
+    16: { label: 'yaklaşık 11,6 cm', comparison: 'avokado' },
+    17: { label: 'yaklaşık 12 cm', comparison: 'nar' },
+    18: { label: 'yaklaşık 14,2 cm', comparison: 'dolmalık biber' },
+    19: { label: 'yaklaşık 15,3 cm', comparison: 'beefsteak domates' },
+    20: { label: 'yaklaşık 25,6 cm', comparison: 'muz' },
   };
 
   it.each(WEEKS_WITHOUT_A_SIZE)('states no size for week %i', (week) => {
@@ -91,11 +101,25 @@ describe('PREGNANCY_WEEKLY_CONTENT provenance', () => {
       const nhs = entry.sources.filter((source) => /^NHS/.test(source.name));
 
       expect(nhs).toHaveLength(1);
+      const range = entry.week <= 12 ? '1-to-12' : '13-to-27';
+
       expect(nhs[0].url).toBe(
-        `https://www.nhs.uk/pregnancy/week-by-week/1-to-12/${entry.week}-weeks/`
+        `https://www.nhs.uk/pregnancy/week-by-week/${range}/${entry.week}-weeks/`
       );
       expect(nhs[0].name).toContain(`at ${entry.week} weeks pregnant`);
     }
+  });
+
+  it('links the trimester range the NHS guide actually uses', () => {
+    // The guide splits at week 12, so weeks 13 and up live under a different path.
+    const nhsUrlFor = (week: number) =>
+      getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week)?.sources.find((source) =>
+        /^NHS/.test(source.name)
+      )?.url;
+
+    expect(nhsUrlFor(12)).toContain('/1-to-12/');
+    expect(nhsUrlFor(13)).toContain('/13-to-27/');
+    expect(nhsUrlFor(20)).toContain('/13-to-27/');
   });
 
   it('cites both sources on every week from 4 on', () => {
@@ -151,6 +175,24 @@ describe('PREGNANCY_WEEKLY_CONTENT text', () => {
     expect(week?.developmentSummary).toMatch(/fetüs/i);
   });
 
+  it('names lanugo in week 15, where the NHS puts it', () => {
+    const week = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 15);
+
+    expect(week?.developingFeatures.join(' ')).toMatch(/lanugo/i);
+  });
+
+  it('names vernix in week 20', () => {
+    const week = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 20);
+
+    expect(week?.developingFeatures.join(' ')).toMatch(/vernix/i);
+  });
+
+  it('says the heartbeat can be heard on a scan in week 12', () => {
+    const week = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 12);
+
+    expect(week?.developmentSummary).toMatch(/ultrason/i);
+  });
+
   it('gives every week from 4 on a summary and features of its own', () => {
     const summaries = PREGNANCY_WEEKLY_CONTENT.filter((week) => week.week >= 4).map(
       (week) => week.developmentSummary
@@ -186,12 +228,19 @@ describe('looking up the weeks that are written', () => {
     expect(found?.week).toBe(week);
   });
 
-  it('returns null for week 11, which is not written yet', () => {
-    expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 11)).toBeNull();
+  it.each([11, 12, 13, 14, 15, 16, 17, 18, 19, 20])('finds week %i', (week) => {
+    const found = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week);
+
+    expect(found).not.toBeNull();
+    expect(found?.week).toBe(week);
   });
 
-  it('returns null for every week beyond the tenth', () => {
-    for (let week = 11; week <= 40; week += 1) {
+  it('returns null for week 21, which is not written yet', () => {
+    expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 21)).toBeNull();
+  });
+
+  it('returns null for every week beyond the twentieth', () => {
+    for (let week = 21; week <= 40; week += 1) {
       expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week)).toBeNull();
     }
   });
@@ -219,10 +268,10 @@ describe('PREGNANCY_WEEKLY_CONTENT stays as written', () => {
 
   it('keeps its order', () => {
     getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 3);
-    getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 10);
+    getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 20);
 
     expect(PREGNANCY_WEEKLY_CONTENT.map((entry) => entry.week)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     ]);
   });
 });

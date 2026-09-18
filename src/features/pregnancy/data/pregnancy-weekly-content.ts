@@ -3,7 +3,7 @@ import type { PregnancyContentSource, PregnancyWeeklyContent } from '../domain/t
 /**
  * Written content for the weeks of a pregnancy.
  *
- * Weeks 1 to 10 so far. A week is added when there is a source that supports
+ * Weeks 1 to 20 so far. A week is added when there is a source that supports
  * what it would say, not to fill the table: `getPregnancyWeeklyContent` answers
  * `null` for a week that is not here, which is the honest answer.
  *
@@ -28,11 +28,18 @@ const CLEVELAND_CLINIC = {
   url: 'https://my.clevelandclinic.org/health/articles/7247-fetal-development-stages-of-growth',
 } as const;
 
-/** The NHS page for one week, which is where that week's size and stage come from. */
+/**
+ * The NHS page for one week, which is where that week's size and stage come
+ * from.
+ *
+ * The guide is split into trimester ranges, so the path depends on the week.
+ */
 function nhsWeek(week: number): PregnancyContentSource {
+  const range = week <= 12 ? '1-to-12' : '13-to-27';
+
   return {
     name: `NHS — You and your baby at ${week} weeks pregnant`,
-    url: `https://www.nhs.uk/pregnancy/week-by-week/1-to-12/${week}-weeks/`,
+    url: `https://www.nhs.uk/pregnancy/week-by-week/${range}/${week}-weeks/`,
   };
 }
 
@@ -169,5 +176,137 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
       'Çene kemiği ve süt dişlerinin taslakları oluşur',
     ],
     sources: [nhsWeek(10), CLEVELAND_CLINIC],
+  },
+  {
+    week: 11,
+    size: { label: 'yaklaşık 41 mm', comparison: 'incir' },
+    developmentSummary:
+      'El ve ayak parmakları birbirinden ayrılır; küçük tırnaklar ve kulaklar belirir. ' +
+      'Baş gövdeye göre hâlâ büyüktür ama gövde hızla büyür.',
+    developingFeatures: [
+      'El ve ayak parmakları birbirinden ayrılır',
+      'Küçük tırnaklar ve kulaklar belirir',
+      'Plasenta beslenmeyi yolk kesesinden devralmak üzeredir',
+    ],
+    sources: [nhsWeek(11), CLEVELAND_CLINIC],
+  },
+  {
+    week: 12,
+    size: { label: 'yaklaşık 5,4 cm', comparison: 'erik' },
+    developmentSummary:
+      'İç organlar ve kaslar gelişmiştir; kalp atışı ultrason taramasında duyulabilir. ' +
+      'İskelet dokudan kemiğe dönüşerek sertleşir.',
+    developingFeatures: [
+      'İç organlar ve kaslar gelişir',
+      'Kalp atışı ultrasonda duyulabilir',
+      'İskelet sertleşerek kemikleşir',
+    ],
+    sources: [nhsWeek(12), CLEVELAND_CLINIC],
+  },
+  {
+    week: 13,
+    size: { label: 'yaklaşık 7,4 cm', comparison: 'şeftali' },
+    developmentSummary:
+      'Yumurtalıklar ya da testisler içeride tamamlanmıştır. Bebek hareket eder; ' +
+      'başlangıçta rastgele olan hareketler giderek daha amaçlı görünür.',
+    developingFeatures: [
+      'Yumurtalıklar ya da testisler içeride tamamlanır',
+      'Hareketler rastgeleyken giderek amaçlı hale gelir',
+      'Bazı bebekler parmak emerek emme refleksini geliştirir',
+    ],
+    sources: [nhsWeek(13), CLEVELAND_CLINIC],
+  },
+  {
+    week: 14,
+    size: { label: 'yaklaşık 8,5 cm', comparison: 'kivi' },
+    developmentSummary:
+      'Baş yuvarlaklaşır ve gövdeyle daha orantılı hale gelir. Yutulan az miktarda ' +
+      'amniyon sıvısı böbreklerden geçerek idrar olarak geri verilir.',
+    developingFeatures: [
+      'Baş gövdeyle daha orantılı hale gelir',
+      'Amniyon sıvısı yutulur ve böbrekler çalışmaya başlar',
+      'Kalp atışı el tipi cihazla duyulabilir',
+    ],
+    sources: [nhsWeek(14), CLEVELAND_CLINIC],
+  },
+  {
+    week: 15,
+    size: { label: 'yaklaşık 10,1 cm', comparison: 'elma' },
+    developmentSummary:
+      'Vücut, lanugo adı verilen ince bir tüy tabakasıyla kaplanır. Kaşlar ve kirpikler ' +
+      'oluşmaya başlar; gözler ışığa duyarlı hale gelir ve işitme başlar.',
+    developingFeatures: [
+      'Vücut lanugo adı verilen ince tüylerle kaplanır',
+      'Kaşlar ve kirpikler oluşmaya başlar',
+      'Gözler ışığa duyarlıdır ve işitme başlar',
+    ],
+    sources: [nhsWeek(15), CLEVELAND_CLINIC],
+  },
+  {
+    week: 16,
+    size: { label: 'yaklaşık 11,6 cm', comparison: 'avokado' },
+    developmentSummary:
+      'Yüz ifadeleri oluşmaya başlar, ancak henüz kas kontrolü olmadığı için tamamen ' +
+      'rastgeledir. Gelişen sinir sistemi kol ve bacak hareketlerini mümkün kılar.',
+    developingFeatures: [
+      'Yüz ifadeleri oluşur, henüz kas kontrolü yoktur',
+      'Sinir sistemi kol ve bacak hareketlerini mümkün kılar',
+      'Eller yumruk yapabilir',
+    ],
+    sources: [nhsWeek(16), CLEVELAND_CLINIC],
+  },
+  {
+    week: 17,
+    size: { label: 'yaklaşık 12 cm', comparison: 'nar' },
+    developmentSummary:
+      'Gözler kapalı kalmakla birlikte hareket edebilir; yüksek seslere tepki verilir ve ' +
+      'ağız açılıp kapanır. Tırnaklar uzar ve kendine özgü parmak izleri oluşur.',
+    developingFeatures: [
+      'Gözler kapalı olsa da hareket edebilir',
+      'Yüksek seslere tepki verir',
+      'Tırnaklar uzar ve parmak izleri oluşur',
+    ],
+    sources: [nhsWeek(17), CLEVELAND_CLINIC],
+  },
+  {
+    week: 18,
+    size: { label: 'yaklaşık 14,2 cm', comparison: 'dolmalık biber' },
+    developmentSummary:
+      'İşitme, hissetme, yutma ve emme refleksleri bu hafta gelişir. Bebek bolca ' +
+      'kıpırdanır, kollarını ve bacaklarını hareket ettirir.',
+    developingFeatures: [
+      'İşitme ve hissetme gelişir',
+      'Yutma ve emme refleksleri gelişir',
+      'Kollarını ve bacaklarını hareket ettirir',
+    ],
+    sources: [nhsWeek(18), CLEVELAND_CLINIC],
+  },
+  {
+    week: 19,
+    size: { label: 'yaklaşık 15,3 cm', comparison: 'beefsteak domates' },
+    developmentSummary:
+      'Kalıcı dişler süt dişlerinin arkasında sıralanmaya başlar. Bebek doğuma ' +
+      'hazırlanarak kilo almaya devam eder.',
+    developingFeatures: [
+      'Kalıcı dişler süt dişlerinin arkasında sıralanır',
+      'Kilo almaya devam eder',
+    ],
+    sources: [nhsWeek(19), CLEVELAND_CLINIC],
+  },
+  {
+    week: 20,
+    // The NHS gives this length without the "head to bottom" qualifier it uses
+    // for the earlier weeks, which is why it jumps from 15.3cm. Quoted as the
+    // page states it rather than reconciled with the weeks before.
+    size: { label: 'yaklaşık 25,6 cm', comparison: 'muz' },
+    developmentSummary:
+      'Hareketler her geçen gün artar: tekme atma, dönme ve parmak emme görülür. ' +
+      'Vücut, vernix adı verilen beyaz ve yağlı bir tabakayla kaplanır.',
+    developingFeatures: [
+      'Tekme atma ve dönme gibi hareketler artar',
+      'Parmak emerek emme refleksini geliştirir',
+      'Vücut vernix adı verilen beyaz yağlı tabakayla kaplanır',
+    ],
+    sources: [nhsWeek(20), CLEVELAND_CLINIC],
   },
 ] as const;
