@@ -387,6 +387,30 @@ export default function SettingsScreen() {
                 )}
               </View>
             )}
+
+            {/* Outside every branch: an account is optional, it carries nothing
+                yet, and the rest of the app works the same without one. */}
+            <View style={styles.fields}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                Hesap
+              </ThemedText>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                Hesap açmak isteğe bağlı. Verilerin telefonunda kalır.
+              </ThemedText>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Hesabı aç"
+                onPress={() => router.push('/(app)/account')}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">Hesabı aç</ThemedText>
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -621,6 +645,14 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 52,
     borderRadius: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  secondaryButton: {
+    minHeight: 52,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,

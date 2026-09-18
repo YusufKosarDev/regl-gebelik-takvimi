@@ -588,7 +588,7 @@ describe('SettingsScreen back', () => {
 });
 
 describe('SettingsScreen scope', () => {
-  it('offers back, both steppers and save, and nothing else', async () => {
+  it('offers back, both steppers, save and the account link, and nothing else', async () => {
     const { queryAllByRole } = await renderLoaded(28, 5);
 
     expect(
@@ -600,6 +600,7 @@ describe('SettingsScreen scope', () => {
       'Ortalama regl süresini azalt',
       'Ortalama regl süresini artır',
       'Döngü ayarlarını kaydet',
+      'Hesabı aç',
     ]);
   });
 
@@ -1036,5 +1037,47 @@ describe('SettingsScreen pregnancy weekly reminder sync', () => {
     await renderLoaded();
 
     expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('SettingsScreen account link', () => {
+  it('offers a way to the account screen', async () => {
+    const screen = await renderLoaded();
+
+    expect(screen.getByText('Hesap')).toBeTruthy();
+    expect(screen.getByText('Hesabı aç')).toBeTruthy();
+    expect(screen.getByLabelText('Hesabı aç')).toBeTruthy();
+  });
+
+  it('says an account is optional and that the data stays on the phone', async () => {
+    const screen = await renderLoaded();
+
+    expect(screen.getByText(/Hesap açmak isteğe bağlı/)).toBeTruthy();
+  });
+
+  it('opens the account route', async () => {
+    const push = jest.fn();
+    useRouterMock.mockReturnValue({ back, push, replace: jest.fn() });
+
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Hesabı aç'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/account');
+  });
+
+  it('is offered even when the cycle settings could not be read', async () => {
+    repository.loadCycleProfile.mockRejectedValue(new Error('database is locked'));
+
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Hesabı aç')).toBeTruthy();
+  });
+
+  it('signs nobody in by itself', async () => {
+    await renderLoaded();
+
+    // The settings screen knows nothing about sessions: the link is a link.
+    expect(reminders.setReminderEnabled).not.toHaveBeenCalled();
   });
 });
