@@ -17,6 +17,7 @@ jest.mock('@/storage/db', () => ({
 jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
   savePregnancyProfile: jest.fn(),
   loadPregnancyProfile: jest.fn(),
+  clearPregnancyProfile: jest.fn(),
 }));
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
@@ -57,6 +58,8 @@ beforeEach(() => {
   repository.loadPregnancyProfile.mockResolvedValue(profile());
   repository.savePregnancyProfile.mockReset();
   repository.savePregnancyProfile.mockResolvedValue(undefined);
+  repository.clearPregnancyProfile.mockReset();
+  repository.clearPregnancyProfile.mockResolvedValue(undefined);
 
   back = jest.fn();
   useRouterMock.mockReset();
@@ -413,7 +416,7 @@ describe('PregnancySettingsScreen when saving fails', () => {
 });
 
 describe('PregnancySettingsScreen scope', () => {
-  it('offers back and the two actions, and nothing else', async () => {
+  it('offers back and the three actions, and nothing else', async () => {
     repository.loadPregnancyProfile.mockResolvedValue(
       profile({ estimatedDueDate: date('2027-06-04'), dueDateSource: 'adjusted' })
     );
@@ -426,14 +429,197 @@ describe('PregnancySettingsScreen scope', () => {
       'Geri',
       'Tahmini doğum tarihini düzenle',
       'Son regl tarihine göre hesaplanan tarihe dön',
+      'Gebelik takibini sonlandırmayı seç',
     ]);
   });
 
   it('offers no way to change the last menstrual period', async () => {
     const { queryByText } = await renderScreen();
 
-    for (const forbidden of ['Son regl başlangıcını düzenle', 'Gebelik takibini bitir']) {
-      expect(queryByText(forbidden)).toBeNull();
-    }
+    expect(queryByText('Son regl başlangıcını düzenle')).toBeNull();
+  });
+});
+
+describe('PregnancySettingsScreen stopping the tracking', () => {
+  it('offers it', async () => {
+    const { getByText, getByLabelText } = await renderScreen();
+
+    expect(getByText('Gebelik takibini sonlandır')).toBeTruthy();
+    expect(getByLabelText('Gebelik takibini sonlandırmayı seç')).toBeTruthy();
+  });
+
+  it('is absent when nothing is tracked', async () => {
+    repository.loadPregnancyProfile.mockResolvedValue(null);
+
+    const { queryByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Gebelik takibini sonlandırmayı seç')).toBeNull();
+  });
+
+  it('asks before doing anything', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+
+    expect(screen.getByText('Gebelik takibini sonlandırmak istiyor musun?')).toBeTruthy();
+    expect(screen.getByText('Gebelik takip bilgilerin silinecek.')).toBeTruthy();
+    expect(repository.clearPregnancyProfile).not.toHaveBeenCalled();
+  });
+
+  it('offers both answers', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+
+    expect(screen.getByLabelText('Vazgeç')).toBeTruthy();
+    expect(screen.getByLabelText('Gebelik takibini sonlandır')).toBeTruthy();
+  });
+
+  it('closes the confirmation on Vazgeç without clearing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+
+    expect(repository.clearPregnancyProfile).not.toHaveBeenCalled();
+    expect(back).not.toHaveBeenCalled();
+    expect(screen.queryByText('Gebelik takibini sonlandırmak istiyor musun?')).toBeNull();
+    expect(screen.getByLabelText('Gebelik takibini sonlandırmayı seç')).toBeTruthy();
+  });
+
+  it('clears the pregnancy and leaves on confirmation', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+
+    expect(repository.clearPregnancyProfile).toHaveBeenCalledTimes(1);
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes no pregnancy on the way out', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+
+    expect(repository.savePregnancyProfile).not.toHaveBeenCalled();
+  });
+
+  it('gives way to the date editor rather than showing both', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    expect(screen.getByText('Gebelik takibini sonlandırmak istiyor musun?')).toBeTruthy();
+
+    // The editor is reached by answering the confirmation first.
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(screen.getByLabelText('Tahmini doğum tarihini düzenle'));
+
+    expect(screen.queryByText('Gebelik takibini sonlandırmak istiyor musun?')).toBeNull();
+    expect(screen.getByLabelText('Seçilen tahmini doğum tarihi: 9 Haziran 2027')).toBeTruthy();
+  });
+
+  it('is not offered while the date editor is open', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Tahmini doğum tarihini düzenle'));
+
+    expect(screen.queryByLabelText('Gebelik takibini sonlandırmayı seç')).toBeNull();
+  });
+});
+
+describe('PregnancySettingsScreen when stopping fails', () => {
+  async function failToStop() {
+    repository.clearPregnancyProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+
+    return screen;
+  }
+
+  it('says so and announces it', async () => {
+    const screen = await failToStop();
+
+    expect(screen.getByText('Gebelik takibi sonlandırılamadı.')).toBeTruthy();
+    expect(screen.getByText('Gebelik takibi sonlandırılamadı.').props.accessibilityRole).toBe(
+      'alert'
+    );
+  });
+
+  it('keeps the confirmation open and stays on the screen', async () => {
+    const screen = await failToStop();
+
+    expect(back).not.toHaveBeenCalled();
+    expect(screen.getByText('Gebelik takibini sonlandırmak istiyor musun?')).toBeTruthy();
+  });
+
+  it('can be tried again', async () => {
+    const screen = await failToStop();
+
+    repository.clearPregnancyProfile.mockResolvedValue(undefined);
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+
+    expect(repository.clearPregnancyProfile).toHaveBeenCalledTimes(2);
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the message when the confirmation is dismissed', async () => {
+    const screen = await failToStop();
+
+    await fireEvent.press(screen.getByLabelText('Vazgeç'));
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+
+    expect(screen.queryByText('Gebelik takibi sonlandırılamadı.')).toBeNull();
+  });
+
+  it('refuses when there is nothing to stop', async () => {
+    // The row disappeared between the screen loading and the confirmation.
+    repository.loadPregnancyProfile
+      .mockResolvedValueOnce(profile())
+      .mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+
+    expect(repository.clearPregnancyProfile).not.toHaveBeenCalled();
+    expect(screen.getByText('Gebelik takibi sonlandırılamadı.')).toBeTruthy();
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it('locks the screen while the delete is in flight', async () => {
+    let finishDelete: () => void = () => {};
+    repository.clearPregnancyProfile.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishDelete = resolve;
+      })
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandırmayı seç'));
+
+    const press = fireEvent.press(screen.getByLabelText('Gebelik takibini sonlandır'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sonlandırılıyor...')).toBeTruthy();
+    });
+
+    expect(
+      screen.getByLabelText('Gebelik takibini sonlandır').props.accessibilityState.disabled
+    ).toBe(true);
+    expect(screen.getByLabelText('Vazgeç').props.accessibilityState.disabled).toBe(true);
+
+    finishDelete();
+    await press;
+
+    expect(repository.clearPregnancyProfile).toHaveBeenCalledTimes(1);
+    expect(back).toHaveBeenCalledTimes(1);
   });
 });

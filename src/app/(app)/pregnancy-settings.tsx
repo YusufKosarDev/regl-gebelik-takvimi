@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { getPregnancyProfile } from '@/features/pregnancy/application/get-pregnancy-profile';
+import { stopPregnancyTracking } from '@/features/pregnancy/application/stop-pregnancy-tracking';
 import { updatePregnancyDueDate } from '@/features/pregnancy/application/update-pregnancy-due-date';
 import { calculateEstimatedDueDate } from '@/features/pregnancy/domain/due-date';
 import type {
@@ -23,6 +24,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 const LOAD_ERROR_MESSAGE = 'Gebelik ayarları yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Tahmini doğum tarihi güncellenemedi.';
 const EMPTY_MESSAGE = 'Takip edilen bir gebelik bulunamadı.';
+const STOP_ERROR_MESSAGE = 'Gebelik takibi sonlandırılamadı.';
 
 /** Where the due date came from, so an adjusted one is not read as calculated. */
 function dueDateSourceLabel(source: PregnancyDueDateSource): string {
@@ -47,6 +49,11 @@ export default function PregnancySettingsScreen() {
 
   // The date being picked, held only while the editor is open.
   const [selectedDueDate, setSelectedDueDate] = useState<ISODate | null>(null);
+
+  // Whether the person has asked to stop, held only while they confirm it.
+  const [isConfirmingStop, setIsConfirmingStop] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [hasStopError, setHasStopError] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaveError, setHasSaveError] = useState(false);
@@ -113,8 +120,60 @@ export default function PregnancySettingsScreen() {
       return;
     }
 
+    // Only one panel at a time, so a pending stop gives way rather than both
+    // being open at once.
+    setIsConfirmingStop(false);
+    setHasStopError(false);
+
     setSelectedDueDate(profile.estimatedDueDate);
     setHasSaveError(false);
+  };
+
+  const askToStop = () => {
+    closeEditor();
+
+    setIsConfirmingStop(true);
+    setHasStopError(false);
+  };
+
+  const dismissStop = () => {
+    setIsConfirmingStop(false);
+    setHasStopError(false);
+  };
+
+  /**
+   * Removes the pregnancy and leaves.
+   *
+   * Shares the screen's one lock with the due-date writes, so stopping cannot
+   * race a save that is still in flight.
+   */
+  const handleStop = async () => {
+    if (saveInFlight.current) {
+      return;
+    }
+
+    saveInFlight.current = true;
+    setIsStopping(true);
+    setHasStopError(false);
+
+    try {
+      const db = await openAppDatabase();
+
+      await stopPregnancyTracking(db);
+
+      router.back();
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[pregnancy-settings] could not stop tracking', error);
+      }
+
+      // The confirmation stays open with the error, so a refused stop is visible
+      // where it was asked for and can be tried again.
+      setHasStopError(true);
+    } finally {
+      saveInFlight.current = false;
+      setIsStopping(false);
+    }
   };
 
   /**
@@ -233,7 +292,61 @@ export default function PregnancySettingsScreen() {
                   </ThemedText>
                 </View>
 
-                {selectedDueDate === null ? (
+                {isConfirmingStop ? (
+                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                    <ThemedText type="small">
+                      Gebelik takibini sonlandırmak istiyor musun?
+                    </ThemedText>
+
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Gebelik takip bilgilerin silinecek.
+                    </ThemedText>
+
+                    {hasStopError && (
+                      <ThemedText
+                        accessibilityRole="alert"
+                        type="small"
+                        themeColor="textSecondary">
+                        {STOP_ERROR_MESSAGE}
+                      </ThemedText>
+                    )}
+
+                    <View style={styles.confirmActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Vazgeç"
+                        accessibilityState={{ disabled: isStopping }}
+                        disabled={isStopping}
+                        onPress={dismissStop}
+                        style={({ pressed }) => [
+                          styles.secondaryButton,
+                          isStopping && styles.disabled,
+                          pressed && !isStopping && styles.pressed,
+                        ]}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Vazgeç
+                        </ThemedText>
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Gebelik takibini sonlandır"
+                        accessibilityState={{ disabled: isStopping }}
+                        disabled={isStopping}
+                        onPress={handleStop}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          { backgroundColor: theme.text },
+                          isStopping && styles.disabled,
+                          pressed && !isStopping && styles.pressed,
+                        ]}>
+                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                          {isStopping ? 'Sonlandırılıyor...' : 'Takibi sonlandır'}
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : selectedDueDate === null ? (
                   <View style={styles.actions}>
                     <Pressable
                       accessibilityRole="button"
@@ -285,6 +398,23 @@ export default function PregnancySettingsScreen() {
                         {SAVE_ERROR_MESSAGE}
                       </ThemedText>
                     )}
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Gebelik takibini sonlandırmayı seç"
+                      accessibilityState={{ disabled: isSaving }}
+                      disabled={isSaving}
+                      onPress={askToStop}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        styles.stopButton,
+                        isSaving && styles.disabled,
+                        pressed && !isSaving && styles.pressed,
+                      ]}>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Gebelik takibini sonlandır
+                      </ThemedText>
+                    </Pressable>
                   </View>
                 ) : (
                   <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
@@ -495,6 +625,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
+  },
+  stopButton: {
+    marginTop: Spacing.two,
   },
   disabled: {
     opacity: 0.5,

@@ -2888,3 +2888,74 @@ describe('HomeScreen after the due date is changed elsewhere', () => {
     expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
   });
 });
+
+describe('HomeScreen after the pregnancy tracking is stopped', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+  });
+
+  it('drops the whole pregnancy section on the next focus', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+    expect(screen.getByText('Bu hafta')).toBeTruthy();
+    expect(screen.getByText('Kaynaklar')).toBeTruthy();
+
+    // What returning from the settings screen looks like once it was stopped.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    await refocus();
+
+    for (const gone of [
+      'Gebelik takibi',
+      'Gebelik haftası',
+      'Tahmini doğum tarihi',
+      'Bu hafta',
+      'Bu hafta gelişenler',
+      'Kaynaklar',
+    ]) {
+      expect(screen.queryByText(gone)).toBeNull();
+    }
+  });
+
+  it('offers to start again', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByLabelText('Gebelik takibini başlat')).toBeNull();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    await refocus();
+
+    expect(screen.getByLabelText('Gebelik takibini başlat')).toBeTruthy();
+    expect(screen.queryByLabelText('Gebelik ayarlarını düzenle')).toBeNull();
+  });
+
+  it('leaves the cycle summary and calendar untouched', async () => {
+    const screen = await renderScreen();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    await refocus();
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Takvim')).toBeTruthy();
+    expect(screen.getByText('Regl günü')).toBeTruthy();
+    expect(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(screen.getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+  });
+
+  it('reads no cycle profile again than it would have anyway', async () => {
+    await renderScreen();
+
+    const cycleReadsBefore = repository.loadCycleProfile.mock.calls.length;
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    await refocus();
+
+    // One more read per focus, the same as any other return to the screen.
+    expect(repository.loadCycleProfile.mock.calls.length).toBe(cycleReadsBefore + 1);
+  });
+});

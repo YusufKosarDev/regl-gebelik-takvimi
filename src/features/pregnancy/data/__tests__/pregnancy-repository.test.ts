@@ -2,7 +2,11 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { calculateEstimatedDueDate } from '../../domain/due-date';
 import type { PregnancyDueDateSource, PregnancyProfile } from '../../domain/types';
-import { loadPregnancyProfile, savePregnancyProfile } from '../pregnancy-repository';
+import {
+  clearPregnancyProfile,
+  loadPregnancyProfile,
+  savePregnancyProfile,
+} from '../pregnancy-repository';
 
 import type { ISODate } from '@/types/iso-date';
 
@@ -408,5 +412,53 @@ describe('pregnancy profile round trip', () => {
     };
 
     await expect(roundTrip(profile)).resolves.toEqual(profile);
+  });
+});
+
+describe('clearPregnancyProfile', () => {
+  it('deletes through a single statement', async () => {
+    const spy = createDatabaseSpy();
+
+    await clearPregnancyProfile(spy.db);
+
+    expect(spy.runAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('targets the pregnancy table only', async () => {
+    const spy = createDatabaseSpy();
+
+    await clearPregnancyProfile(spy.db);
+
+    const sql = normalize(spy.runAsync.mock.calls[0][0]);
+
+    expect(sql).toMatch(/^DELETE FROM pregnancy_profile/i);
+    expect(sql).not.toMatch(/cycle_settings|period_records/i);
+  });
+
+  it('binds the row id rather than interpolating it', async () => {
+    const spy = createDatabaseSpy();
+
+    await clearPregnancyProfile(spy.db);
+
+    const [sql, ...bindings] = spy.runAsync.mock.calls[0];
+
+    expect(normalize(sql)).toBe('DELETE FROM pregnancy_profile WHERE id = ?');
+    expect(bindings).toEqual([1]);
+  });
+
+  it('runs no other statements', async () => {
+    const spy = createDatabaseSpy();
+
+    await clearPregnancyProfile(spy.db);
+
+    expect(spy.execAsync).not.toHaveBeenCalled();
+    expect(spy.getAllAsync).not.toHaveBeenCalled();
+    expect(spy.getFirstAsync).not.toHaveBeenCalled();
+  });
+
+  it('passes a delete failure on', async () => {
+    const spy = createDatabaseSpy(null, new Error('disk is full'));
+
+    await expect(clearPregnancyProfile(spy.db)).rejects.toThrow('disk is full');
   });
 });

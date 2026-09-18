@@ -38,6 +38,8 @@ const UPSERT_PROFILE = `
     due_date_source = excluded.due_date_source
 `;
 
+const DELETE_PROFILE = 'DELETE FROM pregnancy_profile WHERE id = ?';
+
 const SELECT_PROFILE = `
   SELECT last_menstrual_period_start_date, estimated_due_date, due_date_source
   FROM pregnancy_profile
@@ -126,4 +128,18 @@ export async function loadPregnancyProfile(
   validatePregnancyProfile(profile);
 
   return profile;
+}
+
+/**
+ * Removes the tracked pregnancy.
+ *
+ * One statement against the pinned row, so nothing else in the database is
+ * touched — the cycle tables are a separate record of a separate thing and are
+ * not this function's to clear.
+ *
+ * Deleting a row that is not there is not an error here: the caller decides
+ * whether there had to be one, and says so before asking.
+ */
+export async function clearPregnancyProfile(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(DELETE_PROFILE, PROFILE_ROW_ID);
 }
