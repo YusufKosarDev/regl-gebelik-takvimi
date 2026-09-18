@@ -20,7 +20,9 @@ import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
 } from '@/features/cycle/presentation/cycle-labels';
-import { getPregnancyProfile } from '@/features/pregnancy/application/get-pregnancy-profile';
+import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
+import { getPregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
+import type { PregnancyDueDateSource } from '@/features/pregnancy/domain/types';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -60,7 +62,28 @@ function resolvePeriodAction(profile: CycleProfile): 'start' | 'end' | 'none' {
   }
 }
 
+/**
+ * How far along the pregnancy is, in words.
+ *
+ * A stored pregnancy whose last menstrual period has not arrived yet has no
+ * progress to report. It says so rather than showing week 0 or a negative day,
+ * and the due date beside it is still shown because that much is known.
+ */
+function pregnancyProgressLabel(pregnancy: PregnancyDashboard): string {
+  if (pregnancy.pregnancyWeek === null) {
+    return NOT_STARTED_MESSAGE;
+  }
+
+  return `${pregnancy.pregnancyWeek.week}. hafta ${pregnancy.pregnancyWeek.day}. gün`;
+}
+
+/** Where the due date came from, so an adjusted one is not read as calculated. */
+function dueDateSourceLabel(source: PregnancyDueDateSource): string {
+  return source === 'adjusted' ? 'Düzeltilmiş tarih' : 'Son regl tarihine göre';
+}
+
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
+const NOT_STARTED_MESSAGE = 'Gebelik başlangıç tarihi henüz gelmedi.';
 const SAVE_ERROR_MESSAGE = 'Regl başlangıcı kaydedilemedi.';
 const END_SAVE_ERROR_MESSAGE = 'Regl bitişi kaydedilemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
@@ -87,9 +110,9 @@ export default function HomeScreen() {
   const [homeData, setHomeData] = useState<CycleHomeData | null>(null);
   const [hasError, setHasError] = useState(false);
 
-  // Whether a pregnancy is being tracked, rather than the pregnancy itself: the
-  // only thing this screen does with it is decide whether to offer to start one.
-  const [isTrackingPregnancy, setIsTrackingPregnancy] = useState(false);
+  // The pregnancy summary, or null when none is being tracked. Both the section
+  // and the link that offers to start one are decided by this.
+  const [pregnancy, setPregnancy] = useState<PregnancyDashboard | null>(null);
 
   // Months away from the month containing today, rather than an absolute month,
   // so it needs no second initialisation once the data arrives. Session-only:
@@ -117,12 +140,12 @@ export default function HomeScreen() {
     const forDate = today ?? getTodayLocalISODate();
     const db = await openAppDatabase();
 
-    const [cycle, pregnancy] = await Promise.all([
+    const [cycle, pregnancyDashboard] = await Promise.all([
       getCycleHomeData(db, forDate),
-      getPregnancyProfile(db),
+      getPregnancyDashboard(db, forDate),
     ]);
 
-    return { cycle, isTrackingPregnancy: pregnancy !== null };
+    return { cycle, pregnancy: pregnancyDashboard };
   }, []);
 
   // On focus rather than on mount, so coming back from a screen that changed the
@@ -146,7 +169,7 @@ export default function HomeScreen() {
           }
 
           setHomeData(data.cycle);
-          setIsTrackingPregnancy(data.isTrackingPregnancy);
+          setPregnancy(data.pregnancy);
           setHasError(false);
         } catch (error) {
           if (__DEV__) {
@@ -268,7 +291,7 @@ export default function HomeScreen() {
       const data = await readCycleData(dashboard.today);
 
       setHomeData(data.cycle);
-      setIsTrackingPregnancy(data.isTrackingPregnancy);
+      setPregnancy(data.pregnancy);
       setIsConfirming(false);
     } catch (error) {
       if (__DEV__) {
@@ -504,6 +527,44 @@ export default function HomeScreen() {
               <CycleCalendarLegend />
             </View>
 
+            {pregnancy !== null && (
+              <View style={styles.pregnancySection}>
+                <ThemedText accessibilityRole="header" type="smallBold">
+                  Gebelik takibi
+                </ThemedText>
+
+                <View
+                  accessible
+                  accessibilityLabel={`Gebelik haftası: ${pregnancyProgressLabel(pregnancy)}`}
+                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Gebelik haftası
+                  </ThemedText>
+                  <ThemedText style={styles.rowValue}>
+                    {pregnancyProgressLabel(pregnancy)}
+                  </ThemedText>
+                </View>
+
+                <View
+                  accessible
+                  accessibilityLabel={
+                    `Tahmini doğum tarihi: ${formatDisplayDate(pregnancy.estimatedDueDate)}, ` +
+                    dueDateSourceLabel(pregnancy.dueDateSource)
+                  }
+                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Tahmini doğum tarihi
+                  </ThemedText>
+                  <ThemedText style={styles.rowValue}>
+                    {formatDisplayDate(pregnancy.estimatedDueDate)}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+                    {dueDateSourceLabel(pregnancy.dueDateSource)}
+                  </ThemedText>
+                </View>
+              </View>
+            )}
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Geçmiş regl kayıtlarını görüntüle"
@@ -527,7 +588,7 @@ export default function HomeScreen() {
             {/* Offered only when there is no pregnancy to track yet. A temporary
                 way in: where pregnancy tracking really belongs is a decision for
                 when there is something to show once it has started. */}
-            {!isTrackingPregnancy && (
+            {pregnancy === null && (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Gebelik takibini başlat"
@@ -602,6 +663,9 @@ const styles = StyleSheet.create({
   },
   rowNote: {
     marginTop: Spacing.one,
+  },
+  pregnancySection: {
+    gap: Spacing.two,
   },
   calendarSection: {
     gap: Spacing.two,
