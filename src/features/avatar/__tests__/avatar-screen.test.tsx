@@ -68,6 +68,11 @@ async function renderScreen() {
   return screen;
 }
 
+/** What the preview is currently drawing, as the sentence it reads out. */
+function previewLabel(screen: { getByTestId: (id: string) => { props: Record<string, unknown> } }) {
+  return screen.getByTestId('avatar-preview').props.accessibilityLabel as string;
+}
+
 /** Whether a choice is the selected one, read off its accessibility state. */
 function isSelected(screen: { getByLabelText: (label: string) => { props: Record<string, unknown> } }, label: string) {
   const state = screen.getByLabelText(label).props.accessibilityState as { selected?: boolean };
@@ -121,8 +126,7 @@ describe('AvatarScreen with nothing saved', () => {
   it('previews those choices', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByText('Ten tonu: 1. ton')).toBeTruthy();
-    expect(screen.getByText('Aksesuar: Yok')).toBeTruthy();
+    expect(previewLabel(screen)).toBe('Avatar: 1. ton ten, Kısa Siyah saç, Tişört, aksesuar Yok');
   });
 
   it('offers every option in every category', async () => {
@@ -183,7 +187,9 @@ describe('AvatarScreen with an avatar already saved', () => {
 
     expect(isSelected(screen, 'Kıyafet: Tişört')).toBe(false);
     expect(isSelected(screen, 'Kıyafet: Elbise')).toBe(false);
-    expect(screen.getByText('Kıyafet: Bilinmiyor')).toBeTruthy();
+    // The drawing falls back to neutral and the sentence simply leaves the
+    // garment out; neither reports an error at the person.
+    expect(previewLabel(screen)).toBe('Avatar: 4. ton ten, Topuz Kızıl saç, aksesuar Gözlük');
   });
 });
 
@@ -233,13 +239,19 @@ describe('AvatarScreen changing a choice', () => {
 
   it('updates the preview with it', async () => {
     const screen = await renderScreen();
+    const drawing = () => JSON.stringify(screen.toJSON());
 
-    expect(screen.getByText('Kıyafet: Tişört')).toBeTruthy();
+    expect(previewLabel(screen)).toContain('Tişört');
+    // The t-shirt's colour, which nothing else on this screen uses.
+    expect(drawing()).toContain('#7C8CA1');
 
     await fireEvent.press(screen.getByLabelText('Kıyafet: Elbise'));
 
-    expect(screen.getByText('Kıyafet: Elbise')).toBeTruthy();
-    expect(screen.queryByText('Kıyafet: Tişört')).toBeNull();
+    expect(previewLabel(screen)).toContain('Elbise');
+    expect(previewLabel(screen)).not.toContain('Tişört');
+    // Redrawn, not just relabelled.
+    expect(drawing()).toContain('#A8798A');
+    expect(drawing()).not.toContain('#7C8CA1');
   });
 
   it('updates the preview for the hair, which takes two choices', async () => {
@@ -248,7 +260,7 @@ describe('AvatarScreen changing a choice', () => {
     await fireEvent.press(screen.getByLabelText('Saç stili: Topuz'));
     await fireEvent.press(screen.getByLabelText('Saç rengi: Sarı'));
 
-    expect(screen.getByText('Saç: Topuz, Sarı')).toBeTruthy();
+    expect(previewLabel(screen)).toContain('Topuz Sarı saç');
   });
 
   it('can be tapped again without changing anything', async () => {
@@ -268,7 +280,7 @@ describe('AvatarScreen choosing an accessory', () => {
 
     expect(isSelected(screen, 'Aksesuar: Toka')).toBe(true);
     expect(isSelected(screen, 'Aksesuar: Yok')).toBe(false);
-    expect(screen.getByText('Aksesuar: Toka')).toBeTruthy();
+    expect(previewLabel(screen)).toContain('aksesuar Toka');
   });
 
   it('swaps one for another', async () => {
@@ -289,7 +301,7 @@ describe('AvatarScreen choosing an accessory', () => {
 
     expect(isSelected(screen, 'Aksesuar: Yok')).toBe(true);
     expect(isSelected(screen, 'Aksesuar: Gözlük')).toBe(false);
-    expect(screen.getByText('Aksesuar: Yok')).toBeTruthy();
+    expect(previewLabel(screen)).toContain('aksesuar Yok');
   });
 
   it('saves none as an absent key rather than a blank one', async () => {

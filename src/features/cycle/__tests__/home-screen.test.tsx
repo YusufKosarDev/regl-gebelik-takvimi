@@ -4075,6 +4075,22 @@ describe('HomeScreen avatar link with one saved', () => {
     expect(queryByText('Kıyafet: Elbise')).toBeNull();
   });
 
+  it('draws it rather than listing it in words', async () => {
+    const { getByTestId } = await renderScreen();
+    const preview = getByTestId('home-avatar-preview');
+
+    // A drawing: stacked shapes with the chosen colours, no text nodes.
+    expect(preview.props.children.length).toBeGreaterThan(4);
+    expect(preview.props.accessibilityRole).toBe('image');
+  });
+
+  it('draws the small version, not the editor-sized one', async () => {
+    const { getByTestId } = await renderScreen();
+    const { width } = getByTestId('home-avatar-preview').props.style as { width: number };
+
+    expect(width).toBe(66);
+  });
+
   it('shows no catalogue id', async () => {
     const { toJSON } = await renderScreen();
     const text = JSON.stringify(toJSON());
