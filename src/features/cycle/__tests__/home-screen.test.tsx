@@ -30,6 +30,13 @@ jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
   savePregnancyProfile: jest.fn(),
 }));
 
+// The saved avatar is read alongside the rest. Defaults to none, which is what
+// most of these tests are about; the avatar link has its own describe block.
+jest.mock('@/features/avatar/data/avatar-repository', () => ({
+  loadAvatarConfig: jest.fn(),
+  saveAvatarConfig: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
@@ -78,6 +85,7 @@ jest.mock('expo-router', () => {
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
+const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 
@@ -165,6 +173,9 @@ beforeEach(() => {
   pregnancyRepository.loadPregnancyProfile.mockReset();
   pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
   pregnancyRepository.savePregnancyProfile.mockReset();
+  avatarRepository.loadAvatarConfig.mockReset();
+  avatarRepository.loadAvatarConfig.mockResolvedValue(null);
+  avatarRepository.saveAvatarConfig.mockReset();
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
 
@@ -428,13 +439,14 @@ describe('HomeScreen scope', () => {
     // month, and nothing else: no summary rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(36);
+    expect(labels).toHaveLength(37);
     expect(
       labels.filter(
         (label) =>
           label === 'Regl başlangıcını kaydet' ||
           label === 'Önceki ay' ||
           label === 'Sonraki ay' ||
+          label === 'Avatar oluştur' ||
           label === 'Geçmiş regl kayıtlarını görüntüle' ||
           label === 'Döngü ayarlarını düzenle' ||
           label === 'Gebelik takibini başlat'
@@ -444,6 +456,7 @@ describe('HomeScreen scope', () => {
       'Önceki ay',
       'Sonraki ay',
       'Geçmiş regl kayıtlarını görüntüle',
+      'Avatar oluştur',
       'Döngü ayarlarını düzenle',
       'Gebelik takibini başlat',
     ]);
@@ -571,8 +584,8 @@ describe('HomeScreen calendar section', () => {
     }
 
     // 30 days, the two month steps, the record action, the history link, the
-    // settings link and the pregnancy link.
-    expect(queryAllByRole('button')).toHaveLength(36);
+    // avatar link, the settings link and the pregnancy link.
+    expect(queryAllByRole('button')).toHaveLength(37);
   });
 });
 
@@ -3985,5 +3998,167 @@ describe('HomeScreen cycle daily support in the pregnancy view', () => {
 
     expect(screen.getByText('Bugünün mesajı')).toBeTruthy();
     expect(screen.getByText('Olası ruh hali')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen avatar link with nothing saved', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('invites one to be built', async () => {
+    const { getByText, getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Avatar oluştur')).toBeTruthy();
+    expect(getByText('Avatarım')).toBeTruthy();
+  });
+
+  it('shows no preview', async () => {
+    const { queryByTestId } = await renderScreen();
+
+    expect(queryByTestId('home-avatar-preview')).toBeNull();
+  });
+
+  it('opens the editor', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatar oluştur'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/avatar');
+  });
+
+  it('reads the avatar alongside the rest, in one pass', async () => {
+    await renderScreen();
+
+    expect(avatarRepository.loadAvatarConfig).toHaveBeenCalledTimes(1);
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes nothing', async () => {
+    await renderScreen();
+
+    expect(avatarRepository.saveAvatarConfig).not.toHaveBeenCalled();
+  });
+});
+
+describe('HomeScreen avatar link with one saved', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    avatarRepository.loadAvatarConfig.mockResolvedValue({
+      skinToneId: 'skin-tone-4',
+      hairStyleId: 'bun',
+      hairColorId: 'red',
+      outfitId: 'dress',
+      accessoryId: 'glasses',
+    });
+  });
+
+  it('offers to edit it instead', async () => {
+    const { getByText, getByLabelText, queryByText } = await renderScreen();
+
+    expect(getByLabelText('Avatarı düzenle')).toBeTruthy();
+    expect(getByText('Avatarı düzenle')).toBeTruthy();
+    expect(queryByText('Avatarım')).toBeNull();
+  });
+
+  it('shows the small preview', async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(getByTestId('home-avatar-preview')).toBeTruthy();
+  });
+
+  it('describes the avatar rather than listing it', async () => {
+    const { getByLabelText, queryByText } = await renderScreen();
+
+    expect(getByLabelText(/^Avatar: 4\. ton ten, Topuz Kızıl saç, Elbise, aksesuar Gözlük$/)).toBeTruthy();
+    // The small preview carries no label rows; the spoken label does that work.
+    expect(queryByText('Kıyafet: Elbise')).toBeNull();
+  });
+
+  it('shows no catalogue id', async () => {
+    const { toJSON } = await renderScreen();
+    const text = JSON.stringify(toJSON());
+
+    for (const id of ['skin-tone-4', 'bun', 'dress', 'glasses']) {
+      expect(text).not.toContain(`>${id}<`);
+    }
+  });
+
+  it('opens the editor', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı düzenle'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/avatar');
+  });
+
+  it('picks up an avatar saved while away', async () => {
+    avatarRepository.loadAvatarConfig.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    expect(screen.queryByTestId('home-avatar-preview')).toBeNull();
+
+    avatarRepository.loadAvatarConfig.mockResolvedValue({
+      skinToneId: 'skin-tone-2',
+      hairStyleId: 'wavy',
+      hairColorId: 'blonde',
+      outfitId: 'shirt',
+    });
+    await refocus();
+
+    expect(screen.getByTestId('home-avatar-preview')).toBeTruthy();
+    expect(screen.getByLabelText('Avatarı düzenle')).toBeTruthy();
+  });
+
+  it('keeps the rest of the cycle screen where it was', async () => {
+    const { getByText, getByLabelText } = await renderScreen();
+
+    expect(getByText('Takvim')).toBeTruthy();
+    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen avatar in the pregnancy view', () => {
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-07-11' as ISODate,
+      estimatedDueDate: '2027-04-17' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+    avatarRepository.loadAvatarConfig.mockResolvedValue({
+      skinToneId: 'skin-tone-4',
+      hairStyleId: 'bun',
+      hairColorId: 'red',
+      outfitId: 'dress',
+    });
+  });
+
+  it('shows no preview', async () => {
+    const { queryByTestId } = await renderScreen();
+
+    expect(queryByTestId('home-avatar-preview')).toBeNull();
+  });
+
+  it('offers no link either', async () => {
+    const { queryByLabelText, queryByText } = await renderScreen();
+
+    expect(queryByLabelText('Avatarı düzenle')).toBeNull();
+    expect(queryByLabelText('Avatar oluştur')).toBeNull();
+    expect(queryByText('Avatarım')).toBeNull();
+  });
+
+  it('brings both back when the mode returns to cycle', async () => {
+    const screen = await renderScreen();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Döngü'));
+    });
+
+    expect(screen.getByTestId('home-avatar-preview')).toBeTruthy();
+    expect(screen.getByLabelText('Avatarı düzenle')).toBeTruthy();
   });
 });

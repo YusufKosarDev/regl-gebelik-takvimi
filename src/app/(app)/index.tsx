@@ -13,6 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
+import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
+import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
 import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
@@ -149,6 +152,11 @@ export default function HomeScreen() {
   // and the link that offers to start one are decided by this.
   const [pregnancy, setPregnancy] = useState<PregnancyDashboard | null>(null);
 
+  // The saved avatar, or null when none has been built. Only the cycle view
+  // shows it, and only once there is one: an empty frame would be making the
+  // invitation twice, and the link already makes it in words.
+  const [avatar, setAvatar] = useState<AvatarConfig | null>(null);
+
   // Which view the person chose, and how to record a change. Both come from the
   // app store, which already persists the mode; nothing new is kept here.
   const mode = useAppStore((state) => state.mode);
@@ -189,12 +197,13 @@ export default function HomeScreen() {
     const forDate = today ?? getTodayLocalISODate();
     const db = await openAppDatabase();
 
-    const [cycle, pregnancyDashboard] = await Promise.all([
+    const [cycle, pregnancyDashboard, avatarConfig] = await Promise.all([
       getCycleHomeData(db, forDate),
       getPregnancyDashboard(db, forDate),
+      loadAvatarConfig(db),
     ]);
 
-    return { cycle, pregnancy: pregnancyDashboard };
+    return { cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig };
   }, []);
 
   // On focus rather than on mount, so coming back from a screen that changed the
@@ -219,6 +228,7 @@ export default function HomeScreen() {
 
           setHomeData(data.cycle);
           setPregnancy(data.pregnancy);
+          setAvatar(data.avatar);
           setHasError(false);
         } catch (error) {
           if (__DEV__) {
@@ -420,6 +430,7 @@ export default function HomeScreen() {
 
       setHomeData(data.cycle);
       setPregnancy(data.pregnancy);
+      setAvatar(data.avatar);
       setIsConfirming(false);
     } catch (error) {
       if (__DEV__) {
@@ -961,6 +972,22 @@ export default function HomeScreen() {
                   </ThemedText>
                 </Pressable>
 
+                {/* The preview only once there is an avatar, and the label
+                    says which of the two errands the link is on. */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={avatar === null ? 'Avatar oluştur' : 'Avatarı düzenle'}
+                  onPress={() => router.push('/(app)/avatar')}
+                  style={({ pressed }) => [styles.avatarLink, pressed && styles.pressed]}>
+                  {avatar !== null && (
+                    <AvatarPreview config={avatar} size="small" testID="home-avatar-preview" />
+                  )}
+
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {avatar === null ? 'Avatarım' : 'Avatarı düzenle'}
+                  </ThemedText>
+                </Pressable>
+
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Döngü ayarlarını düzenle"
@@ -1124,6 +1151,13 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  avatarLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    minHeight: 48,
     paddingHorizontal: Spacing.four,
   },
   secondaryButton: {

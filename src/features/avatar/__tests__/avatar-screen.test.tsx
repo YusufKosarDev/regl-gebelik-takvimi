@@ -1,0 +1,524 @@
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
+
+import AvatarScreen from '@/app/(app)/avatar';
+import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
+
+// The database is faked. The repository contract, the catalogue and the preview
+// all stay real, so what the screen shows is what the app would store.
+jest.mock('@/storage/db', () => ({
+  openAppDatabase: jest.fn(),
+  DATABASE_NAME: 'regl-gebelik.db',
+}));
+
+jest.mock('@/features/avatar/data/avatar-repository', () => ({
+  loadAvatarConfig: jest.fn(),
+  saveAvatarConfig: jest.fn(),
+}));
+
+jest.mock('expo-router', () => ({
+  useRouter: jest.fn(),
+}));
+
+const db = jest.requireMock('@/storage/db');
+const repository = jest.requireMock('@/features/avatar/data/avatar-repository');
+const useRouterMock = useRouter as unknown as jest.Mock;
+
+let back: jest.Mock;
+
+/** The first of every list, which is where a new avatar starts. */
+const DEFAULTS: AvatarConfig = {
+  skinToneId: 'skin-tone-1',
+  hairStyleId: 'short',
+  hairColorId: 'black',
+  outfitId: 't-shirt',
+};
+
+function saved(overrides: Partial<AvatarConfig> = {}): AvatarConfig {
+  return {
+    skinToneId: 'skin-tone-4',
+    hairStyleId: 'bun',
+    hairColorId: 'red',
+    outfitId: 'dress',
+    accessoryId: 'glasses',
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  db.openAppDatabase.mockReset();
+  db.openAppDatabase.mockResolvedValue({});
+  repository.loadAvatarConfig.mockReset();
+  repository.loadAvatarConfig.mockResolvedValue(null);
+  repository.saveAvatarConfig.mockReset();
+  repository.saveAvatarConfig.mockResolvedValue(undefined);
+
+  back = jest.fn();
+  useRouterMock.mockReset();
+  useRouterMock.mockReturnValue({ back, push: jest.fn(), replace: jest.fn() });
+});
+
+async function renderScreen() {
+  const screen = await render(<AvatarScreen />);
+
+  await waitFor(() => {
+    expect(screen.queryByTestId('avatar-loading')).toBeNull();
+  });
+
+  return screen;
+}
+
+/** Whether a choice is the selected one, read off its accessibility state. */
+function isSelected(screen: { getByLabelText: (label: string) => { props: Record<string, unknown> } }, label: string) {
+  const state = screen.getByLabelText(label).props.accessibilityState as { selected?: boolean };
+
+  return state.selected === true;
+}
+
+describe('AvatarScreen while loading', () => {
+  it('shows a spinner', async () => {
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const { getByTestId, getByText } = await render(<AvatarScreen />);
+
+    expect(getByTestId('avatar-loading')).toBeTruthy();
+    expect(getByText('Veriler yükleniyor')).toBeTruthy();
+  });
+
+  it('shows no options yet', async () => {
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const { queryByLabelText } = await render(<AvatarScreen />);
+
+    expect(queryByLabelText('Ten tonu: 1. ton')).toBeNull();
+  });
+});
+
+describe('AvatarScreen with nothing saved', () => {
+  it('reads once and writes nothing', async () => {
+    await renderScreen();
+
+    expect(repository.loadAvatarConfig).toHaveBeenCalledTimes(1);
+    expect(repository.saveAvatarConfig).not.toHaveBeenCalled();
+  });
+
+  it('starts on the first of each list', async () => {
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Ten tonu: 1. ton')).toBe(true);
+    expect(isSelected(screen, 'Saç stili: Kısa')).toBe(true);
+    expect(isSelected(screen, 'Saç rengi: Siyah')).toBe(true);
+    expect(isSelected(screen, 'Kıyafet: Tişört')).toBe(true);
+  });
+
+  it('starts with no accessory', async () => {
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Aksesuar: Yok')).toBe(true);
+    expect(isSelected(screen, 'Aksesuar: Gözlük')).toBe(false);
+  });
+
+  it('previews those choices', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Ten tonu: 1. ton')).toBeTruthy();
+    expect(screen.getByText('Aksesuar: Yok')).toBeTruthy();
+  });
+
+  it('offers every option in every category', async () => {
+    const screen = await renderScreen();
+
+    for (const label of [
+      'Ten tonu: 6. ton',
+      'Saç stili: Dalgalı',
+      'Saç rengi: Kızıl',
+      'Kıyafet: Elbise',
+      'Aksesuar: Küpe',
+    ]) {
+      expect(screen.getByLabelText(label)).toBeTruthy();
+    }
+  });
+});
+
+describe('AvatarScreen with an avatar already saved', () => {
+  beforeEach(() => {
+    repository.loadAvatarConfig.mockResolvedValue(saved());
+  });
+
+  it('opens on the stored choices', async () => {
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Ten tonu: 4. ton')).toBe(true);
+    expect(isSelected(screen, 'Saç stili: Topuz')).toBe(true);
+    expect(isSelected(screen, 'Saç rengi: Kızıl')).toBe(true);
+    expect(isSelected(screen, 'Kıyafet: Elbise')).toBe(true);
+    expect(isSelected(screen, 'Aksesuar: Gözlük')).toBe(true);
+  });
+
+  it('does not leave a default selected alongside them', async () => {
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Ten tonu: 1. ton')).toBe(false);
+    expect(isSelected(screen, 'Aksesuar: Yok')).toBe(false);
+  });
+
+  it('opens on a stored avatar with no accessory', async () => {
+    repository.loadAvatarConfig.mockResolvedValue({
+      skinToneId: 'skin-tone-2',
+      hairStyleId: 'curly',
+      hairColorId: 'brown',
+      outfitId: 'shirt',
+    });
+
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Aksesuar: Yok')).toBe(true);
+    expect(isSelected(screen, 'Saç stili: Kıvırcık')).toBe(true);
+  });
+
+  it('leaves an option this build no longer has unselected rather than swapping it', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved({ outfitId: 'spacesuit' }));
+
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Kıyafet: Tişört')).toBe(false);
+    expect(isSelected(screen, 'Kıyafet: Elbise')).toBe(false);
+    expect(screen.getByText('Kıyafet: Bilinmiyor')).toBeTruthy();
+  });
+});
+
+describe('AvatarScreen when the avatar cannot be read', () => {
+  beforeEach(() => {
+    repository.loadAvatarConfig.mockRejectedValue(new Error('disk is gone'));
+  });
+
+  it('says so', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Avatar yüklenemedi.')).toBeTruthy();
+  });
+
+  it('offers nothing to choose or save', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByLabelText('Ten tonu: 1. ton')).toBeNull();
+    expect(screen.queryByLabelText('Avatarı kaydet')).toBeNull();
+  });
+});
+
+describe('AvatarScreen changing a choice', () => {
+  it.each([
+    ['Ten tonu', '5. ton', 'Ten tonu: 1. ton'],
+    ['Saç stili', 'Dalgalı', 'Saç stili: Kısa'],
+    ['Saç rengi', 'Sarı', 'Saç rengi: Siyah'],
+    ['Kıyafet', 'Gömlek', 'Kıyafet: Tişört'],
+  ])('moves the selection in %s', async (section, label, previous) => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${section}: ${label}`));
+
+    expect(isSelected(screen, `${section}: ${label}`)).toBe(true);
+    expect(isSelected(screen, previous)).toBe(false);
+  });
+
+  it('changes only the category that was tapped', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Saç rengi: Sarı'));
+
+    expect(isSelected(screen, 'Ten tonu: 1. ton')).toBe(true);
+    expect(isSelected(screen, 'Saç stili: Kısa')).toBe(true);
+    expect(isSelected(screen, 'Kıyafet: Tişört')).toBe(true);
+  });
+
+  it('updates the preview with it', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Kıyafet: Tişört')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Kıyafet: Elbise'));
+
+    expect(screen.getByText('Kıyafet: Elbise')).toBeTruthy();
+    expect(screen.queryByText('Kıyafet: Tişört')).toBeNull();
+  });
+
+  it('updates the preview for the hair, which takes two choices', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Saç stili: Topuz'));
+    await fireEvent.press(screen.getByLabelText('Saç rengi: Sarı'));
+
+    expect(screen.getByText('Saç: Topuz, Sarı')).toBeTruthy();
+  });
+
+  it('can be tapped again without changing anything', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Ten tonu: 1. ton'));
+
+    expect(isSelected(screen, 'Ten tonu: 1. ton')).toBe(true);
+  });
+});
+
+describe('AvatarScreen choosing an accessory', () => {
+  it('selects one', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Toka'));
+
+    expect(isSelected(screen, 'Aksesuar: Toka')).toBe(true);
+    expect(isSelected(screen, 'Aksesuar: Yok')).toBe(false);
+    expect(screen.getByText('Aksesuar: Toka')).toBeTruthy();
+  });
+
+  it('swaps one for another', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Toka'));
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Küpe'));
+
+    expect(isSelected(screen, 'Aksesuar: Küpe')).toBe(true);
+    expect(isSelected(screen, 'Aksesuar: Toka')).toBe(false);
+  });
+
+  it('goes back to none', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Gözlük'));
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Yok'));
+
+    expect(isSelected(screen, 'Aksesuar: Yok')).toBe(true);
+    expect(isSelected(screen, 'Aksesuar: Gözlük')).toBe(false);
+    expect(screen.getByText('Aksesuar: Yok')).toBeTruthy();
+  });
+
+  it('saves none as an absent key rather than a blank one', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved());
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Yok'));
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    const written = repository.saveAvatarConfig.mock.calls[0][1];
+
+    expect('accessoryId' in written).toBe(false);
+  });
+});
+
+describe('AvatarScreen saving', () => {
+  it('writes exactly what was chosen', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Ten tonu: 3. ton'));
+    await fireEvent.press(screen.getByLabelText('Saç stili: Kıvırcık'));
+    await fireEvent.press(screen.getByLabelText('Saç rengi: Kahve'));
+    await fireEvent.press(screen.getByLabelText('Kıyafet: Sweatshirt'));
+    await fireEvent.press(screen.getByLabelText('Aksesuar: Küpe'));
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledTimes(1);
+    expect(repository.saveAvatarConfig.mock.calls[0][1]).toEqual({
+      skinToneId: 'skin-tone-3',
+      hairStyleId: 'curly',
+      hairColorId: 'brown',
+      outfitId: 'sweatshirt',
+      accessoryId: 'earrings',
+    });
+  });
+
+  it('writes the untouched defaults when nothing was changed', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(repository.saveAvatarConfig.mock.calls[0][1]).toEqual(DEFAULTS);
+  });
+
+  it('goes back once it is written', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the database rather than assuming one', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(repository.saveAvatarConfig.mock.calls[0][0]).toBe(
+      await db.openAppDatabase.mock.results[0].value
+    );
+  });
+
+  it('says it is saving while it does', async () => {
+    let release: () => void = () => {};
+    repository.saveAvatarConfig.mockReturnValue(
+      new Promise<void>((resolve) => {
+        release = () => resolve();
+      })
+    );
+
+    const screen = await renderScreen();
+
+    const press = fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kaydediliyor...')).toBeTruthy();
+    });
+
+    await act(async () => {
+      release();
+    });
+    await press;
+  });
+});
+
+describe('AvatarScreen when the save fails', () => {
+  beforeEach(() => {
+    repository.saveAvatarConfig.mockRejectedValue(new Error('disk is full'));
+  });
+
+  it('says so', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Avatar kaydedilemedi.')).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Avatar kaydedilemedi.')).toBeTruthy();
+    });
+  });
+
+  it('does not go back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it('keeps the choices that were not written', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Kıyafet: Elbise'));
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Avatar kaydedilemedi.')).toBeTruthy();
+    });
+
+    expect(isSelected(screen, 'Kıyafet: Elbise')).toBe(true);
+  });
+
+  it('lets the save be tried again', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Avatar kaydedilemedi.')).toBeTruthy();
+    });
+
+    repository.saveAvatarConfig.mockResolvedValue(undefined);
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledTimes(2);
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the message when a choice changes', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Avatar kaydedilemedi.')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText('Saç rengi: Sarı'));
+
+    expect(screen.queryByText('Avatar kaydedilemedi.')).toBeNull();
+  });
+});
+
+describe('AvatarScreen guarding against a double submit', () => {
+  it('writes once however fast the second tap is', async () => {
+    let release: () => void = () => {};
+    repository.saveAvatarConfig.mockReturnValue(
+      new Promise<void>((resolve) => {
+        release = () => resolve();
+      })
+    );
+
+    const screen = await renderScreen();
+    const button = screen.getByLabelText('Avatarı kaydet');
+
+    const press = fireEvent.press(button);
+
+    await waitFor(() => {
+      expect(screen.getByText('Kaydediliyor...')).toBeTruthy();
+    });
+
+    // The button is disabled by now, so this is the guard being asked directly.
+    await fireEvent.press(button);
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      release();
+    });
+    await press;
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledTimes(1);
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the options while it writes', async () => {
+    let release: () => void = () => {};
+    repository.saveAvatarConfig.mockReturnValue(
+      new Promise<void>((resolve) => {
+        release = () => resolve();
+      })
+    );
+
+    const screen = await renderScreen();
+
+    const press = fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kaydediliyor...')).toBeTruthy();
+    });
+
+    const option = screen.getByLabelText('Kıyafet: Elbise');
+
+    expect((option.props.accessibilityState as { disabled?: boolean }).disabled).toBe(true);
+
+    await act(async () => {
+      release();
+    });
+    await press;
+  });
+});
+
+describe('AvatarScreen navigation', () => {
+  it('offers a way back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Geri'));
+
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes nothing on the way back', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Ten tonu: 5. ton'));
+    await fireEvent.press(screen.getByLabelText('Geri'));
+
+    expect(repository.saveAvatarConfig).not.toHaveBeenCalled();
+  });
+});
