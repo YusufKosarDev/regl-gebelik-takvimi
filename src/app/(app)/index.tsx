@@ -691,6 +691,16 @@ export default function HomeScreen() {
                     )}
                   </>
                 )}
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Gebelik ayarlarını düzenle"
+                  onPress={() => router.push('/(app)/pregnancy-settings')}
+                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Gebelik ayarları
+                  </ThemedText>
+                </Pressable>
               </View>
             )}
 

@@ -2748,3 +2748,143 @@ describe('HomeScreen sources without week content', () => {
     expect(getByLabelText('Gebelik takibini başlat')).toBeTruthy();
   });
 });
+
+describe('HomeScreen pregnancy settings link', () => {
+  function pregnancyProfile(
+    overrides: {
+      estimatedDueDate?: string;
+      dueDateSource?: 'lmp' | 'adjusted';
+    } = {}
+  ) {
+    return {
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: (overrides.estimatedDueDate ?? '2027-06-09') as ISODate,
+      dueDateSource: overrides.dueDateSource ?? ('lmp' as const),
+    };
+  }
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancyProfile());
+  });
+
+  it('offers the link when a pregnancy is tracked', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Gebelik ayarlarını düzenle')).toBeTruthy();
+    expect(getByText('Gebelik ayarları')).toBeTruthy();
+  });
+
+  it('opens the pregnancy settings route', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik ayarlarını düzenle'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/pregnancy-settings');
+  });
+
+  it('is absent when no pregnancy is tracked', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+
+    const { queryByLabelText, getByLabelText } = await renderScreen();
+
+    expect(queryByLabelText('Gebelik ayarlarını düzenle')).toBeNull();
+    // The way in is the start link instead.
+    expect(getByLabelText('Gebelik takibini başlat')).toBeTruthy();
+  });
+
+  it('is offered even before the pregnancy began, where there is no week content', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-10-01' as ISODate,
+      estimatedDueDate: '2027-07-08' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const { getByLabelText, queryByText } = await renderScreen();
+
+    expect(getByLabelText('Gebelik ayarlarını düzenle')).toBeTruthy();
+    expect(queryByText('Bu hafta')).toBeNull();
+  });
+
+  it('writes nothing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik ayarlarını düzenle'));
+
+    expect(pregnancyRepository.savePregnancyProfile).not.toHaveBeenCalled();
+  });
+
+  it('leaves the cycle links alone', async () => {
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen after the due date is changed elsewhere', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+  });
+
+  it('shows the adjusted date and its source on the next focus', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('9 Haziran 2027')).toBeTruthy();
+    expect(screen.getByText('Son regl tarihine göre')).toBeTruthy();
+
+    // What returning from the settings screen looks like.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-04' as ISODate,
+      dueDateSource: 'adjusted' as const,
+    });
+    await refocus();
+
+    expect(screen.getByText('4 Haziran 2027')).toBeTruthy();
+    expect(screen.getByText('Düzeltilmiş tarih')).toBeTruthy();
+    expect(screen.queryByText('9 Haziran 2027')).toBeNull();
+  });
+
+  it('goes back to the calculated date and source as well', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-04' as ISODate,
+      dueDateSource: 'adjusted' as const,
+    });
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Düzeltilmiş tarih')).toBeTruthy();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+    await refocus();
+
+    expect(screen.getByText('9 Haziran 2027')).toBeTruthy();
+    expect(screen.getByText('Son regl tarihine göre')).toBeTruthy();
+  });
+
+  it('leaves the week count alone, since the last menstrual period did not move', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-04' as ISODate,
+      dueDateSource: 'adjusted' as const,
+    });
+    await refocus();
+
+    expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
+  });
+});
