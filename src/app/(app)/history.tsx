@@ -17,6 +17,7 @@ import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
+import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 
@@ -248,6 +249,7 @@ export default function HistoryScreen() {
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
       await syncWidgetSnapshotQuietly(db, today);
+      await syncPeriodReminderQuietly(db, today);
 
       setRecords(await readHistory());
       setRecordPendingDelete(null);
@@ -282,6 +284,7 @@ export default function HistoryScreen() {
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
       await syncWidgetSnapshotQuietly(db, today);
+      await syncPeriodReminderQuietly(db, today);
 
       setRecords(await readHistory());
       closePanels();
@@ -323,6 +326,7 @@ export default function HistoryScreen() {
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
       await syncWidgetSnapshotQuietly(db, today);
+      await syncPeriodReminderQuietly(db, today);
 
       setRecords(await readHistory());
       closePanels();

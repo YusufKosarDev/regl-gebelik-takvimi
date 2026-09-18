@@ -44,9 +44,17 @@ jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
   syncWidgetSnapshot: jest.fn(),
 }));
 
+// The period reminder syncs alongside the widget. Faked so the calls can be
+// counted; it is quiet by contract, so the real one would do nothing here.
+jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
+  syncPeriodReminderQuietly: jest.fn(),
+  syncPeriodReminder: jest.fn(),
+}));
+
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
 const reminderRepository = jest.requireMock(
   '@/features/notifications/data/notification-preferences-repository'
 );
@@ -76,6 +84,8 @@ beforeEach(() => {
   repository.saveCycleProfile.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+  reminderSync.syncPeriodReminderQuietly.mockReset();
+  reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
   reminderRepository.loadNotificationPreferences.mockReset();
   reminderRepository.loadNotificationPreferences.mockResolvedValue({
     periodReminderEnabled: false,
@@ -863,5 +873,79 @@ describe('SettingsScreen switching a reminder off', () => {
     });
 
     expect(screen.queryByText(/Bildirim izni verilmedi/)).toBeNull();
+  });
+});
+
+describe('SettingsScreen period reminder sync', () => {
+  it('syncs after the cycle settings are saved', async () => {
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs after the period reminder is switched on', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs after it is switched off, so the queued one goes', async () => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', false);
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync for the pregnancy reminder, which schedules nothing yet', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Haftalık gebelik hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('does not sync when the cycle settings save failed', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini azalt'));
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Ayarlar kaydedilemedi.')).toBeTruthy();
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the toggle successful when the reminder could not be scheduled', async () => {
+    reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+    expect(screen.queryByText('Hatırlatıcı ayarı kaydedilemedi.')).toBeNull();
   });
 });

@@ -43,6 +43,7 @@ import {
   MAX_PREGNANCY_WEEK,
   MIN_PREGNANCY_WEEK,
 } from '@/features/pregnancy/domain/weekly-content';
+import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
@@ -249,12 +250,19 @@ export default function HomeScreen() {
             // Caught as well as quiet: this promise is not awaited, so a
             // rejection would have nowhere to go but an unhandled one, and the
             // screen must not depend on the sync keeping its own promise.
-            syncWidgetSnapshotQuietly(
-              data.db,
-              data.cycle?.dashboard.today ?? getTodayLocalISODate()
-            ).catch((syncError: unknown) => {
+            const syncDate = data.cycle?.dashboard.today ?? getTodayLocalISODate();
+
+            syncWidgetSnapshotQuietly(data.db, syncDate).catch((syncError: unknown) => {
               if (__DEV__) {
                 console.error('[home] could not sync the widget snapshot', syncError);
+              }
+            });
+
+            // The estimate moves on its own as days pass, so the queued reminder
+            // is reconsidered on the way in as well as after every change.
+            syncPeriodReminderQuietly(data.db, syncDate).catch((syncError: unknown) => {
+              if (__DEV__) {
+                console.error('[home] could not sync the period reminder', syncError);
               }
             });
           }
@@ -455,6 +463,7 @@ export default function HomeScreen() {
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
       await syncWidgetSnapshotQuietly(db, dashboard.today);
+      await syncPeriodReminderQuietly(db, dashboard.today);
 
       // Both halves of the screen come from one fresh read, so the summary and
       // the calendar cannot end up describing different profiles.

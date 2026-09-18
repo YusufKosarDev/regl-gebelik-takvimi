@@ -15,6 +15,7 @@ import {
   MIN_PERIOD_LENGTH_DAYS,
 } from '@/features/cycle/domain/limits';
 import type { CycleSettings } from '@/features/cycle/domain/types';
+import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { loadNotificationPreferences } from '@/features/notifications/data/notification-preferences-repository';
 import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
@@ -183,6 +184,12 @@ export default function SettingsScreen() {
 
       setReminders(result.preferences);
 
+      // Switching the period reminder is the most direct reason for the queue to
+      // change: on schedules it, off takes it back out.
+      if (field === 'periodReminderEnabled') {
+        await syncPeriodReminderQuietly(db, getTodayLocalISODate());
+      }
+
       if (enabled && result.permission !== 'granted') {
         setReminderNotice(PERMISSION_DENIED_MESSAGE);
       }
@@ -217,7 +224,10 @@ export default function SettingsScreen() {
 
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
-      await syncWidgetSnapshotQuietly(db, getTodayLocalISODate());
+      const today = getTodayLocalISODate();
+
+      await syncWidgetSnapshotQuietly(db, today);
+      await syncPeriodReminderQuietly(db, today);
 
       // Home reads again when it regains focus, so going back is enough to show
       // the predictions the new settings produce.

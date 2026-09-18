@@ -1,0 +1,242 @@
+import { Platform } from 'react-native';
+
+import {
+  cancelPeriodReminders,
+  ensurePeriodReminderChannel,
+  periodReminderMoment,
+  schedulePeriodReminder,
+} from '../period-reminder-scheduler';
+
+import type { ISODate } from '@/types/iso-date';
+
+jest.mock('expo-notifications', () => ({
+  setNotificationChannelAsync: jest.fn(),
+  scheduleNotificationAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn(),
+  getAllScheduledNotificationsAsync: jest.fn(),
+  AndroidImportance: { DEFAULT: 3, HIGH: 4, LOW: 2 },
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+}));
+
+const notifications = jest.requireMock('expo-notifications');
+const date = (value: string) => value as ISODate;
+
+/**
+ * jest-expo runs each file under several platforms, so the one under test is
+ * stated rather than inherited.
+ */
+const originalPlatform = Platform.OS;
+
+function runningOn(os: string) {
+  Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
+}
+
+/** A queued notification, as the system hands it back. */
+function queued(identifier: string, type?: string) {
+  return {
+    identifier,
+    content: { title: 'x', body: 'y', data: type === undefined ? {} : { type } },
+    trigger: { type: 'date' },
+  };
+}
+
+beforeEach(() => {
+  notifications.setNotificationChannelAsync.mockReset();
+  notifications.setNotificationChannelAsync.mockResolvedValue(null);
+  notifications.scheduleNotificationAsync.mockReset();
+  notifications.scheduleNotificationAsync.mockResolvedValue('new-id');
+  notifications.cancelScheduledNotificationAsync.mockReset();
+  notifications.cancelScheduledNotificationAsync.mockResolvedValue(undefined);
+  notifications.getAllScheduledNotificationsAsync.mockReset();
+  notifications.getAllScheduledNotificationsAsync.mockResolvedValue([]);
+
+  runningOn('android');
+
+  jest.useFakeTimers();
+  // Well before any date these tests schedule for.
+  jest.setSystemTime(new Date(2026, 8, 18, 12, 0, 0));
+});
+
+afterEach(() => {
+  runningOn(originalPlatform);
+  jest.useRealTimers();
+});
+
+describe('ensurePeriodReminderChannel', () => {
+  it('creates the channel with the agreed id, name and importance', async () => {
+    await ensurePeriodReminderChannel();
+
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith('period-reminders', {
+      name: 'Regl hatırlatıcıları',
+      importance: notifications.AndroidImportance.DEFAULT,
+    });
+  });
+
+  it('can be called again without complaint', async () => {
+    // `setNotificationChannelAsync` creates it if it is not there, so calling it
+    // again is how you make sure of it rather than a mistake.
+    await ensurePeriodReminderChannel();
+    await ensurePeriodReminderChannel();
+
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledTimes(2);
+    expect(notifications.setNotificationChannelAsync.mock.calls[0]).toEqual(
+      notifications.setNotificationChannelAsync.mock.calls[1]
+    );
+  });
+
+  it('asks for no exact alarm permission', async () => {
+    await ensurePeriodReminderChannel();
+
+    expect(Object.keys(notifications)).not.toContain('requestExactAlarmPermission');
+  });
+
+  it('asks for no channel where there are none', async () => {
+    runningOn('ios');
+
+    await ensurePeriodReminderChannel();
+
+    expect(notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('periodReminderMoment', () => {
+  it('is nine in the morning, local, on that day', () => {
+    const moment = new Date(periodReminderMoment(date('2026-10-14')));
+
+    expect(moment.getFullYear()).toBe(2026);
+    expect(moment.getMonth()).toBe(9);
+    expect(moment.getDate()).toBe(14);
+    expect(moment.getHours()).toBe(9);
+    expect(moment.getMinutes()).toBe(0);
+    expect(moment.getSeconds()).toBe(0);
+  });
+
+  it('is the same moment every time', () => {
+    expect(periodReminderMoment(date('2026-10-14'))).toBe(periodReminderMoment(date('2026-10-14')));
+  });
+});
+
+describe('cancelPeriodReminders', () => {
+  it('cancels nothing when the queue is empty', async () => {
+    await expect(cancelPeriodReminders()).resolves.toBe(0);
+    expect(notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('cancels every period reminder it finds', async () => {
+    notifications.getAllScheduledNotificationsAsync.mockResolvedValue([
+      queued('a', 'period-reminder-v1'),
+      queued('b', 'period-reminder-v1'),
+    ]);
+
+    await expect(cancelPeriodReminders()).resolves.toBe(2);
+    expect(notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('a');
+    expect(notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('b');
+  });
+
+  it('leaves everything else alone', async () => {
+    notifications.getAllScheduledNotificationsAsync.mockResolvedValue([
+      queued('keep-pregnancy', 'pregnancy-weekly-reminder-v1'),
+      queued('ours', 'period-reminder-v1'),
+      queued('keep-other-app'),
+      queued('keep-future-version', 'period-reminder-v2'),
+    ]);
+
+    await expect(cancelPeriodReminders()).resolves.toBe(1);
+    expect(notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('ours');
+  });
+
+  it('survives a queued entry with no content at all', async () => {
+    notifications.getAllScheduledNotificationsAsync.mockResolvedValue([
+      { identifier: 'odd' },
+      queued('ours', 'period-reminder-v1'),
+    ]);
+
+    await expect(cancelPeriodReminders()).resolves.toBe(1);
+  });
+
+  it('passes a failure on', async () => {
+    notifications.getAllScheduledNotificationsAsync.mockRejectedValue(new Error('queue is gone'));
+
+    await expect(cancelPeriodReminders()).rejects.toThrow('queue is gone');
+  });
+});
+
+describe('schedulePeriodReminder', () => {
+  it('schedules one on the given day', async () => {
+    await expect(schedulePeriodReminder(date('2026-10-14'))).resolves.toBe('new-id');
+    expect(notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what it says, and nothing more certain', async () => {
+    await schedulePeriodReminder(date('2026-10-14'));
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe('Regl hatırlatıcısı');
+    expect(content.body).toBe('Tahminine göre regl dönemin yaklaşıyor.');
+    expect(content.data).toEqual({ type: 'period-reminder-v1' });
+  });
+
+  it('triggers on the date, at nine, on its own channel', async () => {
+    await schedulePeriodReminder(date('2026-10-14'));
+    const { trigger } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(trigger.type).toBe('date');
+    expect(trigger.channelId).toBe('period-reminders');
+    expect(new Date(trigger.date).getHours()).toBe(9);
+    expect(new Date(trigger.date).getDate()).toBe(14);
+  });
+
+  it('makes sure of the channel first', async () => {
+    await schedulePeriodReminder(date('2026-10-14'));
+
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('schedules nothing for a moment that has passed', async () => {
+    // No safe-looking hour is invented later the same day: that hour would be
+    // picked rather than chosen, and the next cycle change looks again.
+    jest.setSystemTime(new Date(2026, 9, 14, 9, 0, 1));
+
+    await expect(schedulePeriodReminder(date('2026-10-14'))).resolves.toBeNull();
+    expect(notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('schedules nothing when the moment is exactly now', async () => {
+    jest.setSystemTime(new Date(2026, 9, 14, 9, 0, 0));
+
+    await expect(schedulePeriodReminder(date('2026-10-14'))).resolves.toBeNull();
+  });
+
+  it('schedules one a minute before the moment', async () => {
+    jest.setSystemTime(new Date(2026, 9, 14, 8, 59, 0));
+
+    await expect(schedulePeriodReminder(date('2026-10-14'))).resolves.toBe('new-id');
+  });
+
+  it('schedules nothing for a day already gone', async () => {
+    jest.setSystemTime(new Date(2026, 9, 20, 0, 0, 0));
+
+    await expect(schedulePeriodReminder(date('2026-10-14'))).resolves.toBeNull();
+  });
+
+  it('touches no channel when it schedules nothing', async () => {
+    jest.setSystemTime(new Date(2026, 9, 20, 0, 0, 0));
+
+    await schedulePeriodReminder(date('2026-10-14'));
+
+    expect(notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
+  });
+
+  it('cancels nothing by itself', async () => {
+    await schedulePeriodReminder(date('2026-10-14'));
+
+    expect(notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('passes a failure on', async () => {
+    notifications.scheduleNotificationAsync.mockRejectedValue(new Error('queue is full'));
+
+    await expect(schedulePeriodReminder(date('2026-10-14'))).rejects.toThrow('queue is full');
+  });
+});

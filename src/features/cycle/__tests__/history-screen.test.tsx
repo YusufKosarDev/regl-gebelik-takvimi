@@ -27,6 +27,13 @@ jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
   syncWidgetSnapshot: jest.fn(),
 }));
 
+// The period reminder syncs alongside the widget. Faked so the calls can be
+// counted; it is quiet by contract, so the real one would do nothing here.
+jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
+  syncPeriodReminderQuietly: jest.fn(),
+  syncPeriodReminder: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
@@ -34,6 +41,7 @@ jest.mock('@/utils/today', () => ({
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
 const useRouterMock = useRouter as unknown as jest.Mock;
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 
@@ -65,6 +73,8 @@ beforeEach(() => {
   repository.saveCycleProfile.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+  reminderSync.syncPeriodReminderQuietly.mockReset();
+  reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
 
   back = jest.fn();
   useRouterMock.mockReset();
@@ -1915,5 +1925,71 @@ describe('HistoryScreen widget snapshot sync', () => {
     await renderScreen();
 
     expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('HistoryScreen period reminder sync', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+    );
+  });
+
+  it('syncs after a record is deleted', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-09-25'
+    );
+  });
+
+  it('syncs after a start date is edited', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync when the write failed', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kayıt silinemedi.')).toBeTruthy();
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('keeps the delete successful when the reminder could not be scheduled', async () => {
+    reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Kayıt silinemedi.')).toBeNull();
+  });
+
+  it('does not sync when nothing is changed', async () => {
+    await renderScreen();
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
   });
 });

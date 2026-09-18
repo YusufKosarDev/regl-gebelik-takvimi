@@ -45,12 +45,20 @@ const openAppDatabaseMock = openAppDatabase as unknown as jest.Mock;
 const completeCycleOnboardingMock = completeCycleOnboarding as unknown as jest.Mock;
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
 
 // The widget sync is faked so the screen's calls to it can be counted. It is
 // quiet by contract, so the real one would do nothing under Jest anyway.
 jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
   syncWidgetSnapshotQuietly: jest.fn(),
   syncWidgetSnapshot: jest.fn(),
+}));
+
+// The period reminder syncs alongside the widget. Faked so the calls can be
+// counted; it is quiet by contract, so the real one would do nothing here.
+jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
+  syncPeriodReminderQuietly: jest.fn(),
+  syncPeriodReminder: jest.fn(),
 }));
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 
@@ -75,6 +83,8 @@ beforeEach(() => {
   completeCycleOnboardingMock.mockReset().mockResolvedValue(undefined);
   widgetSync.syncWidgetSnapshotQuietly.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+  reminderSync.syncPeriodReminderQuietly.mockReset();
+  reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
 
   completeOnboarding = jest.fn().mockResolvedValue(undefined);
   useAppStore.setState({
@@ -482,5 +492,46 @@ describe('FinishScreen widget snapshot sync', () => {
     await renderScreen();
 
     expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('FinishScreen period reminder sync', () => {
+  it('syncs once the onboarding write succeeded', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(completeCycleOnboardingMock).toHaveBeenCalledTimes(1);
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-09-17'
+    );
+  });
+
+  it('does not sync when the onboarding write failed', async () => {
+    completeCycleOnboardingMock.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('finishes onboarding even when the reminder could not be scheduled', async () => {
+    reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.submit());
+
+    expect(completeOnboarding).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync when the screen is only shown', async () => {
+    await renderScreen();
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
   });
 });

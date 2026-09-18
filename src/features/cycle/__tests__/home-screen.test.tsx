@@ -44,6 +44,13 @@ jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
   syncWidgetSnapshot: jest.fn(),
 }));
 
+// The period reminder syncs alongside the widget. Faked so the calls can be
+// counted; it is quiet by contract, so the real one would do nothing here.
+jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
+  syncPeriodReminderQuietly: jest.fn(),
+  syncPeriodReminder: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
 }));
@@ -94,6 +101,7 @@ const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
 const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 const appStateStorage = jest.requireMock('@/storage/app-state-storage');
 
@@ -186,6 +194,8 @@ beforeEach(() => {
   avatarRepository.saveAvatarConfig.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+  reminderSync.syncPeriodReminderQuietly.mockReset();
+  reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
 
@@ -4385,5 +4395,102 @@ describe('HomeScreen does not sync for pregnancy changes', () => {
     });
 
     expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HomeScreen period reminder sync', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('syncs once when the screen first loads', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('syncs for the day the screen is showing', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+        expect.anything(),
+        '2026-09-17'
+      );
+    });
+  });
+
+  it('does not sync again on every focus', async () => {
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await refocus();
+    await refocus();
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs after a period start is saved', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(2);
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync when the write failed', async () => {
+    repository.saveCycleProfile.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Regl başlangıcı kaydedilemedi.')).toBeTruthy();
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the save successful when the reminder could not be scheduled', async () => {
+    const screen = await renderScreen();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    // The database write is what the person asked for; it stands.
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Regl başlangıcı kaydedilemedi.')).toBeNull();
+  });
+
+  it('shows the screen even when the reminder sync rejects', async () => {
+    reminderSync.syncPeriodReminderQuietly.mockRejectedValue(new Error('no queue'));
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('Döngü günü')).toBeTruthy();
+    expect(queryByText('Bilgiler yüklenemedi.')).toBeNull();
   });
 });
