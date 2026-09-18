@@ -1,4 +1,8 @@
-import type { PregnancyContentSource, PregnancyWeeklyContent } from '../types';
+import type {
+  PregnancyContentSize,
+  PregnancyContentSource,
+  PregnancyWeeklyContent,
+} from '../types';
 import {
   MAX_PREGNANCY_WEEK,
   MIN_PREGNANCY_WEEK,
@@ -18,8 +22,10 @@ function content(
 ): PregnancyWeeklyContent {
   return {
     week,
-    sizeLabel: `${week} numaralı boy`,
-    sizeComparison: `${week} numaralı karşılaştırma`,
+    size: {
+      label: `${week} numaralı boy`,
+      comparison: `${week} numaralı karşılaştırma`,
+    },
     developmentSummary: `${week}. hafta özeti`,
     developingFeatures: [`${week}. hafta özelliği`],
     sources: [{ name: `${week}. hafta kaynağı`, url: `https://example.test/hafta-${week}` }],
@@ -93,28 +99,22 @@ describe('validatePregnancyWeeklyContent with an unusable week', () => {
 });
 
 describe('validatePregnancyWeeklyContent with blank text', () => {
-  it.each(['sizeLabel', 'sizeComparison', 'developmentSummary'] as const)(
-    'refuses an empty %s',
-    (field) => {
-      expect(() => validatePregnancyWeeklyContent(content(12, { [field]: '' }))).toThrow(
-        new RegExp(`blank ${field}`)
-      );
-    }
-  );
+  it('refuses an empty developmentSummary', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { developmentSummary: '' }))
+    ).toThrow(/blank developmentSummary/);
+  });
 
-  it.each(['sizeLabel', 'sizeComparison', 'developmentSummary'] as const)(
-    'refuses a whitespace-only %s',
-    (field) => {
-      expect(() => validatePregnancyWeeklyContent(content(12, { [field]: '   ' }))).toThrow(
-        new RegExp(`blank ${field}`)
-      );
-    }
-  );
+  it('refuses a whitespace-only developmentSummary', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { developmentSummary: '   ' }))
+    ).toThrow(/blank developmentSummary/);
+  });
 
   it('names the week the blank field belongs to', () => {
-    expect(() => validatePregnancyWeeklyContent(content(7, { sizeLabel: '' }))).toThrow(
-      /for week 7/
-    );
+    expect(() =>
+      validatePregnancyWeeklyContent(content(7, { developmentSummary: '' }))
+    ).toThrow(/for week 7/);
   });
 });
 
@@ -165,7 +165,7 @@ describe('validatePregnancyWeeklyContent purity', () => {
   });
 
   it('leaves it alone even when it rejects it', () => {
-    const week = content(12, { sizeLabel: '' });
+    const week = content(12, { developmentSummary: '' });
     const before = JSON.stringify(week);
 
     expect(() => validatePregnancyWeeklyContent(week)).toThrow();
@@ -597,5 +597,201 @@ describe('the lookup is unchanged by provenance', () => {
     const contents = [content(12, { sources: [] })];
 
     expect(getPregnancyWeeklyContent(contents, 12)).toBe(contents[0]);
+  });
+});
+
+describe('validatePregnancyWeeklyContent with no size', () => {
+  /** A week written without a size, as the earliest weeks will be. */
+  function sizeless(week: number): PregnancyWeeklyContent {
+    const { size, ...rest } = content(week);
+
+    void size;
+
+    return rest;
+  }
+
+  it('accepts a week that has none', () => {
+    expect(() => validatePregnancyWeeklyContent(sizeless(1))).not.toThrow();
+  });
+
+  it('accepts it in any week of the range', () => {
+    for (const week of [MIN_PREGNANCY_WEEK, 2, 3, 20, MAX_PREGNANCY_WEEK]) {
+      expect(() => validatePregnancyWeeklyContent(sizeless(week))).not.toThrow();
+    }
+  });
+
+  it('accepts an explicitly undefined size', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(1, { size: undefined }))
+    ).not.toThrow();
+  });
+
+  it('still requires everything else', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent({ ...sizeless(1), developmentSummary: '' })
+    ).toThrow(/blank developmentSummary/);
+
+    expect(() =>
+      validatePregnancyWeeklyContent({ ...sizeless(1), developingFeatures: [] })
+    ).toThrow(/lists no developing features/);
+
+    expect(() => validatePregnancyWeeklyContent({ ...sizeless(1), sources: [] })).toThrow(
+      /cites no sources/
+    );
+  });
+});
+
+describe('validatePregnancyWeeklyContent with a size', () => {
+  it('accepts a filled-in one', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { size: { label: '5,4 cm', comparison: 'bir erik' } })
+      )
+    ).not.toThrow();
+  });
+
+  it('refuses an empty label', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { size: { label: '', comparison: 'bir erik' } })
+      )
+    ).toThrow(/blank size\.label/);
+  });
+
+  it('refuses a whitespace-only label', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { size: { label: '   ', comparison: 'bir erik' } })
+      )
+    ).toThrow(/blank size\.label/);
+  });
+
+  it('refuses an empty comparison', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { size: { label: '5,4 cm', comparison: '' } }))
+    ).toThrow(/blank size\.comparison/);
+  });
+
+  it('refuses a whitespace-only comparison', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { size: { label: '5,4 cm', comparison: '  ' } })
+      )
+    ).toThrow(/blank size\.comparison/);
+  });
+
+  it('refuses both being blank, naming the label first', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(12, { size: { label: '', comparison: '' } }))
+    ).toThrow(/blank size\.label/);
+  });
+
+  it('refuses a label that is not text', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, {
+          size: { label: 5 as unknown as string, comparison: 'bir erik' },
+        })
+      )
+    ).toThrow(/blank size\.label/);
+  });
+
+  it('refuses a size that is not an object', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { size: '5,4 cm' as unknown as PregnancyContentSize })
+      )
+    ).toThrow(/size that is not an object/);
+  });
+
+  it('refuses a null size', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(
+        content(12, { size: null as unknown as PregnancyContentSize })
+      )
+    ).toThrow(/size that is not an object/);
+  });
+
+  it('names the week the blank size belongs to', () => {
+    expect(() =>
+      validatePregnancyWeeklyContent(content(7, { size: { label: '', comparison: 'bir erik' } }))
+    ).toThrow(/for week 7/);
+  });
+});
+
+describe('size validation purity', () => {
+  it('leaves a week with a size as it found it', () => {
+    const week = content(12, { size: { label: '5,4 cm', comparison: 'bir erik' } });
+    const before = JSON.stringify(week);
+
+    validatePregnancyWeeklyContent(week);
+
+    expect(JSON.stringify(week)).toBe(before);
+  });
+
+  it('leaves a week without one alone', () => {
+    const { size, ...week } = content(1);
+    void size;
+    const before = JSON.stringify(week);
+
+    validatePregnancyWeeklyContent(week);
+
+    expect(JSON.stringify(week)).toBe(before);
+    expect('size' in week).toBe(false);
+  });
+
+  it('does not add a size to a week that has none', () => {
+    const { size, ...week } = content(1);
+    void size;
+
+    validatePregnancyWeeklyContent(week);
+
+    expect((week as PregnancyWeeklyContent).size).toBeUndefined();
+  });
+
+  it('leaves the week alone even when it rejects the size', () => {
+    const week = content(12, { size: { label: '', comparison: 'bir erik' } });
+    const before = JSON.stringify(week);
+
+    expect(() => validatePregnancyWeeklyContent(week)).toThrow();
+
+    expect(JSON.stringify(week)).toBe(before);
+  });
+});
+
+describe('the lookup is unchanged by the optional size', () => {
+  it('finds a week that has no size', () => {
+    const { size, ...sizeless } = content(1);
+    void size;
+    const contents = [sizeless, content(12)];
+
+    expect(getPregnancyWeeklyContent(contents, 1)).toBe(contents[0]);
+    expect(getPregnancyWeeklyContent(contents, 1)?.size).toBeUndefined();
+  });
+
+  it('finds a week that has one', () => {
+    const contents = [content(8), content(12)];
+
+    expect(getPregnancyWeeklyContent(contents, 12)).toBe(contents[1]);
+    expect(getPregnancyWeeklyContent(contents, 12)?.size).toEqual({
+      label: '12 numaralı boy',
+      comparison: '12 numaralı karşılaştırma',
+    });
+  });
+
+  it('still returns null for an unwritten week whatever the others hold', () => {
+    const { size, ...sizeless } = content(1);
+    void size;
+
+    expect(getPregnancyWeeklyContent([sizeless], 9)).toBeNull();
+  });
+
+  it('still refuses a duplicated week', () => {
+    const { size, ...sizeless } = content(12);
+    void size;
+
+    expect(() => getPregnancyWeeklyContent([sizeless, content(12)], 12)).toThrow(
+      /found 2 entries for week 12/
+    );
   });
 });

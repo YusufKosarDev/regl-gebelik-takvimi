@@ -56,16 +56,29 @@ export type PregnancyContentSource = {
 };
 
 /**
+ * How big the pregnancy is in a given week, in words.
+ *
+ * `label` is the measurement itself ("2,5 cm"), `comparison` the everyday thing
+ * it is being held up against. They are separate because a screen may want the
+ * measurement without the comparison, and because a translation will not always
+ * reach for the same object.
+ */
+export type PregnancyContentSize = {
+  readonly label: string;
+  readonly comparison: string;
+};
+
+/**
  * What there is to say about one week of a pregnancy.
  *
  * Content, not measurement: every field is written text meant to be read as-is,
  * and nothing here is calculated from a date. `week` is which week it belongs
  * to, matching the `week` of `PregnancyWeek`.
  *
- * `sizeLabel` is the size itself ("約 2,5 cm"), `sizeComparison` the everyday
- * thing it is being compared to. They are separate because a screen may want the
- * measurement without the comparison, and because a translation will not always
- * keep the same object.
+ * `size` is optional because the earliest weeks do not have one worth stating.
+ * Week 1 is counted from the last menstrual period, before conception, and there
+ * is nothing to measure or compare; a made-up figure would be worse than no
+ * figure, so the type lets a week simply not have one.
  *
  * `sources` is required rather than optional. This is text about someone's
  * pregnancy, and a claim with nothing behind it should not be writable in the
@@ -73,8 +86,7 @@ export type PregnancyContentSource = {
  */
 export type PregnancyWeeklyContent = {
   readonly week: number;
-  readonly sizeLabel: string;
-  readonly sizeComparison: string;
+  readonly size?: PregnancyContentSize;
   readonly developmentSummary: string;
   readonly developingFeatures: readonly string[];
   readonly sources: readonly PregnancyContentSource[];

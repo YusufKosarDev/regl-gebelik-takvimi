@@ -1,4 +1,8 @@
-import type { PregnancyContentSource, PregnancyWeeklyContent } from './types';
+import type {
+  PregnancyContentSize,
+  PregnancyContentSource,
+  PregnancyWeeklyContent,
+} from './types';
 
 /**
  * The weeks a pregnancy is written about.
@@ -30,6 +34,30 @@ function assertText(week: number, field: string, value: string): void {
       `PregnancyWeeklyContent for week ${week} has a blank ${field}: ${JSON.stringify(value)}.`
     );
   }
+}
+
+/**
+ * Checks a week's size, when it has one.
+ *
+ * A week with no size is valid and skipped: the earliest weeks have nothing to
+ * measure, and saying nothing is the honest answer there. A size that is present
+ * has to be complete, because half a comparison reads as a mistake rather than
+ * as restraint.
+ */
+function assertSize(week: number, size: PregnancyContentSize | undefined): void {
+  if (size === undefined) {
+    return;
+  }
+
+  if (typeof size !== 'object' || size === null || Array.isArray(size)) {
+    throw new Error(
+      `PregnancyWeeklyContent for week ${week} has a size that is not an object: ` +
+        `${JSON.stringify(size)}.`
+    );
+  }
+
+  assertText(week, 'size.label', size.label);
+  assertText(week, 'size.comparison', size.comparison);
 }
 
 /**
@@ -100,8 +128,7 @@ function assertSources(week: number, sources: readonly PregnancyContentSource[])
 export function validatePregnancyWeeklyContent(content: PregnancyWeeklyContent): void {
   assertWeek('PregnancyWeeklyContent', content.week);
 
-  assertText(content.week, 'sizeLabel', content.sizeLabel);
-  assertText(content.week, 'sizeComparison', content.sizeComparison);
+  assertSize(content.week, content.size);
   assertText(content.week, 'developmentSummary', content.developmentSummary);
 
   if (!Array.isArray(content.developingFeatures)) {
