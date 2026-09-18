@@ -5,15 +5,15 @@ import {
 import { PREGNANCY_WEEKLY_CONTENT } from '../pregnancy-weekly-content';
 
 describe('PREGNANCY_WEEKLY_CONTENT', () => {
-  it('covers weeks 1 to 20 and nothing else yet', () => {
-    expect(PREGNANCY_WEEKLY_CONTENT).toHaveLength(20);
-    expect(PREGNANCY_WEEKLY_CONTENT.map((entry) => entry.week)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-    ]);
+  it('covers all 40 weeks', () => {
+    expect(PREGNANCY_WEEKLY_CONTENT).toHaveLength(40);
+    expect(PREGNANCY_WEEKLY_CONTENT.map((entry) => entry.week)).toEqual(
+      Array.from({ length: 40 }, (_, index) => index + 1)
+    );
   });
 
   it('leaves no gap in the weeks it covers', () => {
-    for (let week = 1; week <= 20; week += 1) {
+    for (let week = 1; week <= 40; week += 1) {
       expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week)).not.toBeNull();
     }
   });
@@ -54,6 +54,26 @@ describe('PREGNANCY_WEEKLY_CONTENT sizes', () => {
     18: { label: 'yaklaşık 14,2 cm', comparison: 'dolmalık biber' },
     19: { label: 'yaklaşık 15,3 cm', comparison: 'beefsteak domates' },
     20: { label: 'yaklaşık 25,6 cm', comparison: 'muz' },
+    21: { label: 'yaklaşık 26,7 cm', comparison: 'havuç' },
+    22: { label: 'yaklaşık 27,8 cm', comparison: 'tatlı patates' },
+    23: { label: 'yaklaşık 28,9 cm', comparison: 'büyük mango' },
+    24: { label: 'yaklaşık 30 cm', comparison: 'mısır koçanı' },
+    25: { label: 'yaklaşık 34,6 cm', comparison: 'sakız kabağı' },
+    26: { label: 'yaklaşık 35,6 cm', comparison: 'salatalık' },
+    27: { label: 'yaklaşık 36,6 cm', comparison: 'karnabahar' },
+    28: { label: 'yaklaşık 37,6 cm', comparison: 'patlıcan' },
+    29: { label: 'yaklaşık 38,6 cm', comparison: 'butternut kabağı' },
+    30: { label: 'yaklaşık 39,9 cm', comparison: 'lahana' },
+    31: { label: 'yaklaşık 41,1 cm', comparison: 'hindistan cevizi' },
+    32: { label: 'yaklaşık 42,4 cm', comparison: 'bir demet kereviz sapı' },
+    33: { label: 'yaklaşık 43,7 cm', comparison: 'ananas' },
+    34: { label: 'yaklaşık 45 cm', comparison: 'kantalup kavunu' },
+    35: { label: 'yaklaşık 46,2 cm', comparison: 'bal kavunu' },
+    36: { label: 'yaklaşık 47,4 cm', comparison: 'marul' },
+    37: { label: 'yaklaşık 48,6 cm', comparison: 'pırasa' },
+    38: { label: 'yaklaşık 49,8 cm', comparison: 'ravent sapı' },
+    39: { label: 'yaklaşık 50,7 cm', comparison: 'karpuz' },
+    40: { label: 'yaklaşık 51,2 cm', comparison: 'balkabağı' },
   };
 
   it.each(WEEKS_WITHOUT_A_SIZE)('states no size for week %i', (week) => {
@@ -101,7 +121,8 @@ describe('PREGNANCY_WEEKLY_CONTENT provenance', () => {
       const nhs = entry.sources.filter((source) => /^NHS/.test(source.name));
 
       expect(nhs).toHaveLength(1);
-      const range = entry.week <= 12 ? '1-to-12' : '13-to-27';
+      const range =
+        entry.week <= 12 ? '1-to-12' : entry.week <= 27 ? '13-to-27' : '28-to-40-plus';
 
       expect(nhs[0].url).toBe(
         `https://www.nhs.uk/pregnancy/week-by-week/${range}/${entry.week}-weeks/`
@@ -119,7 +140,9 @@ describe('PREGNANCY_WEEKLY_CONTENT provenance', () => {
 
     expect(nhsUrlFor(12)).toContain('/1-to-12/');
     expect(nhsUrlFor(13)).toContain('/13-to-27/');
-    expect(nhsUrlFor(20)).toContain('/13-to-27/');
+    expect(nhsUrlFor(27)).toContain('/13-to-27/');
+    expect(nhsUrlFor(28)).toContain('/28-to-40-plus/');
+    expect(nhsUrlFor(40)).toContain('/28-to-40-plus/');
   });
 
   it('cites both sources on every week from 4 on', () => {
@@ -235,14 +258,25 @@ describe('looking up the weeks that are written', () => {
     expect(found?.week).toBe(week);
   });
 
-  it('returns null for week 21, which is not written yet', () => {
-    expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 21)).toBeNull();
+  it.each([21, 22, 23, 24, 25, 26, 27, 28, 29, 30])('finds week %i', (week) => {
+    const found = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week);
+
+    expect(found).not.toBeNull();
+    expect(found?.week).toBe(week);
   });
 
-  it('returns null for every week beyond the twentieth', () => {
-    for (let week = 21; week <= 40; week += 1) {
-      expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week)).toBeNull();
-    }
+  it.each([31, 32, 33, 34, 35, 36, 37, 38, 39, 40])('finds week %i', (week) => {
+    const found = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week);
+
+    expect(found).not.toBeNull();
+    expect(found?.week).toBe(week);
+  });
+
+  it('refuses week 41, which is past the range the domain covers', () => {
+    // 40 is the last week there is content for and the last the domain accepts.
+    expect(() => getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 41)).toThrow(
+      /between 1 and 40/
+    );
   });
 
   it('hands back the entry the list holds', () => {
@@ -268,10 +302,10 @@ describe('PREGNANCY_WEEKLY_CONTENT stays as written', () => {
 
   it('keeps its order', () => {
     getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 3);
-    getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 20);
+    getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 40);
 
-    expect(PREGNANCY_WEEKLY_CONTENT.map((entry) => entry.week)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-    ]);
+    expect(PREGNANCY_WEEKLY_CONTENT.map((entry) => entry.week)).toEqual(
+      Array.from({ length: 40 }, (_, index) => index + 1)
+    );
   });
 });

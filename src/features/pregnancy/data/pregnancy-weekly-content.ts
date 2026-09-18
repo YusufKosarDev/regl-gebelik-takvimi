@@ -3,9 +3,9 @@ import type { PregnancyContentSource, PregnancyWeeklyContent } from '../domain/t
 /**
  * Written content for the weeks of a pregnancy.
  *
- * Weeks 1 to 20 so far. A week is added when there is a source that supports
- * what it would say, not to fill the table: `getPregnancyWeeklyContent` answers
- * `null` for a week that is not here, which is the honest answer.
+ * All 40 weeks. A week was added when there was a source that supports what it
+ * says, not to fill the table; `getPregnancyWeeklyContent` still answers `null`
+ * beyond week 40, which is where the sources stop.
  *
  * Every entry cites where its claims come from, and the Turkish text is written
  * from the source rather than copied out of it. Nothing is stated that the cited
@@ -16,6 +16,13 @@ import type { PregnancyContentSource, PregnancyWeeklyContent } from '../domain/t
  * is cited alongside as corroboration for the same stage. The two do not always
  * put a milestone in exactly the same week — week-by-week guides rarely do — so
  * where they differ, the week here is the NHS one.
+ *
+ * The NHS does not measure the same way throughout, and says so on the pages:
+ * lengths are given "from head to bottom" up to week 19, "from head to toe" in
+ * weeks 21 and 22, and "from head to heel" from week 23 on. Week 20 is given
+ * with no qualifier at all. The figures here are recorded as each page states
+ * them, which is why they jump between week 19 and week 21; no attempt is made
+ * to convert them to a common basis or to explain a change the source does not.
  *
  * Weeks 1 to 3 carry no `size` on purpose. Gestational age is counted from the
  * last menstrual period, so week 1 precedes conception entirely and week 3 is
@@ -32,10 +39,10 @@ const CLEVELAND_CLINIC = {
  * The NHS page for one week, which is where that week's size and stage come
  * from.
  *
- * The guide is split into trimester ranges, so the path depends on the week.
+ * The guide is split into three ranges, so the path depends on the week.
  */
 function nhsWeek(week: number): PregnancyContentSource {
-  const range = week <= 12 ? '1-to-12' : '13-to-27';
+  const range = week <= 12 ? '1-to-12' : week <= 27 ? '13-to-27' : '28-to-40-plus';
 
   return {
     name: `NHS — You and your baby at ${week} weeks pregnant`,
@@ -308,5 +315,247 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
       'Vücut vernix adı verilen beyaz yağlı tabakayla kaplanır',
     ],
     sources: [nhsWeek(20), CLEVELAND_CLINIC],
+  },
+  {
+    week: 21,
+    size: { label: 'yaklaşık 26,7 cm', comparison: 'havuç' },
+    developmentSummary:
+      'Bebek artık rahim dışındaki sesleri ve konuşmaları duyabilir. Saç ve kaşlar ' +
+      'gelişmeye devam eder; bebek plasentadan daha ağır hale gelir.',
+    developingFeatures: [
+      'Rahim dışındaki sesleri ve konuşmaları duyabilir',
+      'Saç ve kaşlar gelişir',
+      'Artık plasentadan daha ağırdır',
+    ],
+    sources: [nhsWeek(21), CLEVELAND_CLINIC],
+  },
+  {
+    week: 22,
+    size: { label: 'yaklaşık 27,8 cm', comparison: 'tatlı patates' },
+    developmentSummary:
+      'Akciğerler gelişir ve bebek rahim içinde nefes alma provası yapar. Az miktarda ' +
+      'amniyon sıvısı yutulur; tat tomurcukları gelişmeye devam eder.',
+    developingFeatures: [
+      'Akciğerler gelişir ve nefes alma provası yapılır',
+      'Az miktarda amniyon sıvısı yutulur',
+      'Tat tomurcukları gelişir',
+    ],
+    sources: [nhsWeek(22), CLEVELAND_CLINIC],
+  },
+  {
+    week: 23,
+    size: { label: 'yaklaşık 28,9 cm', comparison: 'büyük mango' },
+    developmentSummary:
+      'Bebek nefes alma provasını sürdürür ve uyku-uyanıklık düzeni oluşmaya başlar. ' +
+      'Kol ve bacaklar artık gövdeyle orantılıdır.',
+    developingFeatures: [
+      'Nefes alma provası sürer',
+      'Uyku ve uyanıklık düzeni oluşur',
+      'Kol ve bacaklar gövdeyle orantılı hale gelir',
+    ],
+    sources: [nhsWeek(23), CLEVELAND_CLINIC],
+  },
+  {
+    week: 24,
+    size: { label: 'yaklaşık 30 cm', comparison: 'mısır koçanı' },
+    developmentSummary:
+      'Bebek bu haftadan itibaren "yaşayabilir" kabul edilir: şimdi doğacak olsa uygun ' +
+      'destekle rahim dışında yaşama şansı vardır.',
+    developingFeatures: ['Şimdi doğarsa uygun destekle yaşama şansı vardır'],
+    sources: [nhsWeek(24), CLEVELAND_CLINIC],
+  },
+  {
+    week: 25,
+    size: { label: 'yaklaşık 34,6 cm', comparison: 'sakız kabağı' },
+    developmentSummary:
+      'Hareketli bir dönemdir: yüksek bir ses bebeği sıçratıp tekme attırabilir, hatta ' +
+      'zaman zaman hıçkırık hissedilebilir. Etraftaki sıvının çoğu artık bebeğin idrarıdır.',
+    developingFeatures: [
+      'Yüksek seslere sıçrayarak ve tekme atarak tepki verir',
+      'Hıçkırık hissedilebilir',
+      'Amniyon sıvısının çoğu artık bebeğin idrarıdır',
+    ],
+    sources: [nhsWeek(25), CLEVELAND_CLINIC],
+  },
+  {
+    week: 26,
+    size: { label: 'yaklaşık 35,6 cm', comparison: 'salatalık' },
+    developmentSummary:
+      'Gözler bu sıralarda ilk kez açılır; sıradaki adım göz kırpmayı öğrenmektir. ' +
+      'Rahim içinde hareketlilik yoğundur.',
+    developingFeatures: [
+      'Gözler ilk kez açılır',
+      'Göz kırpmayı öğrenmeye başlar',
+      'Hareketler yoğundur',
+    ],
+    sources: [nhsWeek(26), CLEVELAND_CLINIC],
+  },
+  {
+    week: 27,
+    size: { label: 'yaklaşık 36,6 cm', comparison: 'karnabahar' },
+    developmentSummary:
+      'Akciğerler artık nefes alabilecek düzeydedir. Deri kıvrımları yağla dolarken tüm ' +
+      'organlar rahim dışındaki yaşama hazırlanarak olgunlaşır.',
+    developingFeatures: [
+      'Akciğerler nefes alabilecek düzeye gelir',
+      'Deri altı yağ dokusu artar',
+      'Organlar olgunlaşmayı sürdürür',
+    ],
+    sources: [nhsWeek(27), CLEVELAND_CLINIC],
+  },
+  {
+    week: 28,
+    size: { label: 'yaklaşık 37,6 cm', comparison: 'patlıcan' },
+    developmentSummary:
+      'Kalp atış hızı gebelik boyunca değişir: ilk haftalardaki yüksek hızdan sonra bu ' +
+      'sıralarda dakikada yaklaşık 140 atıma iner ve doğumda yaklaşık 130 olacaktır.',
+    developingFeatures: [
+      'Kalp atış hızı dakikada yaklaşık 140 atıma iner',
+      'Doğumda yaklaşık 130 atım/dakika olması beklenir',
+    ],
+    sources: [nhsWeek(28), CLEVELAND_CLINIC],
+  },
+  {
+    week: 29,
+    size: { label: 'yaklaşık 38,6 cm', comparison: 'butternut kabağı' },
+    developmentSummary:
+      'Bebek artık tam olarak şekillenmiştir; önündeki haftalarda organlarını olgunlaştırıp ' +
+      'yağ depolayacaktır. Deriyi kaplayan vernix tabakası azalmaya başlar.',
+    developingFeatures: [
+      'Organlar olgunlaşmaya devam eder',
+      'Yağ depolanması sürer',
+      'Vernix tabakası azalmaya başlar',
+    ],
+    sources: [nhsWeek(29), CLEVELAND_CLINIC],
+  },
+  {
+    week: 30,
+    size: { label: 'yaklaşık 39,9 cm', comparison: 'lahana' },
+    developmentSummary:
+      'Gözler artık odaklanabilir. Görme yetisi hem rahim içinde hem de doğumdan sonra ' +
+      'gelişmeye devam edecektir.',
+    developingFeatures: ['Gözler odaklanabilir', 'Görme gelişmeye devam eder'],
+    sources: [nhsWeek(30), CLEVELAND_CLINIC],
+  },
+  {
+    week: 31,
+    size: { label: 'yaklaşık 41,1 cm', comparison: 'hindistan cevizi' },
+    developmentSummary:
+      'Bebek her geçen gün yağlanır ve daha az kırışık görünür. Rahim dışındaki sesleri ' +
+      'tanımaya başlar; parmaklarını emip takla atacak kadar hareketlidir.',
+    developingFeatures: [
+      'Yağlanarak daha az kırışık görünür',
+      'Rahim dışındaki sesleri tanımaya başlar',
+      'Parmaklarını emer ve takla atar',
+    ],
+    sources: [nhsWeek(31), CLEVELAND_CLINIC],
+  },
+  {
+    week: 32,
+    size: { label: 'yaklaşık 42,4 cm', comparison: 'bir demet kereviz sapı' },
+    developmentSummary:
+      'Bebek yağ depolayarak kilo alır; bu yağlanma doğumdan sonra vücut ısısını ' +
+      'korumasına yardımcı olacaktır. Genellikle bu sıralarda doğum için baş aşağı ' +
+      'pozisyona geçer.',
+    developingFeatures: [
+      'Yağ depolayarak kilo alır',
+      'Genellikle baş aşağı pozisyona geçer',
+      'Yağlanma doğum sonrası ısı dengesine yardım eder',
+    ],
+    sources: [nhsWeek(32), CLEVELAND_CLINIC],
+  },
+  {
+    week: 33,
+    size: { label: 'yaklaşık 43,7 cm', comparison: 'ananas' },
+    developmentSummary:
+      'Beyin ve sinir sistemi tamamen gelişmiştir. Kemikler sertleşir; kafatası kemikleri ' +
+      'ise bebek yaklaşık 12–18 aylık olana kadar yumuşak ve birbirinden ayrık kalır.',
+    developingFeatures: [
+      'Beyin ve sinir sistemi tamamlanır',
+      'Kemikler sertleşir',
+      'Kafatası kemikleri yumuşak ve ayrık kalır',
+    ],
+    sources: [nhsWeek(33), CLEVELAND_CLINIC],
+  },
+  {
+    week: 34,
+    size: { label: 'yaklaşık 45 cm', comparison: 'kantalup kavunu' },
+    developmentSummary:
+      'Erkek bebeklerde testisler karın boşluğundan skrotuma inmeye başlar.',
+    developingFeatures: ['Erkek bebeklerde testisler skrotuma iner'],
+    sources: [nhsWeek(34), CLEVELAND_CLINIC],
+  },
+  {
+    week: 35,
+    size: { label: 'yaklaşık 46,2 cm', comparison: 'bal kavunu' },
+    developmentSummary:
+      'Bebek yağlanmayı sürdürür; bu sayede doğduğunda vücut ısısını daha kolay ' +
+      'koruyabilecektir.',
+    developingFeatures: [
+      'Yağlanmaya devam eder',
+      'Yağ dokusu doğum sonrası ısı dengesine yardım eder',
+    ],
+    sources: [nhsWeek(35), CLEVELAND_CLINIC],
+  },
+  {
+    week: 36,
+    size: { label: 'yaklaşık 47,4 cm', comparison: 'marul' },
+    developmentSummary:
+      'Akciğerler büyük olasılıkla rahim dışında desteksiz nefes alabilecek olgunluktadır. ' +
+      'Bebek anne sütünü emip sindirebilir.',
+    developingFeatures: [
+      'Akciğerler desteksiz nefes alabilecek olgunluğa ulaşır',
+      'Anne sütünü emip sindirebilir',
+    ],
+    sources: [nhsWeek(36), CLEVELAND_CLINIC],
+  },
+  {
+    week: 37,
+    size: { label: 'yaklaşık 48,6 cm', comparison: 'pırasa' },
+    developmentSummary:
+      'Bebek kaş çatmak ve gülümsemek gibi farklı yüz ifadeleri dener. Bebeklerin büyük ' +
+      'çoğunluğu artık doğum için en uygun konum olan baş aşağı pozisyondadır.',
+    developingFeatures: [
+      'Farklı yüz ifadeleri dener',
+      'Bebeklerin çoğu doğum için baş aşağı pozisyondadır',
+    ],
+    sources: [nhsWeek(37), CLEVELAND_CLINIC],
+  },
+  {
+    week: 38,
+    size: { label: 'yaklaşık 49,8 cm', comparison: 'ravent sapı' },
+    developmentSummary:
+      'Vücudu kaplayan ince lanugo tüylerinin çoğu dökülmüştür. Bağırsaklarda, doğumdan ' +
+      'sonra ilk dışkı olarak çıkacak olan mekonyum birikir.',
+    developingFeatures: [
+      'Lanugo tüylerinin çoğu dökülür',
+      'Bağırsaklarda mekonyum birikir',
+    ],
+    sources: [nhsWeek(38), CLEVELAND_CLINIC],
+  },
+  {
+    week: 39,
+    size: { label: 'yaklaşık 50,7 cm', comparison: 'karpuz' },
+    developmentSummary:
+      'Neredeyse saydam olan deri, organları daha iyi koruyan ve ısı dengesine yardımcı ' +
+      'olan daha kalın bir katman kazanır. Deri, vernix adı verilen beyaz mumsu tabakayla ' +
+      'kaplıdır.',
+    developingFeatures: [
+      'Deri kalınlaşarak organları daha iyi korur',
+      'Vernix tabakası deriyi korur ve doğumu kolaylaştırır',
+    ],
+    sources: [nhsWeek(39), CLEVELAND_CLINIC],
+  },
+  {
+    week: 40,
+    size: { label: 'yaklaşık 51,2 cm', comparison: 'balkabağı' },
+    developmentSummary:
+      'Rahimde yer iyice daralmıştır ve bebek sıkışık durumdadır; yine de hareketleri her ' +
+      'zamanki düzeninde sürmelidir.',
+    developingFeatures: [
+      'Rahimde yer daraldığı için sıkışıktır',
+      'Hareketler her zamanki düzeninde sürer',
+    ],
+    sources: [nhsWeek(40), CLEVELAND_CLINIC],
   },
 ] as const;
