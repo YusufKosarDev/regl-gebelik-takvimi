@@ -1,3 +1,5 @@
+import { describeValue } from '@/shared/logging';
+
 /**
  * One choice a person can make about their avatar.
  *
@@ -29,14 +31,14 @@ export function getAvatarOption(
   id: string
 ): AvatarOption | null {
   if (typeof id !== 'string') {
-    throw new Error(`getAvatarOption received an id that is not text: ${JSON.stringify(id)}.`);
+    throw new Error(`getAvatarOption received an id that is not text: ${describeValue(id)}.`);
   }
 
   const matches = options.filter((option) => option.id === id);
 
   if (matches.length > 1) {
     throw new Error(
-      `getAvatarOption found ${matches.length} options with the id ${JSON.stringify(id)}; ` +
+      `getAvatarOption found ${matches.length} options with the same id; ` +
         'at most 1 is valid.'
     );
   }

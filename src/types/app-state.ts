@@ -1,3 +1,5 @@
+import { describeValue } from '@/shared/logging';
+
 /**
  * Minimum global application state.
  *
@@ -39,13 +41,13 @@ export function isAppMode(value: string): value is AppMode {
  */
 export function validateAppState(state: AppState): void {
   if (typeof state.mode !== 'string' || !isAppMode(state.mode)) {
-    throw new Error(`Invalid AppState mode: ${JSON.stringify(state.mode)}.`);
+    throw new Error(`Invalid AppState mode: ${describeValue(state.mode)}.`);
   }
 
   if (typeof state.onboardingCompleted !== 'boolean') {
     throw new Error(
       `AppState onboardingCompleted must be a boolean, received ` +
-        `${JSON.stringify(state.onboardingCompleted)}.`
+        `${describeValue(state.onboardingCompleted)}.`
     );
   }
 }

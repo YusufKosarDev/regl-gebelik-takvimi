@@ -98,10 +98,10 @@ describe('validateAppState', () => {
     );
   });
 
-  it('names the offending value in the error', () => {
+  it('says what kind of value it refused, not the value', () => {
     const corrupt = { mode: 'sleep', onboardingCompleted: false } as unknown as AppState;
 
-    expect(() => validateAppState(corrupt)).toThrow('Invalid AppState mode: "sleep".');
+    expect(() => validateAppState(corrupt)).toThrow('Invalid AppState mode: text.');
   });
 
   it('does not mutate the state it is given', () => {

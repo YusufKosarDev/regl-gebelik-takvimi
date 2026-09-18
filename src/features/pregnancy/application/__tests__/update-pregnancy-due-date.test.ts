@@ -136,7 +136,7 @@ describe('updatePregnancyDueDate adjusting the date', () => {
         source: 'adjusted',
         today: TODAY,
       })
-    ).rejects.toThrow(/before the pregnancy began on 2026-09-02/);
+    ).rejects.toThrow(/before the pregnancy began/);
 
     expect(savePregnancyProfile).not.toHaveBeenCalled();
   });
@@ -191,7 +191,7 @@ describe('updatePregnancyDueDate going back to the calculated date', () => {
         source: 'lmp',
         today: TODAY,
       })
-    ).rejects.toThrow(/2026-09-02 gives 2027-06-09/);
+    ).rejects.toThrow(/not the one counted from the last menstrual period/);
 
     expect(savePregnancyProfile).not.toHaveBeenCalled();
   });

@@ -4,6 +4,7 @@ import type { CyclePhase } from '@/features/cycle/domain/phases';
 import { isCyclePhase } from '@/features/cycle/domain/phases';
 import type { ISODate } from '@/types/iso-date';
 import { isISODate } from '@/utils/date';
+import { describeValue } from '@/shared/logging';
 
 /**
  * What a home screen widget is told, version 1.
@@ -46,14 +47,14 @@ export type WidgetSnapshotV1 = {
 export const WIDGET_SNAPSHOT_VERSION = 1;
 
 function fail(field: string, value: unknown, reason: string): never {
-  throw new Error(`WidgetSnapshotV1 has ${reason} ${field}: ${JSON.stringify(value)}.`);
+  throw new Error(`WidgetSnapshotV1 has ${reason} ${field}: ${describeValue(value)}.`);
 }
 
 function assertVersion(version: unknown): void {
   if (version !== WIDGET_SNAPSHOT_VERSION) {
     throw new Error(
       `WidgetSnapshotV1 expects version ${WIDGET_SNAPSHOT_VERSION}, received ` +
-        `${JSON.stringify(version)}.`
+        `${typeof version === 'number' ? version : describeValue(version)}.`
     );
   }
 }
@@ -125,7 +126,7 @@ function assertMoodLabels(moodLabels: unknown): void {
     const mood = (label as string).trim();
 
     if (seen.has(mood)) {
-      throw new Error(`WidgetSnapshotV1 lists ${JSON.stringify(mood)} more than once.`);
+      throw new Error('WidgetSnapshotV1 lists the same mood label more than once.');
     }
 
     seen.add(mood);
@@ -169,7 +170,7 @@ function assertAvatar(avatar: unknown): void {
 export function validateWidgetSnapshotV1(snapshot: WidgetSnapshotV1): void {
   if (typeof snapshot !== 'object' || snapshot === null || Array.isArray(snapshot)) {
     throw new Error(
-      `validateWidgetSnapshotV1 received something that is not a snapshot: ${JSON.stringify(
+      `validateWidgetSnapshotV1 received something that is not a snapshot: ${describeValue(
         snapshot
       )}.`
     );
@@ -218,7 +219,7 @@ export function serializeWidgetSnapshotV1(snapshot: WidgetSnapshotV1): string {
 export function parseWidgetSnapshotV1(json: string): WidgetSnapshotV1 {
   if (typeof json !== 'string') {
     throw new Error(
-      `parseWidgetSnapshotV1 expects text, received ${JSON.stringify(json)}.`
+      `parseWidgetSnapshotV1 expects text, received ${describeValue(json)}.`
     );
   }
 
@@ -226,12 +227,10 @@ export function parseWidgetSnapshotV1(json: string): WidgetSnapshotV1 {
 
   try {
     parsed = JSON.parse(json);
-  } catch (error) {
-    throw new Error(
-      `parseWidgetSnapshotV1 could not read the snapshot as JSON: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+  } catch {
+    // The parser quotes the text it choked on, and that text is the snapshot,
+    // so its message is dropped rather than wrapped.
+    throw new Error('parseWidgetSnapshotV1 could not read the snapshot as JSON.');
   }
 
   validateWidgetSnapshotV1(parsed as WidgetSnapshotV1);

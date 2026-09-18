@@ -87,7 +87,7 @@ function parseParts(value: string): { year: number; month: number; day: number }
 function toDayNumber(date: ISODate): number {
   const parts = parseParts(date);
   if (!parts) {
-    throw new Error(`Invalid ISODate: "${date}".`);
+    throw new Error('Invalid ISODate. Expected a real calendar date in YYYY-MM-DD format.');
   }
 
   return daysFromCivil(parts.year, parts.month, parts.day);
@@ -105,7 +105,7 @@ export function isISODate(value: string): boolean {
 export function toISODate(value: string): ISODate {
   if (!isISODate(value)) {
     throw new Error(
-      `Invalid ISO date: "${value}". Expected a real calendar date in YYYY-MM-DD format.`
+      'Invalid ISO date. Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
@@ -120,7 +120,7 @@ export function toISODate(value: string): ISODate {
  */
 export function formatLocalDate(year: number, month: number, day: number): ISODate {
   if (!isValidYmd(year, month, day)) {
-    throw new Error(`Invalid calendar date: year=${year}, month=${month}, day=${day}.`);
+    throw new Error('Invalid calendar date.');
   }
 
   return `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}` as ISODate;
@@ -207,7 +207,7 @@ export function getYearMonth(date: ISODate): { year: number; month: number } {
   const parts = parseParts(date);
 
   if (!parts) {
-    throw new Error(`Invalid ISODate: "${date}".`);
+    throw new Error('Invalid ISODate. Expected a real calendar date in YYYY-MM-DD format.');
   }
 
   return { year: parts.year, month: parts.month };
@@ -218,7 +218,7 @@ export function getDayOfMonth(date: ISODate): number {
   const parts = parseParts(date);
 
   if (!parts) {
-    throw new Error(`Invalid ISODate: "${date}".`);
+    throw new Error('Invalid ISODate. Expected a real calendar date in YYYY-MM-DD format.');
   }
 
   return parts.day;

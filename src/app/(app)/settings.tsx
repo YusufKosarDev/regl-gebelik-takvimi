@@ -25,6 +25,7 @@ import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/app
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 const LOAD_ERROR_MESSAGE = 'Ayarlar yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Ayarlar kaydedilemedi.';
@@ -119,9 +120,7 @@ export default function SettingsScreen() {
           setPeriodLength(data.settings.averagePeriodLengthDays);
         }
       } catch (error) {
-        if (__DEV__) {
-          console.error('[settings] could not load the cycle settings', error);
-        }
+        logEvent('cycle settings load failed', error);
 
         if (!isActive) {
           return;
@@ -199,9 +198,7 @@ export default function SettingsScreen() {
         setReminderNotice(PERMISSION_DENIED_MESSAGE);
       }
     } catch (error) {
-      if (__DEV__) {
-        console.error('[settings] could not change the reminder', error);
-      }
+      logEvent('notification preference change failed', error);
 
       setReminderNotice(REMINDER_ERROR_MESSAGE);
     } finally {
@@ -238,9 +235,7 @@ export default function SettingsScreen() {
       // the predictions the new settings produce.
       router.back();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[settings] could not save the cycle settings', error);
-      }
+      logEvent('cycle settings save failed', error);
 
       // The screen stays as it is with the error, so the values that were
       // rejected are still there to correct or try again.

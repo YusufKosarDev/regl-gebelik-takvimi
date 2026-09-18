@@ -35,20 +35,20 @@ export async function addPeriodStart(
 
   if (!isISODate(startDate)) {
     throw new Error(
-      `addPeriodStart received an invalid startDate: "${startDate}". ` +
+      `addPeriodStart received an invalid startDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (!isISODate(today)) {
     throw new Error(
-      `addPeriodStart received an invalid today: "${today}". ` +
+      `addPeriodStart received an invalid today. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (daysBetween(startDate, today) < 0) {
-    throw new Error(`addPeriodStart cannot record ${startDate}, which is in the future.`);
+    throw new Error('addPeriodStart cannot record a start date in the future.');
   }
 
   const profile = await loadCycleProfile(db);
@@ -58,7 +58,7 @@ export async function addPeriodStart(
   }
 
   if (profile.periodRecords.some((record) => record.startDate === startDate)) {
-    throw new Error(`addPeriodStart found a period already recorded on ${startDate}.`);
+    throw new Error('addPeriodStart found a period already recorded on that date.');
   }
 
   // One period at a time. Without this a second start could be added while the

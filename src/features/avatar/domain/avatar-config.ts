@@ -1,3 +1,5 @@
+import { describeValue } from '@/shared/logging';
+
 /**
  * Which avatar a person chose, as ids rather than as pictures.
  *
@@ -41,14 +43,14 @@ const REQUIRED_FIELDS = [
 function assertId(field: string, value: unknown): void {
   if (typeof value !== 'string') {
     throw new Error(
-      `AvatarConfig has a ${field} that is not text: ${JSON.stringify(value)}.`
+      `AvatarConfig has a ${field} that is not text: ${describeValue(value)}.`
     );
   }
 
   // Whitespace counts as blank: an id of spaces names nothing, and it would
   // survive as far as a catalogue lookup that could only miss.
   if (value.trim() === '') {
-    throw new Error(`AvatarConfig has a blank ${field}: ${JSON.stringify(value)}.`);
+    throw new Error(`AvatarConfig has a blank ${field}.`);
   }
 }
 
@@ -64,9 +66,9 @@ function assertId(field: string, value: unknown): void {
  */
 export function validateAvatarConfig(config: AvatarConfig): void {
   if (typeof config !== 'object' || config === null || Array.isArray(config)) {
-    throw new Error(`validateAvatarConfig received something that is not an avatar: ${
-      JSON.stringify(config)
-    }.`);
+    throw new Error(
+      `validateAvatarConfig received something that is not an avatar: ${describeValue(config)}.`
+    );
   }
 
   REQUIRED_FIELDS.forEach((field) => {

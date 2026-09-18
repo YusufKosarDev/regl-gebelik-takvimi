@@ -88,7 +88,7 @@ describe('startPregnancyTracking with a date it refuses', () => {
   it('refuses a last menstrual period in the future', async () => {
     await expect(
       startPregnancyTracking(db, { lmp: date('2026-09-19'), today: TODAY })
-    ).rejects.toThrow(/2026-09-19, which is in the future/);
+    ).rejects.toThrow(/cannot start from a date in the future/);
 
     expect(savePregnancyProfile).not.toHaveBeenCalled();
   });

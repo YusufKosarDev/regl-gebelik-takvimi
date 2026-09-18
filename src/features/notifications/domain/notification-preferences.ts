@@ -1,3 +1,5 @@
+import { describeValue } from '@/shared/logging';
+
 /**
  * Which reminders a person has asked for.
  *
@@ -47,7 +49,7 @@ export function validateNotificationPreferences(preferences: NotificationPrefere
     Array.isArray(preferences)
   ) {
     throw new Error(
-      `validateNotificationPreferences received something that is not preferences: ${JSON.stringify(
+      `validateNotificationPreferences received something that is not preferences: ${describeValue(
         preferences
       )}.`
     );
@@ -56,7 +58,7 @@ export function validateNotificationPreferences(preferences: NotificationPrefere
   FIELDS.forEach((field) => {
     if (typeof preferences[field] !== 'boolean') {
       throw new Error(
-        `NotificationPreferences has a non-boolean ${field}: ${JSON.stringify(preferences[field])}.`
+        `NotificationPreferences has a non-boolean ${field}: ${describeValue(preferences[field])}.`
       );
     }
   });
@@ -77,7 +79,7 @@ export function withReminder(
   validateNotificationPreferences(preferences);
 
   if (typeof enabled !== 'boolean') {
-    throw new Error(`withReminder expects a boolean, received ${JSON.stringify(enabled)}.`);
+    throw new Error(`withReminder expects a boolean, received ${describeValue(enabled)}.`);
   }
 
   return { ...preferences, [field]: enabled };

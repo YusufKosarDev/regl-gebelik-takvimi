@@ -134,7 +134,7 @@ describe('endCurrentPeriod date order', () => {
 
     await expect(
       endCurrentPeriod(db, { endDate: '2026-09-16' as ISODate, today: TODAY })
-    ).rejects.toThrow(/before it started on 2026-09-17/);
+    ).rejects.toThrow(/cannot end a period before it started/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -171,7 +171,7 @@ describe('endCurrentPeriod duration rule', () => {
 
     await expect(
       endCurrentPeriod(db, { endDate: '2026-09-21' as ISODate, today: '2026-09-21' as ISODate })
-    ).rejects.toThrow(/spans 21 days, which exceeds the maximum of 20/);
+    ).rejects.toThrow(/spans more than the maximum of 20 days/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });

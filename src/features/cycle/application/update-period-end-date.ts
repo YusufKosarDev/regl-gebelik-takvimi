@@ -46,7 +46,7 @@ export async function updatePeriodEndDate(
 
   if (!isISODate(today)) {
     throw new Error(
-      `updatePeriodEndDate received an invalid today: "${today}". ` +
+      `updatePeriodEndDate received an invalid today. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
@@ -54,13 +54,13 @@ export async function updatePeriodEndDate(
   if (endDate !== undefined) {
     if (!isISODate(endDate)) {
       throw new Error(
-        `updatePeriodEndDate received an invalid endDate: "${endDate}". ` +
+        `updatePeriodEndDate received an invalid endDate. ` +
           'Expected a real calendar date in YYYY-MM-DD format.'
       );
     }
 
     if (daysBetween(endDate, today) < 0) {
-      throw new Error(`updatePeriodEndDate cannot record ${endDate}, which is in the future.`);
+      throw new Error('updatePeriodEndDate cannot record an end date in the future.');
     }
   }
 
@@ -73,19 +73,18 @@ export async function updatePeriodEndDate(
   const target = profile.periodRecords.find((record) => record.id === recordId);
 
   if (target === undefined) {
-    throw new Error(`updatePeriodEndDate found no period record with id "${recordId}".`);
+    throw new Error('updatePeriodEndDate found no period record with that id.');
   }
 
   if (target.isOngoing) {
     throw new Error(
-      `updatePeriodEndDate cannot edit "${recordId}" while it is ongoing; end it instead.`
+      'updatePeriodEndDate cannot edit a record while it is ongoing; end it instead.'
     );
   }
 
   if (endDate !== undefined && daysBetween(target.startDate, endDate) < 0) {
     throw new Error(
-      `updatePeriodEndDate cannot end a period on ${endDate}, ` +
-        `before it started on ${target.startDate}.`
+      'updatePeriodEndDate cannot end a period before it started.'
     );
   }
 

@@ -292,7 +292,7 @@ describe('loadPregnancyProfile with a corrupt row', () => {
     const spy = createDatabaseSpy(row({ due_date_source: 'scan' }));
 
     await expect(loadPregnancyProfile(spy.db)).rejects.toThrow(
-      /invalid due_date_source: "scan"/
+      /invalid due_date_source: text/
     );
   });
 
@@ -460,5 +460,67 @@ describe('clearPregnancyProfile', () => {
     const spy = createDatabaseSpy(null, new Error('disk is full'));
 
     await expect(clearPregnancyProfile(spy.db)).rejects.toThrow('disk is full');
+  });
+});
+
+describe('what a pregnancy repository error gives away', () => {
+  /** Everything a message must not contain, whatever went wrong. */
+  function expectNoLeak(message: string) {
+    expect(message).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(message).not.toMatch(/scan|lmp-ish|2027/);
+  }
+
+  it('says a column is not text without quoting what was in it', async () => {
+    const spy = createDatabaseSpy(row({ estimated_due_date: 20270609 }));
+
+    await expect(loadPregnancyProfile(spy.db)).rejects.toThrow(
+      'Stored pregnancy profile has a non-text estimated_due_date: a number.'
+    );
+  });
+
+  it.each([
+    ['an unknown source', { due_date_source: 'scan' }],
+    ['a due date that is not a date', { estimated_due_date: '2027-13-40' }],
+    ['a start date that is not a date', { last_menstrual_period_start_date: '2026-02-30' }],
+    ['a due date that disagrees with its source', { estimated_due_date: '2027-06-10' }],
+  ])('leaks nothing for %s', async (_label, overrides) => {
+    const spy = createDatabaseSpy(row(overrides));
+
+    await expect(loadPregnancyProfile(spy.db)).rejects.toThrow();
+
+    const error = await loadPregnancyProfile(spy.db).then(
+      () => {
+        throw new Error('expected a rejection');
+      },
+      (thrown: unknown) => thrown as Error
+    );
+
+    expectNoLeak(error.message);
+  });
+
+  it('leaks nothing when a write is refused', async () => {
+    const spy = createDatabaseSpy();
+
+    const error = await savePregnancyProfile(spy.db, {
+      lastMenstrualPeriodStartDate: date(LMP),
+      estimatedDueDate: date('2027-06-10'),
+      dueDateSource: 'lmp',
+    }).then(
+      () => {
+        throw new Error('expected a rejection');
+      },
+      (thrown: unknown) => thrown as Error
+    );
+
+    expectNoLeak(error.message);
+    expect(spy.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('still binds the real values, which belong in the database', async () => {
+    const spy = createDatabaseSpy();
+
+    await savePregnancyProfile(spy.db, fromLmp());
+
+    expect(spy.runAsync.mock.calls[0]).toContain(LMP);
   });
 });

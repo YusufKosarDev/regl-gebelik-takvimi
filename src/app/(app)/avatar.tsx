@@ -21,6 +21,7 @@ import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-wi
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 const LOAD_ERROR_MESSAGE = 'Avatar yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Avatar kaydedilemedi.';
@@ -95,9 +96,7 @@ export default function AvatarScreen() {
           setConfig(stored);
         }
       } catch (error) {
-        if (__DEV__) {
-          console.error('[avatar] could not load the avatar', error);
-        }
+        logEvent('avatar load failed', error);
 
         if (!isActive) {
           return;
@@ -158,9 +157,7 @@ export default function AvatarScreen() {
       // the saved avatar there.
       router.back();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[avatar] could not save the avatar', error);
-      }
+      logEvent('avatar save failed', error);
 
       // The screen stays as it is with the error, so the choices that were not
       // written are still there to try again with.

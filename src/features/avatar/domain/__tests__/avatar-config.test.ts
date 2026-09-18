@@ -82,9 +82,9 @@ describe('validateAvatarConfig with a blank required id', () => {
     );
   });
 
-  it('names the field it refused', () => {
+  it('names the field it refused, but not what was in it', () => {
     expect(() => validateAvatarConfig(config({ hairColorId: '' }))).toThrow(
-      'AvatarConfig has a blank hairColorId: "".'
+      'AvatarConfig has a blank hairColorId.'
     );
   });
 

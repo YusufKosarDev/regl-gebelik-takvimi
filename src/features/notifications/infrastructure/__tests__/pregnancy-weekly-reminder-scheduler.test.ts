@@ -180,3 +180,26 @@ describe('schedulePregnancyWeeklyReminder', () => {
     await expect(schedulePregnancyWeeklyReminder()).rejects.toThrow('queue is full');
   });
 });
+
+describe('what a queued pregnancy reminder carries', () => {
+  async function queuedRequest() {
+    await schedulePregnancyWeeklyReminder();
+
+    return notifications.scheduleNotificationAsync.mock.calls[0][0];
+  }
+
+  it('carries no pregnancy data at all', async () => {
+    const request = await queuedRequest();
+
+    expect(JSON.stringify(request)).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(JSON.stringify(request)).not.toMatch(/hafta \d|due|lmp|skin-tone/i);
+  });
+
+  it('carries only the fields it was written with', async () => {
+    const request = await queuedRequest();
+
+    expect(Object.keys(request).sort()).toEqual(['content', 'trigger']);
+    expect(Object.keys(request.content).sort()).toEqual(['body', 'data', 'title']);
+    expect(request.content.data).toEqual({ type: 'pregnancy-weekly-reminder-v1' });
+  });
+});

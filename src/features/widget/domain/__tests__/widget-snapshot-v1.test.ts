@@ -211,7 +211,7 @@ describe('validateWidgetSnapshotV1 with bad moods', () => {
   it('refuses the same mood twice', () => {
     expect(() =>
       validateWidgetSnapshotV1(snapshot({ moodLabels: ['yorgunluk', 'yorgunluk'] }))
-    ).toThrow(/lists "yorgunluk" more than once/);
+    ).toThrow(/lists the same mood label more than once/);
   });
 
   it('refuses a repeat that differs only by surrounding whitespace', () => {

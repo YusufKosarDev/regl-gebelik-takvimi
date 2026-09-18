@@ -107,13 +107,15 @@ describe('getOpenPeriodRecord with several ongoing', () => {
     expect(() => getOpenPeriodRecord(subject)).toThrow(/found 2 ongoing periods/);
   });
 
-  it('names the dates it found', () => {
+  it('counts what it found without naming the dates', () => {
     const subject = profile([
       { id: 'a', startDate: '2026-09-02', isOngoing: true },
       { id: 'b', startDate: '2026-09-17', isOngoing: true },
     ]);
 
-    expect(() => getOpenPeriodRecord(subject)).toThrow(/2026-09-02, 2026-09-17/);
+    expect(() => getOpenPeriodRecord(subject)).toThrow(
+      'getOpenPeriodRecord found 2 ongoing periods; at most 1 is valid.'
+    );
   });
 
   it('refuses even with closed records alongside', () => {

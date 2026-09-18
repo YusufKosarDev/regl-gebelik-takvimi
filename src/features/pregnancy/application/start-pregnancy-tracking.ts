@@ -37,20 +37,20 @@ export async function startPregnancyTracking(
 
   if (!isISODate(lmp)) {
     throw new Error(
-      `startPregnancyTracking received an invalid lmp: "${lmp}". ` +
+      `startPregnancyTracking received an invalid lmp. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (!isISODate(today)) {
     throw new Error(
-      `startPregnancyTracking received an invalid today: "${today}". ` +
+      `startPregnancyTracking received an invalid today. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (daysBetween(lmp, today) < 0) {
-    throw new Error(`startPregnancyTracking cannot start from ${lmp}, which is in the future.`);
+    throw new Error('startPregnancyTracking cannot start from a date in the future.');
   }
 
   const profile: PregnancyProfile = {

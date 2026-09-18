@@ -113,7 +113,7 @@ describe('updatePeriodEndDate without something to edit', () => {
 
     await expect(
       updatePeriodEndDate(db, { recordId: 'period-2026-01-01', today: TODAY })
-    ).rejects.toThrow(/no period record with id "period-2026-01-01"/);
+    ).rejects.toThrow(/no period record with that id/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -185,7 +185,7 @@ describe('updatePeriodEndDate setting an end date', () => {
         endDate: '2026-09-09' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/before it started on 2026-09-10/);
+    ).rejects.toThrow(/cannot end a period before it started/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -217,7 +217,7 @@ describe('updatePeriodEndDate setting an end date', () => {
         endDate: '2026-09-22' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/spans 21 days, which exceeds the maximum of 20/);
+    ).rejects.toThrow(/spans more than the maximum of 20 days/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });

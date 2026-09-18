@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { logEvent } from '@/shared/logging';
 import { useAppStore } from '@/store/app-store';
 
 /**
@@ -18,23 +19,24 @@ export default function RootLayout() {
   const hydrated = useAppStore((state) => state.hydrated);
   const onboardingCompleted = useAppStore((state) => state.onboardingCompleted);
 
-  const [hydrationError, setHydrationError] = useState<string | null>(null);
+  const [hasHydrationError, setHasHydrationError] = useState(false);
 
   // `hydrate` is a stable store action, so this runs once per app start rather
   // than on every state change.
   useEffect(() => {
     hydrate().catch((error: unknown) => {
-      setHydrationError(String(error));
+      logEvent('app state load failed', error);
+      setHasHydrationError(true);
     });
   }, [hydrate]);
 
-  // Without this the screen would spin forever when the read fails. Developer
-  // facing only — a real error surface is not part of this step.
-  if (hydrationError !== null) {
+  // Without this the screen would spin forever when the read fails. What went
+  // wrong is not shown: the thrown text is written by whatever failed, and a
+  // screen is the one place a person cannot choose not to look at it.
+  if (hasHydrationError) {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>App state could not be loaded.</Text>
-        <Text style={styles.errorDetail}>{hydrationError}</Text>
       </View>
     );
   }
@@ -73,10 +75,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  errorDetail: {
-    fontSize: 12,
     textAlign: 'center',
   },
 });

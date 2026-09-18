@@ -36,13 +36,13 @@ describe('validatePregnancyProfile with a due date counted from the LMP', () => 
 
   it('refuses a date a day off the formula', () => {
     expect(() => validatePregnancyProfile(fromLmp('2026-09-02', '2027-06-10'))).toThrow(
-      /but 2026-09-02 gives 2027-06-09/
+      /not the one counted from the last menstrual period/
     );
   });
 
   it('refuses a date a day short of it', () => {
     expect(() => validatePregnancyProfile(fromLmp('2026-09-02', '2027-06-08'))).toThrow(
-      /but 2026-09-02 gives 2027-06-09/
+      /not the one counted from the last menstrual period/
     );
   });
 
@@ -81,7 +81,7 @@ describe('validatePregnancyProfile with an adjusted due date', () => {
 
   it('refuses a date before the last menstrual period', () => {
     expect(() => validatePregnancyProfile(adjusted('2026-09-02', '2026-09-01'))).toThrow(
-      /before the pregnancy began on 2026-09-02/
+      /before the pregnancy began/
     );
   });
 
@@ -127,7 +127,7 @@ describe('validatePregnancyProfile with an unusable source', () => {
 
   it('refuses a source it does not know', () => {
     expect(() => validatePregnancyProfile(withSource('scan'))).toThrow(
-      /invalid dueDateSource: "scan". Expected "lmp" or "adjusted"/
+      /invalid dueDateSource: text. Expected "lmp" or "adjusted"/
     );
   });
 

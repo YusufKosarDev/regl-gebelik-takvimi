@@ -37,7 +37,7 @@ export async function deletePeriodRecord(
   }
 
   if (!profile.periodRecords.some((record) => record.id === recordId)) {
-    throw new Error(`deletePeriodRecord found no period record with id "${recordId}".`);
+    throw new Error('deletePeriodRecord found no period record with that id.');
   }
 
   const updated: CycleProfile = {

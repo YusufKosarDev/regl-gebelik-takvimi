@@ -108,7 +108,7 @@ describe('validatePeriodRecord', () => {
 
   it('rejects a 21 day period', () => {
     expect(() => validatePeriodRecord(record('a', '2026-01-01', '2026-01-21'))).toThrow(
-      /spans 21 days, which exceeds the maximum of 20/
+      /spans more than the maximum of 20 days/
     );
   });
 
@@ -165,7 +165,7 @@ describe('validateCycleProfile', () => {
       periodRecords: [record('a', '2026-01-01'), record('a', '2026-01-29')],
     };
 
-    expect(() => validateCycleProfile(profile)).toThrow(/Duplicate PeriodRecord id: "a"/);
+    expect(() => validateCycleProfile(profile)).toThrow(/Duplicate PeriodRecord id/);
   });
 
   it('rejects a duplicate start date', () => {
@@ -175,7 +175,7 @@ describe('validateCycleProfile', () => {
     };
 
     expect(() => validateCycleProfile(profile)).toThrow(
-      /Duplicate PeriodRecord startDate: "2026-01-01"/
+      /Duplicate PeriodRecord startDate/
     );
   });
 
@@ -253,7 +253,7 @@ describe('validatePeriodRecord and the ongoing flag', () => {
         endDate: toISODate('2026-09-22'),
         isOngoing: true,
       })
-    ).toThrow(/marked ongoing but already ends on 2026-09-22/);
+    ).toThrow(/marked ongoing but already has an end date/);
   });
 
   it('rejects a non-boolean flag', () => {

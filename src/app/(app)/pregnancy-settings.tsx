@@ -21,6 +21,7 @@ import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 const LOAD_ERROR_MESSAGE = 'Gebelik ayarları yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Tahmini doğum tarihi güncellenemedi.';
@@ -88,9 +89,7 @@ export default function PregnancySettingsScreen() {
 
         setProfile(stored);
       } catch (error) {
-        if (__DEV__) {
-          console.error('[pregnancy-settings] could not load the pregnancy', error);
-        }
+        logEvent('pregnancy load failed', error);
 
         if (!isActive) {
           return;
@@ -168,9 +167,7 @@ export default function PregnancySettingsScreen() {
 
       router.back();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[pregnancy-settings] could not stop tracking', error);
-      }
+      logEvent('pregnancy stop failed', error);
 
       // The confirmation stays open with the error, so a refused stop is visible
       // where it was asked for and can be tried again.
@@ -204,9 +201,7 @@ export default function PregnancySettingsScreen() {
 
       router.back();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[pregnancy-settings] could not update the due date', error);
-      }
+      logEvent('pregnancy due date update failed', error);
 
       // The screen stays as it is with the error, so the date that was picked is
       // still there to correct or try again.

@@ -8,6 +8,7 @@ import {
 } from '../infrastructure/pregnancy-weekly-reminder-scheduler';
 
 import { loadPregnancyProfile } from '@/features/pregnancy/data/pregnancy-repository';
+import { logEvent } from '@/shared/logging';
 
 /**
  * What the queue holds afterwards.
@@ -82,9 +83,7 @@ export async function syncPregnancyWeeklyReminderQuietly(
   try {
     return await syncPregnancyWeeklyReminder(db);
   } catch (error) {
-    if (__DEV__) {
-      console.error('[notifications] could not sync the pregnancy weekly reminder', error);
-    }
+    logEvent('notification sync failed', error);
 
     return null;
   }

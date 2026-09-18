@@ -5,6 +5,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   validateNotificationPreferences,
 } from '../domain/notification-preferences';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Persistence for `NotificationPreferences`.
@@ -57,7 +58,7 @@ function toStoredFlag(column: string, value: unknown): boolean {
   }
 
   throw new Error(
-    `Stored notification preferences have an invalid ${column}: ${JSON.stringify(value)}. ` +
+    `Stored notification preferences have an invalid ${column}: ${describeValue(value)}. ` +
       'Expected 0 or 1.'
   );
 }

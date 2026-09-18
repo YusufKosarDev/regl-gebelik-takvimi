@@ -11,6 +11,7 @@ import { buildWidgetSnapshotV1 } from './build-widget-snapshot-v1';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import type { ISODate } from '@/types/iso-date';
+import { logEvent } from '@/shared/logging';
 
 /**
  * Brings the stored widget snapshot up to date with the database.
@@ -74,9 +75,7 @@ export async function syncWidgetSnapshotQuietly(
   try {
     return await syncWidgetSnapshot(db, today);
   } catch (error) {
-    if (__DEV__) {
-      console.error('[widget] could not sync the snapshot', error);
-    }
+    logEvent('widget sync failed', error);
 
     return null;
   }

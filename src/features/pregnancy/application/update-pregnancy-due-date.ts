@@ -9,6 +9,7 @@ import { getPregnancyProfile } from './get-pregnancy-profile';
 
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
+import { describeValue } from '@/shared/logging';
 
 const DUE_DATE_SOURCES: readonly PregnancyDueDateSource[] = ['lmp', 'adjusted'];
 
@@ -46,21 +47,21 @@ export async function updatePregnancyDueDate(
 
   if (!DUE_DATE_SOURCES.includes(source)) {
     throw new Error(
-      `updatePregnancyDueDate received an invalid source: ${JSON.stringify(source)}. ` +
+      `updatePregnancyDueDate received an invalid source: ${describeValue(source)}. ` +
         'Expected "lmp" or "adjusted".'
     );
   }
 
   if (!isISODate(estimatedDueDate)) {
     throw new Error(
-      `updatePregnancyDueDate received an invalid estimatedDueDate: "${estimatedDueDate}". ` +
+      `updatePregnancyDueDate received an invalid estimatedDueDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (!isISODate(today)) {
     throw new Error(
-      `updatePregnancyDueDate received an invalid today: "${today}". ` +
+      `updatePregnancyDueDate received an invalid today. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
@@ -75,8 +76,7 @@ export async function updatePregnancyDueDate(
 
   if (source === 'adjusted' && daysBetween(lmp, estimatedDueDate) < 0) {
     throw new Error(
-      `updatePregnancyDueDate cannot set a due date of ${estimatedDueDate}, ` +
-        `before the pregnancy began on ${lmp}.`
+      'updatePregnancyDueDate cannot set a due date before the pregnancy began.'
     );
   }
 
@@ -85,8 +85,8 @@ export async function updatePregnancyDueDate(
 
     if (estimatedDueDate !== calculated) {
       throw new Error(
-        `updatePregnancyDueDate cannot record ${estimatedDueDate} as counted from the ` +
-          `last menstrual period; ${lmp} gives ${calculated}.`
+        'updatePregnancyDueDate cannot record a due date that is not the one ' +
+          'counted from the last menstrual period.'
       );
     }
   }

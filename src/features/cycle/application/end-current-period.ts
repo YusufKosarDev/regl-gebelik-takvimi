@@ -34,20 +34,20 @@ export async function endCurrentPeriod(
 
   if (!isISODate(endDate)) {
     throw new Error(
-      `endCurrentPeriod received an invalid endDate: "${endDate}". ` +
+      `endCurrentPeriod received an invalid endDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (!isISODate(today)) {
     throw new Error(
-      `endCurrentPeriod received an invalid today: "${today}". ` +
+      `endCurrentPeriod received an invalid today. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (daysBetween(endDate, today) < 0) {
-    throw new Error(`endCurrentPeriod cannot record ${endDate}, which is in the future.`);
+    throw new Error('endCurrentPeriod cannot record an end date in the future.');
   }
 
   const profile = await loadCycleProfile(db);
@@ -64,8 +64,7 @@ export async function endCurrentPeriod(
 
   if (daysBetween(open.startDate, endDate) < 0) {
     throw new Error(
-      `endCurrentPeriod cannot end a period on ${endDate}, ` +
-        `before it started on ${open.startDate}.`
+      'endCurrentPeriod cannot end a period before it started.'
     );
   }
 

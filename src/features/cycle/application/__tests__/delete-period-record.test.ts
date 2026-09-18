@@ -83,7 +83,7 @@ describe('deletePeriodRecord without something to delete', () => {
     loadCycleProfile.mockResolvedValue(mixedProfile());
 
     await expect(deletePeriodRecord(db, { recordId: 'period-2026-01-01' })).rejects.toThrow(
-      /no period record with id "period-2026-01-01"/
+      /no period record with that id/
     );
 
     expect(saveCycleProfile).not.toHaveBeenCalled();

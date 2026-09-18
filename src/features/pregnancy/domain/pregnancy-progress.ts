@@ -8,7 +8,7 @@ const DAYS_PER_WEEK = 7;
 function assertISODate(caller: string, field: string, value: ISODate): void {
   if (!isISODate(value)) {
     throw new Error(
-      `${caller} received an invalid ${field}: "${value}". ` +
+      `${caller} received an invalid ${field}. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }

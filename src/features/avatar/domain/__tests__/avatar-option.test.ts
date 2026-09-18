@@ -57,7 +57,7 @@ describe('getAvatarOption with a duplicated catalogue id', () => {
 
   it('refuses rather than choosing one', () => {
     expect(() => getAvatarOption(duplicated, 'short')).toThrow(
-      /found 2 options with the id "short"/
+      /found 2 options with the same id/
     );
   });
 

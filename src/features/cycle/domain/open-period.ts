@@ -23,8 +23,7 @@ export function getOpenPeriodRecord(profile: CycleProfile): PeriodRecord | null 
 
   if (open.length > 1) {
     throw new Error(
-      `getOpenPeriodRecord found ${open.length} ongoing periods: ` +
-        `${open.map((record) => record.startDate).join(', ')}.`
+      `getOpenPeriodRecord found ${open.length} ongoing periods; at most 1 is valid.`
     );
   }
 

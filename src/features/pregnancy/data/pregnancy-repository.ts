@@ -4,6 +4,7 @@ import type { PregnancyDueDateSource, PregnancyProfile } from '../domain/types';
 import { validatePregnancyProfile } from '../domain/validation';
 
 import { toISODate } from '@/utils/date';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Persistence for `PregnancyProfile`.
@@ -59,7 +60,7 @@ function toDueDateSource(value: unknown): PregnancyDueDateSource {
   }
 
   throw new Error(
-    `Stored pregnancy profile has an invalid due_date_source: ${JSON.stringify(value)}. ` +
+    `Stored pregnancy profile has an invalid due_date_source: ${describeValue(value)}. ` +
       'Expected "lmp" or "adjusted".'
   );
 }
@@ -68,7 +69,7 @@ function toDueDateSource(value: unknown): PregnancyDueDateSource {
 function toStoredDate(column: string, value: unknown): string {
   if (typeof value !== 'string') {
     throw new Error(
-      `Stored pregnancy profile has a non-text ${column}: ${JSON.stringify(value)}.`
+      `Stored pregnancy profile has a non-text ${column}: ${describeValue(value)}.`
     );
   }
 

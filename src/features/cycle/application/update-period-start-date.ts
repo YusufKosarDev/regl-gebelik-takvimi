@@ -46,20 +46,20 @@ export async function updatePeriodStartDate(
 
   if (!isISODate(startDate)) {
     throw new Error(
-      `updatePeriodStartDate received an invalid startDate: "${startDate}". ` +
+      `updatePeriodStartDate received an invalid startDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (!isISODate(today)) {
     throw new Error(
-      `updatePeriodStartDate received an invalid today: "${today}". ` +
+      `updatePeriodStartDate received an invalid today. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }
 
   if (daysBetween(startDate, today) < 0) {
-    throw new Error(`updatePeriodStartDate cannot record ${startDate}, which is in the future.`);
+    throw new Error('updatePeriodStartDate cannot record a start date in the future.');
   }
 
   const profile = await loadCycleProfile(db);
@@ -71,12 +71,12 @@ export async function updatePeriodStartDate(
   const target = profile.periodRecords.find((record) => record.id === recordId);
 
   if (target === undefined) {
-    throw new Error(`updatePeriodStartDate found no period record with id "${recordId}".`);
+    throw new Error('updatePeriodStartDate found no period record with that id.');
   }
 
   if (target.isOngoing) {
     throw new Error(
-      `updatePeriodStartDate cannot edit "${recordId}" while it is ongoing; end it first.`
+      'updatePeriodStartDate cannot edit a record while it is ongoing; end it first.'
     );
   }
 
@@ -88,8 +88,7 @@ export async function updatePeriodStartDate(
 
   if (target.endDate !== undefined && daysBetween(startDate, target.endDate) < 0) {
     throw new Error(
-      `updatePeriodStartDate cannot start a period on ${startDate}, ` +
-        `after it ended on ${target.endDate}.`
+      'updatePeriodStartDate cannot start a period after it ended.'
     );
   }
 
@@ -100,7 +99,7 @@ export async function updatePeriodStartDate(
 
   if (clash !== undefined) {
     throw new Error(
-      `updatePeriodStartDate found another period already recorded on ${startDate}: "${clash.id}".`
+      'updatePeriodStartDate found another period already recorded on that date.'
     );
   }
 
@@ -114,8 +113,8 @@ export async function updatePeriodStartDate(
     profile.periodRecords.some((record) => record.id !== recordId && record.id === updatedId)
   ) {
     throw new Error(
-      `updatePeriodStartDate cannot rename "${recordId}" to "${updatedId}": ` +
-        'another period record already has that id.'
+      'updatePeriodStartDate cannot rename the record: ' +
+        'another period record already has the id it would take.'
     );
   }
 

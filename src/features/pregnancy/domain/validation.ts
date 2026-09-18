@@ -2,6 +2,7 @@ import { calculateEstimatedDueDate } from './due-date';
 import type { PregnancyDueDateSource, PregnancyProfile } from './types';
 
 import { daysBetween, isISODate } from '@/utils/date';
+import { describeValue } from '@/shared/logging';
 
 const DUE_DATE_SOURCES: readonly PregnancyDueDateSource[] = ['lmp', 'adjusted'];
 
@@ -33,7 +34,7 @@ export function validatePregnancyProfile(profile: PregnancyProfile): void {
 
   if (!isISODate(profile.estimatedDueDate)) {
     throw new Error(
-      `PregnancyProfile has an invalid estimatedDueDate: "${profile.estimatedDueDate}".`
+      `PregnancyProfile has an invalid estimatedDueDate.`
     );
   }
 
@@ -43,7 +44,7 @@ export function validatePregnancyProfile(profile: PregnancyProfile): void {
   if (!isDueDateSource(profile.dueDateSource)) {
     throw new Error(
       `PregnancyProfile has an invalid dueDateSource: ` +
-        `${JSON.stringify(profile.dueDateSource)}. Expected "lmp" or "adjusted".`
+        `${describeValue(profile.dueDateSource)}. Expected "lmp" or "adjusted".`
     );
   }
 
@@ -52,9 +53,8 @@ export function validatePregnancyProfile(profile: PregnancyProfile): void {
 
     if (profile.estimatedDueDate !== expected) {
       throw new Error(
-        `PregnancyProfile has an estimatedDueDate of ${profile.estimatedDueDate} ` +
-          `counted from the last menstrual period, ` +
-          `but ${profile.lastMenstrualPeriodStartDate} gives ${expected}.`
+        'PregnancyProfile has an estimatedDueDate that is not the one counted ' +
+          'from the last menstrual period.'
       );
     }
 
@@ -63,8 +63,7 @@ export function validatePregnancyProfile(profile: PregnancyProfile): void {
 
   if (daysBetween(profile.lastMenstrualPeriodStartDate, profile.estimatedDueDate) < 0) {
     throw new Error(
-      `PregnancyProfile has an adjusted estimatedDueDate of ${profile.estimatedDueDate}, ` +
-        `before the pregnancy began on ${profile.lastMenstrualPeriodStartDate}.`
+      'PregnancyProfile has an adjusted estimatedDueDate before the pregnancy began.'
     );
   }
 }

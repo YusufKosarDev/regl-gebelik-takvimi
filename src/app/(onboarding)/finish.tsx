@@ -17,6 +17,7 @@ import type { ISODate } from '@/types/iso-date';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 const SAVE_ERROR_MESSAGE = 'Bilgiler kaydedilemedi. Lütfen tekrar dene.';
 
@@ -94,9 +95,7 @@ export default function FinishScreen() {
 
       // No navigation and no state update here: the gate unmounts this screen.
     } catch (error) {
-      if (__DEV__) {
-        console.error('[onboarding] could not complete', error);
-      }
+      logEvent('onboarding completion failed', error);
 
       submitInFlight.current = false;
       setIsSubmitting(false);

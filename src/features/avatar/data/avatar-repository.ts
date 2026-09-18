@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { AvatarConfig } from '../domain/avatar-config';
 import { validateAvatarConfig } from '../domain/avatar-config';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Persistence for `AvatarConfig`.
@@ -56,7 +57,7 @@ const SELECT_AVATAR = `
 /** The column stores text; anything else means the row is not what it claims. */
 function toStoredId(column: string, value: unknown): string {
   if (typeof value !== 'string') {
-    throw new Error(`Stored avatar has a non-text ${column}: ${JSON.stringify(value)}.`);
+    throw new Error(`Stored avatar has a non-text ${column}: ${describeValue(value)}.`);
   }
 
   return value;

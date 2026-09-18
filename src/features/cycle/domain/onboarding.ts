@@ -39,7 +39,7 @@ const INITIAL_PERIOD_RECORD_ID = 'onboarding-initial-period';
 export function validateCycleOnboardingInput(input: CycleOnboardingInput): void {
   if (!isISODate(input.lastPeriodStartDate)) {
     throw new Error(
-      `Invalid lastPeriodStartDate: "${input.lastPeriodStartDate}". ` +
+      `Invalid lastPeriodStartDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }

@@ -4,6 +4,7 @@ import type { CycleProfile, PeriodRecord } from '../domain/types';
 import { validateCycleProfile } from '../domain/validation';
 
 import { toISODate } from '@/utils/date';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Persistence for `CycleProfile`.
@@ -41,7 +42,7 @@ function toIsOngoing(id: string, value: unknown): boolean {
   if (value === 1) return true;
 
   throw new Error(
-    `PeriodRecord "${id}" has an invalid is_ongoing value: ${JSON.stringify(value)}. ` +
+    `A stored period record has an invalid is_ongoing value: ${describeValue(value)}. ` +
       'Expected 0 or 1.'
   );
 }

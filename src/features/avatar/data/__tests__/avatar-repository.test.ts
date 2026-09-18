@@ -374,3 +374,41 @@ describe('avatar repository purity', () => {
     ]);
   });
 });
+
+describe('what an avatar repository error gives away', () => {
+  async function messageFrom(overrides: Record<string, unknown>): Promise<string> {
+    const spy = createDatabaseSpy(row(overrides));
+    const error = await loadAvatarConfig(spy.db).then(
+      () => {
+        throw new Error('expected a rejection');
+      },
+      (thrown: unknown) => thrown as Error
+    );
+
+    return error.message;
+  }
+
+  it.each([
+    ['a column holding a number', { hair_color_id: 7 }],
+    ['a column holding an object', { outfit_id: { id: 'shirt' } }],
+    ['a blank column', { skin_tone_id: '   ' }],
+  ])('names no catalogue id for %s', async (_label, overrides) => {
+    const message = await messageFrom(overrides);
+
+    expect(message).not.toMatch(/skin-tone|wavy|dark-brown|shirt/);
+  });
+
+  it('still says which column was wrong and what kind of thing was in it', async () => {
+    expect(await messageFrom({ hair_color_id: 7 })).toBe(
+      'Stored avatar has a non-text hair_color_id: a number.'
+    );
+  });
+
+  it('still binds the real ids, which belong in the database', async () => {
+    const spy = createDatabaseSpy();
+
+    await saveAvatarConfig(spy.db, config());
+
+    expect(spy.runAsync.mock.calls[0]).toContain('wavy');
+  });
+});

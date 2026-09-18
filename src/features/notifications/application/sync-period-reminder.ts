@@ -10,6 +10,7 @@ import {
 
 import { getCycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
 import type { ISODate } from '@/types/iso-date';
+import { logEvent } from '@/shared/logging';
 
 /**
  * What the queue holds afterwards.
@@ -90,9 +91,7 @@ export async function syncPeriodReminderQuietly(
   try {
     return await syncPeriodReminder(db, today);
   } catch (error) {
-    if (__DEV__) {
-      console.error('[notifications] could not sync the period reminder', error);
-    }
+    logEvent('notification sync failed', error);
 
     return null;
   }

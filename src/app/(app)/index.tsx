@@ -53,6 +53,7 @@ import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 /**
  * The selected day's rows, read straight off the day the calendar already holds.
@@ -254,32 +255,24 @@ export default function HomeScreen() {
             const syncDate = data.cycle?.dashboard.today ?? getTodayLocalISODate();
 
             syncWidgetSnapshotQuietly(data.db, syncDate).catch((syncError: unknown) => {
-              if (__DEV__) {
-                console.error('[home] could not sync the widget snapshot', syncError);
-              }
+              logEvent('widget sync failed', syncError);
             });
 
             // The estimate moves on its own as days pass, so the queued reminder
             // is reconsidered on the way in as well as after every change.
             syncPeriodReminderQuietly(data.db, syncDate).catch((syncError: unknown) => {
-              if (__DEV__) {
-                console.error('[home] could not sync the period reminder', syncError);
-              }
+              logEvent('notification sync failed', syncError);
             });
 
             // A weekly reminder the system dropped — on a restore, or after the
             // app was told to stop — is put back here, whichever half of the app
             // this screen is showing.
             syncPregnancyWeeklyReminderQuietly(data.db).catch((syncError: unknown) => {
-              if (__DEV__) {
-                console.error('[home] could not sync the pregnancy reminder', syncError);
-              }
+              logEvent('notification sync failed', syncError);
             });
           }
         } catch (error) {
-          if (__DEV__) {
-            console.error('[home] could not load the cycle data', error);
-          }
+          logEvent('cycle data load failed', error);
 
           if (!isActive) {
             return;
@@ -311,9 +304,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!isLoading && mode === 'pregnancy' && pregnancy === null) {
       void setMode('cycle').catch((error: unknown) => {
-        if (__DEV__) {
-          console.error('[home] could not fall back to the cycle mode', error);
-        }
+        logEvent('app mode change failed', error);
       });
     }
   }, [isLoading, mode, pregnancy, setMode]);
@@ -333,9 +324,7 @@ export default function HomeScreen() {
     }
 
     void setMode(next).catch((error: unknown) => {
-      if (__DEV__) {
-        console.error('[home] could not switch mode', error);
-      }
+      logEvent('app mode change failed', error);
     });
   };
 
@@ -351,9 +340,7 @@ export default function HomeScreen() {
     try {
       await Linking.openURL(url);
     } catch (error) {
-      if (__DEV__) {
-        console.error('[home] could not open the source', error);
-      }
+      logEvent('source link open failed', error);
 
       setHasSourceError(true);
     }
@@ -484,9 +471,7 @@ export default function HomeScreen() {
       setAvatar(data.avatar);
       setIsConfirming(false);
     } catch (error) {
-      if (__DEV__) {
-        console.error('[home] could not record the period', error);
-      }
+      logEvent('period record save failed', error);
 
       // The confirmation stays open with the error, so a rejected save is
       // visible next to the thing that was rejected.

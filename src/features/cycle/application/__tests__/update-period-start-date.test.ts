@@ -153,7 +153,7 @@ describe('updatePeriodStartDate when the record cannot be edited', () => {
         startDate: '2026-09-11' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/no period record with id "period-2026-01-01"/);
+    ).rejects.toThrow(/no period record with that id/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -225,7 +225,7 @@ describe('updatePeriodStartDate against the record end date', () => {
         startDate: '2026-09-16' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/after it ended on 2026-09-15/);
+    ).rejects.toThrow(/cannot start a period after it ended/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -275,7 +275,7 @@ describe('updatePeriodStartDate against the record end date', () => {
         startDate: '2026-08-31' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/spans 21 days/);
+    ).rejects.toThrow(/spans more than the maximum of 20 days/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -307,12 +307,12 @@ describe('updatePeriodStartDate duplicate start dates', () => {
         startDate: '2026-09-02' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/already recorded on 2026-09-02/);
+    ).rejects.toThrow(/already recorded on that date/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
 
-  it('names the record it clashes with', async () => {
+  it('says what the clash is without naming the record', async () => {
     loadCycleProfile.mockResolvedValue(mixedProfile());
 
     await expect(
@@ -321,7 +321,7 @@ describe('updatePeriodStartDate duplicate start dates', () => {
         startDate: '2026-09-02' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/onboarding-initial-period/);
+    ).rejects.toThrow(/already recorded on that date/);
   });
 
   it('refuses a day a running record already covers', async () => {
@@ -333,7 +333,7 @@ describe('updatePeriodStartDate duplicate start dates', () => {
         startDate: '2026-09-20' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/already recorded on 2026-09-20/);
+    ).rejects.toThrow(/already recorded on that date/);
   });
 
   it('does not count the record being edited as a clash', async () => {
@@ -423,7 +423,7 @@ describe('updatePeriodStartDate record ids', () => {
         startDate: '2026-09-11' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/another period record already has that id/);
+    ).rejects.toThrow(/another period record already has the id it would take/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });

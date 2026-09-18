@@ -22,7 +22,7 @@ export function getCycleDay(profile: CycleProfile, targetDate: ISODate): number 
 
   if (!isISODate(targetDate)) {
     throw new Error(
-      `getCycleDay received an invalid targetDate: "${targetDate}". ` +
+      `getCycleDay received an invalid targetDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }

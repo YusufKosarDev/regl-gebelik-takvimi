@@ -20,6 +20,7 @@ import { formatDisplayDate } from '@/utils/format-date';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 const LOAD_ERROR_MESSAGE = 'Kayıtlar yüklenemedi.';
 const DELETE_ERROR_MESSAGE = 'Kayıt silinemedi.';
@@ -165,9 +166,7 @@ export default function HistoryScreen() {
 
         setRecords(history);
       } catch (error) {
-        if (__DEV__) {
-          console.error('[history] could not load the period records', error);
-        }
+        logEvent('period history load failed', error);
 
         if (!isActive) {
           return;
@@ -254,9 +253,7 @@ export default function HistoryScreen() {
       setRecords(await readHistory());
       setRecordPendingDelete(null);
     } catch (error) {
-      if (__DEV__) {
-        console.error('[history] could not delete the period record', error);
-      }
+      logEvent('period record delete failed', error);
 
       // The confirmation stays open with the error, so a rejected delete is
       // visible next to the record it was for and can be tried again.
@@ -289,9 +286,7 @@ export default function HistoryScreen() {
       setRecords(await readHistory());
       closePanels();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[history] could not update the period end date', error);
-      }
+      logEvent('period record update failed', error);
 
       // The editor stays open with the error, so a rejected change is visible
       // next to the record it was for and can be tried again.
@@ -331,9 +326,7 @@ export default function HistoryScreen() {
       setRecords(await readHistory());
       closePanels();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[history] could not update the period start date', error);
-      }
+      logEvent('period record update failed', error);
 
       setHasUpdateError(true);
     } finally {

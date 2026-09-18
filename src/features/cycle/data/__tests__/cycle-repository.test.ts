@@ -513,13 +513,15 @@ describe('loadCycleProfile and the ongoing flag', () => {
     await expect(loadCycleProfile(spy.db)).rejects.toThrow(/invalid is_ongoing value/);
   });
 
-  it('names the record it could not read', async () => {
+  it('says what the column held without naming the record or the value', async () => {
     const spy = createDatabaseSpy({
       settingsRow: { average_cycle_length_days: 28, average_period_length_days: 5 },
       periodRows: [{ id: 'broken', start_date: '2026-09-17', end_date: null, is_ongoing: 9 }],
     });
 
-    await expect(loadCycleProfile(spy.db)).rejects.toThrow(/PeriodRecord "broken"/);
+    await expect(loadCycleProfile(spy.db)).rejects.toThrow(
+      'A stored period record has an invalid is_ongoing value: a number. Expected 0 or 1.'
+    );
   });
 
   it('refuses two ongoing records', async () => {
@@ -532,5 +534,82 @@ describe('loadCycleProfile and the ongoing flag', () => {
     });
 
     await expect(loadCycleProfile(spy.db)).rejects.toThrow(/2 ongoing period records/);
+  });
+});
+
+describe('what a cycle repository error gives away', () => {
+  const settingsRow = { average_cycle_length_days: 28, average_period_length_days: 5 };
+
+  async function messageFrom(periodRows: unknown[]): Promise<string> {
+    const spy = createDatabaseSpy({ settingsRow, periodRows });
+    const error = await loadCycleProfile(spy.db).then(
+      () => {
+        throw new Error('expected a rejection');
+      },
+      (thrown: unknown) => thrown as Error
+    );
+
+    return error.message;
+  }
+
+  it.each([
+    [
+      'a corrupt ongoing flag',
+      [{ id: 'period-2026-09-17', start_date: '2026-09-17', end_date: null, is_ongoing: 9 }],
+    ],
+    [
+      'a start date that is not a date',
+      [{ id: 'period-2026-09-17', start_date: '2026-02-30', end_date: null, is_ongoing: 0 }],
+    ],
+    [
+      'an end date before the start',
+      [
+        {
+          id: 'period-2026-09-17',
+          start_date: '2026-09-17',
+          end_date: '2026-09-10',
+          is_ongoing: 0,
+        },
+      ],
+    ],
+    [
+      'two records on the same day',
+      [
+        { id: 'a', start_date: '2026-09-17', end_date: null, is_ongoing: 0 },
+        { id: 'b', start_date: '2026-09-17', end_date: null, is_ongoing: 0 },
+      ],
+    ],
+  ])('names neither the date nor the record id for %s', async (_label, periodRows) => {
+    const message = await messageFrom(periodRows);
+
+    expect(message).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(message).not.toMatch(/period-2026|onboarding-initial-period/);
+  });
+
+  it('still says which column was wrong and what kind of thing was in it', async () => {
+    const message = await messageFrom([
+      { id: 'period-2026-09-17', start_date: '2026-09-17', end_date: null, is_ongoing: 9 },
+    ]);
+
+    expect(message).toBe(
+      'A stored period record has an invalid is_ongoing value: a number. Expected 0 or 1.'
+    );
+  });
+
+  it('still binds the real values, which belong in the database', async () => {
+    const spy = createDatabaseSpy({ settingsRow, periodRows: [] });
+
+    await saveCycleProfile(spy.db, {
+      settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+      periodRecords: [
+        {
+          id: 'period-2026-09-17',
+          startDate: '2026-09-17' as ISODate,
+          isOngoing: true,
+        },
+      ],
+    });
+
+    expect(spy.runAsync.mock.calls.flat()).toContain('2026-09-17');
   });
 });

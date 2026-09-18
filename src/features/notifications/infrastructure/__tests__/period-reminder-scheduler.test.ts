@@ -240,3 +240,36 @@ describe('schedulePeriodReminder', () => {
     await expect(schedulePeriodReminder(date('2026-10-14'))).rejects.toThrow('queue is full');
   });
 });
+
+describe('what a queued period reminder carries', () => {
+  /** The whole request, as the system would store it until it fires. */
+  async function queuedRequest() {
+    await schedulePeriodReminder(date('2026-10-15'));
+
+    return notifications.scheduleNotificationAsync.mock.calls[0][0];
+  }
+
+  it('carries no cycle data beyond the moment it should arrive', async () => {
+    const request = await queuedRequest();
+    const withoutTrigger = JSON.stringify({ ...request, trigger: undefined });
+
+    // The date it fires on is the point of the thing; nothing else about the
+    // cycle goes with it, and a notification tray is not a private place.
+    expect(withoutTrigger).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(withoutTrigger).not.toMatch(/cycleDay|phase|fertility|skin-tone/i);
+  });
+
+  it('carries only the fields it was written with', async () => {
+    const request = await queuedRequest();
+
+    expect(Object.keys(request).sort()).toEqual(['content', 'trigger']);
+    expect(Object.keys(request.content).sort()).toEqual(['body', 'data', 'title']);
+    expect(request.content.data).toEqual({ type: 'period-reminder-v1' });
+  });
+
+  it('says nothing certain about a body it cannot know', async () => {
+    const request = await queuedRequest();
+
+    expect(request.content.body).not.toMatch(/bugün başlayacak|kesin|hamile|gebe/i);
+  });
+});

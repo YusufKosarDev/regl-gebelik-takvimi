@@ -8,6 +8,7 @@ import {
 import type { CycleProfile, CycleSettings, PeriodRecord } from './types';
 
 import { daysBetween, isISODate } from '@/utils/date';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Validation rules for the cycle domain.
@@ -43,8 +44,7 @@ export function validateCycleSettings(settings: CycleSettings): void {
 
   if (settings.averagePeriodLengthDays > settings.averageCycleLengthDays) {
     throw new Error(
-      `averagePeriodLengthDays (${settings.averagePeriodLengthDays}) cannot exceed ` +
-        `averageCycleLengthDays (${settings.averageCycleLengthDays}).`
+      'averagePeriodLengthDays cannot exceed averageCycleLengthDays.'
     );
   }
 }
@@ -55,18 +55,18 @@ export function validatePeriodRecord(record: PeriodRecord): void {
   }
 
   if (!isISODate(record.startDate)) {
-    throw new Error(`PeriodRecord "${record.id}" has an invalid startDate: "${record.startDate}".`);
+    throw new Error('A period record has an invalid startDate.');
   }
 
   if (typeof record.isOngoing !== 'boolean') {
     throw new Error(
-      `PeriodRecord "${record.id}" has a non-boolean isOngoing: ${JSON.stringify(record.isOngoing)}.`
+      `A period record has a non-boolean isOngoing: ${describeValue(record.isOngoing)}.`
     );
   }
 
   if (record.isOngoing && record.endDate !== undefined) {
     throw new Error(
-      `PeriodRecord "${record.id}" is marked ongoing but already ends on ${record.endDate}.`
+      'A period record is marked ongoing but already has an end date.'
     );
   }
 
@@ -77,15 +77,14 @@ export function validatePeriodRecord(record: PeriodRecord): void {
   }
 
   if (!isISODate(record.endDate)) {
-    throw new Error(`PeriodRecord "${record.id}" has an invalid endDate: "${record.endDate}".`);
+    throw new Error('A period record has an invalid endDate.');
   }
 
   const span = daysBetween(record.startDate, record.endDate);
 
   if (span < 0) {
     throw new Error(
-      `PeriodRecord "${record.id}" ends before it starts: ` +
-        `${record.startDate} -> ${record.endDate}.`
+      'A period record ends before it starts.'
     );
   }
 
@@ -93,8 +92,7 @@ export function validatePeriodRecord(record: PeriodRecord): void {
 
   if (durationDays > MAX_PERIOD_DURATION_DAYS) {
     throw new Error(
-      `PeriodRecord "${record.id}" spans ${durationDays} days, ` +
-        `which exceeds the maximum of ${MAX_PERIOD_DURATION_DAYS}.`
+      `A period record spans more than the maximum of ${MAX_PERIOD_DURATION_DAYS} days.`
     );
   }
 }
@@ -114,12 +112,12 @@ export function validateCycleProfile(profile: CycleProfile): void {
     }
 
     if (seenIds.has(record.id)) {
-      throw new Error(`Duplicate PeriodRecord id: "${record.id}".`);
+      throw new Error('Duplicate PeriodRecord id.');
     }
     seenIds.add(record.id);
 
     if (seenStartDates.has(record.startDate)) {
-      throw new Error(`Duplicate PeriodRecord startDate: "${record.startDate}".`);
+      throw new Error('Duplicate PeriodRecord startDate.');
     }
     seenStartDates.add(record.startDate);
   }

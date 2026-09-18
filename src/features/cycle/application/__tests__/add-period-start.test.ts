@@ -183,7 +183,7 @@ describe('addPeriodStart rejections', () => {
   it('refuses a date already on file', async () => {
     await expect(
       addPeriodStart(db, { startDate: '2026-09-02' as ISODate, today: TODAY })
-    ).rejects.toThrow(/already recorded on 2026-09-02/);
+    ).rejects.toThrow(/already recorded on that date/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });

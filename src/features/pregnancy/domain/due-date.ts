@@ -23,8 +23,7 @@ const GESTATION_LENGTH_DAYS = 280;
 export function calculateEstimatedDueDate(lastMenstrualPeriodStartDate: ISODate): ISODate {
   if (!isISODate(lastMenstrualPeriodStartDate)) {
     throw new Error(
-      `calculateEstimatedDueDate received an invalid lastMenstrualPeriodStartDate: ` +
-        `"${lastMenstrualPeriodStartDate}". ` +
+      'calculateEstimatedDueDate received an invalid lastMenstrualPeriodStartDate. ' +
         'Expected a real calendar date in YYYY-MM-DD format.'
     );
   }

@@ -14,6 +14,7 @@ import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { logEvent } from '@/shared/logging';
 
 const SAVE_ERROR_MESSAGE = 'Gebelik takibi başlatılamadı.';
 
@@ -74,9 +75,7 @@ export default function PregnancyStartScreen() {
       // to notice that a pregnancy is now being tracked.
       router.back();
     } catch (error) {
-      if (__DEV__) {
-        console.error('[pregnancy-start] could not start tracking', error);
-      }
+      logEvent('pregnancy start failed', error);
 
       // The screen stays as it is with the error, so the date that was picked is
       // still there to correct or try again.

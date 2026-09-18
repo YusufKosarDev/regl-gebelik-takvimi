@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { AppState } from '@/types/app-state';
 import { DEFAULT_APP_STATE, validateAppState } from '@/types/app-state';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Persistence for the small global app state.
@@ -19,7 +20,7 @@ const APP_STATE_STORAGE_KEY = 'app-state';
 
 function assertAppStateShape(value: unknown): asserts value is AppState {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`Stored app state is not an object: ${JSON.stringify(value)}.`);
+    throw new Error(`Stored app state is not an object: ${describeValue(value)}.`);
   }
 }
 

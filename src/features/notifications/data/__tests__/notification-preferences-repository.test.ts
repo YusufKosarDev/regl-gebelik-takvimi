@@ -252,3 +252,29 @@ describe('loadNotificationPreferences with a corrupt row', () => {
     await expect(loadNotificationPreferences(spy.db)).rejects.toThrow();
   });
 });
+
+describe('what a preferences repository error gives away', () => {
+  it('says what kind of thing the column held, not the value', async () => {
+    const spy = createDatabaseSpy(row(2, 0));
+
+    await expect(loadNotificationPreferences(spy.db)).rejects.toThrow(
+      'Stored notification preferences have an invalid period_reminder_enabled: ' +
+        'a number. Expected 0 or 1.'
+    );
+  });
+
+  it.each([
+    ['text in the column', row('yes', 0)],
+    ['an object in the column', row({ on: true }, 0)],
+  ])('quotes nothing for %s', async (_label, stored) => {
+    const spy = createDatabaseSpy(stored);
+    const error = await loadNotificationPreferences(spy.db).then(
+      () => {
+        throw new Error('expected a rejection');
+      },
+      (thrown: unknown) => thrown as Error
+    );
+
+    expect(error.message).not.toMatch(/yes|true|\{/);
+  });
+});

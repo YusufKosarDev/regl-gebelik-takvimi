@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { describeValue } from '@/shared/logging';
 
 /**
  * Schema versioning.
@@ -218,7 +219,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (typeof currentVersion !== 'number' || !Number.isInteger(currentVersion) || currentVersion < 0) {
     throw new Error(
-      `Could not read a schema version from PRAGMA user_version (received ${JSON.stringify(row)}).`
+      `Could not read a schema version from PRAGMA user_version (received ${describeValue(
+        row?.user_version
+      )}).`
     );
   }
 
