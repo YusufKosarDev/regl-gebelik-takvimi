@@ -177,7 +177,7 @@ describe('validateCycleDailySupport purity', () => {
 
     validateCycleDailySupport(entry);
 
-    expect(entry.moodLabels[0]).toBe('  yorgunluk  ');
+    expect(entry.moodLabels?.[0]).toBe('  yorgunluk  ');
   });
 
   it('leaves it alone even when it rejects it', () => {
@@ -303,5 +303,108 @@ describe('getCycleDailySupport purity', () => {
     const contents = [support('luteal', { moodLabels: [] })];
 
     expect(getCycleDailySupport(contents, 'luteal')).toBe(contents[0]);
+  });
+});
+
+describe('validateCycleDailySupport with no moods', () => {
+  /** A phase written without moods, as one with thin evidence would be. */
+  function withoutMoods(phase: CyclePhase): CycleDailySupport {
+    const { moodLabels, ...rest } = support(phase);
+
+    void moodLabels;
+
+    return rest;
+  }
+
+  it.each(CYCLE_PHASES)('accepts the %s phase without any', (phase) => {
+    expect(() => validateCycleDailySupport(withoutMoods(phase))).not.toThrow();
+  });
+
+  it('accepts an explicitly undefined list', () => {
+    expect(() =>
+      validateCycleDailySupport(support('luteal', { moodLabels: undefined }))
+    ).not.toThrow();
+  });
+
+  it('still requires the support message', () => {
+    expect(() =>
+      validateCycleDailySupport({ ...withoutMoods('luteal'), supportMessage: '' })
+    ).toThrow(/blank supportMessage/);
+  });
+
+  it('still requires a real phase', () => {
+    expect(() =>
+      validateCycleDailySupport({ ...withoutMoods('luteal'), phase: 'gebelik' as CyclePhase })
+    ).toThrow(/invalid phase/);
+  });
+
+  it('leaves the content as it found it', () => {
+    const entry = withoutMoods('luteal');
+    const before = JSON.stringify(entry);
+
+    validateCycleDailySupport(entry);
+
+    expect(JSON.stringify(entry)).toBe(before);
+    expect('moodLabels' in entry).toBe(false);
+  });
+
+  it('does not give the phase a list it did not have', () => {
+    const entry = withoutMoods('luteal');
+
+    validateCycleDailySupport(entry);
+
+    expect(entry.moodLabels).toBeUndefined();
+  });
+
+  it('still refuses an empty list, which is not the same as none', () => {
+    // No moods says nothing; an empty list promises moods and shows none.
+    expect(() => validateCycleDailySupport(support('luteal', { moodLabels: [] }))).toThrow(
+      /lists no moods/
+    );
+  });
+});
+
+describe('getCycleDailySupport with phases written either way', () => {
+  function withoutMoods(phase: CyclePhase): CycleDailySupport {
+    const { moodLabels, ...rest } = support(phase);
+
+    void moodLabels;
+
+    return rest;
+  }
+
+  it('finds a phase that names no moods', () => {
+    const contents = [withoutMoods('menstrual'), support('luteal')];
+
+    expect(getCycleDailySupport(contents, 'menstrual')).toBe(contents[0]);
+    expect(getCycleDailySupport(contents, 'menstrual')?.moodLabels).toBeUndefined();
+  });
+
+  it('finds a phase that does', () => {
+    const contents = [withoutMoods('menstrual'), support('luteal')];
+
+    expect(getCycleDailySupport(contents, 'luteal')).toBe(contents[1]);
+    expect(getCycleDailySupport(contents, 'luteal')?.moodLabels).toHaveLength(2);
+  });
+
+  it('still returns null for an unwritten phase', () => {
+    expect(getCycleDailySupport([withoutMoods('menstrual')], 'ovulatory')).toBeNull();
+  });
+
+  it('still refuses a duplicated phase', () => {
+    const contents = [withoutMoods('luteal'), support('luteal')];
+
+    expect(() => getCycleDailySupport(contents, 'luteal')).toThrow(
+      /found 2 entries for the luteal phase/
+    );
+  });
+
+  it('leaves a mixed list as it found it', () => {
+    const contents = [withoutMoods('menstrual'), support('luteal')];
+    const before = JSON.stringify(contents);
+
+    getCycleDailySupport(contents, 'luteal');
+
+    expect(JSON.stringify(contents)).toBe(before);
   });
 });

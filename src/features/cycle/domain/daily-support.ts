@@ -14,12 +14,17 @@ import { isCyclePhase } from './phases';
  * person. A screen that prints these as a statement about the reader would be
  * claiming something this model does not know and cannot know.
  *
- * `supportMessage` is offered in the same spirit: something that may help, not
- * advice and not a diagnosis.
+ * They are optional for the same reason. Requiring every phase to name moods
+ * would mean listing some wherever the evidence is thin, which is a claim
+ * dressed up as a field being filled in. A phase with nothing well supported to
+ * say about mood says nothing, and the support message stands on its own.
+ *
+ * `supportMessage` is required and offered in the same spirit: something that
+ * may help, not advice and not a diagnosis.
  */
 export type CycleDailySupport = {
   readonly phase: CyclePhase;
-  readonly moodLabels: readonly string[];
+  readonly moodLabels?: readonly string[];
   readonly supportMessage: string;
 };
 
@@ -38,6 +43,48 @@ function assertText(phase: CyclePhase, field: string, value: string): void {
 }
 
 /**
+ * Checks a phase's moods, when it names any.
+ *
+ * A phase with no moods is valid and skipped: saying nothing about mood is the
+ * honest answer where there is nothing well supported to say. A list that is
+ * there has to be usable, because an empty one is a card promising moods and
+ * showing none.
+ */
+function assertMoodLabels(phase: CyclePhase, moodLabels: readonly string[] | undefined): void {
+  if (moodLabels === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(moodLabels)) {
+    throw new Error(
+      `CycleDailySupport for the ${phase} phase has a non-array moodLabels: ` +
+        `${JSON.stringify(moodLabels)}.`
+    );
+  }
+
+  if (moodLabels.length === 0) {
+    throw new Error(`CycleDailySupport for the ${phase} phase lists no moods.`);
+  }
+
+  const seen = new Set<string>();
+
+  moodLabels.forEach((label, index) => {
+    assertText(phase, `moodLabels[${index}]`, label);
+
+    const mood = label.trim();
+
+    // The same mood twice reads as two separate observations when it is one.
+    if (seen.has(mood)) {
+      throw new Error(
+        `CycleDailySupport for the ${phase} phase lists ${JSON.stringify(mood)} more than once.`
+      );
+    }
+
+    seen.add(mood);
+  });
+}
+
+/**
  * Checks one phase's content, throwing on the first rule it breaks.
  *
  * Blank text is refused rather than tolerated: a mood that renders as an empty
@@ -49,34 +96,7 @@ function assertText(phase: CyclePhase, field: string, value: string): void {
 export function validateCycleDailySupport(support: CycleDailySupport): void {
   assertPhase('CycleDailySupport', support.phase);
 
-  if (!Array.isArray(support.moodLabels)) {
-    throw new Error(
-      `CycleDailySupport for the ${support.phase} phase has a non-array moodLabels: ` +
-        `${JSON.stringify(support.moodLabels)}.`
-    );
-  }
-
-  if (support.moodLabels.length === 0) {
-    throw new Error(`CycleDailySupport for the ${support.phase} phase lists no moods.`);
-  }
-
-  const seen = new Set<string>();
-
-  support.moodLabels.forEach((label, index) => {
-    assertText(support.phase, `moodLabels[${index}]`, label);
-
-    const mood = label.trim();
-
-    // The same mood twice reads as two separate observations when it is one.
-    if (seen.has(mood)) {
-      throw new Error(
-        `CycleDailySupport for the ${support.phase} phase lists ` +
-          `${JSON.stringify(mood)} more than once.`
-      );
-    }
-
-    seen.add(mood);
-  });
+  assertMoodLabels(support.phase, support.moodLabels);
 
   assertText(support.phase, 'supportMessage', support.supportMessage);
 }
