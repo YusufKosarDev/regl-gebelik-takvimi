@@ -7,7 +7,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 3;
+export const LATEST_SCHEMA_VERSION = 4;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -121,6 +121,52 @@ async function migrateToVersion3(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 4: the avatar a person built.
+ *
+ * One row, pinned like `cycle_settings` and `pregnancy_profile`: a person has
+ * one avatar, and a table that could hold two would need a rule for choosing
+ * between them.
+ *
+ * The ids are stored as opaque text and checked only for being non-blank, using
+ * `trim` so the database refuses what the domain refuses — an id of spaces names
+ * nothing. No CHECK lists the catalogue values: a constraint that knew them would
+ * have to be migrated every time a hair style is added, and it would lock a saved
+ * avatar out of the app the moment an option is dropped.
+ *
+ * `accessory_id` is the one nullable column, because wearing no accessory is a
+ * choice rather than missing data. NULL is that choice; a blank string is not,
+ * and is refused.
+ */
+const MIGRATION_V4 = `
+  CREATE TABLE avatar_config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    skin_tone_id TEXT NOT NULL CHECK (length(trim(skin_tone_id)) > 0),
+    hair_style_id TEXT NOT NULL CHECK (length(trim(hair_style_id)) > 0),
+    hair_color_id TEXT NOT NULL CHECK (length(trim(hair_color_id)) > 0),
+    outfit_id TEXT NOT NULL CHECK (length(trim(outfit_id)) > 0),
+    accessory_id TEXT NULL CHECK (accessory_id IS NULL OR length(trim(accessory_id)) > 0)
+  );
+`;
+
+/**
+ * Adds the avatar table.
+ *
+ * Nothing is backfilled and no default avatar is written: an existing database
+ * has no avatar, and picking one for someone is the choice the feature exists to
+ * let them make. The table starts empty, which reads as "no avatar yet".
+ *
+ * Same bargain as the earlier steps: the DDL and the version bump share one
+ * transaction, so a failure leaves the database still reporting version 3 rather
+ * than claiming a table it does not have.
+ */
+async function migrateToVersion4(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V4);
+    await db.execAsync('PRAGMA user_version = 4');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -160,5 +206,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 3) {
     await migrateToVersion3(db);
+  }
+
+  if (currentVersion < 4) {
+    await migrateToVersion4(db);
   }
 }
