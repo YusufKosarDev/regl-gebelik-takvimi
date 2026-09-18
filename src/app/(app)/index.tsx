@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -34,6 +34,7 @@ import type {
   PregnancyWeeklyContent,
 } from '@/features/pregnancy/domain/types';
 import { useTheme } from '@/hooks/use-theme';
+import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
@@ -139,6 +140,11 @@ export default function HomeScreen() {
   // and the link that offers to start one are decided by this.
   const [pregnancy, setPregnancy] = useState<PregnancyDashboard | null>(null);
 
+  // Which view the person chose, and how to record a change. Both come from the
+  // app store, which already persists the mode; nothing new is kept here.
+  const mode = useAppStore((state) => state.mode);
+  const setMode = useAppStore((state) => state.setMode);
+
   // Months away from the month containing today, rather than an absolute month,
   // so it needs no second initialisation once the data arrives. Session-only:
   // a restart opens on the current month again.
@@ -224,6 +230,35 @@ export default function HomeScreen() {
       };
     }, [readCycleData])
   );
+
+  // Derived rather than trusted: a stored 'pregnancy' mode outlives the
+  // pregnancy it was chosen for, so the view falls back on its own instead of
+  // waiting for a write to land.
+  const isPregnancyView = mode === 'pregnancy' && pregnancy !== null;
+
+  // Tidy the stored mode once the pregnancy it pointed at is gone. Rendering
+  // already ignores it, so a failed write changes nothing on screen.
+  useEffect(() => {
+    if (!isLoading && mode === 'pregnancy' && pregnancy === null) {
+      void setMode('cycle').catch((error: unknown) => {
+        if (__DEV__) {
+          console.error('[home] could not fall back to the cycle mode', error);
+        }
+      });
+    }
+  }, [isLoading, mode, pregnancy, setMode]);
+
+  const chooseMode = (next: 'cycle' | 'pregnancy') => {
+    if (next === mode) {
+      return;
+    }
+
+    void setMode(next).catch((error: unknown) => {
+      if (__DEV__) {
+        console.error('[home] could not switch mode', error);
+      }
+    });
+  };
 
   /**
    * Opens a source in whatever the device uses for links.
@@ -386,6 +421,38 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
+            {/* Two views over the same day. Gebelik is unreachable until there
+                is a pregnancy to show, which is what the disabled state says. */}
+            <View accessibilityRole="tablist" style={styles.modeSwitch}>
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityLabel="Döngü"
+                accessibilityState={{ selected: !isPregnancyView }}
+                onPress={() => chooseMode('cycle')}
+                style={({ pressed }) => [
+                  styles.modeOption,
+                  !isPregnancyView && { backgroundColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type={isPregnancyView ? 'small' : 'smallBold'}>Döngü</ThemedText>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityLabel="Gebelik"
+                accessibilityState={{ selected: isPregnancyView, disabled: pregnancy === null }}
+                disabled={pregnancy === null}
+                onPress={() => chooseMode('pregnancy')}
+                style={({ pressed }) => [
+                  styles.modeOption,
+                  isPregnancyView && { backgroundColor: theme.backgroundSelected },
+                  pregnancy === null && styles.disabled,
+                  pressed && pregnancy !== null && styles.pressed,
+                ]}>
+                <ThemedText type={isPregnancyView ? 'smallBold' : 'small'}>Gebelik</ThemedText>
+              </Pressable>
+            </View>
+
             <View style={styles.header}>
               <ThemedText type="small" themeColor="textSecondary">
                 Bugün
@@ -396,6 +463,8 @@ export default function HomeScreen() {
               </ThemedText>
             </View>
 
+            {isPregnancyView ? null : (
+              <>
             <View style={styles.summary}>
               {rows.map((row) => (
                 <View
@@ -575,8 +644,10 @@ export default function HomeScreen() {
 
               <CycleCalendarLegend />
             </View>
+              </>
+            )}
 
-            {pregnancy !== null && (
+            {isPregnancyView && pregnancy !== null && (
               <View style={styles.pregnancySection}>
                 <ThemedText accessibilityRole="header" type="smallBold">
                   Gebelik takibi
@@ -704,39 +775,45 @@ export default function HomeScreen() {
               </View>
             )}
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Geçmiş regl kayıtlarını görüntüle"
-              onPress={() => router.push('/(app)/history')}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Geçmiş kayıtlar
-              </ThemedText>
-            </Pressable>
+            {isPregnancyView ? null : (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Geçmiş regl kayıtlarını görüntüle"
+                  onPress={() => router.push('/(app)/history')}
+                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Geçmiş kayıtlar
+                  </ThemedText>
+                </Pressable>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Döngü ayarlarını düzenle"
-              onPress={() => router.push('/(app)/settings')}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Ayarlar
-              </ThemedText>
-            </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Döngü ayarlarını düzenle"
+                  onPress={() => router.push('/(app)/settings')}
+                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Ayarlar
+                  </ThemedText>
+                </Pressable>
 
-            {/* Offered only when there is no pregnancy to track yet. A temporary
-                way in: where pregnancy tracking really belongs is a decision for
-                when there is something to show once it has started. */}
-            {pregnancy === null && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Gebelik takibini başlat"
-                onPress={() => router.push('/(app)/pregnancy-start')}
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Gebelik takibini başlat
-                </ThemedText>
-              </Pressable>
+                {/* The way in to pregnancy tracking, and the only way to enable
+                    the view that shows it. */}
+                {pregnancy === null && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Gebelik takibini başlat"
+                    onPress={() => router.push('/(app)/pregnancy-start')}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      pressed && styles.pressed,
+                    ]}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Gebelik takibini başlat
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
         </ScrollView>
@@ -802,6 +879,19 @@ const styles = StyleSheet.create({
   },
   rowNote: {
     marginTop: Spacing.one,
+  },
+  modeSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  modeOption: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
   },
   pregnancySection: {
     gap: Spacing.two,

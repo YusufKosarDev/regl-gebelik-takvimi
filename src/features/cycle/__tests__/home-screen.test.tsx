@@ -3,6 +3,8 @@ import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/index';
+import { useAppStore } from '@/store/app-store';
+import type { AppMode } from '@/types/app-state';
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -30,6 +32,14 @@ jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
 
 jest.mock('@/utils/today', () => ({
   getTodayLocalISODate: jest.fn(),
+}));
+
+// The store's persistence is faked so the real store logic runs without
+// AsyncStorage, which has no native module under Jest.
+jest.mock('@/storage/app-state-storage', () => ({
+  loadAppState: jest.fn(),
+  saveAppState: jest.fn(),
+  clearAppState: jest.fn(),
 }));
 
 /**
@@ -69,6 +79,12 @@ const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
+const appStateStorage = jest.requireMock('@/storage/app-state-storage');
+
+/** The store is a module singleton, so each test starts from a known mode. */
+function setStoredMode(mode: AppMode) {
+  useAppStore.setState({ mode, onboardingCompleted: true, hydrated: true });
+}
 const useRouterMock = useRouter as unknown as jest.Mock;
 const focusListeners = (globalThis as Record<string, unknown>).__focusListeners as (() => void)[];
 
@@ -151,6 +167,12 @@ beforeEach(() => {
   pregnancyRepository.savePregnancyProfile.mockReset();
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-17' as ISODate);
+
+  appStateStorage.saveAppState.mockReset();
+  appStateStorage.saveAppState.mockResolvedValue(undefined);
+  appStateStorage.loadAppState.mockReset();
+  appStateStorage.clearAppState.mockReset();
+  setStoredMode('cycle');
 
   push = jest.fn();
   useRouterMock.mockReset();
@@ -2228,6 +2250,11 @@ describe('HomeScreen pregnancy link', () => {
 });
 
 describe('HomeScreen pregnancy dashboard', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   /** Last menstrual period on 2 September; today is 17 September in these tests. */
   function pregnancyProfile(
     overrides: {
@@ -2330,7 +2357,7 @@ describe('HomeScreen pregnancy dashboard', () => {
     expect(repository.saveCycleProfile).not.toHaveBeenCalled();
   });
 
-  it('appears after a pregnancy is started elsewhere', async () => {
+  it('waits to be chosen after a pregnancy is started elsewhere', async () => {
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
 
     const screen = await renderScreen();
@@ -2339,6 +2366,13 @@ describe('HomeScreen pregnancy dashboard', () => {
 
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancyProfile());
     await refocus();
+
+    // Starting a pregnancy does not move the person out of the cycle view; the
+    // tab becomes available and they choose it.
+    expect(screen.queryByText('Gebelik takibi')).toBeNull();
+    expect(screen.getByLabelText('Gebelik').props.accessibilityState.disabled).toBe(false);
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
 
     expect(screen.getByText('Gebelik takibi')).toBeTruthy();
     expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
@@ -2431,6 +2465,11 @@ describe('HomeScreen pregnancy dashboard', () => {
 });
 
 describe('HomeScreen pregnancy dashboard before the pregnancy began', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   beforeEach(() => {
     repository.loadCycleProfile.mockResolvedValue(profile());
     // A stored pregnancy whose last menstrual period is still ahead of today.
@@ -2525,6 +2564,11 @@ describe('HomeScreen cycle dashboard alongside a pregnancy', () => {
 });
 
 describe('HomeScreen pregnancy content sources', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   const NHS_WEEK_10 = 'https://www.nhs.uk/pregnancy/week-by-week/1-to-12/10-weeks/';
   const CLEVELAND =
     'https://my.clevelandclinic.org/health/articles/7247-fetal-development-stages-of-growth';
@@ -2636,6 +2680,11 @@ describe('HomeScreen pregnancy content sources', () => {
 });
 
 describe('HomeScreen when a source will not open', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   let openURL: jest.SpyInstance;
 
   beforeEach(() => {
@@ -2680,7 +2729,7 @@ describe('HomeScreen when a source will not open', () => {
 
     expect(screen.getByText('Kaynaklar')).toBeTruthy();
     expect(screen.getByText('Gebelik takibi')).toBeTruthy();
-    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByText('Bu hafta')).toBeTruthy();
   });
 
   it('says nothing before anything is pressed', async () => {
@@ -2711,6 +2760,11 @@ describe('HomeScreen when a source will not open', () => {
 });
 
 describe('HomeScreen sources without week content', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   it('shows no source section before the pregnancy began', async () => {
     repository.loadCycleProfile.mockResolvedValue(profile());
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
@@ -2750,6 +2804,11 @@ describe('HomeScreen sources without week content', () => {
 });
 
 describe('HomeScreen pregnancy settings link', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   function pregnancyProfile(
     overrides: {
       estimatedDueDate?: string;
@@ -2814,15 +2873,22 @@ describe('HomeScreen pregnancy settings link', () => {
     expect(pregnancyRepository.savePregnancyProfile).not.toHaveBeenCalled();
   });
 
-  it('leaves the cycle links alone', async () => {
-    const { getByLabelText } = await renderScreen();
+  it('is the only link in the pregnancy view', async () => {
+    const { getByLabelText, queryByLabelText } = await renderScreen();
 
-    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+    expect(getByLabelText('Gebelik ayarlarını düzenle')).toBeTruthy();
+    // The cycle links belong to the cycle view and are not mixed in here.
+    expect(queryByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeNull();
+    expect(queryByLabelText('Döngü ayarlarını düzenle')).toBeNull();
   });
 });
 
 describe('HomeScreen after the due date is changed elsewhere', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   beforeEach(() => {
     repository.loadCycleProfile.mockResolvedValue(profile());
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
@@ -2890,6 +2956,11 @@ describe('HomeScreen after the due date is changed elsewhere', () => {
 });
 
 describe('HomeScreen after the pregnancy tracking is stopped', () => {
+  // The pregnancy view is where this content lives.
+  beforeEach(() => {
+    setStoredMode('pregnancy');
+  });
+
   beforeEach(() => {
     repository.loadCycleProfile.mockResolvedValue(profile());
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
@@ -2957,5 +3028,284 @@ describe('HomeScreen after the pregnancy tracking is stopped', () => {
 
     // One more read per focus, the same as any other return to the screen.
     expect(repository.loadCycleProfile.mock.calls.length).toBe(cycleReadsBefore + 1);
+  });
+});
+
+describe('HomeScreen mode switch', () => {
+  function pregnancyProfile() {
+    return {
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    };
+  }
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancyProfile());
+  });
+
+  it('offers both views', async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+
+    expect(getByLabelText('Döngü')).toBeTruthy();
+    expect(getByLabelText('Gebelik')).toBeTruthy();
+    expect(getByText('Döngü')).toBeTruthy();
+    expect(getByText('Gebelik')).toBeTruthy();
+  });
+
+  it('starts on the cycle view', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Döngü').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByLabelText('Gebelik').props.accessibilityState.selected).toBe(false);
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.queryByText('Gebelik takibi')).toBeNull();
+  });
+
+  it('switches to the pregnancy view', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    expect(screen.getByLabelText('Gebelik').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+    expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
+  });
+
+  it('switches back to the cycle view', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+    await fireEvent.press(screen.getByLabelText('Döngü'));
+
+    expect(screen.getByLabelText('Döngü').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.queryByText('Gebelik takibi')).toBeNull();
+  });
+
+  it('records the choice so it outlives the screen', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    expect(appStateStorage.saveAppState).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'pregnancy' })
+    );
+    expect(useAppStore.getState().mode).toBe('pregnancy');
+  });
+
+  it('opens on the stored view rather than the default', async () => {
+    setStoredMode('pregnancy');
+
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Gebelik').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+  });
+
+  it('writes nothing when the chosen view is already showing', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Döngü'));
+
+    expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
+  });
+
+  it('survives a refused write without changing what is shown', async () => {
+    appStateStorage.saveAppState.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    // The store only updates after the write lands, so the view stays put.
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.queryByText('Bilgiler yüklenemedi.')).toBeNull();
+  });
+});
+
+describe('HomeScreen mode switch without a pregnancy', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+  });
+
+  it('offers the pregnancy view but refuses it', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Gebelik')).toBeTruthy();
+    expect(screen.getByLabelText('Gebelik').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('stays on the cycle view when it is pressed', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
+  });
+
+  it('keeps the cycle view usable', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Takvim')).toBeTruthy();
+    expect(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(screen.getByLabelText('Gebelik takibini başlat')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen mode fallback', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('shows the cycle view when the stored mode outlived its pregnancy', async () => {
+    setStoredMode('pregnancy');
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByLabelText('Döngü').props.accessibilityState.selected).toBe(true);
+    expect(screen.queryByText('Gebelik takibi')).toBeNull();
+  });
+
+  it('puts the stored mode back to cycle', async () => {
+    setStoredMode('pregnancy');
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().mode).toBe('cycle');
+    });
+    expect(appStateStorage.saveAppState).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'cycle' })
+    );
+  });
+
+  it('falls back when the pregnancy is stopped while the view is open', async () => {
+    setStoredMode('pregnancy');
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    await refocus();
+
+    expect(screen.queryByText('Gebelik takibi')).toBeNull();
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.getByLabelText('Gebelik').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('still shows the cycle view when the fallback write fails', async () => {
+    setStoredMode('pregnancy');
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+    appStateStorage.saveAppState.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderScreen();
+
+    // Rendering never trusted the stored mode, so a failed tidy-up changes
+    // nothing on screen.
+    expect(screen.getByText('17. gün')).toBeTruthy();
+    expect(screen.queryByText('Bilgiler yüklenemedi.')).toBeNull();
+  });
+});
+
+describe('HomeScreen views stay separate', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-09-02' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+  });
+
+  it('keeps pregnancy content out of the cycle view', async () => {
+    const screen = await renderScreen();
+
+    for (const pregnancyOnly of [
+      'Gebelik takibi',
+      'Gebelik haftası',
+      'Tahmini doğum tarihi',
+      'Bu hafta',
+      'Bu hafta gelişenler',
+      'Kaynaklar',
+    ]) {
+      expect(screen.queryByText(pregnancyOnly)).toBeNull();
+    }
+
+    expect(screen.queryByLabelText('Gebelik ayarlarını düzenle')).toBeNull();
+  });
+
+  it('keeps cycle content out of the pregnancy view', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    for (const cycleOnly of [
+      'Döngü günü',
+      'Döngü evresi',
+      'Doğurganlık tahmini',
+      'Takvim',
+      'Seçilen gün',
+      'Regl günü',
+      'Geçmiş kayıtlar',
+      'Ayarlar',
+    ]) {
+      expect(screen.queryByText(cycleOnly)).toBeNull();
+    }
+
+    expect(screen.queryByLabelText('Regl başlangıcını kaydet')).toBeNull();
+    expect(screen.queryByLabelText('Önceki ay')).toBeNull();
+  });
+
+  it('shows the date header in both views', async () => {
+    const screen = await renderScreen();
+
+    // The cycle view names today on the calendar and the selected-day card too,
+    // so count rather than expect exactly one.
+    expect(screen.getAllByText('17 Eylül 2026').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Bugün').length).toBeGreaterThan(0);
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    // Only the header is left to carry it.
+    expect(screen.getAllByText('17 Eylül 2026')).toHaveLength(1);
+    expect(screen.getAllByText('Bugün')).toHaveLength(1);
+  });
+
+  it('keeps reading on focus in the pregnancy view', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+
+    const readsBefore = pregnancyRepository.loadPregnancyProfile.mock.calls.length;
+
+    await refocus();
+
+    expect(pregnancyRepository.loadPregnancyProfile.mock.calls.length).toBe(readsBefore + 1);
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+  });
+
+  it('comes back to the cycle view with its content intact', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Gebelik'));
+    await fireEvent.press(screen.getByLabelText('Döngü'));
+
+    expect(screen.getByText('Döngü günü')).toBeTruthy();
+    expect(screen.getByText('Takvim')).toBeTruthy();
+    expect(screen.getByText('Seçilen gün')).toBeTruthy();
+    expect(screen.getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
   });
 });
