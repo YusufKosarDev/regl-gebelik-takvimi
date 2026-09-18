@@ -43,3 +43,23 @@ export type PregnancyWeek = {
   readonly week: number;
   readonly day: number;
 };
+
+/**
+ * What there is to say about one week of a pregnancy.
+ *
+ * Content, not measurement: every field is written text meant to be read as-is,
+ * and nothing here is calculated from a date. `week` is which week it belongs
+ * to, matching the `week` of `PregnancyWeek`.
+ *
+ * `sizeLabel` is the size itself ("約 2,5 cm"), `sizeComparison` the everyday
+ * thing it is being compared to. They are separate because a screen may want the
+ * measurement without the comparison, and because a translation will not always
+ * keep the same object.
+ */
+export type PregnancyWeeklyContent = {
+  readonly week: number;
+  readonly sizeLabel: string;
+  readonly sizeComparison: string;
+  readonly developmentSummary: string;
+  readonly developingFeatures: readonly string[];
+};
