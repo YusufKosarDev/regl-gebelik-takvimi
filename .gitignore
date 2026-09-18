@@ -46,6 +46,11 @@ example
 /ios
 /android
 
+# build output of the local native modules, which are source-only in git
+modules/*/android/build/
+modules/*/android/.cxx/
+modules/*/ios/build/
+
 # IDE / OS
 .idea/
 *.iml
