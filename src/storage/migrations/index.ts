@@ -7,7 +7,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 4;
+export const LATEST_SCHEMA_VERSION = 5;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -167,6 +167,45 @@ async function migrateToVersion4(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 5: which reminders a person has asked for.
+ *
+ * One row, pinned like the others: these are one person's choices, and a table
+ * that could hold two sets would need a rule for picking between them.
+ *
+ * Each switch is an INTEGER constrained to 0 or 1, because SQLite has no boolean
+ * and an unconstrained column would happily store a 2 that nothing above it
+ * could read. They default to 0: an app that starts sending notifications
+ * because it was installed has decided something that was never its to decide.
+ */
+const MIGRATION_V5 = `
+  CREATE TABLE notification_preferences (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    period_reminder_enabled INTEGER NOT NULL DEFAULT 0
+      CHECK (period_reminder_enabled IN (0, 1)),
+    pregnancy_weekly_reminder_enabled INTEGER NOT NULL DEFAULT 0
+      CHECK (pregnancy_weekly_reminder_enabled IN (0, 1))
+  );
+`;
+
+/**
+ * Adds the reminder table.
+ *
+ * Nothing is backfilled and no row is written: an absent row and a row of zeroes
+ * mean the same thing, and the repository answers both with the defaults. The
+ * row appears the first time someone actually chooses something.
+ *
+ * Same bargain as the earlier steps: the DDL and the version bump share one
+ * transaction, so a failure leaves the database still reporting version 4 rather
+ * than claiming a table it does not have.
+ */
+async function migrateToVersion5(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V5);
+    await db.execAsync('PRAGMA user_version = 5');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -210,5 +249,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 4) {
     await migrateToVersion4(db);
+  }
+
+  if (currentVersion < 5) {
+    await migrateToVersion5(db);
   }
 }

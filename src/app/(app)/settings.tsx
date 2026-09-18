@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,6 +16,10 @@ import {
 } from '@/features/cycle/domain/limits';
 import type { CycleSettings } from '@/features/cycle/domain/types';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import { loadNotificationPreferences } from '@/features/notifications/data/notification-preferences-repository';
+import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domain/notification-preferences';
+import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -23,6 +27,10 @@ import { getTodayLocalISODate } from '@/utils/today';
 const LOAD_ERROR_MESSAGE = 'Ayarlar yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Ayarlar kaydedilemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
+const PERMISSION_DENIED_MESSAGE =
+  'Bildirim izni verilmedi. Hatırlatıcıyı açmak için telefon ayarlarından bu uygulamaya ' +
+  'bildirim izni ver.';
+const REMINDER_ERROR_MESSAGE = 'Hatırlatıcı ayarı kaydedilemedi.';
 
 /**
  * The longest period length that makes sense alongside a given cycle length.
@@ -62,11 +70,30 @@ export default function SettingsScreen() {
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
 
-  /** Stable, so the mount effect can depend on it. */
+  // The reminders are read here but never acted on: nothing is scheduled yet,
+  // and no permission is asked for until someone switches one on.
+  const [reminders, setReminders] = useState<NotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
+  const [reminderField, setReminderField] = useState<keyof NotificationPreferences | null>(null);
+  const [reminderNotice, setReminderNotice] = useState<string | null>(null);
+  const reminderInFlight = useRef(false);
+
+  /**
+   * Stable, so the mount effect can depend on it.
+   *
+   * Reads the reminders too, and only reads them: asking the system for
+   * permission while a screen is opening would be a dialog nobody asked for.
+   */
   const readSettings = useCallback(async () => {
     const db = await openAppDatabase();
 
-    return getCycleSettings(db);
+    const [stored, storedReminders] = await Promise.all([
+      getCycleSettings(db),
+      loadNotificationPreferences(db),
+    ]);
+
+    return { settings: stored, reminders: storedReminders };
   }, []);
 
   useEffect(() => {
@@ -76,17 +103,18 @@ export default function SettingsScreen() {
 
     const load = async () => {
       try {
-        const stored = await readSettings();
+        const data = await readSettings();
 
         if (!isActive) {
           return;
         }
 
-        setSettings(stored);
+        setSettings(data.settings);
+        setReminders(data.reminders);
 
-        if (stored !== null) {
-          setCycleLength(stored.averageCycleLengthDays);
-          setPeriodLength(stored.averagePeriodLengthDays);
+        if (data.settings !== null) {
+          setCycleLength(data.settings.averageCycleLengthDays);
+          setPeriodLength(data.settings.averagePeriodLengthDays);
         }
       } catch (error) {
         if (__DEV__) {
@@ -131,6 +159,43 @@ export default function SettingsScreen() {
   const changePeriodLength = (delta: number) => {
     setPeriodLength(periodLength + delta);
     setHasSaveError(false);
+  };
+
+  /**
+   * Switches one reminder.
+   *
+   * Turning one on can be refused by the system, and a refusal leaves the switch
+   * where it was with a line saying why — springing back with no explanation
+   * would look like the app losing the tap. Turning one off asks for nothing.
+   */
+  const handleReminder = async (field: keyof NotificationPreferences, enabled: boolean) => {
+    if (reminderInFlight.current) {
+      return;
+    }
+
+    reminderInFlight.current = true;
+    setReminderField(field);
+    setReminderNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+      const result = await setReminderEnabled(db, field, enabled);
+
+      setReminders(result.preferences);
+
+      if (enabled && result.permission !== 'granted') {
+        setReminderNotice(PERMISSION_DENIED_MESSAGE);
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[settings] could not change the reminder', error);
+      }
+
+      setReminderNotice(REMINDER_ERROR_MESSAGE);
+    } finally {
+      reminderInFlight.current = false;
+      setReminderField(null);
+    }
   };
 
   const handleSave = async () => {
@@ -274,10 +339,86 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
             )}
+
+            {/* Outside the cycle branch: what someone wants to be reminded
+                about does not depend on what their cycle looks like. */}
+            {hasError ? null : (
+              <View style={styles.fields}>
+                <ThemedText accessibilityRole="header" type="smallBold">
+                  Bildirimler
+                </ThemedText>
+
+                <ThemedText type="small" themeColor="textSecondary">
+                  Hatırlatıcılar kapalı gelir. Açtığın anda telefonun bildirim izni isteyebilir.
+                </ThemedText>
+
+                <ReminderToggle
+                  label="Regl hatırlatıcısı"
+                  value={reminders.periodReminderEnabled}
+                  busy={reminderField === 'periodReminderEnabled'}
+                  disabled={reminderField !== null}
+                  onChange={(next) => handleReminder('periodReminderEnabled', next)}
+                  theme={theme}
+                />
+
+                <ReminderToggle
+                  label="Haftalık gebelik hatırlatıcısı"
+                  value={reminders.pregnancyWeeklyReminderEnabled}
+                  busy={reminderField === 'pregnancyWeeklyReminderEnabled'}
+                  disabled={reminderField !== null}
+                  onChange={(next) => handleReminder('pregnancyWeeklyReminderEnabled', next)}
+                  theme={theme}
+                />
+
+                {reminderNotice !== null && (
+                  <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                    {reminderNotice}
+                  </ThemedText>
+                )}
+              </View>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/**
+ * One reminder, as a labelled switch.
+ *
+ * A real `Switch` rather than a button: it is a two-state setting, and it should
+ * look and read like one. The label is the accessibility label as well, so a
+ * screen reader announces the setting and its state together.
+ */
+function ReminderToggle({
+  label,
+  value,
+  busy,
+  disabled,
+  onChange,
+  theme,
+}: {
+  label: string;
+  value: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onChange: (next: boolean) => void;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View style={[styles.reminderRow, { backgroundColor: theme.backgroundElement }]}>
+      <ThemedText style={styles.reminderLabel}>{label}</ThemedText>
+
+      <Switch
+        accessibilityLabel={label}
+        accessibilityState={{ checked: value, disabled }}
+        value={value}
+        disabled={disabled}
+        onValueChange={onChange}
+        testID={busy ? 'reminder-busy' : undefined}
+      />
+    </View>
   );
 }
 
@@ -453,6 +594,19 @@ const styles = StyleSheet.create({
     fontSize: 56,
     lineHeight: 62,
     fontWeight: '600',
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    minHeight: 56,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+  },
+  reminderLabel: {
+    flexShrink: 1,
   },
   primaryButton: {
     minHeight: 52,

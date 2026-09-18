@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/settings';
@@ -25,6 +25,18 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
+// The reminder rows read their own preferences and, when switched on, ask for a
+// permission. Both are faked so this file stays about the cycle settings; the
+// reminders have their own describe block below.
+jest.mock('@/features/notifications/data/notification-preferences-repository', () => ({
+  loadNotificationPreferences: jest.fn(),
+  saveNotificationPreferences: jest.fn(),
+}));
+
+jest.mock('@/features/notifications/application/set-reminder-enabled', () => ({
+  setReminderEnabled: jest.fn(),
+}));
+
 // The widget sync is faked so the screen's calls to it can be counted. It is
 // quiet by contract, so the real one would do nothing under Jest anyway.
 jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
@@ -35,6 +47,10 @@ jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
 const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+const reminderRepository = jest.requireMock(
+  '@/features/notifications/data/notification-preferences-repository'
+);
+const reminders = jest.requireMock('@/features/notifications/application/set-reminder-enabled');
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
@@ -60,6 +76,23 @@ beforeEach(() => {
   repository.saveCycleProfile.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+  reminderRepository.loadNotificationPreferences.mockReset();
+  reminderRepository.loadNotificationPreferences.mockResolvedValue({
+    periodReminderEnabled: false,
+    pregnancyWeeklyReminderEnabled: false,
+  });
+  reminderRepository.saveNotificationPreferences.mockReset();
+  reminders.setReminderEnabled.mockReset();
+  reminders.setReminderEnabled.mockImplementation(
+    async (_db: unknown, field: string, enabled: boolean) => ({
+      preferences: {
+        periodReminderEnabled: field === 'periodReminderEnabled' ? enabled : false,
+        pregnancyWeeklyReminderEnabled:
+          field === 'pregnancyWeeklyReminderEnabled' ? enabled : false,
+      },
+      permission: enabled ? 'granted' : null,
+    })
+  );
   repository.saveCycleProfile.mockResolvedValue(undefined);
 
   back = jest.fn();
@@ -610,5 +643,225 @@ describe('SettingsScreen widget snapshot sync', () => {
 
     expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Ayarlar kaydedilemedi.')).toBeNull();
+  });
+});
+
+const DENIED_MESSAGE =
+  'Bildirim izni verilmedi. Hatırlatıcıyı açmak için telefon ayarlarından bu uygulamaya ' +
+  'bildirim izni ver.';
+
+/** Reads a switch's state off its accessibility state. */
+function isOn(
+  screen: { getByLabelText: (label: string) => { props: Record<string, unknown> } },
+  label: string
+) {
+  const state = screen.getByLabelText(label).props.accessibilityState as { checked?: boolean };
+
+  return state.checked === true;
+}
+
+describe('SettingsScreen reminders', () => {
+  it('shows both reminders', async () => {
+    const screen = await renderLoaded();
+
+    expect(screen.getByText('Bildirimler')).toBeTruthy();
+    expect(screen.getByLabelText('Regl hatırlatıcısı')).toBeTruthy();
+    expect(screen.getByLabelText('Haftalık gebelik hatırlatıcısı')).toBeTruthy();
+  });
+
+  it('shows both off by default', async () => {
+    const screen = await renderLoaded();
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(false);
+    expect(isOn(screen, 'Haftalık gebelik hatırlatıcısı')).toBe(false);
+  });
+
+  it('shows what was stored', async () => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+
+    const screen = await renderLoaded();
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+    expect(isOn(screen, 'Haftalık gebelik hatırlatıcısı')).toBe(false);
+  });
+
+  it('asks for no permission while the screen is opening', async () => {
+    await renderLoaded();
+
+    // A dialog before anyone has asked for anything is a question with no
+    // answer, and the only safe answer to an unexplained one is no.
+    expect(reminders.setReminderEnabled).not.toHaveBeenCalled();
+  });
+
+  it('reads the preferences on the same database the screen opened', async () => {
+    await renderLoaded();
+
+    expect(reminderRepository.loadNotificationPreferences).toHaveBeenCalledTimes(1);
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SettingsScreen switching a reminder on', () => {
+  it.each([
+    ['Regl hatırlatıcısı', 'periodReminderEnabled'],
+    ['Haftalık gebelik hatırlatıcısı', 'pregnancyWeeklyReminderEnabled'],
+  ] as const)('sends %s to the use case', async (label, field) => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText(label), 'valueChange', true);
+    });
+
+    expect(reminders.setReminderEnabled).toHaveBeenCalledTimes(1);
+    expect(reminders.setReminderEnabled.mock.calls[0].slice(1)).toEqual([field, true]);
+  });
+
+  it('turns the switch on when permission is granted', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+    expect(screen.queryByText(/Bildirim izni verilmedi/)).toBeNull();
+  });
+
+  it('leaves it off and says why when permission is refused', async () => {
+    reminders.setReminderEnabled.mockResolvedValue({
+      preferences: { periodReminderEnabled: false, pregnancyWeeklyReminderEnabled: false },
+      permission: 'denied',
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(false);
+    expect(screen.getByText(DENIED_MESSAGE)).toBeTruthy();
+  });
+
+  it('says the same when the dialog was dismissed rather than answered', async () => {
+    reminders.setReminderEnabled.mockResolvedValue({
+      preferences: { periodReminderEnabled: false, pregnancyWeeklyReminderEnabled: false },
+      permission: 'undetermined',
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(false);
+    expect(screen.getByText(DENIED_MESSAGE)).toBeTruthy();
+  });
+
+  it('says so when the change could not be saved', async () => {
+    reminders.setReminderEnabled.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(screen.getByText('Hatırlatıcı ayarı kaydedilemedi.')).toBeTruthy();
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(false);
+  });
+
+  it('clears an earlier refusal on the next attempt', async () => {
+    reminders.setReminderEnabled.mockResolvedValue({
+      preferences: { periodReminderEnabled: false, pregnancyWeeklyReminderEnabled: false },
+      permission: 'denied',
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+    expect(screen.getByText(DENIED_MESSAGE)).toBeTruthy();
+
+    reminders.setReminderEnabled.mockResolvedValue({
+      preferences: { periodReminderEnabled: true, pregnancyWeeklyReminderEnabled: false },
+      permission: 'granted',
+    });
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(screen.queryByText(DENIED_MESSAGE)).toBeNull();
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+  });
+
+  it('leaves the cycle settings untouched', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', true);
+    });
+
+    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('SettingsScreen switching a reminder off', () => {
+  beforeEach(() => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: true,
+    });
+  });
+
+  it('sends the change to the use case', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', false);
+    });
+
+    expect(reminders.setReminderEnabled.mock.calls[0].slice(1)).toEqual([
+      'periodReminderEnabled',
+      false,
+    ]);
+  });
+
+  it('turns the switch off', async () => {
+    reminders.setReminderEnabled.mockResolvedValue({
+      preferences: { periodReminderEnabled: false, pregnancyWeeklyReminderEnabled: true },
+      permission: null,
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', false);
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(false);
+    expect(isOn(screen, 'Haftalık gebelik hatırlatıcısı')).toBe(true);
+  });
+
+  it('says nothing about permission', async () => {
+    reminders.setReminderEnabled.mockResolvedValue({
+      preferences: { periodReminderEnabled: false, pregnancyWeeklyReminderEnabled: true },
+      permission: null,
+    });
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', false);
+    });
+
+    expect(screen.queryByText(/Bildirim izni verilmedi/)).toBeNull();
   });
 });
