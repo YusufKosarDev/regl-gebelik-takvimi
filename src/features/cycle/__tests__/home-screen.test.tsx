@@ -2343,18 +2343,94 @@ describe('HomeScreen pregnancy dashboard', () => {
     expect(screen.getByText('3. hafta 2. gün')).toBeTruthy();
   });
 
-  it('adds nothing beyond the week and the due date', async () => {
+  it('adds nothing this step does not cover', async () => {
     const { queryByText } = await renderScreen();
 
-    // No mode switch, no weekly content, no fruit size, no way to edit the date.
+    // No mode switch, no way to edit the date, and no sources on screen.
     for (const forbidden of [
       'Gebelik modu',
-      'Bu hafta',
-      'Bebeğin boyu',
       'Tahmini doğum tarihini düzenle',
+      'Kaynaklar',
     ]) {
       expect(queryByText(forbidden)).toBeNull();
     }
+  });
+
+  it('shows the week content that belongs to the week it is in', async () => {
+    // The fixture is week 3, where nothing is measured yet.
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Bu hafta')).toBeTruthy();
+    expect(getByText(/Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+  });
+
+  it('shows no size for a week that has none', async () => {
+    const { queryByText } = await renderScreen();
+
+    // Week 3 carries no size, so the line is absent rather than blank.
+    expect(queryByText(/—/)).toBeNull();
+  });
+
+  it('shows the size for a week that has one', async () => {
+    // 27 August is day 1, so 17 September is day 22: week 4.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(
+      pregnancyProfile({ lastMenstrualPeriodStartDate: '2026-08-27' })
+    );
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText('4. hafta 1. gün')).toBeTruthy();
+    expect(getByText('yaklaşık 2 mm — haşhaş tohumu')).toBeTruthy();
+  });
+
+  it('lists what is developing this week', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Bu hafta gelişenler')).toBeTruthy();
+    expect(getByText('• Sperm ve yumurta birleşerek zigotu oluşturur')).toBeTruthy();
+    expect(getByText('• Zigot rahme doğru ilerler')).toBeTruthy();
+  });
+
+  it('exposes the week content to assistive technology', async () => {
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText(/^Bu hafta: Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+    expect(
+      getByLabelText(/^Bu hafta gelişenler: Sperm ve yumurta birleşerek zigotu oluşturur/)
+    ).toBeTruthy();
+  });
+
+  it('leads the spoken label with the size when there is one', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(
+      pregnancyProfile({ lastMenstrualPeriodStartDate: '2026-08-27' })
+    );
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText(/^Bu hafta: yaklaşık 2 mm — haşhaş tohumu./)).toBeTruthy();
+  });
+
+  it('keeps the sources out of the screen', async () => {
+    const { queryByText } = await renderScreen();
+
+    // They stay in the data for now; nothing cites them to the reader yet.
+    expect(queryByText(/Cleveland Clinic/)).toBeNull();
+    expect(queryByText(/nhs.uk/)).toBeNull();
+  });
+
+  it('shows no week content past week 40', async () => {
+    // 40 weeks and a day past the last menstrual period.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(
+      pregnancyProfile({ lastMenstrualPeriodStartDate: '2025-12-10' })
+    );
+
+    const { queryByText, getByText } = await renderScreen();
+
+    expect(queryByText('Bu hafta')).toBeNull();
+    expect(queryByText('Bu hafta gelişenler')).toBeNull();
+    // The rest of the section is still there.
+    expect(getByText('Gebelik takibi')).toBeTruthy();
+    expect(getByText('Tahmini doğum tarihi')).toBeTruthy();
   });
 });
 
@@ -2393,6 +2469,13 @@ describe('HomeScreen pregnancy dashboard before the pregnancy began', () => {
 
     expect(queryByText('Bilgiler yüklenemedi.')).toBeNull();
     expect(queryByText('Gebelik takibi')).toBeTruthy();
+  });
+
+  it('shows no week content either', async () => {
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Bu hafta')).toBeNull();
+    expect(queryByText('Bu hafta gelişenler')).toBeNull();
   });
 });
 

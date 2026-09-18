@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { PREGNANCY_WEEKLY_CONTENT } from '../../data/pregnancy-weekly-content';
 import type { PregnancyProfile } from '../../domain/types';
 import { getPregnancyDashboard } from '../get-pregnancy-dashboard';
 
@@ -172,5 +173,99 @@ describe('getPregnancyDashboard purity', () => {
     await expect(getPregnancyDashboard(db, date('2026-09-18'))).rejects.toThrow(
       /database is locked/
     );
+  });
+});
+
+describe('getPregnancyDashboard weekly content', () => {
+  it('carries the content written for the week the pregnancy is in', async () => {
+    // 2 September is day 1, so 18 September is day 17: week 3.
+    const dashboard = await getPregnancyDashboard(db, date('2026-09-18'));
+
+    expect(dashboard?.weeklyContent?.week).toBe(3);
+    expect(dashboard?.weeklyContent?.developmentSummary).toMatch(/Döllenme/);
+  });
+
+  it('agrees with the week it reports', async () => {
+    for (const day of ['2026-09-02', '2026-09-18', '2026-11-01', '2027-04-01']) {
+      const dashboard = await getPregnancyDashboard(db, date(day));
+
+      expect(dashboard?.weeklyContent?.week).toBe(dashboard?.pregnancyWeek?.week);
+    }
+  });
+
+  it('carries no size for a week that has none', async () => {
+    const dashboard = await getPregnancyDashboard(db, date(LMP));
+
+    expect(dashboard?.weeklyContent?.week).toBe(1);
+    expect(dashboard?.weeklyContent?.size).toBeUndefined();
+  });
+
+  it('carries the size for a week that has one', async () => {
+    // Day 22 is week 4, the first week with a size.
+    const dashboard = await getPregnancyDashboard(db, date('2026-09-23'));
+
+    expect(dashboard?.weeklyContent?.week).toBe(4);
+    expect(dashboard?.weeklyContent?.size).toEqual({
+      label: 'yaklaşık 2 mm',
+      comparison: 'haşhaş tohumu',
+    });
+  });
+
+  it('lists what is developing', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2026-09-18'));
+
+    expect(dashboard?.weeklyContent?.developingFeatures.length).toBeGreaterThan(0);
+  });
+
+  it('keeps the sources on the content it carries', async () => {
+    // They are not shown yet, but the dashboard does not strip them out.
+    const dashboard = await getPregnancyDashboard(db, date('2026-09-18'));
+
+    expect(dashboard?.weeklyContent?.sources.length).toBeGreaterThan(0);
+  });
+
+  it('hands back the entry the data holds rather than a copy', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2026-09-18'));
+
+    expect(dashboard?.weeklyContent).toBe(PREGNANCY_WEEKLY_CONTENT[2]);
+  });
+
+  it('reaches the last written week', async () => {
+    // Day 274 is week 40 day 1.
+    const dashboard = await getPregnancyDashboard(db, date('2027-06-02'));
+
+    expect(dashboard?.pregnancyWeek?.week).toBe(40);
+    expect(dashboard?.weeklyContent?.week).toBe(40);
+  });
+});
+
+describe('getPregnancyDashboard when there is nothing written', () => {
+  it('carries no content before the pregnancy began', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2026-09-01'));
+
+    expect(dashboard?.pregnancyWeek).toBeNull();
+    expect(dashboard?.weeklyContent).toBeNull();
+  });
+
+  it('carries no content past the last written week', async () => {
+    // Day 281 is week 41, past where the sources stop.
+    const dashboard = await getPregnancyDashboard(db, date('2027-06-09'));
+
+    expect(dashboard?.pregnancyWeek?.week).toBe(41);
+    expect(dashboard?.weeklyContent).toBeNull();
+  });
+
+  it('does not throw for a pregnancy well past term', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2027-12-31'));
+
+    expect(dashboard?.weeklyContent).toBeNull();
+    expect(dashboard?.estimatedDueDate).toBe('2027-06-09');
+  });
+
+  it('still reports the day, the week and the due date past term', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2027-06-09'));
+
+    expect(dashboard?.pregnancyDay).toBe(281);
+    expect(dashboard?.estimatedDueDate).toBe('2027-06-09');
   });
 });

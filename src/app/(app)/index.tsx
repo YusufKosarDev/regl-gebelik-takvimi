@@ -22,7 +22,10 @@ import {
 } from '@/features/cycle/presentation/cycle-labels';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
 import { getPregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
-import type { PregnancyDueDateSource } from '@/features/pregnancy/domain/types';
+import type {
+  PregnancyDueDateSource,
+  PregnancyWeeklyContent,
+} from '@/features/pregnancy/domain/types';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -75,6 +78,20 @@ function pregnancyProgressLabel(pregnancy: PregnancyDashboard): string {
   }
 
   return `${pregnancy.pregnancyWeek.week}. hafta ${pregnancy.pregnancyWeek.day}. gün`;
+}
+
+/**
+ * The week's content in one line, for assistive technology.
+ *
+ * The size leads when there is one, because that is the part a screen reader
+ * would otherwise have to reach the summary to get any sense of.
+ */
+function weeklyHighlight(content: PregnancyWeeklyContent): string {
+  if (content.size === undefined) {
+    return content.developmentSummary;
+  }
+
+  return `${content.size.label} — ${content.size.comparison}. ${content.developmentSummary}`;
 }
 
 /** Where the due date came from, so an adjusted one is not read as calculated. */
@@ -562,6 +579,48 @@ export default function HomeScreen() {
                     {dueDateSourceLabel(pregnancy.dueDateSource)}
                   </ThemedText>
                 </View>
+
+                {/* Absent before the pregnancy starts and past week 40, where
+                    there is nothing written to show. */}
+                {pregnancy.weeklyContent !== null && (
+                  <>
+                    <View
+                      accessible
+                      accessibilityLabel={`Bu hafta: ${weeklyHighlight(pregnancy.weeklyContent)}`}
+                      style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Bu hafta
+                      </ThemedText>
+
+                      {/* Only the weeks that have a size show one. */}
+                      {pregnancy.weeklyContent.size !== undefined && (
+                        <ThemedText style={styles.rowValue}>
+                          {pregnancy.weeklyContent.size.label} —{' '}
+                          {pregnancy.weeklyContent.size.comparison}
+                        </ThemedText>
+                      )}
+
+                      <ThemedText type="small" style={styles.weeklySummary}>
+                        {pregnancy.weeklyContent.developmentSummary}
+                      </ThemedText>
+                    </View>
+
+                    <View
+                      accessible
+                      accessibilityLabel={`Bu hafta gelişenler: ${pregnancy.weeklyContent.developingFeatures.join(', ')}`}
+                      style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Bu hafta gelişenler
+                      </ThemedText>
+
+                      {pregnancy.weeklyContent.developingFeatures.map((feature) => (
+                        <ThemedText key={feature} type="small" style={styles.weeklyFeature}>
+                          • {feature}
+                        </ThemedText>
+                      ))}
+                    </View>
+                  </>
+                )}
               </View>
             )}
 
@@ -666,6 +725,14 @@ const styles = StyleSheet.create({
   },
   pregnancySection: {
     gap: Spacing.two,
+  },
+  weeklySummary: {
+    marginTop: Spacing.one,
+    lineHeight: 22,
+  },
+  weeklyFeature: {
+    marginTop: Spacing.half,
+    lineHeight: 22,
   },
   calendarSection: {
     gap: Spacing.two,
