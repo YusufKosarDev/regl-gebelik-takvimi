@@ -16,3 +16,11 @@ android {
     abortOnError false
   }
 }
+
+dependencies {
+  // `org.json` is an Android framework class with stub-only methods on the unit
+  // test classpath. The real implementation is put there instead, so the parser
+  // can be tested without a device or Robolectric.
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.json:json:20240303'
+}

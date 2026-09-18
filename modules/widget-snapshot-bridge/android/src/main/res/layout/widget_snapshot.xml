@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget's one layout, used for the card and for the picker's preview.
+
+  Everything a RemoteViews can hold and nothing it cannot: plain LinearLayouts,
+  TextViews and an ImageView. The avatar is an image because a widget cannot run
+  views of its own, so it is painted into a bitmap and set from the provider.
+
+  The content and the empty state are both here, and exactly one of them is
+  visible. Swapping visibility is something RemoteViews can do; choosing a
+  different layout at draw time is not.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/widget_snapshot_background"
+  android:orientation="horizontal"
+  android:gravity="center_vertical"
+  android:padding="14dp">
+
+  <ImageView
+    android:id="@+id/widget_avatar"
+    android:layout_width="64dp"
+    android:layout_height="64dp"
+    android:layout_marginEnd="14dp"
+    android:contentDescription="@string/widget_snapshot_avatar_description"
+    android:scaleType="fitCenter" />
+
+  <LinearLayout
+    android:id="@+id/widget_content"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:orientation="vertical"
+    android:visibility="gone">
+
+    <TextView
+      android:id="@+id/widget_cycle_day"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:textColor="#FF101010"
+      android:textSize="16sp"
+      android:textStyle="bold"
+      android:maxLines="1"
+      android:ellipsize="end" />
+
+    <TextView
+      android:id="@+id/widget_phase"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="1dp"
+      android:textColor="#FF60646C"
+      android:textSize="13sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+
+    <TextView
+      android:id="@+id/widget_message"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="5dp"
+      android:textColor="#FF303030"
+      android:textSize="12sp"
+      android:maxLines="3"
+      android:ellipsize="end" />
+
+    <TextView
+      android:id="@+id/widget_moods"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="4dp"
+      android:textColor="#FF60646C"
+      android:textSize="11sp"
+      android:maxLines="2"
+      android:ellipsize="end" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/widget_empty"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:text="@string/widget_snapshot_empty"
+    android:textColor="#FF60646C"
+    android:textSize="13sp"
+    android:maxLines="3"
+    android:ellipsize="end" />
+</LinearLayout>

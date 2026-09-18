@@ -17,8 +17,8 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * its own key beside this one, so a widget built for version 1 keeps reading
  * version 1 rather than finding fields that moved under it.
  */
-private const val PREFERENCES_FILE = "widget_snapshot"
-private const val SNAPSHOT_KEY = "snapshot_v1"
+internal const val WIDGET_SNAPSHOT_PREFERENCES_FILE = "widget_snapshot"
+internal const val WIDGET_SNAPSHOT_KEY = "snapshot_v1"
 
 internal class MissingContextException :
   CodedException("ERR_WIDGET_SNAPSHOT_NO_CONTEXT", "The Android context is not available.", null)
@@ -55,8 +55,23 @@ class WidgetSnapshotBridgeModule : Module() {
     get() {
       val context = appContext.reactContext ?: throw MissingContextException()
 
-      return context.getSharedPreferences(PREFERENCES_FILE, Context.MODE_PRIVATE)
+      return context.getSharedPreferences(WIDGET_SNAPSHOT_PREFERENCES_FILE, Context.MODE_PRIVATE)
     }
+
+  /**
+   * Redraws whatever is on the home screen.
+   *
+   * Best effort on purpose: the snapshot is already stored by the time this
+   * runs, so a launcher that refuses the update leaves a stale card rather than
+   * a failed write, and reporting it as a failed write would be a lie.
+   */
+  private fun refreshWidgets() {
+    try {
+      appContext.reactContext?.let { WidgetSnapshotProvider.refreshAll(it) }
+    } catch (error: Throwable) {
+      // Nothing to do and nobody to tell: the data is saved either way.
+    }
+  }
 
   override fun definition() = ModuleDefinition {
     Name("WidgetSnapshotBridge")
@@ -68,19 +83,23 @@ class WidgetSnapshotBridgeModule : Module() {
         throw BlankSnapshotException()
       }
 
-      if (!preferences.edit().putString(SNAPSHOT_KEY, json).commit()) {
+      if (!preferences.edit().putString(WIDGET_SNAPSHOT_KEY, json).commit()) {
         throw WriteFailedException("store")
       }
+
+      refreshWidgets()
     }
 
     AsyncFunction("readSnapshot") { ->
-      preferences.getString(SNAPSHOT_KEY, null)
+      preferences.getString(WIDGET_SNAPSHOT_KEY, null)
     }
 
     AsyncFunction("clearSnapshot") { ->
-      if (!preferences.edit().remove(SNAPSHOT_KEY).commit()) {
+      if (!preferences.edit().remove(WIDGET_SNAPSHOT_KEY).commit()) {
         throw WriteFailedException("remove")
       }
+
+      refreshWidgets()
     }
   }
 }

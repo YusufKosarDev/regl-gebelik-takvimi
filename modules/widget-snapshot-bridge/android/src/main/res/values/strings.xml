@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_snapshot_label">Döngüm</string>
+  <string name="widget_snapshot_description">Bugünün döngü özetini ana ekranda gösterir.</string>
+  <!-- The only thing that refreshes a stale widget today, so the empty state
+       asks for exactly that rather than apologising. -->
+  <string name="widget_snapshot_empty">Uygulamayı açarak widget\'ı güncelle.</string>
+  <string name="widget_snapshot_avatar_description">Avatar</string>
+</resources>
