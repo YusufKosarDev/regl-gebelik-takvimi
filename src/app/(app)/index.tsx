@@ -1,6 +1,13 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -101,6 +108,7 @@ function dueDateSourceLabel(source: PregnancyDueDateSource): string {
 
 const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
 const NOT_STARTED_MESSAGE = 'Gebelik başlangıç tarihi henüz gelmedi.';
+const SOURCE_ERROR_MESSAGE = 'Kaynak açılamadı.';
 const SAVE_ERROR_MESSAGE = 'Regl başlangıcı kaydedilemedi.';
 const END_SAVE_ERROR_MESSAGE = 'Regl bitişi kaydedilemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
@@ -148,6 +156,10 @@ export default function HomeScreen() {
   // A ref as well as the disabled prop: state updates are async, so two quick
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
+
+  // Set when a source link could not be handed to the browser. Cleared on the
+  // next attempt, so a failure does not linger over a link that works.
+  const [hasSourceError, setHasSourceError] = useState(false);
 
   /**
    * Reads everything the screen shows. Stable, so the mount effect can depend on
@@ -212,6 +224,26 @@ export default function HomeScreen() {
       };
     }, [readCycleData])
   );
+
+  /**
+   * Opens a source in whatever the device uses for links.
+   *
+   * A refusal is shown next to the links rather than thrown: failing to open a
+   * citation is a disappointment, not a reason to lose the screen.
+   */
+  const openSource = async (url: string) => {
+    setHasSourceError(false);
+
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[home] could not open the source', error);
+      }
+
+      setHasSourceError(true);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -619,6 +651,44 @@ export default function HomeScreen() {
                         </ThemedText>
                       ))}
                     </View>
+
+                    {/* The domain requires at least one source, but the section
+                        is still conditional: an empty heading would be worse
+                        than no heading. */}
+                    {pregnancy.weeklyContent.sources.length > 0 && (
+                      <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Kaynaklar
+                        </ThemedText>
+
+                        {hasSourceError && (
+                          <ThemedText
+                            accessibilityRole="alert"
+                            type="small"
+                            themeColor="textSecondary"
+                            style={styles.weeklyFeature}>
+                            {SOURCE_ERROR_MESSAGE}
+                          </ThemedText>
+                        )}
+
+                        {pregnancy.weeklyContent.sources.map((source) => (
+                          <Pressable
+                            key={source.url}
+                            accessibilityRole="link"
+                            accessibilityLabel={`${source.name} kaynağını aç`}
+                            onPress={() => openSource(source.url)}
+                            style={({ pressed }) => [
+                              styles.sourceLink,
+                              pressed && styles.pressed,
+                            ]}>
+                            <ThemedText type="small">{source.name}</ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {source.url}
+                            </ThemedText>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
                   </>
                 )}
               </View>
@@ -733,6 +803,11 @@ const styles = StyleSheet.create({
   weeklyFeature: {
     marginTop: Spacing.half,
     lineHeight: 22,
+  },
+  sourceLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    marginTop: Spacing.one,
   },
   calendarSection: {
     gap: Spacing.two,

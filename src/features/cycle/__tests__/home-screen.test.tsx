@@ -1,4 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/index';
@@ -2346,12 +2347,8 @@ describe('HomeScreen pregnancy dashboard', () => {
   it('adds nothing this step does not cover', async () => {
     const { queryByText } = await renderScreen();
 
-    // No mode switch, no way to edit the date, and no sources on screen.
-    for (const forbidden of [
-      'Gebelik modu',
-      'Tahmini doğum tarihini düzenle',
-      'Kaynaklar',
-    ]) {
+    // No mode switch and no way to edit the date in this step.
+    for (const forbidden of ['Gebelik modu', 'Tahmini doğum tarihini düzenle']) {
       expect(queryByText(forbidden)).toBeNull();
     }
   });
@@ -2368,7 +2365,7 @@ describe('HomeScreen pregnancy dashboard', () => {
     const { queryByText } = await renderScreen();
 
     // Week 3 carries no size, so the line is absent rather than blank.
-    expect(queryByText(/—/)).toBeNull();
+    expect(queryByText(/^yaklaşık .+ — .+$/)).toBeNull();
   });
 
   it('shows the size for a week that has one', async () => {
@@ -2410,12 +2407,11 @@ describe('HomeScreen pregnancy dashboard', () => {
     expect(getByLabelText(/^Bu hafta: yaklaşık 2 mm — haşhaş tohumu./)).toBeTruthy();
   });
 
-  it('keeps the sources out of the screen', async () => {
-    const { queryByText } = await renderScreen();
+  it('cites where the week content came from', async () => {
+    const { getByText } = await renderScreen();
 
-    // They stay in the data for now; nothing cites them to the reader yet.
-    expect(queryByText(/Cleveland Clinic/)).toBeNull();
-    expect(queryByText(/nhs.uk/)).toBeNull();
+    expect(getByText('Kaynaklar')).toBeTruthy();
+    expect(getByText(/Cleveland Clinic/)).toBeTruthy();
   });
 
   it('shows no week content past week 40', async () => {
@@ -2525,5 +2521,230 @@ describe('HomeScreen cycle dashboard alongside a pregnancy', () => {
 
     expect(screen.getByText('Seçilen gün')).toBeTruthy();
     expect(screen.getByText('1 Eylül 2026')).toBeTruthy();
+  });
+});
+
+describe('HomeScreen pregnancy content sources', () => {
+  const NHS_WEEK_10 = 'https://www.nhs.uk/pregnancy/week-by-week/1-to-12/10-weeks/';
+  const CLEVELAND =
+    'https://my.clevelandclinic.org/health/articles/7247-fetal-development-stages-of-growth';
+
+  function pregnancyProfile(lastMenstrualPeriodStartDate: string) {
+    return {
+      lastMenstrualPeriodStartDate: lastMenstrualPeriodStartDate as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    };
+  }
+
+  /** 11 July is day 1, so 17 September is day 69: week 10, which cites both. */
+  const WEEK_10_LMP = '2026-07-11';
+
+  let openURL: jest.SpyInstance;
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(pregnancyProfile(WEEK_10_LMP));
+
+    openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    openURL.mockRestore();
+  });
+
+  it('heads the section', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText('Kaynaklar')).toBeTruthy();
+  });
+
+  it('names both sources', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(/^NHS — You and your baby at 10 weeks pregnant$/)).toBeTruthy();
+    expect(getByText(/^Cleveland Clinic — /)).toBeTruthy();
+  });
+
+  it('shows the address of each', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(NHS_WEEK_10)).toBeTruthy();
+    expect(getByText(CLEVELAND)).toBeTruthy();
+  });
+
+  it('offers each as something to open', async () => {
+    const { getByLabelText } = await renderScreen();
+
+    expect(
+      getByLabelText('NHS — You and your baby at 10 weeks pregnant kaynağını aç')
+    ).toBeTruthy();
+    expect(getByLabelText(/^Cleveland Clinic — .* kaynağını aç$/)).toBeTruthy();
+  });
+
+  it('opens the NHS page at its own url', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('NHS — You and your baby at 10 weeks pregnant kaynağını aç')
+    );
+
+    expect(openURL).toHaveBeenCalledTimes(1);
+    expect(openURL).toHaveBeenCalledWith(NHS_WEEK_10);
+  });
+
+  it('opens the Cleveland Clinic page at its own url', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(/^Cleveland Clinic — .* kaynağını aç$/));
+
+    expect(openURL).toHaveBeenCalledWith(CLEVELAND);
+  });
+
+  it('renders each source once', async () => {
+    const { queryAllByText } = await renderScreen();
+
+    expect(queryAllByText(NHS_WEEK_10)).toHaveLength(1);
+    expect(queryAllByText(CLEVELAND)).toHaveLength(1);
+    expect(queryAllByText('Kaynaklar')).toHaveLength(1);
+  });
+
+  it('follows the week, so the NHS link changes with it', async () => {
+    // Week 4 rather than 10.
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(
+      pregnancyProfile('2026-08-27')
+    );
+
+    const { getByText, queryByText } = await renderScreen();
+
+    expect(getByText('https://www.nhs.uk/pregnancy/week-by-week/1-to-12/4-weeks/')).toBeTruthy();
+    expect(queryByText(NHS_WEEK_10)).toBeNull();
+  });
+
+  it('opens nothing on its own', async () => {
+    await renderScreen();
+
+    expect(openURL).not.toHaveBeenCalled();
+  });
+
+  it('leaves the links out of the button count', async () => {
+    // They are links, not buttons, so the screen's actions stay countable.
+    const { queryAllByRole } = await renderScreen();
+
+    expect(queryAllByRole('link')).toHaveLength(2);
+  });
+});
+
+describe('HomeScreen when a source will not open', () => {
+  let openURL: jest.SpyInstance;
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-07-11' as ISODate,
+      estimatedDueDate: '2027-06-09' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    openURL = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no handler'));
+  });
+
+  afterEach(() => {
+    openURL.mockRestore();
+  });
+
+  async function failToOpen() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('NHS — You and your baby at 10 weeks pregnant kaynağını aç')
+    );
+
+    return screen;
+  }
+
+  it('says so', async () => {
+    const screen = await failToOpen();
+
+    expect(screen.getByText('Kaynak açılamadı.')).toBeTruthy();
+  });
+
+  it('announces it', async () => {
+    const screen = await failToOpen();
+
+    expect(screen.getByText('Kaynak açılamadı.').props.accessibilityRole).toBe('alert');
+  });
+
+  it('keeps the screen', async () => {
+    const screen = await failToOpen();
+
+    expect(screen.getByText('Kaynaklar')).toBeTruthy();
+    expect(screen.getByText('Gebelik takibi')).toBeTruthy();
+    expect(screen.getByText('17. gün')).toBeTruthy();
+  });
+
+  it('says nothing before anything is pressed', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Kaynak açılamadı.')).toBeNull();
+  });
+
+  it('clears the message when a link works on a later press', async () => {
+    const screen = await failToOpen();
+
+    openURL.mockResolvedValue(true);
+
+    await fireEvent.press(screen.getByLabelText(/^Cleveland Clinic — .* kaynağını aç$/));
+
+    expect(screen.queryByText('Kaynak açılamadı.')).toBeNull();
+  });
+
+  it('can be tried again', async () => {
+    const screen = await failToOpen();
+
+    await fireEvent.press(
+      screen.getByLabelText('NHS — You and your baby at 10 weeks pregnant kaynağını aç')
+    );
+
+    expect(openURL).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('HomeScreen sources without week content', () => {
+  it('shows no source section before the pregnancy began', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2026-10-01' as ISODate,
+      estimatedDueDate: '2027-07-08' as ISODate,
+      dueDateSource: 'lmp' as const,
+    });
+
+    const { queryByText, getByText } = await renderScreen();
+
+    expect(queryByText('Kaynaklar')).toBeNull();
+    expect(getByText('Gebelik takibi')).toBeTruthy();
+  });
+
+  it('shows no source section past the last written week', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue({
+      lastMenstrualPeriodStartDate: '2025-12-10' as ISODate,
+      estimatedDueDate: '2026-09-16' as ISODate,
+      dueDateSource: 'adjusted' as const,
+    });
+
+    const { queryByText } = await renderScreen();
+
+    expect(queryByText('Kaynaklar')).toBeNull();
+  });
+
+  it('shows no source section when no pregnancy is tracked', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+
+    const { queryByText, getByLabelText } = await renderScreen();
+
+    expect(queryByText('Kaynaklar')).toBeNull();
+    expect(getByLabelText('Gebelik takibini başlat')).toBeTruthy();
   });
 });
