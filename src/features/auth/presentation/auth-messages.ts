@@ -46,6 +46,9 @@ export const EMPTY_PASSWORD_MESSAGE = 'Şifre gerekli.';
 const RESET_MESSAGES: Readonly<Partial<Record<AuthErrorCode, string>>> = {
   'invalid-email': 'Geçerli bir e-posta adresi gir.',
   'too-many-requests': 'Çok fazla deneme yapıldı. Biraz sonra tekrar dene.',
+  // A project that refuses everything is not something the person can fix by
+  // typing their address again.
+  'not-configured': MESSAGES['not-configured'],
 };
 
 /** The message for a failed reset request, generic unless it is worth more. */

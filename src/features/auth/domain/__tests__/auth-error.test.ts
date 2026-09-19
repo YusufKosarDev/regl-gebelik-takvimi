@@ -65,7 +65,7 @@ describe('toAuthError', () => {
   });
 
   it.each([
-    ['a code nobody has mapped', firebaseError('auth/operation-not-allowed')],
+    ['a code nobody has mapped', firebaseError('auth/quota-exceeded')],
     ['an error with no code', new Error('something went wrong')],
     ['a thrown string', 'auth/wrong-password'],
     ['nothing', null],
@@ -124,5 +124,80 @@ describe('what an auth error gives away', () => {
     for (const [, thrown] of sensitive) {
       expect(toAuthError(thrown).message).toMatch(/^Auth failed: [a-z-]+\.$/);
     }
+  });
+});
+
+describe('toAuthError with a code that carries advice on the end', () => {
+  it('recognises the one a dev build really produced', () => {
+    // Seen on a device with a mistyped API key: a code, a full stop, and a
+    // sentence for whoever is reading the console.
+    expect(
+      toAuthError(firebaseError('auth/api-key-not-valid.-please-pass-a-valid-api-key.')).code
+    ).toBe('not-configured');
+  });
+
+  it('reads it the same with or without the advice', () => {
+    expect(toAuthError(firebaseError('auth/api-key-not-valid')).code).toBe(
+      toAuthError(firebaseError('auth/api-key-not-valid.-please-pass-a-valid-api-key.')).code
+    );
+  });
+
+  it('still says nothing the SDK wrote', () => {
+    const thrown = firebaseError(
+      'auth/api-key-not-valid.-please-pass-a-valid-api-key.',
+      'Firebase: Error (auth/api-key-not-valid.-please-pass-a-valid-api-key.).'
+    );
+
+    expect(toAuthError(thrown).message).toBe('Auth failed: not-configured.');
+  });
+
+  it('keeps calling an unmapped code with advice unknown', () => {
+    expect(toAuthError(firebaseError('auth/something-new.-do-this-instead.')).code).toBe('unknown');
+  });
+});
+
+describe('what this app calls a build that is not set up', () => {
+  it.each([
+    'auth/api-key-not-valid',
+    'auth/invalid-api-key',
+    'auth/operation-not-allowed',
+    'auth/configuration-not-found',
+    'auth/project-not-found',
+    'auth/app-not-authorized',
+    'auth/app-deleted',
+  ])('%s is a configuration problem, not the person\u2019s', (code) => {
+    expect(toAuthError(firebaseError(code)).code).toBe('not-configured');
+  });
+
+  it('does not blame the person for a project that refuses everything', () => {
+    // "İşlem tamamlanamadı." would send someone to check a password that was
+    // never the problem.
+    expect(toAuthError(firebaseError('auth/operation-not-allowed')).code).not.toBe('unknown');
+  });
+});
+
+describe('what a code has to look like to be read at all', () => {
+  it.each([
+    ['an address in the code', 'auth/someone@example.com'],
+    ['a password in the code', 'auth/hunter2 is too weak'],
+    ['capital letters', 'auth/WRONG-PASSWORD'],
+    ['no namespace', 'wrong-password'],
+    ['another namespace', 'firestore/permission-denied'],
+    ['a path traversal', 'auth/../../etc/passwd'],
+    ['nothing after the slash', 'auth/'],
+    ['only a full stop after the slash', 'auth/.'],
+    ['a sentence', 'auth/the password is invalid for someone@example.com'],
+  ])('refuses %s', (_label, code) => {
+    expect(toAuthError(firebaseError(code)).code).toBe('unknown');
+  });
+
+  it('refuses a code longer than any real one', () => {
+    expect(toAuthError(firebaseError(`auth/${'a'.repeat(200)}`)).code).toBe('unknown');
+  });
+
+  it('gives away nothing when it refuses', () => {
+    const thrown = firebaseError('auth/someone@example.com', 'Bad password for someone@example.com');
+
+    expect(toAuthError(thrown).message).toBe('Auth failed: unknown.');
   });
 });

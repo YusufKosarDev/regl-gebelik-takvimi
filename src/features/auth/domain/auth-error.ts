@@ -67,7 +67,50 @@ const FROM_FIREBASE: Readonly<Record<string, AuthErrorCode>> = {
   'auth/missing-password': 'weak-password',
   'auth/too-many-requests': 'too-many-requests',
   'auth/network-request-failed': 'network-failed',
+
+  // Not the person's doing: the project this build points at will refuse
+  // everything until it is set up. Saying "something went wrong" would send
+  // someone to check their own password over and over.
+  'auth/api-key-not-valid': 'not-configured',
+  'auth/invalid-api-key': 'not-configured',
+  'auth/operation-not-allowed': 'not-configured',
+  'auth/configuration-not-found': 'not-configured',
+  'auth/project-not-found': 'not-configured',
+  'auth/app-not-authorized': 'not-configured',
+  'auth/app-deleted': 'not-configured',
 };
+
+/** As long as a code is allowed to be before it stops looking like one. */
+const MAX_CODE_LENGTH = 100;
+
+/** The shape of a code, including the prose some of them carry. */
+const CODE_SHAPE = /^auth\/[a-z0-9.\-]+$/;
+
+/**
+ * The code, cut back to the part that identifies it.
+ *
+ * Most codes are `auth/` and a few hyphenated words. Some arrive with a
+ * sentence stuck on the end — a real one, seen in a dev build:
+ *
+ *   auth/api-key-not-valid.-please-pass-a-valid-api-key.
+ *
+ * The part before the first full stop is the code; the rest is advice for a
+ * developer. Keeping only that part is what lets those be recognised, and it
+ * throws away prose rather than keeping it.
+ *
+ * Nothing is normalised until the whole string has passed `CODE_SHAPE`, so a
+ * "code" assembled at runtime out of an address or a password is refused before
+ * any of it is read.
+ */
+function normalizeFirebaseCode(code: string): string | null {
+  if (code.length > MAX_CODE_LENGTH || !CODE_SHAPE.test(code)) {
+    return null;
+  }
+
+  const [identifier] = code.split('.');
+
+  return identifier === 'auth/' ? null : identifier;
+}
 
 function firebaseCodeOf(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) {
@@ -78,7 +121,7 @@ function firebaseCodeOf(error: unknown): string | null {
 
   // The shape is checked as well as the type: a "code" assembled at runtime out
   // of user input is not something to look up or to keep.
-  return typeof code === 'string' && /^auth\/[a-z-]+$/.test(code) ? code : null;
+  return typeof code === 'string' ? normalizeFirebaseCode(code) : null;
 }
 
 /**
