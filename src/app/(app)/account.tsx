@@ -21,13 +21,29 @@ import {
   authErrorMessage,
   passwordResetErrorMessage,
 } from '@/features/auth/presentation/auth-messages';
+import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { loadCloudBackup, saveCloudBackup } from '@/features/backup/data/cloud-backup-repository';
+import type { CloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
+import { buildCloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
+import {
+  restorePeriodRecordsLabel,
+  restoreStatusLabel,
+} from '@/features/backup/presentation/restore-labels';
+import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
+import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
+import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import { getTodayLocalISODate } from '@/utils/today';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 
 const BACKUP_SAVED_MESSAGE = 'Yedek oluşturuldu.';
+const RESTORE_DONE_MESSAGE = 'Yedek geri yüklendi.';
+const RESTORE_FAILED_MESSAGE = 'Yedek geri yüklenemedi.';
+const RESTORE_WARNING =
+  'Bu yedek telefondaki mevcut verilerin üzerine yazılacak.';
 const BACKUP_FOUND_MESSAGE = 'Yedek bulundu.';
 const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
 
@@ -61,6 +77,12 @@ export default function AccountScreen() {
   // What the backup buttons last said. Kept apart from `notice`, which belongs
   // to signing in, so a stale sign-in message cannot appear under a backup.
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
+
+  // What a restore would change, and what it would write. Both are held only
+  // while the confirmation is on screen: pressing "Vazgeç" drops them, and
+  // nothing is written until the second press.
+  const [preview, setPreview] = useState<CloudRestorePreviewV1 | null>(null);
+  const [pending, setPending] = useState<CloudSyncPayloadV1 | null>(null);
 
   // A ref as well as the disabled prop: two quick taps could both read `isBusy`
   // as false before the re-render lands, and the second would be a second
@@ -219,6 +241,95 @@ export default function AccountScreen() {
     }
   };
 
+  /**
+   * Fetches the backup and works out what restoring it would change.
+   *
+   * Nothing is written. Both sides are read — the stored backup and what is on
+   * the phone — and what comes back is counts and verdicts, which is what the
+   * person is being asked to agree to.
+   */
+  const handlePreviewRestore = async (user: AuthUser) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setBackupNotice(null);
+    setPreview(null);
+    setPending(null);
+
+    try {
+      const backup = await loadCloudBackup(user);
+
+      if (backup === null) {
+        setBackupNotice(BACKUP_MISSING_MESSAGE);
+
+        return;
+      }
+
+      const db = await openAppDatabase();
+      const local = await buildCloudSyncPayloadV1(db);
+
+      setPreview(buildCloudRestorePreviewV1(local, backup.payload));
+      setPending(backup.payload);
+    } catch (error) {
+      setBackupNotice(authErrorMessage(toAuthError(error).code));
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  /** Drops the preview, having written nothing. */
+  const handleCancelRestore = () => {
+    setPreview(null);
+    setPending(null);
+    setBackupNotice(null);
+  };
+
+  /**
+   * Writes the backup over what is on the phone, after the second press.
+   *
+   * The widget and the reminders are brought up to date afterwards, best
+   * effort: they are copies of what was just written, and a copy that could not
+   * be refreshed is not a reason to put someone's data back the way it was.
+   */
+  const handleConfirmRestore = async (payload: CloudSyncPayloadV1) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setBackupNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+
+      await restoreCloudBackup(db, payload);
+
+      setPreview(null);
+      setPending(null);
+      setBackupNotice(RESTORE_DONE_MESSAGE);
+
+      // After the write, and never instead of it. Each is quiet by contract and
+      // caught as well, so a refusal cannot reach this screen.
+      const today = getTodayLocalISODate();
+
+      await syncWidgetSnapshotQuietly(db, today).catch(() => undefined);
+      await syncPeriodReminderQuietly(db, today).catch(() => undefined);
+      await syncPregnancyWeeklyReminderQuietly(db).catch(() => undefined);
+    } catch {
+      // The transaction rolled back, so what is on the phone is what was there
+      // before. Nothing about the failure is shown or written down.
+      setBackupNotice(RESTORE_FAILED_MESSAGE);
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (inFlight.current) {
       return;
@@ -344,6 +455,87 @@ export default function AccountScreen() {
                     ]}>
                     <ThemedText type="smallBold">Yedek oluştur</ThemedText>
                   </Pressable>
+
+                  {preview === null ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Yedeği geri yükle"
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => handlePreviewRestore(auth.user)}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold">Yedeği geri yükle</ThemedText>
+                    </Pressable>
+                  ) : (
+                    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                      <ThemedText accessibilityRole="header" type="smallBold">
+                        Neler değişecek
+                      </ThemedText>
+
+                      <PreviewRow
+                        label="Döngü ayarları"
+                        value={restoreStatusLabel(preview.cycleSettings)}
+                      />
+                      <PreviewRow
+                        label="Regl kayıtları"
+                        value={restorePeriodRecordsLabel(preview.periodRecords)}
+                      />
+                      <PreviewRow
+                        label="Gebelik bilgisi"
+                        value={restoreStatusLabel(preview.pregnancyProfile)}
+                      />
+                      <PreviewRow label="Avatar" value={restoreStatusLabel(preview.avatarConfig)} />
+                      <PreviewRow
+                        label="Hatırlatıcı tercihleri"
+                        value={restoreStatusLabel(preview.notificationPreferences)}
+                      />
+
+                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                        {RESTORE_WARNING}
+                      </ThemedText>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Geri yükle"
+                        accessibilityState={{ disabled: isBusy || pending === null }}
+                        disabled={isBusy || pending === null}
+                        onPress={() => {
+                          if (pending !== null) {
+                            void handleConfirmRestore(pending);
+                          }
+                        }}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          { backgroundColor: theme.text },
+                          isBusy && styles.disabled,
+                          pressed && !isBusy && styles.pressed,
+                        ]}>
+                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                          {isBusy ? 'Geri yükleniyor...' : 'Geri yükle'}
+                        </ThemedText>
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Geri yüklemekten vazgeç"
+                        accessibilityState={{ disabled: isBusy }}
+                        disabled={isBusy}
+                        onPress={handleCancelRestore}
+                        style={({ pressed }) => [
+                          styles.secondaryButton,
+                          { borderColor: theme.backgroundSelected },
+                          isBusy && styles.disabled,
+                          pressed && !isBusy && styles.pressed,
+                        ]}>
+                        <ThemedText type="smallBold">Vazgeç</ThemedText>
+                      </Pressable>
+                    </View>
+                  )}
 
                   <Pressable
                     accessibilityRole="button"
@@ -554,6 +746,24 @@ export default function AccountScreen() {
   );
 }
 
+/**
+ * One line of the preview: what would happen, to what.
+ *
+ * The label and the verdict are one accessibility label, so a screen reader
+ * reads "Regl kayıtları: 3 eklenecek" rather than two unrelated fragments.
+ */
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View accessibilityLabel={`${label}: ${value}`} style={styles.previewRow}>
+      <ThemedText type="small" themeColor="textSecondary">
+        {label}
+      </ThemedText>
+
+      <ThemedText type="smallBold">{value}</ThemedText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -629,6 +839,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    minHeight: 32,
   },
   linkButton: {
     minHeight: 44,

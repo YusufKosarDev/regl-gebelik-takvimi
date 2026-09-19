@@ -53,6 +53,28 @@ jest.mock('@/features/backup/data/cloud-backup-repository', () => ({
   loadCloudBackup: jest.fn(),
 }));
 
+jest.mock('@/features/backup/application/restore-cloud-backup', () => ({
+  restoreCloudBackup: jest.fn(),
+}));
+
+// A restore refreshes the copies afterwards. Faked so the calls can be counted.
+jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
+  syncWidgetSnapshot: jest.fn(),
+  syncWidgetSnapshotQuietly: jest.fn(),
+}));
+
+jest.mock('@/features/notifications/application/sync-period-reminder', () => ({
+  syncPeriodReminder: jest.fn(),
+  syncPeriodReminderQuietly: jest.fn(),
+}));
+
+jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder', () => ({
+  syncPregnancyWeeklyReminder: jest.fn(),
+  syncPregnancyWeeklyReminderQuietly: jest.fn(),
+}));
+
+jest.mock('@/utils/today', () => ({ getTodayLocalISODate: jest.fn(() => '2026-09-19') }));
+
 jest.mock('@/storage/db', () => ({
   openAppDatabase: jest.fn(),
   DATABASE_NAME: 'regl-gebelik.db',
@@ -71,6 +93,14 @@ const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnanc
 const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
 const cloudSync = jest.requireMock('@/features/privacy/application/build-cloud-sync-payload-v1');
 const backup = jest.requireMock('@/features/backup/data/cloud-backup-repository');
+const restore = jest.requireMock('@/features/backup/application/restore-cloud-backup');
+const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
+const periodReminderSync = jest.requireMock(
+  '@/features/notifications/application/sync-period-reminder'
+);
+const pregnancyReminderSync = jest.requireMock(
+  '@/features/notifications/application/sync-pregnancy-weekly-reminder'
+);
 const db = jest.requireMock('@/storage/db');
 const logging = jest.requireMock('@/shared/logging');
 const useRouterMock = useRouter as unknown as jest.Mock;
@@ -134,6 +164,14 @@ beforeEach(() => {
   backup.saveCloudBackup.mockResolvedValue(undefined);
   backup.loadCloudBackup.mockReset();
   backup.loadCloudBackup.mockResolvedValue(null);
+  restore.restoreCloudBackup.mockReset();
+  restore.restoreCloudBackup.mockResolvedValue(undefined);
+  widgetSync.syncWidgetSnapshotQuietly.mockReset();
+  widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
+  periodReminderSync.syncPeriodReminderQuietly.mockReset();
+  periodReminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+  pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockReset();
+  pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
   db.openAppDatabase.mockReset();
   db.openAppDatabase.mockResolvedValue(DATABASE);
   logging.logEvent.mockReset();
@@ -1183,5 +1221,440 @@ describe('what the backup buttons never do', () => {
     await screen.findByText('Yedek oluşturuldu.');
 
     expect(backup.saveCloudBackup).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** A backup that differs from the phone in every way the preview reports. */
+const DIFFERENT_PAYLOAD = {
+  ...PAYLOAD,
+  cycleSettings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+  periodRecords: [
+    { id: 'period-2026-08-02', startDate: '2026-08-02', endDate: '2026-08-07', isOngoing: false },
+  ],
+};
+
+function storedBackup(payload: unknown = DIFFERENT_PAYLOAD) {
+  return { version: 1, payload, updatedAt: '2026-09-19T06:00:00.000Z' };
+}
+
+/** Opens the preview from the signed-in state. */
+async function openPreview(screen: Awaited<ReturnType<typeof renderSignedIn>>) {
+  await fireEvent.press(screen.getByLabelText('Yedeği geri yükle'));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText('Geri yükle')).toBeTruthy();
+  });
+}
+
+describe('AccountScreen restore, before anything is shown', () => {
+  it('offers the button to somebody signed in', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByLabelText('Yedeği geri yükle')).toBeTruthy();
+  });
+
+  it('is not offered to somebody signed out', async () => {
+    const screen = await renderSignedOut();
+
+    expect(screen.queryByLabelText('Yedeği geri yükle')).toBeNull();
+    expect(screen.queryByLabelText('Geri yükle')).toBeNull();
+  });
+
+  it('is not offered in a build with no Firebase project', async () => {
+    firebase.isFirebaseConfigured.mockReturnValue(false);
+
+    const screen = await render(<AccountScreen />);
+
+    await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
+
+    expect(screen.queryByLabelText('Yedeği geri yükle')).toBeNull();
+  });
+
+  it('reads nothing until it is pressed', async () => {
+    await renderSignedIn();
+
+    expect(backup.loadCloudBackup).not.toHaveBeenCalled();
+    expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen restore preview', () => {
+  beforeEach(() => {
+    backup.loadCloudBackup.mockResolvedValue(storedBackup());
+  });
+
+  it('reads the backup and what is on the phone', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(backup.loadCloudBackup).toHaveBeenCalledWith(USER);
+    expect(cloudSync.buildCloudSyncPayloadV1).toHaveBeenCalledWith(DATABASE);
+  });
+
+  it('writes nothing while it is only showing', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(restore.restoreCloudBackup).not.toHaveBeenCalled();
+  });
+
+  it('shows a line for each of the five things', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(screen.getByText('Neler değişecek')).toBeTruthy();
+    expect(screen.getByText('Döngü ayarları')).toBeTruthy();
+    expect(screen.getByText('Regl kayıtları')).toBeTruthy();
+    expect(screen.getByText('Gebelik bilgisi')).toBeTruthy();
+    expect(screen.getByText('Avatar')).toBeTruthy();
+    expect(screen.getByText('Hatırlatıcı tercihleri')).toBeTruthy();
+  });
+
+  it('says what would happen to the settings', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(screen.getByLabelText('Döngü ayarları: Değişecek')).toBeTruthy();
+  });
+
+  it('says how many records would move', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    // The phone has none and the backup has one.
+    expect(screen.getByLabelText('Regl kayıtları: 1 eklenecek')).toBeTruthy();
+  });
+
+  it('says all three counts when all three would happen', async () => {
+    cloudSync.buildCloudSyncPayloadV1.mockResolvedValue({
+      ...PAYLOAD,
+      periodRecords: [
+        { id: 'stays', startDate: '2026-07-02', endDate: '2026-07-07', isOngoing: false },
+        { id: 'changes', startDate: '2026-08-02', endDate: '2026-08-07', isOngoing: false },
+        { id: 'goes', startDate: '2026-09-02', endDate: '2026-09-07', isOngoing: false },
+      ],
+    });
+
+    backup.loadCloudBackup.mockResolvedValue(
+      storedBackup({
+        ...PAYLOAD,
+        periodRecords: [
+          { id: 'stays', startDate: '2026-07-02', endDate: '2026-07-07', isOngoing: false },
+          { id: 'changes', startDate: '2026-08-03', endDate: '2026-08-07', isOngoing: false },
+          { id: 'arrives', startDate: '2026-10-02', endDate: '2026-10-07', isOngoing: false },
+        ],
+      })
+    );
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(
+      screen.getByLabelText('Regl kayıtları: 1 eklenecek, 1 değişecek, 1 silinecek')
+    ).toBeTruthy();
+  });
+
+  it('says a thing is unchanged when it is', async () => {
+    backup.loadCloudBackup.mockResolvedValue(storedBackup(PAYLOAD));
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(screen.getByLabelText('Regl kayıtları: Aynı kalacak')).toBeTruthy();
+    expect(screen.getByLabelText('Avatar: Aynı kalacak')).toBeTruthy();
+  });
+
+  it('warns that this would overwrite the phone', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    const warning = screen.getByText(
+      'Bu yedek telefondaki mevcut verilerin üzerine yazılacak.'
+    );
+
+    expect(warning.props.accessibilityRole).toBe('alert');
+  });
+
+  it('offers both a way on and a way out', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(screen.getByLabelText('Geri yükle')).toBeTruthy();
+    expect(screen.getByLabelText('Geri yüklemekten vazgeç')).toBeTruthy();
+  });
+
+  it('shows no date, record id or health value', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+
+    expect(screen.queryByText(/2026-|2027-|period-|skin-tone|wavy/)).toBeNull();
+  });
+
+  it('says there is nothing to restore when there is no backup', async () => {
+    backup.loadCloudBackup.mockResolvedValue(null);
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği geri yükle'));
+
+    expect(await screen.findByText('Henüz yedek yok.')).toBeTruthy();
+    expect(screen.queryByLabelText('Geri yükle')).toBeNull();
+  });
+
+  it('says so plainly when the backup could not be read', async () => {
+    backup.loadCloudBackup.mockRejectedValue(authError('network-failed'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği geri yükle'));
+
+    expect(
+      await screen.findByText('Bağlantı kurulamadı. İnternet bağlantını kontrol et.')
+    ).toBeTruthy();
+    expect(screen.queryByLabelText('Geri yükle')).toBeNull();
+  });
+
+  it('shows nothing Firestore wrote', async () => {
+    const raw = new Error('Missing or insufficient permissions on users/firebase-uid-1') as Error & {
+      code: string;
+    };
+    raw.code = 'permission-denied';
+    backup.loadCloudBackup.mockRejectedValue(raw);
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği geri yükle'));
+
+    await screen.findByText('İşlem tamamlanamadı.');
+
+    expect(screen.queryByText(/users\/|permission|Firestore/)).toBeNull();
+  });
+});
+
+describe('AccountScreen cancelling a restore', () => {
+  beforeEach(() => {
+    backup.loadCloudBackup.mockResolvedValue(storedBackup());
+  });
+
+  it('writes nothing at all', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yüklemekten vazgeç'));
+
+    expect(restore.restoreCloudBackup).not.toHaveBeenCalled();
+    expect(cycleRepository.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('puts the button back and takes the preview away', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yüklemekten vazgeç'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Yedeği geri yükle')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Neler değişecek')).toBeNull();
+    expect(screen.queryByLabelText('Geri yükle')).toBeNull();
+  });
+
+  it('syncs nothing either', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yüklemekten vazgeç'));
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+    expect(periodReminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen confirming a restore', () => {
+  beforeEach(() => {
+    backup.loadCloudBackup.mockResolvedValue(storedBackup());
+  });
+
+  it('writes the backup that was previewed', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(restore.restoreCloudBackup).toHaveBeenCalledWith(DATABASE, DIFFERENT_PAYLOAD);
+    expect(restore.restoreCloudBackup).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes two presses: the first only shows what would change', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği geri yükle'));
+
+    expect(restore.restoreCloudBackup).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Geri yükle')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(restore.restoreCloudBackup).toHaveBeenCalledTimes(1);
+  });
+
+  it('says it worked', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(await screen.findByText('Yedek geri yüklendi.')).toBeTruthy();
+  });
+
+  it('takes the preview away afterwards', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    await screen.findByText('Yedek geri yüklendi.');
+
+    expect(screen.queryByText('Neler değişecek')).toBeNull();
+    expect(screen.getByLabelText('Yedeği geri yükle')).toBeTruthy();
+  });
+
+  it('brings the widget and both reminders up to date afterwards', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    await screen.findByText('Yedek geri yüklendi.');
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledTimes(1);
+    expect(periodReminderSync.syncPeriodReminderQuietly).toHaveBeenCalledTimes(1);
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs only after the write, never instead of it', async () => {
+    const order: string[] = [];
+
+    restore.restoreCloudBackup.mockImplementation(async () => {
+      order.push('restore');
+    });
+    widgetSync.syncWidgetSnapshotQuietly.mockImplementation(async () => {
+      order.push('widget');
+
+      return null;
+    });
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    await screen.findByText('Yedek geri yüklendi.');
+
+    expect(order).toEqual(['restore', 'widget']);
+  });
+
+  it('still counts as restored when the widget cannot be refreshed', async () => {
+    widgetSync.syncWidgetSnapshotQuietly.mockRejectedValue(new Error('no bridge'));
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(await screen.findByText('Yedek geri yüklendi.')).toBeTruthy();
+  });
+
+  it('still counts as restored when a reminder cannot be queued', async () => {
+    periodReminderSync.syncPeriodReminderQuietly.mockRejectedValue(new Error('no queue'));
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(await screen.findByText('Yedek geri yüklendi.')).toBeTruthy();
+  });
+});
+
+describe('AccountScreen when a restore fails', () => {
+  beforeEach(() => {
+    backup.loadCloudBackup.mockResolvedValue(storedBackup());
+    restore.restoreCloudBackup.mockRejectedValue(new Error('disk is full'));
+  });
+
+  it('says so in its own words', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(await screen.findByText('Yedek geri yüklenemedi.')).toBeTruthy();
+  });
+
+  it('shows nothing of what went wrong', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    await screen.findByText('Yedek geri yüklenemedi.');
+
+    expect(screen.queryByText(/disk|SQLITE|transaction/i)).toBeNull();
+  });
+
+  it('syncs nothing, because nothing was written', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    await screen.findByText('Yedek geri yüklenemedi.');
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+    expect(periodReminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('leaves the preview up to try again', async () => {
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    await screen.findByText('Yedek geri yüklenemedi.');
+
+    expect(screen.getByLabelText('Geri yükle')).toBeTruthy();
+    expect(screen.getByLabelText('Geri yüklemekten vazgeç')).toBeTruthy();
+  });
+
+  it('writes nothing to the log or the console', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+    await screen.findByText('Yedek geri yüklenemedi.');
+
+    expect(logging.logEvent).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+
+    jest.restoreAllMocks();
   });
 });

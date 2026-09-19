@@ -48,6 +48,8 @@ const UPSERT_AVATAR = `
     accessory_id = excluded.accessory_id
 `;
 
+const DELETE_AVATAR = 'DELETE FROM avatar_config WHERE id = ?';
+
 const SELECT_AVATAR = `
   SELECT skin_tone_id, hair_style_id, hair_color_id, outfit_id, accessory_id
   FROM avatar_config
@@ -135,4 +137,17 @@ export async function loadAvatarConfig(db: SQLiteDatabase): Promise<AvatarConfig
   validateAvatarConfig(config);
 
   return config;
+}
+
+/**
+ * Removes the stored avatar.
+ *
+ * One statement against the pinned row, and no transaction of its own, so a
+ * caller that is replacing everything at once can put it inside theirs.
+ *
+ * Deleting a row that is not there is not an error here: the caller decides
+ * whether there had to be one.
+ */
+export async function clearAvatarConfig(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(DELETE_AVATAR, AVATAR_ROW_ID);
 }

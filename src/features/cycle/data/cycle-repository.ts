@@ -1,7 +1,11 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { CycleProfile, PeriodRecord } from '../domain/types';
-import { validateCycleProfile } from '../domain/validation';
+import type { CycleProfile, CycleSettings, PeriodRecord } from '../domain/types';
+import {
+  validateCycleProfile,
+  validateCycleSettings,
+  validatePeriodRecord,
+} from '../domain/validation';
 
 import { toISODate } from '@/utils/date';
 import { describeValue } from '@/shared/logging';
@@ -57,6 +61,8 @@ const UPSERT_SETTINGS = `
 
 const DELETE_PERIOD_RECORDS = 'DELETE FROM period_records';
 
+const DELETE_SETTINGS = 'DELETE FROM cycle_settings WHERE id = ?';
+
 const INSERT_PERIOD_RECORD =
   'INSERT INTO period_records (id, start_date, end_date, is_ongoing) VALUES (?, ?, ?, ?)';
 
@@ -90,25 +96,69 @@ export async function saveCycleProfile(
   validateCycleProfile(profile);
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      UPSERT_SETTINGS,
-      SETTINGS_ROW_ID,
-      profile.settings.averageCycleLengthDays,
-      profile.settings.averagePeriodLengthDays
-    );
-
-    await db.runAsync(DELETE_PERIOD_RECORDS);
-
-    for (const record of profile.periodRecords) {
-      await db.runAsync(
-        INSERT_PERIOD_RECORD,
-        record.id,
-        record.startDate,
-        record.endDate ?? null,
-        record.isOngoing ? 1 : 0
-      );
-    }
+    await writeCycleSettings(db, profile.settings);
+    await replacePeriodRecords(db, profile.periodRecords);
   });
+}
+
+/**
+ * Writes the settings, without a transaction of its own.
+ *
+ * For a caller that already owns one and has more to write inside it — a
+ * restore, which has to leave the database either wholly replaced or wholly
+ * untouched. `saveCycleProfile` is the one to reach for otherwise.
+ */
+export async function writeCycleSettings(
+  db: SQLiteDatabase,
+  settings: CycleSettings
+): Promise<void> {
+  validateCycleSettings(settings);
+
+  await db.runAsync(
+    UPSERT_SETTINGS,
+    SETTINGS_ROW_ID,
+    settings.averageCycleLengthDays,
+    settings.averagePeriodLengthDays
+  );
+}
+
+/**
+ * Replaces every period record with the ones given, without a transaction of
+ * its own.
+ *
+ * A snapshot rather than a diff, which is what the whole profile write does as
+ * well: the list is small, and a snapshot cannot drift out of sync with the
+ * domain object the way a partial update can.
+ */
+export async function replacePeriodRecords(
+  db: SQLiteDatabase,
+  records: readonly PeriodRecord[]
+): Promise<void> {
+  records.forEach((record) => {
+    validatePeriodRecord(record);
+  });
+
+  await db.runAsync(DELETE_PERIOD_RECORDS);
+
+  for (const record of records) {
+    await db.runAsync(
+      INSERT_PERIOD_RECORD,
+      record.id,
+      record.startDate,
+      record.endDate ?? null,
+      record.isOngoing ? 1 : 0
+    );
+  }
+}
+
+/**
+ * Removes the stored settings, without a transaction of its own.
+ *
+ * Leaves the period records alone: they are a separate table and a separate
+ * question, and a caller that wants both gone says so twice.
+ */
+export async function clearCycleSettings(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(DELETE_SETTINGS, SETTINGS_ROW_ID);
 }
 
 /**
