@@ -21,7 +21,15 @@ import {
   authErrorMessage,
   passwordResetErrorMessage,
 } from '@/features/auth/presentation/auth-messages';
+import { loadCloudBackup, saveCloudBackup } from '@/features/backup/data/cloud-backup-repository';
+import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
+import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
+import { openAppDatabase } from '@/storage/db';
+
+const BACKUP_SAVED_MESSAGE = 'Yedek oluşturuldu.';
+const BACKUP_FOUND_MESSAGE = 'Yedek bulundu.';
+const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
 
 /**
  * The account screen.
@@ -49,6 +57,10 @@ export default function AccountScreen() {
   // its own: it asks for the address that is already typed in, and going back
   // to signing in should not be a navigation.
   const [isResetting, setIsResetting] = useState(false);
+
+  // What the backup buttons last said. Kept apart from `notice`, which belongs
+  // to signing in, so a stale sign-in message cannot appear under a backup.
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
 
   // A ref as well as the disabled prop: two quick taps could both read `isBusy`
   // as false before the re-render lands, and the second would be a second
@@ -147,6 +159,66 @@ export default function AccountScreen() {
     }
   };
 
+  /**
+   * Copies what is on the phone into the person's own backup.
+   *
+   * Nothing happens until this is pressed. The payload is the one the privacy
+   * boundary defines — the five things somebody entered, and nothing worked out
+   * from them — and it is built here, sent, and not kept.
+   */
+  const handleCreateBackup = async (user: AuthUser) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setBackupNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+
+      await saveCloudBackup(user, await buildCloudSyncPayloadV1(db));
+
+      setBackupNotice(BACKUP_SAVED_MESSAGE);
+    } catch (error) {
+      // The database's own failures and Firestore's arrive here the same way,
+      // and neither message is shown.
+      setBackupNotice(authErrorMessage(toAuthError(error).code));
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  /**
+   * Says whether there is a backup, and nothing else about it.
+   *
+   * Not what is in it, not when it was made, not how big it is: this is a
+   * screen someone may be holding in front of another person, and "there is a
+   * backup" is the whole question being asked.
+   */
+  const handleCheckBackup = async (user: AuthUser) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setBackupNotice(null);
+
+    try {
+      const backup = await loadCloudBackup(user);
+
+      setBackupNotice(backup === null ? BACKUP_MISSING_MESSAGE : BACKUP_FOUND_MESSAGE);
+    } catch (error) {
+      setBackupNotice(authErrorMessage(toAuthError(error).code));
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (inFlight.current) {
       return;
@@ -238,6 +310,56 @@ export default function AccountScreen() {
                     {notice}
                   </ThemedText>
                 )}
+
+                {/* Only here, and only on a press: an account exists to hold a
+                    backup, and a backup happens when someone asks for one. */}
+                <View style={styles.fields}>
+                  <ThemedText accessibilityRole="header" type="smallBold">
+                    Bulut yedekleme
+                  </ThemedText>
+
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Yedek oluşturduğunda regl kayıtların, gebelik bilgin, avatarın ve
+                    hatırlatıcı tercihlerin hesabına kopyalanır. Başka hiçbir şey gönderilmez
+                    ve bunun dışında kendiliğinden bir gönderim olmaz.
+                  </ThemedText>
+
+                  {backupNotice !== null && (
+                    <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                      {backupNotice}
+                    </ThemedText>
+                  )}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Yedek oluştur"
+                    accessibilityState={{ disabled: isBusy }}
+                    disabled={isBusy}
+                    onPress={() => handleCreateBackup(auth.user)}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      { borderColor: theme.backgroundSelected },
+                      isBusy && styles.disabled,
+                      pressed && !isBusy && styles.pressed,
+                    ]}>
+                    <ThemedText type="smallBold">Yedek oluştur</ThemedText>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Yedeği kontrol et"
+                    accessibilityState={{ disabled: isBusy }}
+                    disabled={isBusy}
+                    onPress={() => handleCheckBackup(auth.user)}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      { borderColor: theme.backgroundSelected },
+                      isBusy && styles.disabled,
+                      pressed && !isBusy && styles.pressed,
+                    ]}>
+                    <ThemedText type="smallBold">Yedeği kontrol et</ThemedText>
+                  </Pressable>
+                </View>
 
                 <Pressable
                   accessibilityRole="button"

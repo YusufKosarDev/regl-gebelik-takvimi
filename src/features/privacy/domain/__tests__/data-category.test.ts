@@ -127,17 +127,29 @@ describe('the inventory and the document say the same thing', () => {
     }
   });
 
-  it('says out loud that no health data is sent', () => {
-    expect(DOC).toContain('Sağlık verisi hiçbir yere gönderilmiyor');
+  it('says out loud when health data is sent, and when it is not', () => {
+    expect(DOC).toContain('Sağlık verisi yalnızca sen "Yedek oluştur" dersen gönderiliyor');
+    expect(DOC).toContain('otomatik yedekleme, açılışta senkronizasyon');
     expect(DOC).toContain('Sağlık verisi cihazda');
     expect(DOC).toContain('Loglar ham sağlık verisi içermez');
   });
 
-  it('says what the one service is used for, and what it is not', () => {
-    // An account exists now; the document has to say so, and has to say that
-    // having one still carries nothing.
-    expect(DOC).toContain('Firebase Auth altyapısı var, Firestore yok');
-    expect(DOC).toContain('henüz hiçbir şey taşımıyor');
+  it('says which services are used, and which are not', () => {
+    expect(DOC).toContain('Firebase Auth ve Firestore var; başka Firebase ürünü yok');
     expect(DOC).toContain('Firebase config kaynak koda gömülü değil');
+  });
+
+  it('says where a backup goes and who may read it', () => {
+    expect(DOC).toContain('users/{uid}/backups/current');
+    expect(DOC).toContain('request.auth.uid == userId');
+  });
+
+  it('lists the five categories a backup carries, and says what it leaves out', () => {
+    for (const category of DATA_CATEGORIES) {
+      expect(DOC).toContain(`\`${category}\` — `);
+    }
+
+    expect(DOC).toContain('loglar, bildirim kuyruğu');
+    expect(DOC).toContain('Geri yükleme (restore), otomatik senkronizasyon ve çakışma çözümü');
   });
 });

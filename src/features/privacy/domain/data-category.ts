@@ -101,7 +101,7 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
     storedOnDevice: true,
     cloudSyncCandidate: false,
     reason:
-      'Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir.',
+      'Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir, yedeğe girmez.',
   },
   {
     id: 'auth-session',

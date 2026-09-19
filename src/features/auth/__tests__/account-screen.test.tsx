@@ -46,6 +46,13 @@ jest.mock('@/features/privacy/application/build-cloud-sync-payload-v1', () => ({
   buildCloudSyncPayloadV1: jest.fn(),
 }));
 
+// The backup repository is faked, so these tests are about what the buttons
+// ask for and what the screen says back — not about Firestore.
+jest.mock('@/features/backup/data/cloud-backup-repository', () => ({
+  saveCloudBackup: jest.fn(),
+  loadCloudBackup: jest.fn(),
+}));
+
 jest.mock('@/storage/db', () => ({
   openAppDatabase: jest.fn(),
   DATABASE_NAME: 'regl-gebelik.db',
@@ -63,6 +70,7 @@ const cycleRepository = jest.requireMock('@/features/cycle/data/cycle-repository
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
 const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
 const cloudSync = jest.requireMock('@/features/privacy/application/build-cloud-sync-payload-v1');
+const backup = jest.requireMock('@/features/backup/data/cloud-backup-repository');
 const db = jest.requireMock('@/storage/db');
 const logging = jest.requireMock('@/shared/logging');
 const useRouterMock = useRouter as unknown as jest.Mock;
@@ -70,6 +78,20 @@ const useRouterMock = useRouter as unknown as jest.Mock;
 const EMAIL = 'someone@example.com';
 const PASSWORD = 'a-very-secret-password';
 const USER: AuthUser = { uid: 'firebase-uid-1', email: EMAIL };
+
+/** Stand-ins: the screen passes these through without looking inside. */
+const DATABASE = { name: 'regl-gebelik.db' };
+const PAYLOAD = {
+  version: 1,
+  cycleSettings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+  periodRecords: [],
+  pregnancyProfile: null,
+  avatarConfig: null,
+  notificationPreferences: {
+    periodReminderEnabled: false,
+    pregnancyWeeklyReminderEnabled: false,
+  },
+};
 
 /** What the repository throws: this app's own error, with a code. */
 function authError(code: AuthErrorCode) {
@@ -107,7 +129,13 @@ beforeEach(() => {
   pregnancyRepository.loadPregnancyProfile.mockReset();
   avatarRepository.loadAvatarConfig.mockReset();
   cloudSync.buildCloudSyncPayloadV1.mockReset();
+  cloudSync.buildCloudSyncPayloadV1.mockResolvedValue(PAYLOAD);
+  backup.saveCloudBackup.mockReset();
+  backup.saveCloudBackup.mockResolvedValue(undefined);
+  backup.loadCloudBackup.mockReset();
+  backup.loadCloudBackup.mockResolvedValue(null);
   db.openAppDatabase.mockReset();
+  db.openAppDatabase.mockResolvedValue(DATABASE);
   logging.logEvent.mockReset();
 
   back = jest.fn();
@@ -886,5 +914,274 @@ describe('AccountScreen reset form in the other states', () => {
     const screen = await render(<AccountScreen />);
 
     expect(screen.queryByLabelText('Şifremi unuttum')).toBeNull();
+  });
+});
+
+describe('AccountScreen cloud backup, signed in', () => {
+  it('offers both buttons under a heading', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByText('Bulut yedekleme')).toBeTruthy();
+    expect(screen.getByLabelText('Yedek oluştur')).toBeTruthy();
+    expect(screen.getByLabelText('Yedeği kontrol et')).toBeTruthy();
+  });
+
+  it('says what a backup carries and that nothing else is sent', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByText(/regl kayıtların, gebelik bilgin, avatarın/)).toBeTruthy();
+    expect(screen.getByText(/kendiliğinden bir gönderim olmaz/)).toBeTruthy();
+  });
+
+  it('sends nothing until a button is pressed', async () => {
+    await renderSignedIn();
+
+    expect(backup.saveCloudBackup).not.toHaveBeenCalled();
+    expect(backup.loadCloudBackup).not.toHaveBeenCalled();
+    expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen creating a backup', () => {
+  it('builds the payload from the database and sends it for this account', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
+    expect(cloudSync.buildCloudSyncPayloadV1).toHaveBeenCalledWith(DATABASE);
+    expect(backup.saveCloudBackup).toHaveBeenCalledWith(USER, PAYLOAD);
+  });
+
+  it('says it worked', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+    expect(await screen.findByText('Yedek oluşturuldu.')).toBeTruthy();
+  });
+
+  it('announces the result', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+    expect((await screen.findByText('Yedek oluşturuldu.')).props.accessibilityRole).toBe('alert');
+  });
+
+  it('sends nothing when the payload could not be built', async () => {
+    cloudSync.buildCloudSyncPayloadV1.mockRejectedValue(new Error('database is locked'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+    expect(backup.saveCloudBackup).not.toHaveBeenCalled();
+    expect(await screen.findByText('İşlem tamamlanamadı.')).toBeTruthy();
+  });
+
+  it.each([
+    ['invalid-credentials', 'E-posta veya şifre hatalı.'],
+    ['network-failed', 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.'],
+    ['not-configured', 'Bulut hesabı şu anda yapılandırılmamış.'],
+    ['unknown', 'İşlem tamamlanamadı.'],
+  ] as readonly (readonly [AuthErrorCode, string])[])(
+    'shows this app’s own sentence for %s',
+    async (code, message) => {
+      backup.saveCloudBackup.mockRejectedValue(authError(code));
+
+      const screen = await renderSignedIn();
+
+      await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+      expect(await screen.findByText(message)).toBeTruthy();
+    }
+  );
+
+  it('shows nothing Firestore wrote', async () => {
+    const raw = new Error(
+      'Missing or insufficient permissions on users/firebase-uid-1/backups/current'
+    ) as Error & { code: string };
+    raw.code = 'permission-denied';
+    backup.saveCloudBackup.mockRejectedValue(raw);
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+    await screen.findByText('İşlem tamamlanamadı.');
+
+    expect(screen.queryByText(/users\/|permission|Firestore/)).toBeNull();
+  });
+});
+
+describe('AccountScreen checking a backup', () => {
+  it('asks for this account’s backup and nothing else', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    expect(backup.loadCloudBackup).toHaveBeenCalledWith(USER);
+    expect(backup.saveCloudBackup).not.toHaveBeenCalled();
+  });
+
+  it('says there is one', async () => {
+    backup.loadCloudBackup.mockResolvedValue({
+      version: 1,
+      payload: PAYLOAD,
+      updatedAt: '2026-09-19T06:00:00.000Z',
+    });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    expect(await screen.findByText('Yedek bulundu.')).toBeTruthy();
+  });
+
+  it('says there is not', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    expect(await screen.findByText('Henüz yedek yok.')).toBeTruthy();
+  });
+
+  it('shows nothing that was in the backup', async () => {
+    backup.loadCloudBackup.mockResolvedValue({
+      version: 1,
+      payload: {
+        ...PAYLOAD,
+        periodRecords: [
+          {
+            id: 'period-2026-09-02',
+            startDate: '2026-09-02',
+            endDate: '2026-09-07',
+            isOngoing: false,
+          },
+        ],
+      },
+      updatedAt: '2026-09-19T06:00:00.000Z',
+    });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    await screen.findByText('Yedek bulundu.');
+
+    expect(screen.queryByText(/2026-09-02|2026-09-19|28|period-/)).toBeNull();
+  });
+
+  it('reads nothing from the phone to answer', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    await screen.findByText('Henüz yedek yok.');
+
+    expect(db.openAppDatabase).not.toHaveBeenCalled();
+    expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
+  });
+
+  it('says so plainly when the check fails', async () => {
+    backup.loadCloudBackup.mockRejectedValue(authError('network-failed'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    expect(
+      await screen.findByText('Bağlantı kurulamadı. İnternet bağlantını kontrol et.')
+    ).toBeTruthy();
+  });
+
+  it('restores nothing, whatever it found', async () => {
+    backup.loadCloudBackup.mockResolvedValue({
+      version: 1,
+      payload: PAYLOAD,
+      updatedAt: null,
+    });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedeği kontrol et'));
+
+    await screen.findByText('Yedek bulundu.');
+
+    expect(cycleRepository.saveCycleProfile).not.toHaveBeenCalled();
+    expect(db.openAppDatabase).not.toHaveBeenCalled();
+  });
+});
+
+describe('AccountScreen backup in the other states', () => {
+  it('is not offered to somebody signed out', async () => {
+    const screen = await renderSignedOut();
+
+    expect(screen.queryByText('Bulut yedekleme')).toBeNull();
+    expect(screen.queryByLabelText('Yedek oluştur')).toBeNull();
+    expect(screen.queryByLabelText('Yedeği kontrol et')).toBeNull();
+  });
+
+  it('is not offered in a build with no Firebase project', async () => {
+    firebase.isFirebaseConfigured.mockReturnValue(false);
+
+    const screen = await render(<AccountScreen />);
+
+    await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
+
+    expect(screen.queryByLabelText('Yedek oluştur')).toBeNull();
+  });
+
+  it('is not offered while the session is still being read', async () => {
+    const screen = await render(<AccountScreen />);
+
+    expect(screen.queryByLabelText('Yedek oluştur')).toBeNull();
+  });
+
+  it('goes away when the session does', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByLabelText('Yedek oluştur')).toBeTruthy();
+
+    await waitFor(() => {
+      notify(null);
+    });
+
+    await screen.findByLabelText('E-posta');
+
+    expect(screen.queryByLabelText('Yedek oluştur')).toBeNull();
+    expect(screen.queryByText('Bulut yedekleme')).toBeNull();
+  });
+});
+
+describe('what the backup buttons never do', () => {
+  it('write nothing to the log or the console', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    backup.saveCloudBackup.mockRejectedValue(authError('unknown'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+    await screen.findByText('İşlem tamamlanamadı.');
+
+    expect(logging.logEvent).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+
+    jest.restoreAllMocks();
+  });
+
+  it('send a second copy without a second press', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+    await screen.findByText('Yedek oluşturuldu.');
+
+    expect(backup.saveCloudBackup).toHaveBeenCalledTimes(1);
   });
 });

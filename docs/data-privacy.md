@@ -6,16 +6,19 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
 
 ## Bugünkü durum
 
-- **Sağlık verisi hiçbir yere gönderilmiyor.** Regl kayıtları, gebelik, avatar ve
-  hatırlatıcı tercihleri cihazdan çıkmıyor; bunu taşıyacak tek biçim olan
-  `CloudSyncPayloadV1` hiçbir yere yüklenmiyor.
-- **Firebase Auth altyapısı var, Firestore yok.** Yalnızca hesap açma, giriş ve
-  çıkış için Firebase Auth kullanılıyor; Firebase'e giden tek şey e-posta ve
-  parola. Firestore, Storage, Messaging, Analytics ve Crashlytics yok —
-  bağımlılık listesinde de yok, bir tarama testi her çalıştırmada doğruluyor.
-- **Henüz giriş ekranı yok.** Bu adım altyapı: uygulamada bu çağrıları
-  tetikleyen bir ekran bulunmuyor, dolayısıyla normal kullanımda hiçbir istek
-  çıkmıyor.
+- **Sağlık verisi yalnızca sen "Yedek oluştur" dersen gönderiliyor.** Başka
+  hiçbir durumda cihazdan çıkmıyor: otomatik yedekleme, açılışta senkronizasyon,
+  arka planda gönderim ve değişiklik dinleyicisi **yok**. Hesabın olsun ya da
+  olmasın, o düğmeye basmadığın sürece hiçbir sağlık verisi gitmez.
+- **Firebase Auth ve Firestore var; başka Firebase ürünü yok.** Hesap için Auth,
+  yedek için Firestore. Storage, Messaging, Functions, Analytics ve Crashlytics
+  yok — bağımlılık listesinde de yok, bir tarama testi her çalıştırmada
+  doğruluyor.
+- **Yedek yalnızca senin hesabının altında.** Doküman yolu
+  `users/{uid}/backups/current`; yolda hesap kimliğinden başka hiçbir kullanıcı
+  verisi yok ve tek doküman tutuluyor, yani yeni yedek eskisinin yerine geçer.
+  Firestore Security Rules (`firestore.rules`) yalnızca `request.auth.uid == userId`
+  olan isteğe izin veriyor, geri kalan her şey reddediliyor.
 - **Uygulamanın kendi kodunda ağ çağrısı yok.** `fetch`, XHR, WebSocket
   kullanılmıyor; ağa çıkan tek şey Firebase Auth SDK'sının kendi istekleri. Tek
   diğer dış bağlantı, kullanıcı bir kaynak bağlantısına dokunduğunda telefonun
@@ -29,10 +32,21 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
   gelen genel olay adları yazılır (`[app] widget sync failed` gibi); tarih,
   kayıt, avatar ya da hata mesajı yazılmaz. Bkz. `src/shared/logging/`.
 
-Bir hesap artık açılabiliyor, ama hesap **henüz hiçbir şey taşımıyor**. Sağlık
-verisinin buluta çıkması, ancak kullanıcının kendi açtığı bir senkronizasyon
-özelliğiyle olacak; o geldiğinde de taşıyabileceği tek şey aşağıdaki "cloud
-adayı: evet" satırları ve tek biçim `CloudSyncPayloadV1`.
+Yedek gönderildiğinde taşınan tek şey aşağıdaki "cloud adayı: evet" satırları ve
+tek biçim `CloudSyncPayloadV1`:
+
+1. `cycle-settings` — ortalama döngü ve regl süresi
+2. `period-records` — regl kayıtları
+3. `pregnancy-profile` — son regl tarihi, tahmini doğum tarihi ve kaynağı
+4. `avatar-config` — avatar seçimleri
+5. `notification-preferences` — iki hatırlatıcı anahtarı
+
+Bunlara ek olarak dokümanda yalnızca bir sürüm numarası ve sunucunun yazdığı
+zaman damgası bulunur. **Widget snapshot'ı, loglar, bildirim kuyruğu, arayüz
+durumu ve hesaplanan hiçbir veri (döngü günü, evre, doğurganlık, ruh hali,
+takvim) yedekte yer almaz.**
+
+Geri yükleme (restore), otomatik senkronizasyon ve çakışma çözümü henüz yok.
 
 ## Envanter
 
@@ -43,7 +57,7 @@ adayı: evet" satırları ve tek biçim `CloudSyncPayloadV1`.
 | `pregnancy-profile` | evet | evet | Son regl tarihi ve tahmini doğum tarihi; kişinin girdiği kayıt. |
 | `avatar-config` | evet | evet | Kişinin seçtiği görünüm; yeni cihazda yeniden seçtirmek gereksiz. |
 | `notification-preferences` | evet | evet | Kişinin açıp kapattığı hatırlatıcılar; tercih, cihaz durumu değil. |
-| `widget-snapshot` | evet | **hayır** | Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir. |
+| `widget-snapshot` | evet | **hayır** | Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir, yedeğe girmez. |
 | `auth-session` | evet | **hayır** | Firebase Auth oturumu ve tokeni; bu cihaza ait, zaten hesabın kendisinde duruyor. |
 | `shared-preferences` | evet | **hayır** | Android tarafındaki yerel depolama; içeriği bu cihaza ait. |
 | `scheduled-notifications` | evet | **hayır** | Sistem kuyruğundaki alarmlar ve kimlikleri; her cihaz kendi kuyruğunu tercihlerden kurar. |

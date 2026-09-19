@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// What may be read and written in this project.
+//
+// One rule, and everything else denied. A person's backup holds their period
+// history, their pregnancy and their avatar, and the only account that may
+// touch it is the one it belongs to.
+//
+// There is no rule allowing anyone to list `users`, to read another account's
+// document, or to reach anything outside this path: Firestore denies whatever
+// no match statement allows, and nothing else is matched here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users/{userId}/backups/current — written by "Yedek oluştur", read by
+    // "Yedeği kontrol et", and by nothing else.
+    match /users/{userId}/backups/{docId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+  }
+}

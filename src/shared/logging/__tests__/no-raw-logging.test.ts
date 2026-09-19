@@ -133,13 +133,21 @@ describe('health data reaches no service', () => {
     const FIREBASE_IMPORT = /(from|require\()\s*['"]firebase(\/[a-z-]+)?['"]/;
 
     /**
-     * The file that sets the SDK up, and the declaration that says what the
-     * React Native build of it exports. Neither calls anything.
+     * Every file allowed to hold the SDK, and what each is for.
+     *
+     * Two set it up and two make the calls. Everything else in the app speaks
+     * this app's own types and would not know Firebase was here.
      */
     const ALLOWED = [
       'src/features/auth/infrastructure/firebase.ts',
+      'src/features/auth/data/auth-repository.ts',
+      'src/features/backup/infrastructure/firestore.ts',
+      'src/features/backup/data/cloud-backup-repository.ts',
       'src/types/firebase-auth-react-native.d.ts',
     ];
+
+    /** The one file that may hand health data to a service, and only on a press. */
+    const BACKUP_REPOSITORY = 'src/features/backup/data/cloud-backup-repository.ts';
 
     it('is Firebase, and only from where the boundary says', () => {
       const importers = appSources()
@@ -147,14 +155,12 @@ describe('health data reaches no service', () => {
         .map(relative)
         .filter((path) => !ALLOWED.includes(path));
 
-      // The auth repository imports `firebase/auth` for its own calls; every
-      // other file speaks this app's own types.
-      expect(importers).toEqual(['src/features/auth/data/auth-repository.ts']);
+      expect(importers).toEqual([]);
     });
 
-    it('is only ever auth: no Firestore, no storage, no messaging', () => {
+    it('is only ever auth and firestore: no storage, no messaging, no analytics', () => {
       const offenders = appSources().filter((path) =>
-        /(from|require\()\s*['"]firebase\/(firestore|database|storage|messaging|functions|analytics|remote-config|performance|app-check)/.test(
+        /(from|require\()\s*['"]firebase\/(database|storage|messaging|functions|analytics|remote-config|performance|app-check|ai)/.test(
           read(path)
         )
       );
@@ -162,12 +168,29 @@ describe('health data reaches no service', () => {
       expect(offenders.map(relative)).toEqual([]);
     });
 
-    it('carries no health data to it: nothing imports the sync payload alongside it', () => {
+    it('carries health data through one file, and that file takes it already validated', () => {
       const importers = appSources().filter((path) => FIREBASE_IMPORT.test(read(path)));
 
       for (const path of importers) {
+        if (relative(path) === BACKUP_REPOSITORY) {
+          // It takes a `CloudSyncPayloadV1` as an argument. What it must not do
+          // is read the health data itself: that is a use case's job, and it
+          // runs from a button rather than from here.
+          expect(read(path)).not.toMatch(/cycle-repository|pregnancy-repository|avatar-repository/);
+          expect(read(path)).not.toMatch(/openAppDatabase|getCycleDashboard|getCycleHomeData/);
+          continue;
+        }
+
         expect(read(path)).not.toMatch(/CloudSyncPayload|cycle-repository|pregnancy-repository/);
       }
+    });
+
+    it('sends a backup only when asked, never on a change', () => {
+      const repository = read(join(ROOT, BACKUP_REPOSITORY.split('/').join(sep)));
+
+      // No listener and no scheduled write: the two exported functions are
+      // called from the two buttons, and nothing else calls them.
+      expect(repository).not.toMatch(/onSnapshot|setInterval|AppState|addEventListener/);
     });
 
     it('is configured from the environment rather than from the source', () => {
