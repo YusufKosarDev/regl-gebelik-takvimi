@@ -135,7 +135,7 @@ describe('health data reaches no service', () => {
     /**
      * Every file allowed to hold the SDK, and what each is for.
      *
-     * Two set it up and two make the calls. Everything else in the app speaks
+     * Two set it up and three make the calls. Everything else in the app speaks
      * this app's own types and would not know Firebase was here.
      */
     const ALLOWED = [
@@ -143,11 +143,24 @@ describe('health data reaches no service', () => {
       'src/features/auth/data/auth-repository.ts',
       'src/features/backup/infrastructure/firestore.ts',
       'src/features/backup/data/cloud-backup-repository.ts',
+      'src/features/sync/data/cloud-sync-repository.ts',
       'src/types/firebase-auth-react-native.d.ts',
     ];
 
     /** The one file that may hand health data to a service, and only on a press. */
     const BACKUP_REPOSITORY = 'src/features/backup/data/cloud-backup-repository.ts';
+
+    /**
+     * The other one, which a sync will call rather than a button.
+     *
+     * Same rule about the data: it takes a payload it was handed and reads no
+     * health table itself. The difference is only who calls it, and that is
+     * decided somewhere this scan can see.
+     */
+    const SYNC_REPOSITORY = 'src/features/sync/data/cloud-sync-repository.ts';
+
+    /** Both files that may hand health data to a service. */
+    const PAYLOAD_CARRIERS = [BACKUP_REPOSITORY, SYNC_REPOSITORY];
 
     it('is Firebase, and only from where the boundary says', () => {
       const importers = appSources()
@@ -168,13 +181,13 @@ describe('health data reaches no service', () => {
       expect(offenders.map(relative)).toEqual([]);
     });
 
-    it('carries health data through one file, and that file takes it already validated', () => {
+    it('carries health data through two files, and both take it already validated', () => {
       const importers = appSources().filter((path) => FIREBASE_IMPORT.test(read(path)));
 
       for (const path of importers) {
-        if (relative(path) === BACKUP_REPOSITORY) {
-          // It takes a `CloudSyncPayloadV1` as an argument. What it must not do
-          // is read the health data itself: that is a use case's job, and it
+        if (PAYLOAD_CARRIERS.includes(relative(path))) {
+          // Each takes a `CloudSyncPayloadV1` as an argument. What neither may
+          // do is read the health data itself: that is a use case's job, and it
           // runs from a button rather than from here.
           expect(read(path)).not.toMatch(/cycle-repository|pregnancy-repository|avatar-repository/);
           expect(read(path)).not.toMatch(/openAppDatabase|getCycleDashboard|getCycleHomeData/);
@@ -185,11 +198,11 @@ describe('health data reaches no service', () => {
       }
     });
 
-    it('sends a backup only when asked, never on a change', () => {
-      const repository = read(join(ROOT, BACKUP_REPOSITORY.split('/').join(sep)));
+    it.each(PAYLOAD_CARRIERS)('sends %s’s data only when asked, never on a change', (carrier) => {
+      const repository = read(join(ROOT, carrier.split('/').join(sep)));
 
-      // No listener and no scheduled write: the two exported functions are
-      // called from the two buttons, and nothing else calls them.
+      // No listener and no scheduled write: every exported function here is
+      // called by something that decided to call it, and nothing calls itself.
       expect(repository).not.toMatch(/onSnapshot|setInterval|AppState|addEventListener/);
     });
 
