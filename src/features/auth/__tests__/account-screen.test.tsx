@@ -73,6 +73,18 @@ jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder',
   syncPregnancyWeeklyReminderQuietly: jest.fn(),
 }));
 
+// The sync is faked too. What this pins is that a sync happens only when the
+// button is pressed, what the screen says about each outcome, and that the
+// switch starts nothing.
+jest.mock('@/features/sync/application/run-cloud-sync', () => ({
+  runCloudSync: jest.fn(),
+}));
+
+jest.mock('@/features/sync/infrastructure/sync-preferences', () => ({
+  loadSyncPreferences: jest.fn(),
+  setAutomaticSyncEnabled: jest.fn(),
+}));
+
 jest.mock('@/utils/today', () => ({ getTodayLocalISODate: jest.fn(() => '2026-09-19') }));
 
 jest.mock('@/storage/db', () => ({
@@ -101,6 +113,8 @@ const periodReminderSync = jest.requireMock(
 const pregnancyReminderSync = jest.requireMock(
   '@/features/notifications/application/sync-pregnancy-weekly-reminder'
 );
+const cloudSyncRun = jest.requireMock('@/features/sync/application/run-cloud-sync');
+const syncPreferences = jest.requireMock('@/features/sync/infrastructure/sync-preferences');
 const db = jest.requireMock('@/storage/db');
 const logging = jest.requireMock('@/shared/logging');
 const useRouterMock = useRouter as unknown as jest.Mock;
@@ -172,6 +186,14 @@ beforeEach(() => {
   periodReminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
   pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockReset();
   pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
+  cloudSyncRun.runCloudSync.mockReset();
+  cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'noop', revision: 3 });
+  syncPreferences.loadSyncPreferences.mockReset();
+  syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: false });
+  syncPreferences.setAutomaticSyncEnabled.mockReset();
+  syncPreferences.setAutomaticSyncEnabled.mockImplementation(async (enabled: boolean) => ({
+    automaticSyncEnabled: enabled,
+  }));
   db.openAppDatabase.mockReset();
   db.openAppDatabase.mockResolvedValue(DATABASE);
   logging.logEvent.mockReset();
@@ -968,7 +990,10 @@ describe('AccountScreen cloud backup, signed in', () => {
     const screen = await renderSignedIn();
 
     expect(screen.getByText(/regl kayıtların, gebelik bilgin, avatarın/)).toBeTruthy();
-    expect(screen.getByText(/kendiliğinden bir gönderim olmaz/)).toBeTruthy();
+    // Two buttons send now rather than one, and the sentence says so. The
+    // promise it keeps is the same: nothing leaves without a press.
+    expect(screen.getByText(/sen bir düğmeye basmadan hiçbir gönderim olmaz/)).toBeTruthy();
+    expect(screen.getByText(/Yedek oluşturduğunda ya da senkronize ettiğinde/)).toBeTruthy();
   });
 
   it('sends nothing until a button is pressed', async () => {
@@ -977,6 +1002,7 @@ describe('AccountScreen cloud backup, signed in', () => {
     expect(backup.saveCloudBackup).not.toHaveBeenCalled();
     expect(backup.loadCloudBackup).not.toHaveBeenCalled();
     expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
+    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
   });
 });
 
@@ -1656,5 +1682,407 @@ describe('AccountScreen when a restore fails', () => {
     expect(error).not.toHaveBeenCalled();
 
     jest.restoreAllMocks();
+  });
+});
+
+describe('the automatic sync switch', () => {
+  it('is off for somebody who has never been asked', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(false);
+  });
+
+  it('follows what was stored', async () => {
+    syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: true });
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(true);
+    });
+  });
+
+  it('says what it does today, which is only to remember the choice', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByText(/Kendiliğinden senkronizasyon\s+henüz çalışmıyor/)).toBeTruthy();
+  });
+
+  it('records the choice when it is turned on', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', true);
+
+    await waitFor(() => {
+      expect(syncPreferences.setAutomaticSyncEnabled).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it('records the choice when it is turned off', async () => {
+    syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: true });
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(true);
+    });
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', false);
+
+    await waitFor(() => {
+      expect(syncPreferences.setAutomaticSyncEnabled).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('starts no sync by being switched on', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', true);
+
+    await waitFor(() => {
+      expect(syncPreferences.setAutomaticSyncEnabled).toHaveBeenCalled();
+    });
+
+    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+  });
+
+  it('stays where it was when the choice could not be written', async () => {
+    syncPreferences.setAutomaticSyncEnabled.mockRejectedValue(new Error('storage unavailable'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', true);
+
+    await screen.findByText('Senkronizasyon tercihi kaydedilemedi.');
+
+    expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(false);
+  });
+
+  it('says so, and stays off, when the stored choice could not be read', async () => {
+    syncPreferences.loadSyncPreferences.mockRejectedValue(new Error('storage unavailable'));
+
+    const screen = await renderSignedIn();
+
+    await screen.findByText('Senkronizasyon tercihi kaydedilemedi.');
+
+    expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(false);
+  });
+
+  it('shows no message from storage when a write fails', async () => {
+    syncPreferences.setAutomaticSyncEnabled.mockRejectedValue(
+      new Error('SQLITE_FULL: database or disk is full')
+    );
+
+    const screen = await renderSignedIn();
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', true);
+
+    await screen.findByText('Senkronizasyon tercihi kaydedilemedi.');
+
+    expect(screen.queryByText(/SQLITE_FULL|disk is full/)).toBeNull();
+  });
+});
+
+describe('manual backup while automatic sync is on', () => {
+  /** Renders signed in with the switch already on. */
+  async function renderWithSyncOn() {
+    syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: true });
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(true);
+    });
+
+    return screen;
+  }
+
+  it('turns the backup button off', async () => {
+    const screen = await renderWithSyncOn();
+
+    expect(screen.getByLabelText('Yedek oluştur').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('says why, rather than leaving a greyed-out button to explain itself', async () => {
+    const screen = await renderWithSyncOn();
+
+    expect(screen.getByText(/Otomatik senkronizasyon açıkken "Yedek oluştur" kapalı/)).toBeTruthy();
+  });
+
+  it('sends nothing when it is pressed anyway', async () => {
+    const screen = await renderWithSyncOn();
+
+    await fireEvent.press(screen.getByLabelText('Yedek oluştur'));
+
+    expect(backup.saveCloudBackup).not.toHaveBeenCalled();
+  });
+
+  it('leaves restoring alone, which only reads', async () => {
+    const screen = await renderWithSyncOn();
+
+    expect(screen.getByLabelText('Yedeği geri yükle').props.accessibilityState.disabled).toBe(
+      false
+    );
+    expect(screen.getByLabelText('Yedeği kontrol et').props.accessibilityState.disabled).toBe(
+      false
+    );
+  });
+
+  it('gives the backup button back when the switch goes off', async () => {
+    const screen = await renderWithSyncOn();
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', false);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Yedek oluştur').props.accessibilityState.disabled).toBe(false);
+    });
+  });
+
+  it('says nothing about it while the switch is off', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.queryByText(/Otomatik senkronizasyon açıkken/)).toBeNull();
+    expect(screen.getByLabelText('Yedek oluştur').props.accessibilityState.disabled).toBe(false);
+  });
+});
+
+describe('syncing now', () => {
+  it('does not sync by being opened', async () => {
+    await renderSignedIn();
+
+    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+  });
+
+  it('does not sync by somebody signing in', async () => {
+    const screen = await render(<AccountScreen />);
+
+    await waitFor(() => {
+      notify(null);
+    });
+
+    await waitFor(() => {
+      notify(USER);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Çıkış yap')).toBeTruthy();
+    });
+
+    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+  });
+
+  it('syncs the signed-in account when the button is pressed', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await waitFor(() => {
+      expect(cloudSyncRun.runCloudSync).toHaveBeenCalledWith({
+        db: DATABASE,
+        uid: 'firebase-uid-1',
+      });
+    });
+  });
+
+  it('sends the account id and not the address', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await waitFor(() => {
+      expect(cloudSyncRun.runCloudSync).toHaveBeenCalled();
+    });
+
+    expect(JSON.stringify(cloudSyncRun.runCloudSync.mock.calls[0][0])).not.toContain(EMAIL);
+  });
+
+  it.each([
+    [{ kind: 'noop', revision: 3 }, 'Her şey güncel. Telefonun ve hesabın aynı.'],
+    [{ kind: 'pushed', revision: 4 }, 'Telefondaki veriler hesabına gönderildi.'],
+    [{ kind: 'pulled', revision: 4 }, 'Hesabındaki veriler telefona alındı.'],
+    [{ kind: 'merged', revision: 5 }, 'İki taraftaki değişiklikler birleştirildi.'],
+  ])('says what happened for $kind', async (outcome, message) => {
+    cloudSyncRun.runCloudSync.mockResolvedValue(outcome);
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText(message as string);
+  });
+
+  it('says plainly that nothing changed when there is a conflict', async () => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({
+      kind: 'conflict',
+      reason: 'unresolved',
+      conflicts: [
+        {
+          path: 'periodRecords/period-2026-09-02',
+          reason: 'changed-on-both-sides',
+          base: { present: true, value: 1 },
+          local: { present: true, value: 2 },
+          remote: { present: true, value: 3 },
+        },
+      ],
+    });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText(/Çakışma bulundu, çözülmedi; hiçbir veri değiştirilmedi/);
+  });
+
+  it('counts the conflicts without naming any of them', async () => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({
+      kind: 'conflict',
+      reason: 'unresolved',
+      conflicts: [
+        {
+          path: 'periodRecords/period-2026-09-02',
+          reason: 'changed-on-both-sides',
+          base: { present: true, value: 1 },
+          local: { present: true, value: 2 },
+          remote: { present: true, value: 3 },
+        },
+      ],
+    });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText('Çözülmeyi bekleyen 1 çakışma var.');
+
+    expect(screen.queryByText(/2026-09-02|periodRecords/)).toBeNull();
+  });
+
+  it('asks somebody to try again when the account moved first', async () => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'retry-required', actualRevision: 9 });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText(/Tekrar dene/);
+  });
+
+  it.each([
+    ['network-failed', 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.'],
+    ['not-configured', 'Bulut hesabı şu anda yapılandırılmamış.'],
+    ['local-failed', 'Telefondaki veriler okunamadı. Hiçbir veri değiştirilmedi.'],
+  ])('says what went wrong for %s', async (failure, message) => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'error', failure });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText(message);
+  });
+
+  it('refreshes the widget and the reminders when the phone changed', async () => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'pulled', revision: 4 });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await waitFor(() => {
+      expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(DATABASE, '2026-09-19');
+    });
+
+    expect(periodReminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+      DATABASE,
+      '2026-09-19'
+    );
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalledWith(DATABASE);
+  });
+
+  it('leaves them alone when nothing on the phone changed', async () => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'pushed', revision: 4 });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText('Telefondaki veriler hesabına gönderildi.');
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+    expect(periodReminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('still reports the sync when a refresh afterwards refuses', async () => {
+    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'pulled', revision: 4 });
+    widgetSync.syncWidgetSnapshotQuietly.mockRejectedValue(new Error('widget unavailable'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText('Hesabındaki veriler telefona alındı.');
+  });
+
+  it('shows no raw message when something outside the sync fails', async () => {
+    db.openAppDatabase.mockRejectedValue(new Error('unable to open database file'));
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await screen.findByText(/Senkronizasyon tamamlanamadı/);
+
+    expect(screen.queryByText(/unable to open database file/)).toBeNull();
+  });
+
+  it('syncs once for one press and not again on its own', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+    await screen.findByText('Her şey güncel. Telefonun ve hesabın aynı.');
+
+    expect(cloudSyncRun.runCloudSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns the button off while a sync is running', async () => {
+    const screen = await renderSignedIn();
+
+    // The disabled state is what stops a second tap; the ref behind it is what
+    // stops the two that both read it as false in the same frame.
+    expect(
+      screen.getByLabelText('Şimdi senkronize et').props.accessibilityState.disabled
+    ).toBe(false);
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+    await screen.findByText('Her şey güncel. Telefonun ve hesabın aynı.');
+
+    expect(
+      screen.getByLabelText('Şimdi senkronize et').props.accessibilityState.disabled
+    ).toBe(false);
+  });
+
+  it('writes nothing to the log or the console, whatever the outcome', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'error', failure: 'network-failed' });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+    await screen.findByText('Bağlantı kurulamadı. İnternet bağlantını kontrol et.');
+
+    expect(logging.logEvent).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+
+    jest.restoreAllMocks();
+  });
+
+  it('is not offered to somebody who is signed out', async () => {
+    const screen = await renderSignedOut();
+
+    expect(screen.queryByLabelText('Şimdi senkronize et')).toBeNull();
+    expect(screen.queryByLabelText('Otomatik senkronizasyon')).toBeNull();
   });
 });

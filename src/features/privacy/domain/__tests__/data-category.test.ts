@@ -44,7 +44,17 @@ describe('what stays on the device', () => {
       'derived-cycle-data',
       'content-sources',
       'logs',
+      'sync-state',
+      'sync-device-id',
+      'sync-preferences',
     ]);
+  });
+
+  it('names the sync’s own local copy, which is a second copy of the health data', () => {
+    // `sync_state.base_payload` holds a whole payload. It is the one row in the
+    // database that is a copy rather than a source, and a privacy inventory
+    // that did not mention it would be hiding the thing it exists to disclose.
+    expect([...EXCLUDED_FROM_CLOUD_SYNC]).toContain('sync-state');
   });
 
   it('overlaps with nothing that syncs', () => {
@@ -128,10 +138,18 @@ describe('the inventory and the document say the same thing', () => {
   });
 
   it('says out loud when health data is sent, and when it is not', () => {
-    expect(DOC).toContain('Sağlık verisi yalnızca sen "Yedek oluştur" dersen gönderiliyor');
+    expect(DOC).toContain('Sağlık verisi yalnızca sen bir düğmeye bastığında gönderiliyor');
+    // Both of them, named. A document that still said "Yedek oluştur" alone
+    // would be wrong about a button that is on the same screen.
+    expect(DOC).toContain('"Yedek oluştur" ve "Şimdi senkronize et"');
     expect(DOC).toContain('otomatik yedekleme, açılışta senkronizasyon');
     expect(DOC).toContain('Sağlık verisi cihazda');
     expect(DOC).toContain('Loglar ham sağlık verisi içermez');
+  });
+
+  it('says what the automatic sync switch does today, which is only to remember', () => {
+    expect(DOC).toContain('yalnızca tercihini kaydediyor');
+    expect(DOC).toContain('kendiliğinden çalışan');
   });
 
   it('says which services are used, and which are not', () => {
@@ -150,6 +168,12 @@ describe('the inventory and the document say the same thing', () => {
     }
 
     expect(DOC).toContain('loglar, bildirim kuyruğu');
-    expect(DOC).toContain('Geri yükleme (restore), otomatik senkronizasyon ve çakışma çözümü');
+  });
+
+  it('says which parts of a sync exist and which do not', () => {
+    expect(DOC).toContain('Geri yükleme (restore) ve elle başlatılan senkronizasyon var');
+    expect(DOC).toContain('çakışmaları çözme ekranı henüz yok');
+    // The promise the conflict message on screen makes, written down here too.
+    expect(DOC).toContain('iki taraftaki veriler olduğu gibi bırakılır');
   });
 });

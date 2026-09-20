@@ -1,6 +1,14 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -32,6 +40,21 @@ import {
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import { runCloudSync } from '@/features/sync/application/run-cloud-sync';
+import {
+  loadSyncPreferences,
+  setAutomaticSyncEnabled,
+} from '@/features/sync/infrastructure/sync-preferences';
+import {
+  AUTOMATIC_SYNC_LABEL,
+  AUTOMATIC_SYNC_NOTE,
+  BACKUP_DISABLED_BY_SYNC_MESSAGE,
+  SYNC_BUSY_LABEL,
+  SYNC_BUTTON_LABEL,
+  didSyncChangeThisPhone,
+  syncConflictCountMessage,
+  syncOutcomeMessage,
+} from '@/features/sync/presentation/sync-messages';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
@@ -46,6 +69,7 @@ const RESTORE_WARNING =
   'Bu yedek telefondaki mevcut verilerin üzerine yazılacak.';
 const BACKUP_FOUND_MESSAGE = 'Yedek bulundu.';
 const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
+const SYNC_PREFERENCE_FAILED_MESSAGE = 'Senkronizasyon tercihi kaydedilemedi.';
 
 /**
  * The account screen.
@@ -84,10 +108,46 @@ export default function AccountScreen() {
   const [preview, setPreview] = useState<CloudRestorePreviewV1 | null>(null);
   const [pending, setPending] = useState<CloudSyncPayloadV1 | null>(null);
 
+  // Whether this phone may sync on its own. Read once, off until it is read,
+  // and off again if it cannot be: a switch that renders as on before anybody
+  // knows what is stored is a promise made on a guess.
+  const [automaticSync, setAutomaticSync] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [syncDetail, setSyncDetail] = useState<string | null>(null);
+
   // A ref as well as the disabled prop: two quick taps could both read `isBusy`
   // as false before the re-render lands, and the second would be a second
   // attempt with the same credentials.
   const inFlight = useRef(false);
+
+  /**
+   * Reads the stored sync preference once.
+   *
+   * Nothing is written here, including when there is nothing stored: reading an
+   * answer is not how an answer should come to exist. A read that fails leaves
+   * the switch off and says so, rather than leaving someone looking at a switch
+   * whose position means nothing.
+   */
+  useEffect(() => {
+    let isActive = true;
+
+    void loadSyncPreferences().then(
+      (preferences) => {
+        if (isActive) {
+          setAutomaticSync(preferences.automaticSyncEnabled);
+        }
+      },
+      () => {
+        if (isActive) {
+          setSyncNotice(SYNC_PREFERENCE_FAILED_MESSAGE);
+        }
+      }
+    );
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const clearForm = () => {
     setEmail('');
@@ -330,6 +390,89 @@ export default function AccountScreen() {
     }
   };
 
+  /**
+   * Records whether this phone may sync on its own.
+   *
+   * It records the choice and nothing more. No sync is started by switching it
+   * on, nothing is scheduled and nothing is cancelled by switching it off —
+   * there is no automatic sync to start or stop yet, and the screen says so.
+   *
+   * The switch follows what was stored rather than what was tapped: a write
+   * that failed leaves it where it was, so it cannot show "açık" for something
+   * that is not.
+   */
+  const handleAutomaticSyncChange = async (enabled: boolean) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setSyncNotice(null);
+    setSyncDetail(null);
+
+    try {
+      const preferences = await setAutomaticSyncEnabled(enabled);
+
+      setAutomaticSync(preferences.automaticSyncEnabled);
+    } catch {
+      // Storage's own message is not read. Nothing about it would help, and the
+      // switch staying where it was is the answer.
+      setSyncNotice(SYNC_PREFERENCE_FAILED_MESSAGE);
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  /**
+   * Syncs this phone with the account, once, because it was asked for.
+   *
+   * Every outcome — including the ones where nothing was written — comes back
+   * as a result rather than an exception, and each gets its own sentence. What
+   * this screen must never do is say "tamamlandı" for a conflict: the point of
+   * those messages is that somebody can tell whether their data moved.
+   *
+   * The widget and the reminders are refreshed only when the phone's own data
+   * actually changed, and best effort afterwards, exactly as a restore does
+   * them: a copy that could not be refreshed is not a reason to undo a sync.
+   */
+  const handleSyncNow = async (user: AuthUser) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setSyncNotice(null);
+    setSyncDetail(null);
+    setBackupNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+      const outcome = await runCloudSync({ db, uid: user.uid });
+
+      setSyncNotice(syncOutcomeMessage(outcome));
+      setSyncDetail(syncConflictCountMessage(outcome));
+
+      if (didSyncChangeThisPhone(outcome)) {
+        const today = getTodayLocalISODate();
+
+        await syncWidgetSnapshotQuietly(db, today).catch(() => undefined);
+        await syncPeriodReminderQuietly(db, today).catch(() => undefined);
+        await syncPregnancyWeeklyReminderQuietly(db).catch(() => undefined);
+      }
+    } catch {
+      // `runCloudSync` reports its failures rather than throwing them, so this
+      // is only for whatever is left — opening the database, most likely. The
+      // same rule applies: no message of its own is shown.
+      setSyncNotice(syncOutcomeMessage({ kind: 'error', failure: 'unknown' }));
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (inFlight.current) {
       return;
@@ -430,10 +573,63 @@ export default function AccountScreen() {
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
-                    Yedek oluşturduğunda regl kayıtların, gebelik bilgin, avatarın ve
-                    hatırlatıcı tercihlerin hesabına kopyalanır. Başka hiçbir şey gönderilmez
-                    ve bunun dışında kendiliğinden bir gönderim olmaz.
+                    Yedek oluşturduğunda ya da senkronize ettiğinde regl kayıtların, gebelik
+                    bilgin, avatarın ve hatırlatıcı tercihlerin hesabına kopyalanır. Başka
+                    hiçbir şey gönderilmez ve sen bir düğmeye basmadan hiçbir gönderim olmaz.
                   </ThemedText>
+
+                  {/* The switch records a choice. Nothing runs on it yet, and
+                      the note under it says exactly that. */}
+                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                    <View style={styles.syncRow}>
+                      <ThemedText type="smallBold" style={styles.syncLabel}>
+                        {AUTOMATIC_SYNC_LABEL}
+                      </ThemedText>
+
+                      <Switch
+                        accessibilityLabel={AUTOMATIC_SYNC_LABEL}
+                        accessibilityState={{ checked: automaticSync, disabled: isBusy }}
+                        value={automaticSync}
+                        disabled={isBusy}
+                        onValueChange={(next) => {
+                          void handleAutomaticSyncChange(next);
+                        }}
+                      />
+                    </View>
+
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {AUTOMATIC_SYNC_NOTE}
+                    </ThemedText>
+
+                    {syncNotice !== null && (
+                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                        {syncNotice}
+                      </ThemedText>
+                    )}
+
+                    {syncDetail !== null && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {syncDetail}
+                      </ThemedText>
+                    )}
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={SYNC_BUTTON_LABEL}
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => handleSyncNow(auth.user)}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold">
+                        {isBusy ? SYNC_BUSY_LABEL : SYNC_BUTTON_LABEL}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
 
                   {backupNotice !== null && (
                     <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
@@ -441,17 +637,27 @@ export default function AccountScreen() {
                     </ThemedText>
                   )}
 
+                  {/* Manual backup replaces the stored document outright, which
+                      would strip the revision the sync counts on. One of the two
+                      at a time, and the reason is on screen rather than implied
+                      by a greyed-out button. */}
+                  {automaticSync && (
+                    <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                      {BACKUP_DISABLED_BY_SYNC_MESSAGE}
+                    </ThemedText>
+                  )}
+
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Yedek oluştur"
-                    accessibilityState={{ disabled: isBusy }}
-                    disabled={isBusy}
+                    accessibilityState={{ disabled: isBusy || automaticSync }}
+                    disabled={isBusy || automaticSync}
                     onPress={() => handleCreateBackup(auth.user)}
                     style={({ pressed }) => [
                       styles.secondaryButton,
                       { borderColor: theme.backgroundSelected },
-                      isBusy && styles.disabled,
-                      pressed && !isBusy && styles.pressed,
+                      (isBusy || automaticSync) && styles.disabled,
+                      pressed && !isBusy && !automaticSync && styles.pressed,
                     ]}>
                     <ThemedText type="smallBold">Yedek oluştur</ThemedText>
                   </Pressable>
@@ -846,6 +1052,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.two,
     minHeight: 32,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    minHeight: 44,
+  },
+  syncLabel: {
+    flexShrink: 1,
   },
   linkButton: {
     minHeight: 44,

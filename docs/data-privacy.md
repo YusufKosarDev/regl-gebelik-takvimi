@@ -6,10 +6,15 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
 
 ## Bugünkü durum
 
-- **Sağlık verisi yalnızca sen "Yedek oluştur" dersen gönderiliyor.** Başka
-  hiçbir durumda cihazdan çıkmıyor: otomatik yedekleme, açılışta senkronizasyon,
-  arka planda gönderim ve değişiklik dinleyicisi **yok**. Hesabın olsun ya da
-  olmasın, o düğmeye basmadığın sürece hiçbir sağlık verisi gitmez.
+- **Sağlık verisi yalnızca sen bir düğmeye bastığında gönderiliyor.** Bu iki
+  düğme var: "Yedek oluştur" ve "Şimdi senkronize et". Başka hiçbir durumda
+  cihazdan çıkmıyor: otomatik yedekleme, açılışta senkronizasyon, arka planda
+  gönderim ve değişiklik dinleyicisi **yok**. Hesabın olsun ya da olmasın, o
+  düğmelerden birine basmadığın sürece hiçbir sağlık verisi gitmez.
+- **"Otomatik senkronizasyon" anahtarı şimdilik yalnızca tercihini kaydediyor.**
+  Açman hiçbir arka plan gönderimi başlatmaz; kendiliğinden çalışan
+  senkronizasyon henüz yok. Tercih bu telefonda duruyor, hesapla taşınmıyor:
+  başka bir cihaza giriş yapmak orada senkronizasyonu açmaz.
 - **Firebase Auth ve Firestore var; başka Firebase ürünü yok.** Hesap için Auth,
   yedek için Firestore. Storage, Messaging, Functions, Analytics ve Crashlytics
   yok — bağımlılık listesinde de yok, bir tarama testi her çalıştırmada
@@ -46,7 +51,10 @@ zaman damgası bulunur. **Widget snapshot'ı, loglar, bildirim kuyruğu, arayüz
 durumu ve hesaplanan hiçbir veri (döngü günü, evre, doğurganlık, ruh hali,
 takvim) yedekte yer almaz.**
 
-Geri yükleme (restore), otomatik senkronizasyon ve çakışma çözümü henüz yok.
+Geri yükleme (restore) ve elle başlatılan senkronizasyon var. Kendiliğinden
+çalışan senkronizasyon ve çakışmaları çözme ekranı henüz yok: bir çakışma
+bulunduğunda senkronizasyon durur, iki taraftaki veriler olduğu gibi bırakılır ve
+ekranda hiçbir şeyin değişmediği yazar.
 
 ## Envanter
 
@@ -65,6 +73,9 @@ Geri yükleme (restore), otomatik senkronizasyon ve çakışma çözümü henüz
 | `derived-cycle-data` | evet | **hayır** | Döngü günü, evre, doğurganlık tahmini, ruh hali ve takvim; kayıtlardan hesaplanır. |
 | `content-sources` | evet | **hayır** | Uygulamayla gelen metin ve kaynak adresleri; kişiye ait veri değil. |
 | `logs` | evet | **hayır** | Yalnızca genel olay adları yazılır; sağlık verisi hiç girmez. |
+| `sync-state` | evet | **hayır** | Senkronizasyonun son mutabakatı: bu cihazla hesabın en son aynı olduğu andaki verinin bir kopyası, cihazda kalır ve hiçbir yere gönderilmez. |
+| `sync-device-id` | evet | **hayır** | Bu kurulumun kendine verdiği rastgele ad; donanım kimliği, hesap kimliği ya da kişisel veri değil. Yedek dokümanına "bu yazıyı hangi cihaz yaptı" bilgisi olarak yazılır, payload içine girmez. |
+| `sync-preferences` | evet | **hayır** | Otomatik senkronizasyonun bu telefonda açık olup olmadığı; cihaz kararı, hesapla taşınmaz. |
 
 Bu tablo `src/features/privacy/domain/data-category.ts` içindeki `DATA_INVENTORY`
 ile aynı. Bir test ikisini birbirine bağlıyor: kodda olup burada olmayan (ya da

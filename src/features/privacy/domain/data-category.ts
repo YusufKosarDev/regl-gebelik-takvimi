@@ -45,6 +45,9 @@ export const EXCLUDED_FROM_CLOUD_SYNC = [
   'derived-cycle-data',
   'content-sources',
   'logs',
+  'sync-state',
+  'sync-device-id',
+  'sync-preferences',
 ] as const;
 
 export type ExcludedFromCloudSync = (typeof EXCLUDED_FROM_CLOUD_SYNC)[number];
@@ -147,6 +150,31 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
     storedOnDevice: true,
     cloudSyncCandidate: false,
     reason: 'Yalnızca genel olay adları yazılır; sağlık verisi hiç girmez.',
+  },
+  {
+    id: 'sync-state',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Senkronizasyonun son mutabakatı: bu cihazla hesabın en son aynı olduğu andaki ' +
+      'verinin bir kopyası, cihazda kalır ve hiçbir yere gönderilmez.',
+  },
+  {
+    id: 'sync-device-id',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Bu kurulumun kendine verdiği rastgele ad; donanım kimliği, hesap kimliği ya da ' +
+      'kişisel veri değil. Yedek dokümanına "bu yazıyı hangi cihaz yaptı" bilgisi olarak ' +
+      'yazılır, payload içine girmez.',
+  },
+  {
+    id: 'sync-preferences',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Otomatik senkronizasyonun bu telefonda açık olup olmadığı; cihaz kararı, ' +
+      'hesapla taşınmaz.',
   },
 ];
 
