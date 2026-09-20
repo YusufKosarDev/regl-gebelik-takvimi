@@ -1,4 +1,7 @@
-import type { PeriodRecord } from '@/features/cycle/domain/types';
+import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
+import type { CycleSettings, PeriodRecord } from '@/features/cycle/domain/types';
+import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
+import type { PregnancyProfile } from '@/features/pregnancy/domain/types';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 
 /**
@@ -33,22 +36,78 @@ export type CloudRestorePreviewV1 = {
 };
 
 /**
- * Whether two stored values are the same thing.
+ * Two values reduced to the fields this app actually stores, in a fixed order.
  *
- * Compared as JSON rather than field by field, because every one of these is a
- * small object of primitives that this app builds itself, and a comparison that
- * had to be updated whenever a field was added is a comparison that would
- * eventually say "unchanged" about a change.
+ * Whole-object `JSON.stringify` was the obvious thing and it was wrong. One
+ * side of this comparison comes from the device's own repositories, in the order
+ * their literals are written; the other has been to Firestore and back, and a
+ * document's fields do not come back in the order they went in. Two identical
+ * backups then read as different, and the confirmation screen told someone that
+ * everything would change when nothing would.
  *
- * Key order is not a worry: both sides are built by this app's own repositories
- * from the same literals, and the payload has been validated before it arrives.
+ * Naming the fields fixes that, and fixes more than that: a key this build does
+ * not know — from a later version, or from whatever else has written to the
+ * document — no longer counts as a change to data this app can see. What is
+ * compared is exactly what a restore would write.
+ *
+ * The cost is that a new field has to be added here as well as to the model. A
+ * comparison that silently ignored a field would be worse than one that has to
+ * be kept honest, and the tests below name every field so the omission shows up.
  */
-function isSame(local: unknown, remote: unknown): boolean {
-  return JSON.stringify(local) === JSON.stringify(remote);
+type Fingerprint = readonly (string | number | boolean | null)[];
+
+function fingerprintCycleSettings(settings: CycleSettings): Fingerprint {
+  return [settings.averageCycleLengthDays, settings.averagePeriodLengthDays];
 }
 
-/** What would happen to one nullable value. */
-function statusOf(local: unknown, remote: unknown): CloudRestoreStatus {
+function fingerprintPeriodRecord(record: PeriodRecord): Fingerprint {
+  // `endDate` is absent rather than null on a record with no end, and Firestore
+  // has no way to store "absent" differently from "not there". Both become null.
+  return [record.id, record.startDate, record.endDate ?? null, record.isOngoing];
+}
+
+function fingerprintPregnancyProfile(profile: PregnancyProfile): Fingerprint {
+  return [
+    profile.lastMenstrualPeriodStartDate,
+    profile.estimatedDueDate,
+    profile.dueDateSource,
+  ];
+}
+
+function fingerprintAvatarConfig(config: AvatarConfig): Fingerprint {
+  return [
+    config.skinToneId,
+    config.hairStyleId,
+    config.hairColorId,
+    config.outfitId,
+    config.accessoryId ?? null,
+  ];
+}
+
+function fingerprintNotificationPreferences(
+  preferences: NotificationPreferences
+): Fingerprint {
+  return [preferences.periodReminderEnabled, preferences.pregnancyWeeklyReminderEnabled];
+}
+
+/** Whether two fingerprints describe the same stored value. */
+function isSame(local: Fingerprint, remote: Fingerprint): boolean {
+  return (
+    local.length === remote.length && local.every((value, index) => value === remote[index])
+  );
+}
+
+/**
+ * What would happen to one nullable value.
+ *
+ * The fingerprint is taken here rather than by the caller, so a value that is
+ * absent is never handed to something expecting an object.
+ */
+function statusOf<T>(
+  local: T | null | undefined,
+  remote: T | null | undefined,
+  fingerprint: (value: T) => Fingerprint
+): CloudRestoreStatus {
   const hasLocal = local !== null && local !== undefined;
   const hasRemote = remote !== null && remote !== undefined;
 
@@ -64,7 +123,7 @@ function statusOf(local: unknown, remote: unknown): CloudRestoreStatus {
     return 'remove';
   }
 
-  return isSame(local, remote) ? 'unchanged' : 'replace';
+  return isSame(fingerprint(local), fingerprint(remote)) ? 'unchanged' : 'replace';
 }
 
 /**
@@ -93,7 +152,7 @@ function periodRecordsPreview(
       continue;
     }
 
-    if (!isSame(match, record)) {
+    if (!isSame(fingerprintPeriodRecord(match), fingerprintPeriodRecord(record))) {
       changed += 1;
     }
   }
@@ -131,15 +190,20 @@ export function buildCloudRestorePreviewV1(
   remote: CloudSyncPayloadV1
 ): CloudRestorePreviewV1 {
   return {
-    cycleSettings: statusOf(local.cycleSettings, remote.cycleSettings),
+    cycleSettings: statusOf(local.cycleSettings, remote.cycleSettings, fingerprintCycleSettings),
     periodRecords: periodRecordsPreview(local.periodRecords, remote.periodRecords),
-    pregnancyProfile: statusOf(local.pregnancyProfile, remote.pregnancyProfile),
-    avatarConfig: statusOf(local.avatarConfig, remote.avatarConfig),
+    pregnancyProfile: statusOf(
+      local.pregnancyProfile,
+      remote.pregnancyProfile,
+      fingerprintPregnancyProfile
+    ),
+    avatarConfig: statusOf(local.avatarConfig, remote.avatarConfig, fingerprintAvatarConfig),
     // Never absent on either side: "nothing chosen" is the defaults, so this is
     // only ever unchanged or replaced.
     notificationPreferences: statusOf(
       local.notificationPreferences,
-      remote.notificationPreferences
+      remote.notificationPreferences,
+      fingerprintNotificationPreferences
     ),
   };
 }
