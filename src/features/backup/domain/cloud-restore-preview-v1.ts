@@ -53,20 +53,24 @@ export type CloudRestorePreviewV1 = {
  * The cost is that a new field has to be added here as well as to the model. A
  * comparison that silently ignored a field would be worse than one that has to
  * be kept honest, and the tests below name every field so the omission shows up.
+ *
+ * Exported because a content hash has to reduce a payload the same way this
+ * does. Two answers to "are these the same?" that disagreed would be worse than
+ * either, so there is one set of fingerprints and both callers use it.
  */
-type Fingerprint = readonly (string | number | boolean | null)[];
+export type Fingerprint = readonly (string | number | boolean | null)[];
 
-function fingerprintCycleSettings(settings: CycleSettings): Fingerprint {
+export function fingerprintCycleSettings(settings: CycleSettings): Fingerprint {
   return [settings.averageCycleLengthDays, settings.averagePeriodLengthDays];
 }
 
-function fingerprintPeriodRecord(record: PeriodRecord): Fingerprint {
+export function fingerprintPeriodRecord(record: PeriodRecord): Fingerprint {
   // `endDate` is absent rather than null on a record with no end, and Firestore
   // has no way to store "absent" differently from "not there". Both become null.
   return [record.id, record.startDate, record.endDate ?? null, record.isOngoing];
 }
 
-function fingerprintPregnancyProfile(profile: PregnancyProfile): Fingerprint {
+export function fingerprintPregnancyProfile(profile: PregnancyProfile): Fingerprint {
   return [
     profile.lastMenstrualPeriodStartDate,
     profile.estimatedDueDate,
@@ -74,7 +78,7 @@ function fingerprintPregnancyProfile(profile: PregnancyProfile): Fingerprint {
   ];
 }
 
-function fingerprintAvatarConfig(config: AvatarConfig): Fingerprint {
+export function fingerprintAvatarConfig(config: AvatarConfig): Fingerprint {
   return [
     config.skinToneId,
     config.hairStyleId,
@@ -84,7 +88,7 @@ function fingerprintAvatarConfig(config: AvatarConfig): Fingerprint {
   ];
 }
 
-function fingerprintNotificationPreferences(
+export function fingerprintNotificationPreferences(
   preferences: NotificationPreferences
 ): Fingerprint {
   return [preferences.periodReminderEnabled, preferences.pregnancyWeeklyReminderEnabled];
