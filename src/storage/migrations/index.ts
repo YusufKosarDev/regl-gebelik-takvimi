@@ -8,7 +8,7 @@ import { describeValue } from '@/shared/logging';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 5;
+export const LATEST_SCHEMA_VERSION = 6;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -207,6 +207,58 @@ async function migrateToVersion5(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 6: what this device last synced, per account.
+ *
+ * One row per account rather than one row pinned to 1, which is what every
+ * other table here does. Two accounts can be used on one phone, and their sync
+ * states have nothing to do with each other: the uid is the key so that reading
+ * one can never answer with the other's.
+ *
+ * `base_payload` is the copy that was last agreed with the account, as the JSON
+ * of a `CloudSyncPayloadV1`. It is what makes a three-way merge possible: with
+ * it, a device that has been offline can tell what it changed from what the
+ * other device changed, and only ask about the parts that truly collide.
+ *
+ * `content_hash` is that payload's hash, stored rather than recomputed so the
+ * question "has this phone changed since?" is one string comparison.
+ *
+ * No row means no base: an account this device has never synced has nothing to
+ * measure against, which is a state the decision engine already knows how to
+ * answer for. Nothing is backfilled and no row is written here.
+ *
+ * Holding a copy of the payload is holding health data — the same health data
+ * already in the tables beside it, in the same app-private database, and not a
+ * line of it leaves the device by being here.
+ */
+const MIGRATION_V6 = `
+  CREATE TABLE sync_state (
+    uid TEXT PRIMARY KEY NOT NULL CHECK (length(uid) > 0),
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    content_hash TEXT NOT NULL CHECK (length(content_hash) > 0),
+    base_payload TEXT NOT NULL CHECK (length(base_payload) > 0),
+    updated_at TEXT NOT NULL CHECK (length(updated_at) > 0)
+  );
+`;
+
+/**
+ * Adds the sync state table.
+ *
+ * Touches nothing that is already there: the cycle, pregnancy, avatar and
+ * reminder tables are not read, rewritten or migrated, so an upgrade cannot
+ * cost somebody a period record.
+ *
+ * Same bargain as every step before it: the DDL and the version bump share one
+ * transaction, so a failure leaves the database still reporting version 5
+ * rather than claiming a table it does not have.
+ */
+async function migrateToVersion6(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V6);
+    await db.execAsync('PRAGMA user_version = 6');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -256,5 +308,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 5) {
     await migrateToVersion5(db);
+  }
+
+  if (currentVersion < 6) {
+    await migrateToVersion6(db);
   }
 }
