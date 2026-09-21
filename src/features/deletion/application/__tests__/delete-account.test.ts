@@ -8,6 +8,8 @@ import { deleteAccount } from '../delete-account';
 jest.mock('@/features/auth/data/auth-repository', () => ({
   reauthenticateWithPassword: jest.fn(),
   deleteAuthUser: jest.fn(),
+  checkAccountStillExists: jest.fn(),
+  signOut: jest.fn(),
 }));
 
 jest.mock('@/features/backup/data/cloud-backup-repository', () => ({
@@ -29,6 +31,7 @@ jest.mock('@/features/sync/infrastructure/device-id', () => ({
 jest.mock('../../infrastructure/pending-account-deletion', () => ({
   markAccountDeletionPending: jest.fn(),
   clearPendingAccountDeletion: jest.fn(),
+  isAccountDeletionPending: jest.fn(),
 }));
 
 jest.mock('../wipe-local-data', () => ({
@@ -43,6 +46,8 @@ jest.mock('@/shared/logging', () => ({
 const auth = jest.requireMock('@/features/auth/data/auth-repository') as {
   reauthenticateWithPassword: jest.Mock;
   deleteAuthUser: jest.Mock;
+  checkAccountStillExists: jest.Mock;
+  signOut: jest.Mock;
 };
 const { deleteCloudBackup } = jest.requireMock(
   '@/features/backup/data/cloud-backup-repository'
@@ -59,6 +64,7 @@ const { clearDeviceId } = jest.requireMock('@/features/sync/infrastructure/devic
 const pending = jest.requireMock('../../infrastructure/pending-account-deletion') as {
   markAccountDeletionPending: jest.Mock;
   clearPendingAccountDeletion: jest.Mock;
+  isAccountDeletionPending: jest.Mock;
 };
 const { wipeLocalData } = jest.requireMock('../wipe-local-data') as { wipeLocalData: jest.Mock };
 const { logEvent } = jest.requireMock('@/shared/logging') as { logEvent: jest.Mock };
@@ -88,6 +94,9 @@ beforeEach(() => {
   clearDeviceId.mockResolvedValue(undefined);
   pending.markAccountDeletionPending.mockResolvedValue(undefined);
   pending.clearPendingAccountDeletion.mockResolvedValue(undefined);
+  pending.isAccountDeletionPending.mockResolvedValue(false);
+  auth.checkAccountStillExists.mockResolvedValue('present');
+  auth.signOut.mockResolvedValue(undefined);
   wipeLocalData.mockResolvedValue({ kind: 'wiped' });
 });
 
@@ -391,5 +400,134 @@ describe('when the phone is being wiped too', () => {
     await deleteAccount(baseInput({ wipeLocalDataToo: true }));
 
     expect(wipeLocalData).not.toHaveBeenCalled();
+  });
+});
+
+describe('a refused password while a deletion was already under way', () => {
+  beforeEach(() => {
+    auth.reauthenticateWithPassword.mockRejectedValue(new AuthError('invalid-credentials'));
+    pending.isAccountDeletionPending.mockResolvedValue(true);
+  });
+
+  it('does not ask the server when no deletion is pending', async () => {
+    // Outside that window a refused password is just a refused password.
+    pending.isAccountDeletionPending.mockResolvedValue(false);
+
+    expect(await deleteAccount(baseInput())).toEqual({
+      kind: 'failed',
+      reason: 'invalid-credentials',
+    });
+    expect(auth.checkAccountStillExists).not.toHaveBeenCalled();
+  });
+
+  describe('when the account turns out to be gone', () => {
+    beforeEach(() => {
+      auth.checkAccountStillExists.mockResolvedValue('gone');
+    });
+
+    it('says so rather than blaming the password', async () => {
+      expect(await deleteAccount(baseInput())).toEqual({ kind: 'already-deleted' });
+    });
+
+    it('clears the sync traces the dead account left behind', async () => {
+      await deleteAccount(baseInput());
+
+      expect(clearAllSyncState).toHaveBeenCalledWith(db);
+      expect(clearSyncPreferences).toHaveBeenCalledTimes(1);
+      expect(clearDeviceId).toHaveBeenCalledTimes(1);
+    });
+
+    it('lifts the block on syncing, since there is nothing left to protect', async () => {
+      await deleteAccount(baseInput());
+
+      expect(pending.clearPendingAccountDeletion).toHaveBeenCalledTimes(1);
+    });
+
+    it('ends the session, which points at nothing', async () => {
+      await deleteAccount(baseInput());
+
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
+    });
+
+    it('deletes nothing further, because there is nothing to delete', async () => {
+      await deleteAccount(baseInput());
+
+      expect(deleteCloudBackup).not.toHaveBeenCalled();
+      expect(auth.deleteAuthUser).not.toHaveBeenCalled();
+    });
+
+    it('still reports it when signing out fails', async () => {
+      auth.signOut.mockRejectedValue(new Error('offline'));
+
+      expect(await deleteAccount(baseInput())).toEqual({ kind: 'already-deleted' });
+    });
+  });
+
+  describe('when the account is still there', () => {
+    beforeEach(() => {
+      auth.checkAccountStillExists.mockResolvedValue('present');
+    });
+
+    it('keeps the wrong-password answer', async () => {
+      // A person retrying an interrupted deletion can still mistype.
+      expect(await deleteAccount(baseInput())).toEqual({
+        kind: 'failed',
+        reason: 'invalid-credentials',
+      });
+    });
+
+    it('does not sign them out of an account that exists', async () => {
+      await deleteAccount(baseInput());
+
+      expect(auth.signOut).not.toHaveBeenCalled();
+    });
+
+    it('clears nothing', async () => {
+      await deleteAccount(baseInput());
+
+      expect(clearAllSyncState).not.toHaveBeenCalled();
+      expect(pending.clearPendingAccountDeletion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when the server cannot be reached', () => {
+    beforeEach(() => {
+      auth.checkAccountStillExists.mockResolvedValue('unreachable');
+    });
+
+    it('reports the network rather than the password', async () => {
+      expect(await deleteAccount(baseInput())).toEqual({
+        kind: 'failed',
+        reason: 'network-failed',
+      });
+    });
+
+    it('concludes nothing: no clearing and no sign-out', async () => {
+      await deleteAccount(baseInput());
+
+      expect(auth.signOut).not.toHaveBeenCalled();
+      expect(clearAllSyncState).not.toHaveBeenCalled();
+      expect(pending.clearPendingAccountDeletion).not.toHaveBeenCalled();
+    });
+  });
+
+  it('falls back to the wrong-password answer when the marker cannot be read', async () => {
+    pending.isAccountDeletionPending.mockRejectedValue(new Error('storage unreadable'));
+
+    expect(await deleteAccount(baseInput())).toEqual({
+      kind: 'failed',
+      reason: 'invalid-credentials',
+    });
+    expect(auth.checkAccountStillExists).not.toHaveBeenCalled();
+  });
+
+  it('is not consulted for any other refusal', async () => {
+    auth.reauthenticateWithPassword.mockRejectedValue(new AuthError('too-many-requests'));
+
+    expect(await deleteAccount(baseInput())).toEqual({
+      kind: 'failed',
+      reason: 'too-many-requests',
+    });
+    expect(auth.checkAccountStillExists).not.toHaveBeenCalled();
   });
 });

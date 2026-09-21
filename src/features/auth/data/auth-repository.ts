@@ -210,3 +210,59 @@ export async function deleteAuthUser(): Promise<void> {
     throw toAuthError(error);
   }
 }
+
+/**
+ * Whether the signed-in account still exists, asked of the server.
+ *
+ * `reauthenticateWithCredential` cannot tell a wrong password from an account
+ * that is no longer there: with email enumeration protection on — which this
+ * project has — both come back as `auth/invalid-credential`. `reload()` can,
+ * because it carries no password and so has only one thing it can be refused
+ * for.
+ *
+ * A result rather than a throw, and never `gone` on a guess. Anything that is
+ * not an explicit "this user is not there" leaves the answer at `present`, so
+ * the caller falls back to telling somebody their password was wrong — which is
+ * recoverable — rather than signing them out of an account that still exists.
+ */
+export type AccountPresence =
+  /** The account is there; a refused password really was a wrong password. */
+  | 'present'
+  /** The server says this user no longer exists. */
+  | 'gone'
+  /** It could not be asked. Nothing may be concluded from this. */
+  | 'unreachable';
+
+export async function checkAccountStillExists(): Promise<AccountPresence> {
+  let user;
+
+  try {
+    user = requireFirebaseAuth().currentUser;
+  } catch {
+    // No project, no auth, nothing to ask about.
+    return 'unreachable';
+  }
+
+  if (user === null) {
+    return 'gone';
+  }
+
+  try {
+    await user.reload();
+
+    return 'present';
+  } catch (error) {
+    const code = (error as { code?: unknown }).code;
+
+    if (code === 'auth/user-not-found' || code === 'auth/user-token-expired') {
+      return 'gone';
+    }
+
+    if (code === 'auth/network-request-failed') {
+      return 'unreachable';
+    }
+
+    // Something else entirely. Not evidence that the account is gone.
+    return 'present';
+  }
+}

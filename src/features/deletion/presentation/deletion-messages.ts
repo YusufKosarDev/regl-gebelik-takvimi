@@ -59,6 +59,10 @@ export const ACCOUNT_DELETE_EMPTY_PASSWORD_MESSAGE = 'Şifre gerekli.';
 const ACCOUNT_DELETE_SUCCESS: Readonly<Record<string, string>> = {
   deleted: 'Hesabın silindi. Kayıtların bu telefonda kaldı.',
   'deleted-and-wiped': 'Hesabın ve bu cihazdaki tüm verilerin silindi.',
+  // Nothing was deleted just now, and saying "silindi" would claim otherwise.
+  'already-deleted':
+    'Bu hesap zaten silinmiş görünüyor. Oturumun kapatıldı ve bu cihazdaki hesap ' +
+    'kayıtları temizlendi.',
   'deleted-wipe-failed':
     'Hesabın silindi ama bu cihazdaki kayıtlar silinemedi. Ayarlar’dan ' +
     '"Tüm verilerimi sil" ile tekrar deneyebilirsin.',

@@ -1,6 +1,11 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { deleteAuthUser, reauthenticateWithPassword } from '@/features/auth/data/auth-repository';
+import {
+  checkAccountStillExists,
+  deleteAuthUser,
+  reauthenticateWithPassword,
+  signOut,
+} from '@/features/auth/data/auth-repository';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { deleteCloudBackup } from '@/features/backup/data/cloud-backup-repository';
@@ -12,6 +17,7 @@ import { logEvent } from '@/shared/logging';
 import type { AccountDeletionOutcome, DeletionFailure } from '../domain/deletion-outcome';
 import {
   clearPendingAccountDeletion,
+  isAccountDeletionPending,
   markAccountDeletionPending,
 } from '../infrastructure/pending-account-deletion';
 
@@ -98,6 +104,75 @@ async function forgetAccountTraces(db: SQLiteDatabase): Promise<void> {
   }
 }
 
+/**
+ * What a refused password means when a deletion was already under way.
+ *
+ * `auth/invalid-credential` covers both "that is not the password" and "there
+ * is no such user any more", because email enumeration protection makes the two
+ * answer alike. Guessing between them is not acceptable in either direction:
+ * calling a live account gone signs somebody out for a typo, and calling a gone
+ * account live leaves them retyping a password against nothing.
+ *
+ * So it is asked rather than guessed, and only when there is reason to: the
+ * pending note means this device already deleted the backup and was part-way
+ * through deleting the account, which is the one situation where "it is already
+ * gone" is a real possibility. `reload()` carries no password and so has only
+ * one thing it can be refused for.
+ *
+ * Returns `null` when the caller should carry on treating it as a wrong
+ * password — including when the note is not set, and including when the check
+ * could not be made confidently.
+ */
+async function resolveRefusedPassword(
+  db: SQLiteDatabase,
+  uid: string
+): Promise<AccountDeletionOutcome | null> {
+  let pending = false;
+
+  try {
+    pending = await isAccountDeletionPending(uid);
+  } catch (error: unknown) {
+    logEvent('account delete failed', error);
+
+    return null;
+  }
+
+  if (!pending) {
+    return null;
+  }
+
+  const presence = await checkAccountStillExists();
+
+  if (presence === 'unreachable') {
+    // The password may well be right; we simply could not reach anything.
+    return { kind: 'failed', reason: 'network-failed' };
+  }
+
+  if (presence === 'present') {
+    // The account is there, so the password really was wrong. Nothing is
+    // cleared and the session is left alone.
+    return null;
+  }
+
+  // Gone. Finish what the interrupted deletion started.
+  await forgetAccountTraces(db);
+
+  try {
+    await clearPendingAccountDeletion();
+  } catch (error: unknown) {
+    logEvent('account delete failed', error);
+  }
+
+  try {
+    await signOut();
+  } catch (error: unknown) {
+    // The session points at nothing either way.
+    logEvent('account delete failed', error);
+  }
+
+  return { kind: 'already-deleted' };
+}
+
 export async function deleteAccount(input: DeleteAccountInput): Promise<AccountDeletionOutcome> {
   const { db, user, password, wipeLocalDataToo, resetAppState } = input;
 
@@ -109,7 +184,17 @@ export async function deleteAccount(input: DeleteAccountInput): Promise<AccountD
   try {
     await reauthenticateWithPassword(user.email ?? '', password);
   } catch (error: unknown) {
-    return { kind: 'failed', reason: toDeletionFailure(error) };
+    const reason = toDeletionFailure(error);
+
+    if (reason === 'invalid-credentials') {
+      const resolved = await resolveRefusedPassword(db, user.uid);
+
+      if (resolved !== null) {
+        return resolved;
+      }
+    }
+
+    return { kind: 'failed', reason };
   }
 
   // 2. From here until the account is gone, no backup may be created.

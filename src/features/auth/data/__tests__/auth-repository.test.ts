@@ -1,5 +1,6 @@
 import { AuthError } from '../../domain/auth-error';
 import {
+  checkAccountStillExists,
   getCurrentAuthUser,
   observeAuthUser,
   sendPasswordReset,
@@ -504,5 +505,65 @@ describe('what a reset request never lets out', () => {
 
     expect(cycleRepository.loadCycleProfile).not.toHaveBeenCalled();
     expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
+  });
+});
+
+describe('asking whether the account still exists', () => {
+  it('is gone when there is no session to ask about', async () => {
+    auth = { currentUser: null };
+    firebase.requireFirebaseAuth.mockReturnValue(auth);
+
+    expect(await checkAccountStillExists()).toBe('gone');
+  });
+
+  it('is present when the reload succeeds', async () => {
+    const reload = jest.fn().mockResolvedValue(undefined);
+    auth = { currentUser: { reload } };
+    firebase.requireFirebaseAuth.mockReturnValue(auth);
+
+    expect(await checkAccountStillExists()).toBe('present');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['the user is not there any more', 'auth/user-not-found'],
+    ['the token belongs to a deleted user', 'auth/user-token-expired'],
+  ])('is gone when %s', async (_label, code) => {
+    // These two are the only refusals that mean the account itself is gone.
+    // `reload()` carries no password, so nothing else can be confused with them.
+    auth = { currentUser: { reload: jest.fn().mockRejectedValue(sdkError(code)) } };
+    firebase.requireFirebaseAuth.mockReturnValue(auth);
+
+    expect(await checkAccountStillExists()).toBe('gone');
+  });
+
+  it('is unreachable when the network refused it', async () => {
+    auth = {
+      currentUser: { reload: jest.fn().mockRejectedValue(sdkError('auth/network-request-failed')) },
+    };
+    firebase.requireFirebaseAuth.mockReturnValue(auth);
+
+    expect(await checkAccountStillExists()).toBe('unreachable');
+  });
+
+  it('is unreachable when there is no Firebase project at all', async () => {
+    firebase.requireFirebaseAuth.mockImplementation(() => {
+      throw new Error('not configured');
+    });
+
+    expect(await checkAccountStillExists()).toBe('unreachable');
+  });
+
+  it.each([
+    ['an unknown code', 'auth/something-else'],
+    ['no code at all', undefined],
+  ])('never claims gone for %s', async (_label, code) => {
+    // Erring towards "present" keeps somebody signed in and retyping, which is
+    // recoverable; erring the other way signs them out of a live account.
+    const error = code === undefined ? new Error('boom') : sdkError(code);
+    auth = { currentUser: { reload: jest.fn().mockRejectedValue(error) } };
+    firebase.requireFirebaseAuth.mockReturnValue(auth);
+
+    expect(await checkAccountStillExists()).toBe('present');
   });
 });

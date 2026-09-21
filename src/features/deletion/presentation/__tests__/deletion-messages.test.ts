@@ -191,3 +191,35 @@ describe('section headings versus the buttons under them', () => {
     expect(LOCAL_WIPE_CLOUD_DISCLAIMER).toContain(ACCOUNT_DELETE_OPEN_LABEL);
   });
 });
+
+describe('an account that was already gone', () => {
+  it('does not claim anything was deleted just now', () => {
+    const message = accountDeletionMessage({ kind: 'already-deleted' });
+
+    expect(message).toBe(
+      'Bu hesap zaten silinmiş görünüyor. Oturumun kapatıldı ve bu cihazdaki hesap ' +
+        'kayıtları temizlendi.'
+    );
+  });
+
+  it('says the session was ended, because it was', () => {
+    expect(accountDeletionMessage({ kind: 'already-deleted' })).toContain('Oturumun kapatıldı');
+  });
+
+  it('never blames the password', () => {
+    const message = accountDeletionMessage({ kind: 'already-deleted' });
+
+    expect(message).not.toContain('Şifre');
+  });
+
+  it('reads differently from a wrong password and from a normal deletion', () => {
+    const already = accountDeletionMessage({ kind: 'already-deleted' });
+
+    expect(already).not.toBe(accountDeletionMessage({ kind: 'failed', reason: 'invalid-credentials' }));
+    expect(already).not.toBe(accountDeletionMessage({ kind: 'deleted' }));
+  });
+
+  it('does not ask for the password again', () => {
+    expect(shouldRetryWithPassword({ kind: 'already-deleted' })).toBe(false);
+  });
+});

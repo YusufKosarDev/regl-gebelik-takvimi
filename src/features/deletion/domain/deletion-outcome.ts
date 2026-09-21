@@ -71,6 +71,16 @@ export type LocalWipeOutcome =
 export type AccountDeletionOutcome =
   /** Account and cloud backup gone; records on this phone kept. */
   | { readonly kind: 'deleted' }
+  /**
+   * The account was already gone before this attempt started.
+   *
+   * Its own outcome rather than a failure or a plain `deleted`: nothing was
+   * deleted just now, but there is also nothing left to delete, and the person
+   * asking has been signed out of a session that pointed at nothing. Telling
+   * them their password was wrong — which is what the raw Firebase error says —
+   * would send them hunting for a mistake they did not make.
+   */
+  | { readonly kind: 'already-deleted' }
   /** Account, cloud backup and everything on this phone gone. */
   | { readonly kind: 'deleted-and-wiped' }
   /** The account is gone, but the local wipe that was asked for did not finish. */
