@@ -84,6 +84,30 @@ değil, artık var olmayan bir hesaba ait defter kayıtlarıdır.
 `pending-account-deletion` yazılır. O sırada senkronizasyon ve "Yedek oluştur"
 reddedilir; yoksa silinen yedek tek dokunuşla geri yüklenirdi.
 
+## Otomatik senkronizasyon
+
+"Otomatik senkronizasyon" kapalıyken hiçbir gönderim olmaz. Açıldığında ne
+gönderildiği değişmez — taşınan şey yine yalnızca envanterdeki beş kategoridir —
+değişen tek şey gönderimin ne zaman tetiklendiğidir.
+
+Tetikleyiciler yalnızca şunlardır: anahtarın açılması, oturum açılması,
+uygulamanın öne gelmesi, bir kaydın değişmesi ve uygulama arka plana alınırken
+bekleyen bir değişikliğin son kez gönderilmesi. Hiçbiri uygulama kapalıyken
+çalışmaz: arka plan görevi, periyodik iş ve zamanlanmış gönderim yoktur. Aynı
+anda birden fazla senkronizasyon çalışmaz; ayrıca öne gelme için beş dakika,
+kayıt değişikliği için iki dakika alt sınırı vardır ve bir değişiklik otuz
+saniye beklemeden gönderilmez.
+
+Otomatik senkronizasyon bir çakışmayı kendi başına çözmez ve hiçbir veriyi
+sessizce üzerine yazmaz. İki taraf aynı kaydı farklı değiştirmişse sonuç
+"çakışma" olarak işaretlenir, `sync-unresolved-conflict` yazılır ve o hesap için
+bütün otomatik senkronizasyonlar durur. Kişi "Çakışmayı çöz" ekranında hangi
+tarafın kalacağını seçene kadar hiçbir şey yazılmaz.
+
+Çakışma ekranı tarih, değer ya da kayıt göstermez: yalnızca kayıt sayısı, bir
+şeyin var olup olmadığı, buluttaki kaydın zamanı ve onu yazanın bu cihaz olup
+olmadığı gösterilir.
+
 ## Envanter
 
 | veri | cihazda | cloud adayı | neden |
@@ -105,6 +129,8 @@ reddedilir; yoksa silinen yedek tek dokunuşla geri yüklenirdi.
 | `sync-device-id` | evet | **hayır** | Bu kurulumun kendine verdiği rastgele ad; donanım kimliği, hesap kimliği ya da kişisel veri değil. Yedek dokümanına "bu yazıyı hangi cihaz yaptı" bilgisi olarak yazılır, payload içine girmez. |
 | `sync-preferences` | evet | **hayır** | Otomatik senkronizasyonun bu telefonda açık olup olmadığı; cihaz kararı, hesapla taşınmaz. |
 | `pending-account-deletion` | evet | **hayır** | Yarım kalmış bir hesap silme işleminin hangi hesaba ait olduğu. Yalnızca hesap kimliği; sağlık verisi içermez ve silme tamamlanınca ya da vazgeçilince kaldırılır. Silinmiş bir yedeğin yeniden oluşturulmasını engellemek için var. |
+| `sync-last-synced-at` | evet | **hayır** | Bu telefonun hesapla en son ne zaman senkronize olduğu. Yalnızca bir zaman damgası; hangi verinin taşındığını içermez ve bir cihazın kendi durumudur. |
+| `sync-unresolved-conflict` | evet | **hayır** | Çözülmemiş bir çakışmanın hangi hesaba ait olduğu. Yalnızca hesap kimliği; çakışan verinin kendisi burada tutulmaz ve çakışma çözülünce kaldırılır. Çözülene kadar otomatik senkronizasyonu durdurmak için var. |
 
 Bu tablo `src/features/privacy/domain/data-category.ts` içindeki `DATA_INVENTORY`
 ile aynı. Bir test ikisini birbirine bağlıyor: kodda olup burada olmayan (ya da

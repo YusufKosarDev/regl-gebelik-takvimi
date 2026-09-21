@@ -13,12 +13,21 @@ The app has two modes and a switch between them on the home screen:
 
 Alongside those: a customisable avatar, an Android home-screen widget backed by
 a local Kotlin module, local reminder notifications, an optional Firebase
-account, and manually triggered cloud backup and sync.
+account, cloud backup, and cloud sync that can be run by hand or left to run on
+its own.
 
 Health data lives in the app's own SQLite database on the device. Nothing leaves
-the phone unless the person presses a button, and only the fields listed in
+the phone until somebody signs in and asks for it — by pressing a button, or by
+turning on automatic sync — and only the fields listed in
 [`docs/data-privacy.md`](docs/data-privacy.md) can ever leave. That document is
 tied to the code by a test, so the two cannot drift apart.
+
+Automatic sync has no background task. Every run is the tail of something the
+person did: turning the switch on, signing in, bringing the app forward, editing
+a record, or closing the app with an edit still waiting. Nothing runs while the
+app is closed. It never resolves a conflict on its own — when two sides changed
+the same thing, it stops for that account and waits for somebody to choose a
+side on the conflict screen.
 
 The user interface is entirely Turkish. Source comments and identifiers are in
 English. There is no i18n layer — interface strings are constants in the screen
@@ -82,8 +91,8 @@ The current features are `auth`, `avatar`, `backup`, `cycle`, `notifications`,
 `onboarding`, `pregnancy`, `privacy`, `sync` and `widget`.
 
 Keeping `domain/` free of I/O is what makes the rules testable without a device:
-the cycle phase calculation, the sync decision table and the three-way merge are
-all plain functions.
+the cycle phase calculation, the sync decision table, the three-way merge and the
+rules deciding whether an automatic sync may run at all are plain functions.
 
 ## Prerequisites
 
