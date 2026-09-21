@@ -30,9 +30,13 @@ import { deviceIdProvider } from '../infrastructure/device-id';
  * stay where they can be tested without a database, and what is left here is
  * sequencing.
  *
- * Nothing calls it yet. There is no trigger, no listener, no timer and no sign-in
- * hook: a sync happens because something asked for one, and until a later stage
- * gives someone a way to ask, nothing does.
+ * One caller, and it is a button. The account screen's "Şimdi senkronize et"
+ * runs this and nothing else does: there is no trigger, no listener, no timer
+ * and no sign-in hook. A sync happens because a person asked for one.
+ *
+ * The automatic sync preference does not change that. It records what someone
+ * chose and nothing acts on it yet, so turning it on starts no background work
+ * — see `../infrastructure/sync-preferences`.
  *
  * Two things it will not do, whatever happens:
  *

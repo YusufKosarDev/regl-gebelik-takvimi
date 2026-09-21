@@ -1,65 +1,147 @@
-# Welcome to your Expo app 👋
+# Regl & Gebelik Takvimi
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A Turkish-language menstrual cycle and pregnancy tracker for Android, built with
+Expo and React Native.
 
-## Get started
+The app has two modes and a switch between them on the home screen:
 
-1. Install dependencies
+- **Cycle** — record period starts and ends, see a month calendar, the current
+  cycle phase (menstrual, follicular, ovulatory, luteal), the fertility window
+  and ovulation estimate, daily supporting content, and a full editable history.
+- **Pregnancy** — estimate a due date from the last menstrual period, follow
+  week-by-week content for weeks 1–40, adjust the due date, or stop tracking.
 
-   ```bash
-   npm install
-   ```
+Alongside those: a customisable avatar, an Android home-screen widget backed by
+a local Kotlin module, local reminder notifications, an optional Firebase
+account, and manually triggered cloud backup and sync.
 
-2. Start the app
+Health data lives in the app's own SQLite database on the device. Nothing leaves
+the phone unless the person presses a button, and only the fields listed in
+[`docs/data-privacy.md`](docs/data-privacy.md) can ever leave. That document is
+tied to the code by a test, so the two cannot drift apart.
 
-   ```bash
-   npx expo start
-   ```
+The user interface is entirely Turkish. Source comments and identifiers are in
+English. There is no i18n layer — interface strings are constants in the screen
+and presentation modules.
 
-In the output, you'll find options to open the app in a
+## Tech stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+| Area | Choice |
+| --- | --- |
+| Framework | Expo SDK 57, React Native 0.86, React 19.2 |
+| Language | TypeScript 6 (`strict: true`) |
+| Routing | `expo-router` (file-based, `typedRoutes` enabled) |
+| Rendering | New Architecture + Hermes, React Compiler enabled |
+| Local database | `expo-sqlite` — `regl-gebelik.db`, `user_version` migrations (schema v6) |
+| Local key-value | `@react-native-async-storage/async-storage` |
+| State | `zustand` (one small store: mode, onboarding flag, hydration) |
+| Accounts | Firebase Auth (email + password), persisted via AsyncStorage |
+| Cloud backup | Cloud Firestore — a single document at `users/{uid}/backups/current` |
+| Notifications | `expo-notifications`, local scheduled reminders only (no push, no FCM) |
+| Native module | `modules/widget-snapshot-bridge` — Kotlin, Android only |
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+There is no analytics, crash reporting, advertising or payment SDK, and the app
+makes no network calls of its own beyond the Firebase SDK.
 
-## Get a fresh project
+## Project structure
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+├── app/                  expo-router routes
+│   ├── (onboarding)/     first-run setup flow
+│   ├── (app)/            everything after onboarding completes
+│   └── _layout.tsx       startup gate: hydrate state, mount one route group
+├── components/           ThemedText / ThemedView
+├── constants/            theme tokens (colours, spacing, fonts)
+├── features/             the actual domain work — see the layer contract below
+├── hooks/                colour scheme and theme hooks
+├── navigation/           routing-gate.ts, a pure decision function
+├── shared/logging/       event-name allowlist so health data never reaches logs
+├── storage/              single DB connection + schema migrations
+├── store/                zustand app store
+├── types/                AppState, ISODate, ambient declarations
+└── utils/                date arithmetic, formatting, "today"
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### The `features/` layer contract
 
-### Other setup steps
+Every module under `src/features/` follows the same shape, and the boundaries
+are enforced by where things are allowed to import from:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Folder | Holds | May not touch |
+| --- | --- | --- |
+| `domain/` | pure rules, types and validators | database, network, clock |
+| `application/` | use cases that sequence domain + repositories | UI |
+| `data/` | SQLite and Firestore repositories | UI |
+| `infrastructure/` | platform surfaces (Firebase SDK, notification queue, device id) | domain rules |
+| `presentation/` | Turkish labels and messages for screens | data access |
+| `components/` | React components belonging to that feature | — |
+| `__tests__/` | tests, colocated per folder | — |
 
-## Learn more
+The current features are `auth`, `avatar`, `backup`, `cycle`, `notifications`,
+`onboarding`, `pregnancy`, `privacy`, `sync` and `widget`.
 
-To learn more about developing your project with Expo, look at the following resources:
+Keeping `domain/` free of I/O is what makes the rules testable without a device:
+the cycle phase calculation, the sync decision table and the three-way merge are
+all plain functions.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Prerequisites
 
-## Join the community
+- Node.js 20 or newer (developed on 24) and npm
+- Android SDK with platform 36, plus NDK 27
+- A Firebase project, if you want the account features to work
+- Android Studio or a device/emulator running Android 7.0 (API 24) or newer
 
-Join our community of developers creating universal apps.
+## Environment setup
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Copy `.env.example` to `.env.local` and fill in the values from the Firebase
+console (Project settings → Your apps → Web app → SDK setup and config):
 
-## Android development build
+```
+EXPO_PUBLIC_FIREBASE_API_KEY
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+EXPO_PUBLIC_FIREBASE_PROJECT_ID
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+EXPO_PUBLIC_FIREBASE_APP_ID
+```
 
-This app now contains a local Expo native module
-(`modules/widget-snapshot-bridge`), so Android needs a development build rather
-than Expo Go:
+These are not secrets — a Firebase web config ships inside every client that
+uses it, and what protects the data is the project's security rules in
+[`firestore.rules`](firestore.rules), not the config being hidden. They are kept
+out of the repository so the source is not pinned to one project and so a key
+can be rotated without a release.
+
+If any of the six is missing the app still runs, as an app with no accounts:
+signing in raises an `AuthError` with the code `not-configured`, and nothing
+else changes.
+
+`firestore.rules` is not deployed by anything in this repository. Deploy it to
+the Firebase project yourself, or the stored backups will not be protected by
+the rules this repository describes.
+
+## Running the app
+
+```sh
+npm install
+npm run android
+```
+
+Other scripts:
+
+```sh
+npm start        # Metro bundler
+npm run web      # web target (unverified; expo-sqlite needs a WASM setup)
+npm run ios      # present, but iOS is not supported — see below
+```
+
+`npm run lint` is declared but ESLint is not installed and there is no config
+file yet, so the script does not currently work.
+
+### Why a development build is required
+
+This app contains a local Expo native module (`modules/widget-snapshot-bridge`),
+so Android needs a development build rather than Expo Go:
 
 ```sh
 npx expo run:android
@@ -68,12 +150,53 @@ npx expo run:android
 Expo Go can still run everything else; it simply does not contain the bridge,
 and anything that calls it raises an error saying so.
 
+### iOS
+
+Not supported. The native widget module declares `"platforms": ["android"]`, the
+`ios/` directory is gitignored and has never been generated, and the `ios`
+script is left over from the template.
+
+## Tests and type checking
+
+```sh
+npm test           # Jest — 120 suites, 4733 tests
+npm run test:watch # watch mode
+npx tsc --noEmit   # type check under strict mode
+```
+
+Beyond ordinary unit tests there are a few contract tests worth knowing about:
+
+- `src/shared/logging/__tests__/no-raw-logging.test.ts` fails if anything logs
+  raw values instead of an allowlisted event name.
+- `src/features/privacy/domain/__tests__/data-category.test.ts` ties
+  `docs/data-privacy.md` to `DATA_INVENTORY` in the code; a category in one but
+  not the other fails the suite.
+- `src/features/widget/domain/__tests__/widget-snapshot-native-contract.test.ts`
+  pins the JS ↔ Kotlin snapshot contract.
+
+The Kotlin module has its own unit tests under
+`modules/widget-snapshot-bridge/android/src/test/`, which run through Gradle
+rather than Jest.
+
+## Android build notes
+
+`android/` is generated by `expo prebuild` and is not committed. Anything
+written into it by hand is lost the next time it is regenerated, which is why
+the widget receiver is declared in the native module's own manifest instead.
+
+Regenerating it:
+
+```sh
+npx expo prebuild --platform android --clean
+```
+
+`android/local.properties` is **not** regenerated, so back it up before a clean
+prebuild and restore it afterwards.
+
 ### Building on Windows with a space in your user folder
 
-`android/` is generated and not committed, so `android/local.properties` has to
-be re-created after a `prebuild --clean`. On Windows, if your user folder has a
-space in it (for example `C:\Users\Ada Lovelace`), point Gradle at paths that do
-not:
+On Windows, if your user folder has a space in it (for example
+`C:\Users\Ada Lovelace`), point Gradle at paths that do not:
 
 ```properties
 sdk.dir=C:/Users/ADALOV~1/AppData/Local/Android/Sdk
@@ -87,9 +210,13 @@ New-Item -ItemType Junction -Path C:\ProgramData\android-ndk-27 \
   -Target "C:\Users\Ada Lovelace\AppData\Local\Android\Sdk\ndk\27.1.12297006"
 ```
 
-Without this, CMake converts the compiler path to an 8.3 short name, `clang++.exe`
-becomes `CLANG_~1.EXE`, and clang — which picks its C or C++ mode from `argv[0]` —
-runs as the C driver. The C++ standard library is then never linked, and
-`react-native-screens` and `react-native-worklets` fail with dozens of
-`undefined symbol: operator new` style errors that have nothing to do with this
-app's code.
+Without this, CMake converts the compiler path to an 8.3 short name,
+`clang++.exe` becomes `CLANG_~1.EXE`, and clang — which picks its C or C++ mode
+from `argv[0]` — runs as the C driver. The C++ standard library is then never
+linked, and `react-native-screens` and `react-native-worklets` fail with dozens
+of `undefined symbol: operator new` style errors that have nothing to do with
+this app's code.
+
+## License
+
+See [LICENSE](LICENSE).
