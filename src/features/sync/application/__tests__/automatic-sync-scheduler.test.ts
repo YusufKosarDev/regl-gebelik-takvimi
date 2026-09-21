@@ -446,31 +446,19 @@ describe('what a finished run is used for', () => {
     await expect(requestAutomaticSync('sign-in')).resolves.toEqual({ kind: 'pulled' });
   });
 
-  it('tells its listeners what the run came to', async () => {
+  it('does not announce the outcome a second time', async () => {
+    // The announcement is made inside runCloudSync, so the button and the
+    // scheduler reach the screens the same way. Repeating it here would have
+    // every screen re-read twice for one sync.
     const heard: CloudSyncOutcome[] = [];
-    const stop = onAutomaticSyncOutcome((outcome) => {
+
+    onAutomaticSyncOutcome((outcome) => {
       heard.push(outcome);
     });
 
     await requestAutomaticSync('sign-in');
 
-    stop();
-
-    await requestAutomaticSync('enabled');
-
-    expect(heard).toEqual([{ kind: 'pushed' }]);
-  });
-
-  it('keeps going when a listener throws', async () => {
-    const calm = jest.fn();
-
-    onAutomaticSyncOutcome(() => {
-      throw new Error('screen went away');
-    });
-    onAutomaticSyncOutcome(calm);
-
-    await expect(requestAutomaticSync('sign-in')).resolves.toEqual({ kind: 'pushed' });
-    expect(calm).toHaveBeenCalledTimes(1);
+    expect(heard).toEqual([]);
   });
 });
 

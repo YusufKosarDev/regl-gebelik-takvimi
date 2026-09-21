@@ -11,7 +11,12 @@ import { cloudSyncContentHash } from '../../domain/cloud-sync-hash';
 import type { SyncState } from '../../domain/sync-state';
 import { LAST_SYNC_AT_STORAGE_KEY } from '../../infrastructure/last-sync-at';
 import { UNRESOLVED_CONFLICT_STORAGE_KEY } from '../../infrastructure/unresolved-conflict';
+import type { CloudSyncOutcome } from '../run-cloud-sync';
 import { runCloudSync } from '../run-cloud-sync';
+import {
+  onSyncOutcome,
+  resetSyncOutcomeListenersForTests,
+} from '../sync-outcome-notifier';
 
 /**
  * Everything that reads or writes is faked.
@@ -1147,5 +1152,74 @@ describe('the note about an unresolved conflict', () => {
 
     await expect(sync()).resolves.toMatchObject({ kind: 'error' });
     await expect(AsyncStorage.getItem(UNRESOLVED_CONFLICT_STORAGE_KEY)).resolves.toBe(UID);
+  });
+});
+
+describe('telling the screens a sync finished', () => {
+  beforeEach(() => {
+    resetSyncOutcomeListenersForTests();
+  });
+
+  it('announces a push, so the status line moves for the button too', async () => {
+    // Recording the time in storage is not enough: the account screen reads it
+    // back, and used to be told only about syncs the scheduler ran.
+    const heard: CloudSyncOutcome[] = [];
+
+    onSyncOutcome((outcome) => heard.push(outcome));
+
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+
+    await sync();
+
+    expect(heard).toEqual([{ kind: 'pushed', revision: 5 }]);
+  });
+
+  it('announces a conflict, so the notice appears without a remount', async () => {
+    const heard: CloudSyncOutcome[] = [];
+
+    onSyncOutcome((outcome) => heard.push(outcome));
+
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(5, CONTESTED) });
+
+    await sync();
+
+    expect(heard).toHaveLength(1);
+    expect(heard[0]).toMatchObject({ kind: 'conflict' });
+  });
+
+  it('announces after the bookkeeping, not before', async () => {
+    // A listener re-reads storage on hearing this, so storage has to have
+    // finished changing.
+    let storedWhenHeard: string | null = 'not read';
+
+    await AsyncStorage.clear();
+
+    onSyncOutcome(() => {
+      void AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY).then((value) => {
+        storedWhenHeard = value;
+      });
+    });
+
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+
+    await sync();
+    await Promise.resolve();
+
+    expect(storedWhenHeard).toBe(NOW);
+  });
+
+  it('says nothing while it is still retrying', async () => {
+    // A retry is not a finished sync. Announcing one would have screens read
+    // back a state that is about to change again.
+    const heard: CloudSyncOutcome[] = [];
+
+    onSyncOutcome((outcome) => heard.push(outcome));
+
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+    cloud.pushRemoteSyncState.mockResolvedValue({ kind: 'conflict', actualRevision: 9 });
+
+    await sync();
+
+    expect(heard).toHaveLength(0);
   });
 });

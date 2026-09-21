@@ -16,11 +16,7 @@ import { isConflictUnresolved } from '../infrastructure/unresolved-conflict';
 import { loadSyncPreferences } from '../infrastructure/sync-preferences';
 
 import { isAutomaticSyncSuspended, resetAutomaticSyncSuspensionForTests } from './automatic-sync-suspension';
-import {
-  announceSyncOutcome,
-  onSyncOutcome,
-  resetSyncOutcomeListenersForTests,
-} from './sync-outcome-notifier';
+import { onSyncOutcome, resetSyncOutcomeListenersForTests } from './sync-outcome-notifier';
 import type { CloudSyncOutcome } from './run-cloud-sync';
 import { runCloudSync } from './run-cloud-sync';
 
@@ -273,10 +269,8 @@ async function runAttempt(context: AutomaticSyncContext): Promise<CloudSyncOutco
     await syncPregnancyWeeklyReminderQuietly(db).catch(() => undefined);
   }
 
-  // Last, so a screen that refetches on hearing this reads a database that has
-  // already settled.
-  announceSyncOutcome(outcome);
-
+  // No announcement here: runCloudSync makes it for every sync, so the button
+  // and the scheduler reach the screens the same way.
   return outcome;
 }
 

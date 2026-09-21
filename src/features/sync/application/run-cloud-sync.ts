@@ -16,6 +16,7 @@ import {
 } from '../data/cloud-sync-repository';
 import { loadSyncState, saveSyncState } from '../data/sync-state-repository';
 import { isSettledSyncOutcome, recordSyncSettled } from './settle-sync';
+import { announceSyncOutcome } from './sync-outcome-notifier';
 import type { CloudBackupEnvelopeV1 } from '../domain/cloud-backup-envelope-v1';
 import { cloudSyncContentHash } from '../domain/cloud-sync-hash';
 import { decideSync } from '../domain/decide-sync';
@@ -429,6 +430,13 @@ export async function runCloudSync(input: RunCloudSyncInput): Promise<CloudSyncO
         if (isSettledSyncOutcome(outcome.kind)) {
           await recordSyncSettled({ uid, now: attempt.now });
         }
+
+        // Last, and for every outcome: the screens showing something about a
+        // sync — the status line, the conflict notice — read it back from
+        // storage, and storage has just finished changing. Announced here
+        // rather than by each caller, or the button would move the line and
+        // the scheduler would not, which is the bug this replaced.
+        announceSyncOutcome(outcome);
 
         return outcome;
       }
