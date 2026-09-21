@@ -1,4 +1,4 @@
-import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import type { CloudBackupEnvelopeV1 } from '../domain/cloud-backup-envelope-v1';
 import {
@@ -174,6 +174,15 @@ function readEnvelope(document: unknown): CloudBackupEnvelopeV1 {
  *
  * No snapshot leaves this function. What comes back is the app's own envelope,
  * checked field by field.
+ *
+ * Read from the server, never from the local cache. Firestore will happily
+ * serve a write this device has made but the server has not acknowledged, and
+ * every caller here is deciding what to do with somebody's period history on
+ * the strength of what the account holds. A cached revision the server never
+ * had makes the phone and the account look like they diverged when they did
+ * not, and the app's answer to that is a conflict screen. Offline, this fails
+ * as `unavailable` — a network failure, which is the truth: the account's
+ * current state is unknown, and nothing should be decided without it.
  */
 export async function loadRemoteSyncState(uid: string): Promise<CloudBackupEnvelopeV1 | null> {
   const path = syncDocumentPath(uid);
@@ -181,7 +190,7 @@ export async function loadRemoteSyncState(uid: string): Promise<CloudBackupEnvel
   let data: unknown;
 
   try {
-    const snapshot = await getDoc(doc(requireFirestore(), ...path));
+    const snapshot = await getDocFromServer(doc(requireFirestore(), ...path));
 
     if (!snapshot.exists()) {
       return null;

@@ -21,7 +21,7 @@ import {
  */
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn((_firestore: unknown, ...segments: string[]) => ({ path: segments.join('/') })),
-  getDoc: jest.fn(),
+  getDocFromServer: jest.fn(),
   setDoc: jest.fn(),
   runTransaction: jest.fn(),
   serverTimestamp: jest.fn(() => ({ __serverTimestamp: true })),
@@ -231,8 +231,8 @@ beforeEach(() => {
   firestore.doc.mockClear();
   firestore.setDoc.mockReset();
   firestore.setDoc.mockResolvedValue(undefined);
-  firestore.getDoc.mockReset();
-  firestore.getDoc.mockImplementation(async (reference: Reference) => snapshotOf(reference.path));
+  firestore.getDocFromServer.mockReset();
+  firestore.getDocFromServer.mockImplementation(async (reference: Reference) => snapshotOf(reference.path));
   firestore.runTransaction.mockReset();
   firestore.runTransaction.mockImplementation(fakeRunTransaction);
   firestore.serverTimestamp.mockClear();
@@ -276,7 +276,7 @@ describe('where the sync reads and writes', () => {
   ])('refuses to read for a uid that is %s', async (_label, uid) => {
     await expect(loadRemoteSyncState(uid as unknown as string)).rejects.toBeInstanceOf(AuthError);
 
-    expect(firestore.getDoc).not.toHaveBeenCalled();
+    expect(firestore.getDocFromServer).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -293,6 +293,33 @@ describe('where the sync reads and writes', () => {
     ).rejects.toBeInstanceOf(AuthError);
 
     expect(firestore.runTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('where the account is read from', () => {
+  it('asks the server, never the local cache', async () => {
+    // Firestore will serve a write this device made that the server has not
+    // acknowledged. Every caller of this is deciding what to do with somebody's
+    // period history on the strength of what the account holds, and a cached
+    // revision the server never had makes the two look like they diverged when
+    // they did not — which the app answers with a conflict screen.
+    await loadRemoteSyncState(UID);
+
+    expect(firestore.getDocFromServer).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not use the read that may answer from the cache', async () => {
+    await loadRemoteSyncState(UID);
+
+    expect((firestore as Record<string, unknown>).getDoc).toBeUndefined();
+  });
+
+  it('fails as a network problem when the server cannot be reached', async () => {
+    // Offline is not "no backup" and not "nothing changed": the account's
+    // state is unknown, and nothing may be decided without it.
+    firestore.getDocFromServer.mockRejectedValue(firestoreError('unavailable'));
+
+    await expect(loadRemoteSyncState(UID)).rejects.toMatchObject({ code: 'network-failed' });
   });
 });
 
@@ -1039,7 +1066,7 @@ describe('telling one failure from another', () => {
     ['aborted', 'network-failed'],
     ['resource-exhausted', 'unknown'],
   ])('turns a read that failed with %s into %s', async (code, expected) => {
-    firestore.getDoc.mockRejectedValue(firestoreError(code));
+    firestore.getDocFromServer.mockRejectedValue(firestoreError(code));
 
     await expect(loadRemoteSyncState(UID)).rejects.toMatchObject({ code: expected });
   });
@@ -1158,7 +1185,7 @@ describe('telling one failure from another', () => {
     const error = jest.spyOn(console, 'error').mockImplementation(() => {});
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    firestore.getDoc.mockRejectedValue(firestoreError('permission-denied'));
+    firestore.getDocFromServer.mockRejectedValue(firestoreError('permission-denied'));
     firestore.runTransaction.mockRejectedValue(firestoreError('unavailable'));
 
     await loadRemoteSyncState(UID).catch(() => undefined);
@@ -1180,7 +1207,7 @@ describe('telling one failure from another', () => {
 
 describe('nothing happens on its own', () => {
   it('reads and writes nothing by being imported', () => {
-    expect(firestore.getDoc).not.toHaveBeenCalled();
+    expect(firestore.getDocFromServer).not.toHaveBeenCalled();
     expect(firestore.runTransaction).not.toHaveBeenCalled();
     expect(firestore.setDoc).not.toHaveBeenCalled();
   });
