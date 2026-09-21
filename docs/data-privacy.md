@@ -56,6 +56,34 @@ Geri yükleme (restore) ve elle başlatılan senkronizasyon var. Kendiliğinden
 bulunduğunda senkronizasyon durur, iki taraftaki veriler olduğu gibi bırakılır ve
 ekranda hiçbir şeyin değişmediği yazar.
 
+## Silme
+
+İki ayrı işlem var ve ikisi farklı şeyleri siliyor.
+
+- **"Tüm verilerimi sil" (Ayarlar).** Bu telefondaki her şeyi siler: altı
+  tablonun tamamı (`cycle_settings`, `period_records`, `pregnancy_profile`,
+  `avatar_config`, `notification_preferences`, `sync_state`), zamanlanmış
+  hatırlatıcılar, widget kopyası, senkronizasyon tercihleri ve cihaz kimliği.
+  Giriş yapılmışsa oturum da kapatılır ve uygulama onboarding'e döner.
+  **Buluttaki yedeğe ve hesaba dokunmaz** — ekrandaki metin bunu açıkça söyler.
+- **"Hesabı sil" (Hesap).** Firestore'daki yedeği (`users/{uid}/backups/current`)
+  ve Firebase Auth hesabını kalıcı olarak siler. Bir onay kutusu bu cihazdaki
+  kayıtların da silinmesini ister; varsayılanı kapalıdır. Kapalı bırakılırsa
+  kayıtlar telefonda kalır ve uygulama hesapsız çalışmaya devam eder.
+
+Sıra değişmez: **önce buluttaki veri, sonra hesap.** Hesap önce silinseydi,
+yedek dokümanı Firestore'da erişilemez halde kalırdı — bu projedeki her kural
+`request.auth.uid == userId` üzerine yazılı ve artık var olmayan bir uid hiçbir
+kuralı karşılamaz.
+
+Hesap silinsin ya da silinmesin, silme başarılı olduğunda `sync_state`,
+`sync-preferences` ve `sync-device-id` her durumda temizlenir: bunlar kayıt
+değil, artık var olmayan bir hesaba ait defter kayıtlarıdır.
+
+İki adım arasında yedek silinmiş ama hesap henüz silinmemişken
+`pending-account-deletion` yazılır. O sırada senkronizasyon ve "Yedek oluştur"
+reddedilir; yoksa silinen yedek tek dokunuşla geri yüklenirdi.
+
 ## Envanter
 
 | veri | cihazda | cloud adayı | neden |
