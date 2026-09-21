@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { withLocalDataChangeSuppressed } from '@/shared/data-change/local-data-change';
+
 /**
  * Emptying every table this app keeps health data in.
  *
@@ -51,9 +53,13 @@ export const WIPED_TABLES: readonly string[] = TABLES_TO_CLEAR;
  * anything a caller passes, so there is no path from input to SQL here.
  */
 export async function clearAllLocalTables(db: SQLiteDatabase): Promise<void> {
-  await db.withTransactionAsync(async () => {
-    for (const table of TABLES_TO_CLEAR) {
-      await db.execAsync(`DELETE FROM ${table}`);
-    }
+  // Nothing to announce: there is no data left to send, and the account is
+  // deliberately not being touched by a wipe.
+  await withLocalDataChangeSuppressed(async () => {
+    await db.withTransactionAsync(async () => {
+      for (const table of TABLES_TO_CLEAR) {
+        await db.execAsync(`DELETE FROM ${table}`);
+      }
+    });
   });
 }

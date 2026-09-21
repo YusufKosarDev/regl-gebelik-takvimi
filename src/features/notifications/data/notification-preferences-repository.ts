@@ -6,6 +6,7 @@ import {
   validateNotificationPreferences,
 } from '../domain/notification-preferences';
 import { describeValue } from '@/shared/logging';
+import { notifyLocalDataChanged } from '@/shared/data-change/local-data-change';
 
 /**
  * Persistence for `NotificationPreferences`.
@@ -84,6 +85,8 @@ export async function saveNotificationPreferences(
     preferences.periodReminderEnabled ? 1 : 0,
     preferences.pregnancyWeeklyReminderEnabled ? 1 : 0
   );
+
+  notifyLocalDataChanged();
 }
 
 /**

@@ -5,6 +5,7 @@ import { validatePregnancyProfile } from '../domain/validation';
 
 import { toISODate } from '@/utils/date';
 import { describeValue } from '@/shared/logging';
+import { notifyLocalDataChanged } from '@/shared/data-change/local-data-change';
 
 /**
  * Persistence for `PregnancyProfile`.
@@ -99,6 +100,8 @@ export async function savePregnancyProfile(
     profile.estimatedDueDate,
     profile.dueDateSource
   );
+
+  notifyLocalDataChanged();
 }
 
 /**
@@ -143,4 +146,6 @@ export async function loadPregnancyProfile(
  */
 export async function clearPregnancyProfile(db: SQLiteDatabase): Promise<void> {
   await db.runAsync(DELETE_PROFILE, PROFILE_ROW_ID);
+
+  notifyLocalDataChanged();
 }

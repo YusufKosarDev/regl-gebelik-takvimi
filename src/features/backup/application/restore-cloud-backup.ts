@@ -13,6 +13,7 @@ import {
 } from '@/features/pregnancy/data/pregnancy-repository';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import { validateCloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
+import { withLocalDataChangeSuppressed } from '@/shared/data-change/local-data-change';
 
 /**
  * Writes a backup over what is on the phone.
@@ -45,29 +46,33 @@ export async function restoreCloudBackup(
 ): Promise<void> {
   validateCloudSyncPayloadV1(payload);
 
-  await db.withTransactionAsync(async () => {
-    if (payload.cycleSettings === null) {
-      await clearCycleSettings(db);
-    } else {
-      await writeCycleSettings(db, payload.cycleSettings);
-    }
+  // A restore is the *result* of a sync, not somebody editing. Announcing it
+  // would schedule a sync of what was just received.
+  await withLocalDataChangeSuppressed(async () => {
+    await db.withTransactionAsync(async () => {
+      if (payload.cycleSettings === null) {
+        await clearCycleSettings(db);
+      } else {
+        await writeCycleSettings(db, payload.cycleSettings);
+      }
 
-    await replacePeriodRecords(db, payload.periodRecords);
+      await replacePeriodRecords(db, payload.periodRecords);
 
-    if (payload.pregnancyProfile === null) {
-      await clearPregnancyProfile(db);
-    } else {
-      await savePregnancyProfile(db, payload.pregnancyProfile);
-    }
+      if (payload.pregnancyProfile === null) {
+        await clearPregnancyProfile(db);
+      } else {
+        await savePregnancyProfile(db, payload.pregnancyProfile);
+      }
 
-    if (payload.avatarConfig === null) {
-      await clearAvatarConfig(db);
-    } else {
-      await saveAvatarConfig(db, payload.avatarConfig);
-    }
+      if (payload.avatarConfig === null) {
+        await clearAvatarConfig(db);
+      } else {
+        await saveAvatarConfig(db, payload.avatarConfig);
+      }
 
-    // Always present: "nothing chosen" is the defaults rather than an absence,
-    // so there is nothing to clear and always something to write.
-    await saveNotificationPreferences(db, payload.notificationPreferences);
+      // Always present: "nothing chosen" is the defaults rather than an absence,
+      // so there is nothing to clear and always something to write.
+      await saveNotificationPreferences(db, payload.notificationPreferences);
+    });
   });
 }

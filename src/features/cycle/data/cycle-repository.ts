@@ -9,6 +9,7 @@ import {
 
 import { toISODate } from '@/utils/date';
 import { describeValue } from '@/shared/logging';
+import { notifyLocalDataChanged } from '@/shared/data-change/local-data-change';
 
 /**
  * Persistence for `CycleProfile`.
@@ -99,6 +100,8 @@ export async function saveCycleProfile(
     await writeCycleSettings(db, profile.settings);
     await replacePeriodRecords(db, profile.periodRecords);
   });
+
+  notifyLocalDataChanged();
 }
 
 /**
@@ -120,6 +123,8 @@ export async function writeCycleSettings(
     settings.averageCycleLengthDays,
     settings.averagePeriodLengthDays
   );
+
+  notifyLocalDataChanged();
 }
 
 /**
@@ -149,6 +154,8 @@ export async function replacePeriodRecords(
       record.isOngoing ? 1 : 0
     );
   }
+
+  notifyLocalDataChanged();
 }
 
 /**
@@ -159,6 +166,8 @@ export async function replacePeriodRecords(
  */
 export async function clearCycleSettings(db: SQLiteDatabase): Promise<void> {
   await db.runAsync(DELETE_SETTINGS, SETTINGS_ROW_ID);
+
+  notifyLocalDataChanged();
 }
 
 /**

@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { AvatarConfig } from '../domain/avatar-config';
 import { validateAvatarConfig } from '../domain/avatar-config';
 import { describeValue } from '@/shared/logging';
+import { notifyLocalDataChanged } from '@/shared/data-change/local-data-change';
 
 /**
  * Persistence for `AvatarConfig`.
@@ -105,6 +106,8 @@ export async function saveAvatarConfig(
     config.outfitId,
     config.accessoryId ?? null
   );
+
+  notifyLocalDataChanged();
 }
 
 /**
@@ -150,4 +153,6 @@ export async function loadAvatarConfig(db: SQLiteDatabase): Promise<AvatarConfig
  */
 export async function clearAvatarConfig(db: SQLiteDatabase): Promise<void> {
   await db.runAsync(DELETE_AVATAR, AVATAR_ROW_ID);
+
+  notifyLocalDataChanged();
 }
