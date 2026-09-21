@@ -664,6 +664,20 @@ export default function AccountScreen() {
               </View>
             )}
 
+            {/* Outside every branch on purpose.
+                Deleting an account ends its session, so `auth.status` flips to
+                signed-out the moment it succeeds. Anything rendered inside the
+                signed-in branch — which is where this used to live — is
+                unmounted before the person can read it, and the one thing they
+                need to be told is exactly what just happened to their records.
+                Here it outlives the change and the sign-in form appears under
+                it. */}
+            {deleteNotice !== null && (
+              <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                {deleteNotice}
+              </ThemedText>
+            )}
+
             {auth.status === 'signed-in' && (
               <View style={styles.fields}>
                 <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
@@ -906,12 +920,6 @@ export default function AccountScreen() {
                     {ACCOUNT_DELETE_SECTION_DESCRIPTION}
                   </ThemedText>
 
-                  {deleteNotice !== null && (
-                    <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                      {deleteNotice}
-                    </ThemedText>
-                  )}
-
                   {!isConfirmingDelete && (
                     <Pressable
                       accessibilityRole="button"
@@ -1031,6 +1039,7 @@ export default function AccountScreen() {
                     onChangeText={(next) => {
                       setEmail(next);
                       setNotice(null);
+                      setDeleteNotice(null);
                     }}
                     editable={!isBusy}
                     autoCapitalize="none"
@@ -1058,6 +1067,7 @@ export default function AccountScreen() {
                       onChangeText={(next) => {
                         setPassword(next);
                         setNotice(null);
+                        setDeleteNotice(null);
                       }}
                       editable={!isBusy}
                       autoCapitalize="none"

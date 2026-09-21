@@ -102,7 +102,20 @@ jest.mock('@/shared/logging', () => ({
   describeError: jest.requireActual('@/shared/logging').describeError,
 }));
 
+jest.mock('@/features/deletion/application/delete-account', () => ({
+  deleteAccount: jest.fn(),
+}));
+
+jest.mock('@/features/deletion/infrastructure/pending-account-deletion', () => ({
+  clearPendingAccountDeletion: jest.fn(),
+  isAccountDeletionPending: jest.fn(),
+}));
+
 const repository = jest.requireMock('@/features/auth/data/auth-repository');
+const deletion = jest.requireMock('@/features/deletion/application/delete-account');
+const pendingDeletion = jest.requireMock(
+  '@/features/deletion/infrastructure/pending-account-deletion'
+);
 const firebase = jest.requireMock('@/features/auth/infrastructure/firebase');
 const cycleRepository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
@@ -201,6 +214,12 @@ beforeEach(() => {
   db.openAppDatabase.mockReset();
   db.openAppDatabase.mockResolvedValue(DATABASE);
   logging.logEvent.mockReset();
+  deletion.deleteAccount.mockReset();
+  deletion.deleteAccount.mockResolvedValue({ kind: 'deleted' });
+  pendingDeletion.clearPendingAccountDeletion.mockReset();
+  pendingDeletion.clearPendingAccountDeletion.mockResolvedValue(undefined);
+  pendingDeletion.isAccountDeletionPending.mockReset();
+  pendingDeletion.isAccountDeletionPending.mockResolvedValue(false);
 
   back = jest.fn();
   useRouterMock.mockReset();
@@ -2088,5 +2107,122 @@ describe('syncing now', () => {
 
     expect(screen.queryByLabelText('Şimdi senkronize et')).toBeNull();
     expect(screen.queryByLabelText('Otomatik senkronizasyon')).toBeNull();
+  });
+});
+
+describe('the account deletion result outliving the session that produced it', () => {
+  /** Opens the delete panel from the signed-in state and fills the password. */
+  async function startDeletion(screen: ReturnType<typeof render> extends Promise<infer S> ? S : never) {
+    await fireEvent.press(screen.getByLabelText('Hesabı sil'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Şifre')).toBeTruthy();
+    });
+
+    await fireEvent.changeText(screen.getByLabelText('Şifre'), PASSWORD);
+  }
+
+  it('still shows the result after the session ends', async () => {
+    // Deleting an account ends its session, so the screen swaps to the
+    // signed-out form. The sentence that says what happened to the records has
+    // to survive that swap — it used to be rendered inside the signed-in
+    // branch, where it was unmounted before anyone could read it.
+    deletion.deleteAccount.mockResolvedValue({ kind: 'deleted' });
+
+    const screen = await renderSignedIn();
+
+    await startDeletion(screen);
+    await fireEvent.press(screen.getByLabelText('Hesabı kalıcı olarak sil'));
+
+    // Firebase ends the session; the watcher reports it.
+    await waitFor(() => {
+      notify(null);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('E-posta')).toBeTruthy();
+    });
+
+    expect(screen.getByText('Hesabın silindi. Kayıtların bu telefonda kaldı.')).toBeTruthy();
+  });
+
+  it('shows the wipe-failed result after the session ends too', async () => {
+    deletion.deleteAccount.mockResolvedValue({ kind: 'deleted-wipe-failed' });
+
+    const screen = await renderSignedIn();
+
+    await startDeletion(screen);
+    await fireEvent.press(screen.getByLabelText('Hesabı kalıcı olarak sil'));
+
+    await waitFor(() => {
+      notify(null);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('E-posta')).toBeTruthy();
+    });
+
+    expect(screen.getByText(/Hesabın silindi ama bu cihazdaki kayıtlar silinemedi/)).toBeTruthy();
+  });
+
+  it('says nothing when the phone was wiped as well, because the screen is going', async () => {
+    deletion.deleteAccount.mockResolvedValue({ kind: 'deleted-and-wiped' });
+
+    const screen = await renderSignedIn();
+
+    await startDeletion(screen);
+    await fireEvent.press(screen.getByLabelText('Hesabı kalıcı olarak sil'));
+
+    await waitFor(() => {
+      notify(null);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('E-posta')).toBeTruthy();
+    });
+
+    expect(screen.queryByText(/Hesabın silindi/)).toBeNull();
+  });
+
+  it('clears the result once a new sign-in is started', async () => {
+    deletion.deleteAccount.mockResolvedValue({ kind: 'deleted' });
+
+    const screen = await renderSignedIn();
+
+    await startDeletion(screen);
+    await fireEvent.press(screen.getByLabelText('Hesabı kalıcı olarak sil'));
+
+    await waitFor(() => {
+      notify(null);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('E-posta')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Hesabın silindi. Kayıtların bu telefonda kaldı.')).toBeTruthy();
+
+    // Typing is the start of a new thing; the old result is no longer about it.
+    await fireEvent.changeText(screen.getByLabelText('E-posta'), 'a');
+
+    expect(screen.queryByText('Hesabın silindi. Kayıtların bu telefonda kaldı.')).toBeNull();
+  });
+
+  it('keeps a failed deletion on the signed-in view, where the panel still is', async () => {
+    deletion.deleteAccount.mockResolvedValue({ kind: 'failed', reason: 'network-failed' });
+
+    const screen = await renderSignedIn();
+
+    await startDeletion(screen);
+    await fireEvent.press(screen.getByLabelText('Hesabı kalıcı olarak sil'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('İnternet bağlantısı yok. Hesap silinmedi, tekrar deneyebilirsin.')
+      ).toBeTruthy();
+    });
+
+    // Still signed in: nothing was deleted.
+    expect(screen.getByLabelText('Çıkış yap')).toBeTruthy();
   });
 });
