@@ -4,7 +4,10 @@ import { getCurrentAuthUser, signOut } from '@/features/auth/data/auth-repositor
 import { PERIOD_REMINDER_TYPE } from '@/features/notifications/domain/period-reminder';
 import { PREGNANCY_WEEKLY_REMINDER_TYPE } from '@/features/notifications/domain/pregnancy-weekly-reminder';
 import { cancelScheduledRemindersOfType } from '@/features/notifications/infrastructure/scheduled-reminders';
+import { withAutomaticSyncSuspended } from '@/features/sync/application/automatic-sync-suspension';
 import { clearDeviceId } from '@/features/sync/infrastructure/device-id';
+import { clearLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
+import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolved-conflict';
 import { clearSyncPreferences } from '@/features/sync/infrastructure/sync-preferences';
 import {
   clearWidgetSnapshot,
@@ -94,7 +97,19 @@ async function endSessionIfAny(): Promise<boolean> {
   }
 }
 
+/**
+ * Everything this phone holds, gone.
+ *
+ * Suspended for the whole run rather than for the table clear alone. A sync
+ * landing anywhere inside this would read a half-emptied database and push it,
+ * and pushing an empty database is the wipe deleting the account's data too —
+ * the one thing "yalnızca bu telefondan sil" promises it will not do.
+ */
 export async function wipeLocalData(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
+  return withAutomaticSyncSuspended(() => runWipe(input));
+}
+
+async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   const { db, resetAppState } = input;
 
   // The one step that decides whether this is a wipe at all.
@@ -127,6 +142,9 @@ export async function wipeLocalData(input: WipeLocalDataInput): Promise<LocalWip
   }
 
   complete = (await bestEffort(clearSyncPreferences, 'local data wipe failed')) && complete;
+  complete = (await bestEffort(clearLastSyncAt, 'local data wipe failed')) && complete;
+  complete =
+    (await bestEffort(clearUnresolvedConflict, 'local data wipe failed')) && complete;
   complete = (await bestEffort(clearDeviceId, 'local data wipe failed')) && complete;
   complete =
     (await bestEffort(clearPendingAccountDeletion, 'local data wipe failed')) && complete;

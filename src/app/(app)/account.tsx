@@ -61,18 +61,27 @@ import {
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import {
+  onAutomaticSyncOutcome,
+  requestAutomaticSync,
+} from '@/features/sync/application/automatic-sync-scheduler';
 import { runCloudSync } from '@/features/sync/application/run-cloud-sync';
+import { loadLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
 import {
   loadSyncPreferences,
   setAutomaticSyncEnabled,
 } from '@/features/sync/infrastructure/sync-preferences';
 import {
+  AUTOMATIC_SYNC_DISABLED_MESSAGE,
+  AUTOMATIC_SYNC_ENABLED_MESSAGE,
+  AUTOMATIC_SYNC_FAILED_MESSAGE,
   AUTOMATIC_SYNC_LABEL,
   AUTOMATIC_SYNC_NOTE,
   BACKUP_DISABLED_BY_SYNC_MESSAGE,
   SYNC_BUSY_LABEL,
   SYNC_BUTTON_LABEL,
   didSyncChangeThisPhone,
+  lastSyncMessage,
   syncConflictCountMessage,
   syncOutcomeMessage,
 } from '@/features/sync/presentation/sync-messages';
@@ -139,6 +148,11 @@ export default function AccountScreen() {
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [syncDetail, setSyncDetail] = useState<string | null>(null);
 
+  // The status line, read from storage rather than remembered from this
+  // screen's own runs: the sync that moved it most likely happened while
+  // somebody was on another screen.
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+
   // A ref as well as the disabled prop: two quick taps could both read `isBusy`
   // as false before the re-render lands, and the second would be a second
   // attempt with the same credentials.
@@ -180,6 +194,51 @@ export default function AccountScreen() {
       isActive = false;
     };
   }, []);
+
+  // Who the status line is about. Read here rather than inside the effect so
+  // the effect re-runs when the session changes: showing one account a fact
+  // about another one's data would be a lie about it.
+  const uid = auth.status === 'signed-in' ? auth.user.uid : null;
+
+  /**
+   * Keeps the status line honest.
+   *
+   * Read on mount, and read again on every finished automatic sync rather than
+   * being derived from the outcome: a sync that failed to write its own
+   * timestamp should not make this screen claim it succeeded. Storage is the
+   * only thing that knows, so storage is what is asked.
+   */
+  useEffect(() => {
+    let isActive = true;
+
+    // Signing out reads as "nothing synced" rather than skipping the read:
+    // leaving one account's status line up while another is signing in would
+    // be showing somebody a fact about someone else's data.
+    const refresh = () => {
+      void (uid === null ? Promise.resolve(null) : loadLastSyncAt()).then(
+        (storedLastSyncAt) => {
+          if (!isActive) {
+            return;
+          }
+
+          setLastSyncAt(storedLastSyncAt);
+        },
+        () => {
+          // Nothing to say. A status line that cannot be read stays as it was,
+          // which is better than replacing it with a worry about storage.
+        }
+      );
+    };
+
+    refresh();
+
+    const unsubscribe = onAutomaticSyncOutcome(refresh);
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [uid]);
 
   const clearForm = () => {
     setEmail('');
@@ -428,9 +487,10 @@ export default function AccountScreen() {
   /**
    * Records whether this phone may sync on its own.
    *
-   * It records the choice and nothing more. No sync is started by switching it
-   * on, nothing is scheduled and nothing is cancelled by switching it off —
-   * there is no automatic sync to start or stop yet, and the screen says so.
+   * Switching it on records the choice and then syncs once, straight away, so
+   * the answer to "is it working?" is on screen rather than up to thirty
+   * seconds away. Switching it off records the choice and stops there: there is
+   * nothing to undo, because nothing was ever scheduled for later.
    *
    * The switch follows what was stored rather than what was tapped: a write
    * that failed leaves it where it was, so it cannot show "açık" for something
@@ -450,6 +510,32 @@ export default function AccountScreen() {
       const preferences = await setAutomaticSyncEnabled(enabled);
 
       setAutomaticSync(preferences.automaticSyncEnabled);
+
+      if (!preferences.automaticSyncEnabled) {
+        setSyncNotice(AUTOMATIC_SYNC_DISABLED_MESSAGE);
+
+        return;
+      }
+
+      setSyncNotice(AUTOMATIC_SYNC_ENABLED_MESSAGE);
+
+      // The scheduler owns the rules, including the ones that say no. A null
+      // means one of them applied — a pending deletion, an unresolved conflict
+      // — and each of those already has its own notice on this screen.
+      const outcome = await requestAutomaticSync('enabled');
+
+      if (outcome === null) {
+        return;
+      }
+
+      if (outcome.kind === 'error') {
+        setSyncNotice(AUTOMATIC_SYNC_FAILED_MESSAGE);
+
+        return;
+      }
+
+      setSyncNotice(syncOutcomeMessage(outcome));
+      setSyncDetail(syncConflictCountMessage(outcome));
     } catch {
       // Storage's own message is not read. Nothing about it would help, and the
       // switch staying where it was is the answer.
@@ -733,6 +819,14 @@ export default function AccountScreen() {
 
                     <ThemedText type="small" themeColor="textSecondary">
                       {AUTOMATIC_SYNC_NOTE}
+                    </ThemedText>
+
+                    {/* Coarse on purpose. "Bugün 14:20" answers the question
+                        somebody actually has; a precise timestamp for every
+                        sync going back weeks is a log of when they open a
+                        period tracker, and nothing here needs one. */}
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {lastSyncMessage(lastSyncAt)}
                     </ThemedText>
 
                     {syncNotice !== null && (

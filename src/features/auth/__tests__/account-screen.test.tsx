@@ -77,11 +77,21 @@ jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder',
   syncPregnancyWeeklyReminderQuietly: jest.fn(),
 }));
 
-// The sync is faked too. What this pins is that a sync happens only when the
-// button is pressed, what the screen says about each outcome, and that the
-// switch starts nothing.
+// The sync is faked too. What this pins is what the screen asks for, what it
+// says about each outcome, and which of the two paths — the button or the
+// scheduler — a given press goes down.
 jest.mock('@/features/sync/application/run-cloud-sync', () => ({
   runCloudSync: jest.fn(),
+}));
+
+// The scheduler owns every automatic run. The screen only asks it for one.
+jest.mock('@/features/sync/application/automatic-sync-scheduler', () => ({
+  requestAutomaticSync: jest.fn(),
+  onAutomaticSyncOutcome: jest.fn(() => () => undefined),
+}));
+
+jest.mock('@/features/sync/infrastructure/last-sync-at', () => ({
+  loadLastSyncAt: jest.fn(),
 }));
 
 jest.mock('@/features/sync/infrastructure/sync-preferences', () => ({
@@ -132,6 +142,8 @@ const pregnancyReminderSync = jest.requireMock(
 );
 const cloudSyncRun = jest.requireMock('@/features/sync/application/run-cloud-sync');
 const syncPreferences = jest.requireMock('@/features/sync/infrastructure/sync-preferences');
+const scheduler = jest.requireMock('@/features/sync/application/automatic-sync-scheduler');
+const lastSyncAt = jest.requireMock('@/features/sync/infrastructure/last-sync-at');
 const db = jest.requireMock('@/storage/db');
 const logging = jest.requireMock('@/shared/logging');
 const useRouterMock = useRouter as unknown as jest.Mock;
@@ -162,6 +174,7 @@ function authError(code: AuthErrorCode) {
 let notify: (user: AuthUser | null) => void;
 let unsubscribe: jest.Mock;
 let back: jest.Mock;
+let push: jest.Mock;
 
 beforeEach(() => {
   notify = () => undefined;
@@ -205,6 +218,12 @@ beforeEach(() => {
   pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
   cloudSyncRun.runCloudSync.mockReset();
   cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'noop', revision: 3 });
+  scheduler.requestAutomaticSync.mockReset();
+  scheduler.requestAutomaticSync.mockResolvedValue(null);
+  scheduler.onAutomaticSyncOutcome.mockReset();
+  scheduler.onAutomaticSyncOutcome.mockImplementation(() => () => undefined);
+  lastSyncAt.loadLastSyncAt.mockReset();
+  lastSyncAt.loadLastSyncAt.mockResolvedValue(null);
   syncPreferences.loadSyncPreferences.mockReset();
   syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: false });
   syncPreferences.setAutomaticSyncEnabled.mockReset();
@@ -222,8 +241,9 @@ beforeEach(() => {
   pendingDeletion.isAccountDeletionPending.mockResolvedValue(false);
 
   back = jest.fn();
+  push = jest.fn();
   useRouterMock.mockReset();
-  useRouterMock.mockReturnValue({ back, push: jest.fn(), replace: jest.fn() });
+  useRouterMock.mockReturnValue({ back, push, replace: jest.fn() });
 });
 
 /** Renders and settles the screen into the signed-out form. */
@@ -1725,10 +1745,11 @@ describe('the automatic sync switch', () => {
     });
   });
 
-  it('says what it does today, which is only to remember the choice', async () => {
+  it('says it syncs while the app is open, and not while it is closed', async () => {
     const screen = await renderSignedIn();
 
-    expect(screen.getByText(/Kendiliğinden senkronizasyon\s+henüz çalışmıyor/)).toBeTruthy();
+    // The second half is the promise that matters on a health app.
+    expect(screen.getByText(/Uygulama kapalıyken hiçbir şey gönderilmez/)).toBeTruthy();
   });
 
   it('records the choice when it is turned on', async () => {
@@ -1757,16 +1778,48 @@ describe('the automatic sync switch', () => {
     });
   });
 
-  it('starts no sync by being switched on', async () => {
+  it('syncs once straight away when it is switched on', async () => {
+    // So the answer to "is it working?" is on screen rather than up to thirty
+    // seconds away.
     const screen = await renderSignedIn();
 
     await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', true);
 
     await waitFor(() => {
-      expect(syncPreferences.setAutomaticSyncEnabled).toHaveBeenCalled();
+      expect(scheduler.requestAutomaticSync).toHaveBeenCalledWith('enabled');
+    });
+  });
+
+  it('goes through the scheduler rather than round it', async () => {
+    // The rules that say no — a pending deletion, an unresolved conflict —
+    // live there, and a direct call would walk past all of them.
+    const screen = await renderSignedIn();
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', true);
+
+    await waitFor(() => {
+      expect(scheduler.requestAutomaticSync).toHaveBeenCalled();
     });
 
     expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing by being switched off', async () => {
+    syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: true });
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Otomatik senkronizasyon').props.value).toBe(true);
+    });
+
+    await fireEvent(screen.getByLabelText('Otomatik senkronizasyon'), 'valueChange', false);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Otomatik senkronizasyon kapatıldı/)).toBeTruthy();
+    });
+
+    expect(scheduler.requestAutomaticSync).not.toHaveBeenCalled();
   });
 
   it('stays where it was when the choice could not be written', async () => {
@@ -1953,7 +2006,7 @@ describe('syncing now', () => {
 
     await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
 
-    await screen.findByText(/Çakışma bulundu, çözülmedi; hiçbir veri değiştirilmedi/);
+    await screen.findByText(/Çakışma bulundu; hiçbir veri değiştirilmedi/);
   });
 
   it('counts the conflicts without naming any of them', async () => {
@@ -2224,5 +2277,88 @@ describe('the account deletion result outliving the session that produced it', (
 
     // Still signed in: nothing was deleted.
     expect(screen.getByLabelText('Çıkış yap')).toBeTruthy();
+  });
+});
+
+describe('the status line', () => {
+  it('says nothing has synced before anything has', async () => {
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
+    });
+  });
+
+  it('shows when the last sync finished', async () => {
+    const when = new Date();
+    when.setHours(9, 5, 0, 0);
+
+    lastSyncAt.loadLastSyncAt.mockResolvedValue(when.toISOString());
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByText('Son senkronizasyon: bugün 09:05')).toBeTruthy();
+    });
+  });
+
+  it('reads storage rather than trusting what the last run reported', async () => {
+    // A sync that failed to write its own timestamp must not make this screen
+    // claim it succeeded.
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(lastSyncAt.loadLastSyncAt).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
+  });
+
+  it('listens for automatic syncs so the line does not go stale', async () => {
+    // The sync that moves this most likely happened while somebody was on
+    // another screen.
+    await renderSignedIn();
+
+    await waitFor(() => {
+      expect(scheduler.onAutomaticSyncOutcome).toHaveBeenCalled();
+    });
+  });
+
+  it('re-reads it after an automatic sync finishes', async () => {
+    let announce: () => void = () => undefined;
+
+    scheduler.onAutomaticSyncOutcome.mockImplementation((listener: () => void) => {
+      announce = listener;
+
+      return () => undefined;
+    });
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
+    });
+
+    const when = new Date();
+    when.setHours(11, 20, 0, 0);
+
+    lastSyncAt.loadLastSyncAt.mockResolvedValue(when.toISOString());
+
+    announce();
+
+    await waitFor(() => {
+      expect(screen.getByText('Son senkronizasyon: bugün 11:20')).toBeTruthy();
+    });
+  });
+
+  it('keeps the line it had when storage cannot be read', async () => {
+    // A worry about storage in place of a status line helps nobody.
+    lastSyncAt.loadLastSyncAt.mockRejectedValue(new Error('storage unavailable'));
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
+    });
   });
 });

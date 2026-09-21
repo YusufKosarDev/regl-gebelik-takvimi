@@ -10,6 +10,7 @@ export const LOG_EVENTS = [
   'account delete failed',
   'app mode change failed',
   'app state load failed',
+  'automatic sync failed',
   'avatar load failed',
   'avatar save failed',
   'cloud backup delete failed',

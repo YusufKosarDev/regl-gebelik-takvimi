@@ -39,6 +39,13 @@ jest.mock('@/storage/app-state-storage', () => ({
   clearAppState: jest.fn(),
 }));
 
+// The root layout mounts automatic sync, which reaches Firebase. This file is
+// about which screen the app lands on, and a session it never opens has no
+// bearing on that.
+jest.mock('@/features/sync/application/use-automatic-sync', () => ({
+  useAutomaticSync: jest.fn(),
+}));
+
 let hydrateMock: jest.Mock;
 
 function primeStore(options: {

@@ -26,6 +26,14 @@ jest.mock('@/features/sync/infrastructure/sync-preferences', () => ({
   clearSyncPreferences: jest.fn(),
 }));
 
+jest.mock('@/features/sync/infrastructure/last-sync-at', () => ({
+  clearLastSyncAt: jest.fn(),
+}));
+
+jest.mock('@/features/sync/infrastructure/unresolved-conflict', () => ({
+  clearUnresolvedConflict: jest.fn(),
+}));
+
 jest.mock('@/features/sync/infrastructure/device-id', () => ({
   clearDeviceId: jest.fn(),
 }));

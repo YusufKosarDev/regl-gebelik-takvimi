@@ -1,12 +1,17 @@
 import type { CloudSyncFailure, CloudSyncOutcome } from '../../application/run-cloud-sync';
 import type { CloudSyncConflict } from '../../domain/merge-cloud-sync-payload';
 import {
+  AUTOMATIC_SYNC_DISABLED_MESSAGE,
+  AUTOMATIC_SYNC_ENABLED_MESSAGE,
+  AUTOMATIC_SYNC_FAILED_MESSAGE,
   AUTOMATIC_SYNC_LABEL,
   AUTOMATIC_SYNC_NOTE,
   BACKUP_DISABLED_BY_SYNC_MESSAGE,
   SYNC_BUSY_LABEL,
   SYNC_BUTTON_LABEL,
+  SYNC_NEVER_MESSAGE,
   didSyncChangeThisPhone,
+  lastSyncMessage,
   syncConflictCountMessage,
   syncFailureMessage,
   syncOutcomeMessage,
@@ -113,7 +118,7 @@ describe('a conflict', () => {
   ])('tells somebody plainly that nothing changed (%s)', (_label, outcome) => {
     const message = syncOutcomeMessage(outcome);
 
-    expect(message).toContain('Çakışma bulundu, çözülmedi');
+    expect(message).toContain('Çakışma bulundu');
     expect(message).toContain('hiçbir veri değiştirilmedi');
   });
 
@@ -127,15 +132,16 @@ describe('a conflict', () => {
     expect(syncOutcomeMessage(unresolved)).not.toBe(syncOutcomeMessage(noBase));
   });
 
-  it('says what can be done instead when there is nothing to measure from', () => {
-    const message = syncOutcomeMessage(noBase);
-
-    expect(message).toContain('Yedeği geri yükle');
-    expect(message).toContain('Yedek oluştur');
+  it('points at the conflict screen, which is where the choice is made', () => {
+    for (const outcome of [unresolved, noBase]) {
+      expect(syncOutcomeMessage(outcome)).toContain('Çakışmayı çöz');
+    }
   });
 
-  it('says the conflict screen does not exist yet rather than implying it does', () => {
-    expect(syncOutcomeMessage(unresolved)).toContain('henüz');
+  it('no longer claims the conflict screen is missing', () => {
+    // It exists now; saying otherwise would send somebody looking for a
+    // workaround they do not need.
+    expect(syncOutcomeMessage(unresolved)).not.toContain('henüz yok');
   });
 
   it('counts the places, and names none of them', () => {
@@ -228,10 +234,12 @@ describe('what the screen calls things', () => {
     expect(AUTOMATIC_SYNC_LABEL).toBe('Otomatik senkronizasyon');
   });
 
-  it('says the switch only remembers the choice for now', () => {
-    expect(AUTOMATIC_SYNC_NOTE).toContain('kaydedilir');
-    expect(AUTOMATIC_SYNC_NOTE).toContain('henüz çalışmıyor');
-    expect(AUTOMATIC_SYNC_NOTE).toContain('Şimdi senkronize et');
+  it('says the switch now actually syncs, and only while the app is open', () => {
+    // The second half is the promise that matters on a health app: "otomatik"
+    // must not be read as "uploads while I am asleep".
+    expect(AUTOMATIC_SYNC_NOTE).toContain('kendiliğinden');
+    expect(AUTOMATIC_SYNC_NOTE).toContain('Uygulama kapalıyken hiçbir şey gönderilmez');
+    expect(AUTOMATIC_SYNC_NOTE).not.toContain('henüz çalışmıyor');
   });
 
   it('says why manual backup is unavailable, rather than leaving it greyed out', () => {
@@ -243,5 +251,68 @@ describe('what the screen calls things', () => {
   it('names the button the same way it is announced', () => {
     expect(SYNC_BUTTON_LABEL).toBe('Şimdi senkronize et');
     expect(SYNC_BUSY_LABEL).toContain('Senkronize');
+  });
+});
+
+describe('turning automatic sync on and off', () => {
+  it('confirms each choice in its own words', () => {
+    expect(AUTOMATIC_SYNC_ENABLED_MESSAGE).toContain('açıldı');
+    expect(AUTOMATIC_SYNC_DISABLED_MESSAGE).toContain('kapatıldı');
+  });
+
+  it('says what still works after it is turned off', () => {
+    // Turning it off is not turning sync off, and somebody who thinks it is
+    // will stop syncing without meaning to.
+    expect(AUTOMATIC_SYNC_DISABLED_MESSAGE).toContain(SYNC_BUTTON_LABEL);
+  });
+
+  it('describes what the switch does without promising background work', () => {
+    expect(AUTOMATIC_SYNC_NOTE).toContain('Uygulama kapalıyken hiçbir şey gönderilmez');
+  });
+
+  it('gives one sentence for every automatic failure', () => {
+    // A different diagnosis every few minutes, for a problem somebody did not
+    // set out to have, is noise. The specific message is for the button they
+    // pressed themselves.
+    expect(AUTOMATIC_SYNC_FAILED_MESSAGE).toContain('Hiçbir veri değiştirilmedi');
+  });
+});
+
+describe('the status line', () => {
+  const now = new Date(2026, 8, 21, 14, 30);
+
+  it('says so before anything has ever synced', () => {
+    expect(lastSyncMessage(null, now)).toBe(SYNC_NEVER_MESSAGE);
+  });
+
+  it('gives today a clock, because "bugün" alone is not enough', () => {
+    const when = new Date(2026, 8, 21, 9, 5);
+
+    expect(lastSyncMessage(when.toISOString(), now)).toBe('Son senkronizasyon: bugün 09:05');
+  });
+
+  it('says yesterday without a time', () => {
+    const when = new Date(2026, 8, 20, 23, 59);
+
+    expect(lastSyncMessage(when.toISOString(), now)).toBe('Son senkronizasyon: dün');
+  });
+
+  it('gives anything older a date and no clock', () => {
+    // A precise timestamp for every sync going back weeks is a record of when
+    // somebody opens a period tracker.
+    const when = new Date(2026, 7, 3, 23, 59);
+
+    expect(lastSyncMessage(when.toISOString(), now)).toBe('Son senkronizasyon: 03.08.2026');
+  });
+
+  it('crosses a year boundary without calling it yesterday', () => {
+    const newYear = new Date(2027, 0, 1, 0, 30);
+    const when = new Date(2026, 11, 31, 23, 50);
+
+    expect(lastSyncMessage(when.toISOString(), newYear)).toBe('Son senkronizasyon: dün');
+  });
+
+  it('reads an unusable value as never, rather than showing an error', () => {
+    expect(lastSyncMessage('dün', now)).toBe(SYNC_NEVER_MESSAGE);
   });
 });

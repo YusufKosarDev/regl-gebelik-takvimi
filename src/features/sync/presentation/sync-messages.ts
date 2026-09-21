@@ -66,15 +66,12 @@ export function syncOutcomeMessage(outcome: CloudSyncOutcome): string {
 
     case 'conflict':
       return outcome.reason === 'no-base'
-        ? 'Çakışma bulundu, çözülmedi; hiçbir veri değiştirilmedi. Telefonunda ve ' +
-            'hesabında farklı kayıtlar var ve bu cihaz daha önce hiç senkronize ' +
-            'edilmediği için hangisinin yeni olduğu bilinemiyor. Şimdilik "Yedeği geri ' +
-            'yükle" ile hesaptakini alabilir ya da "Yedek oluştur" ile telefondakini ' +
-            'gönderebilirsin.'
-        : 'Çakışma bulundu, çözülmedi; hiçbir veri değiştirilmedi. Aynı kayıt iki ' +
-            'tarafta birbirinden farklı değiştirilmiş. Çakışmaları çözme ekranı henüz ' +
-            'yok; o gelene kadar telefonundaki ve hesabındaki veriler olduğu gibi ' +
-            'duruyor.';
+        ? 'Çakışma bulundu; hiçbir veri değiştirilmedi. Bu cihaz bu hesapla daha ' +
+            'önce hiç senkronize edilmedi, bu yüzden hangi tarafın yeni olduğu ' +
+            'bilinemiyor. "Çakışmayı çöz" ile hangi tarafın kalacağını seçebilirsin.'
+        : 'Çakışma bulundu; hiçbir veri değiştirilmedi. Aynı kayıt iki tarafta ' +
+            'birbirinden farklı değiştirilmiş. "Çakışmayı çöz" ile hangi tarafın ' +
+            'kalacağını seçebilirsin.';
 
     case 'retry-required':
       return 'Hesap az önce başka bir cihazdan güncellendi; hiçbir veri değiştirilmedi. ' +
@@ -110,15 +107,15 @@ export function didSyncChangeThisPhone(outcome: CloudSyncOutcome): boolean {
 export const AUTOMATIC_SYNC_LABEL = 'Otomatik senkronizasyon';
 
 /**
- * What it does today, said plainly.
+ * What it does, said plainly.
  *
- * It records the choice and nothing else runs on it yet. Writing that down is
- * not an apology for an unfinished feature: a switch that looks like it starts
- * background uploads, and does not, would be a worse promise than no switch.
+ * The second sentence is the one that matters. "Otomatik" on a health app
+ * reasonably reads as "uploads whenever it likes, including while I am asleep",
+ * and that is exactly what this does not do.
  */
 export const AUTOMATIC_SYNC_NOTE =
-  'Açık olduğunda senkronizasyon tercihin kaydedilir. Kendiliğinden senkronizasyon ' +
-  'henüz çalışmıyor; şimdilik yalnızca "Şimdi senkronize et" ile senkronize olur.';
+  'Açıkken, uygulamayı kullanırken değişiklikler kendiliğinden hesabınla eşitlenir. ' +
+  'Uygulama kapalıyken hiçbir şey gönderilmez.';
 
 /** Why the backup button is unavailable while the switch is on. */
 export const BACKUP_DISABLED_BY_SYNC_MESSAGE =
@@ -128,3 +125,72 @@ export const BACKUP_DISABLED_BY_SYNC_MESSAGE =
 
 export const SYNC_BUTTON_LABEL = 'Şimdi senkronize et';
 export const SYNC_BUSY_LABEL = 'Senkronize ediliyor...';
+
+/* ------------------------------------------------------- automatic sync -- */
+
+export const AUTOMATIC_SYNC_ENABLED_MESSAGE = 'Otomatik senkronizasyon açıldı.';
+
+export const AUTOMATIC_SYNC_DISABLED_MESSAGE =
+  'Otomatik senkronizasyon kapatıldı. Artık yalnızca "Şimdi senkronize et" ile ' +
+  'senkronize olur.';
+
+/**
+ * What an automatic sync says when it could not finish.
+ *
+ * One sentence for every failure, rather than the specific one. An automatic
+ * sync is something nobody asked for at that moment, and handing somebody a
+ * different diagnosis every few minutes for a problem they did not set out to
+ * have is noise. The specific message still appears for the button they pressed
+ * themselves.
+ */
+export const AUTOMATIC_SYNC_FAILED_MESSAGE =
+  'Son otomatik senkronizasyon tamamlanamadı. Hiçbir veri değiştirilmedi.';
+
+export const SYNC_NEVER_MESSAGE = 'Henüz senkronize edilmedi.';
+
+/**
+ * When the last sync finished, coarsely.
+ *
+ * Today gets a time because "bugün" alone is not enough to tell a sync five
+ * minutes ago from one this morning. Everything older gets a date and no clock:
+ * a precise timestamp for every sync going back weeks is a record of when
+ * somebody opens a period tracker, and nothing here needs one.
+ */
+export function lastSyncMessage(
+  lastSyncAt: string | null,
+  now: Date = new Date()
+): string {
+  if (lastSyncAt === null) {
+    return SYNC_NEVER_MESSAGE;
+  }
+
+  const when = new Date(lastSyncAt);
+
+  if (Number.isNaN(when.getTime())) {
+    return SYNC_NEVER_MESSAGE;
+  }
+
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (sameDay(when, now)) {
+    const hh = String(when.getHours()).padStart(2, '0');
+    const mm = String(when.getMinutes()).padStart(2, '0');
+
+    return `Son senkronizasyon: bugün ${hh}:${mm}`;
+  }
+
+  if (sameDay(when, yesterday)) {
+    return 'Son senkronizasyon: dün';
+  }
+
+  const dd = String(when.getDate()).padStart(2, '0');
+  const mo = String(when.getMonth() + 1).padStart(2, '0');
+
+  return `Son senkronizasyon: ${dd}.${mo}.${when.getFullYear()}`;
+}

@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { useAutomaticSync } from '@/features/sync/application/use-automatic-sync';
 import { logEvent } from '@/shared/logging';
 import { useAppStore } from '@/store/app-store';
 
@@ -20,6 +21,10 @@ export default function RootLayout() {
   const onboardingCompleted = useAppStore((state) => state.onboardingCompleted);
 
   const [hasHydrationError, setHasHydrationError] = useState(false);
+
+  // Mounted here rather than on a screen: an edit made anywhere should still
+  // reach the account after the person navigates away from where they made it.
+  useAutomaticSync();
 
   // `hydrate` is a stable store action, so this runs once per app start rather
   // than on every state change.

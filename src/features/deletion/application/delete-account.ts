@@ -9,7 +9,10 @@ import {
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { deleteCloudBackup } from '@/features/backup/data/cloud-backup-repository';
+import { withAutomaticSyncSuspended } from '@/features/sync/application/automatic-sync-suspension';
 import { clearAllSyncState } from '@/features/sync/data/sync-state-repository';
+import { clearLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
+import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolved-conflict';
 import { clearDeviceId } from '@/features/sync/infrastructure/device-id';
 import { clearSyncPreferences } from '@/features/sync/infrastructure/sync-preferences';
 import { logEvent } from '@/shared/logging';
@@ -102,6 +105,21 @@ async function forgetAccountTraces(db: SQLiteDatabase): Promise<void> {
   } catch (error: unknown) {
     logEvent('sync state clear failed', error);
   }
+
+  try {
+    await clearLastSyncAt();
+  } catch (error: unknown) {
+    logEvent('sync state clear failed', error);
+  }
+
+  // Scoped to a uid that no longer exists, so it could never match again — but
+  // a stale marker is still a thing somebody could be shown, and there is no
+  // conflict left to resolve.
+  try {
+    await clearUnresolvedConflict();
+  } catch (error: unknown) {
+    logEvent('sync state clear failed', error);
+  }
 }
 
 /**
@@ -173,7 +191,19 @@ async function resolveRefusedPassword(
   return { kind: 'already-deleted' };
 }
 
+/**
+ * Deletes the account, and on request this phone with it.
+ *
+ * Suspended throughout. The pending-deletion marker already stops the
+ * scheduler, but it is only written after the password is accepted, and a sync
+ * that started before that would still be in the air — pushing data to an
+ * account that is about to stop existing, or pulling into one being wiped.
+ */
 export async function deleteAccount(input: DeleteAccountInput): Promise<AccountDeletionOutcome> {
+  return withAutomaticSyncSuspended(() => runDeleteAccount(input));
+}
+
+async function runDeleteAccount(input: DeleteAccountInput): Promise<AccountDeletionOutcome> {
   const { db, user, password, wipeLocalDataToo, resetAppState } = input;
 
   if (typeof user !== 'object' || user === null || typeof user.uid !== 'string' || user.uid.trim() === '') {

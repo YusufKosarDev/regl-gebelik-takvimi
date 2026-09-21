@@ -49,6 +49,8 @@ export const EXCLUDED_FROM_CLOUD_SYNC = [
   'sync-device-id',
   'sync-preferences',
   'pending-account-deletion',
+  'sync-last-synced-at',
+  'sync-unresolved-conflict',
 ] as const;
 
 export type ExcludedFromCloudSync = (typeof EXCLUDED_FROM_CLOUD_SYNC)[number];
@@ -185,6 +187,23 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
       'Yarım kalmış bir hesap silme işleminin hangi hesaba ait olduğu. Yalnızca ' +
       'hesap kimliği; sağlık verisi içermez ve silme tamamlanınca ya da vazgeçilince ' +
       'kaldırılır. Silinmiş bir yedeğin yeniden oluşturulmasını engellemek için var.',
+  },
+  {
+    id: 'sync-last-synced-at',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Bu telefonun hesapla en son ne zaman senkronize olduğu. Yalnızca bir zaman ' +
+      'damgası; hangi verinin taşındığını içermez ve bir cihazın kendi durumudur.',
+  },
+  {
+    id: 'sync-unresolved-conflict',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Çözülmemiş bir çakışmanın hangi hesaba ait olduğu. Yalnızca hesap kimliği; ' +
+      'çakışan verinin kendisi burada tutulmaz ve çakışma çözülünce kaldırılır. ' +
+      'Çözülene kadar otomatik senkronizasyonu durdurmak için var.',
   },
 ];
 

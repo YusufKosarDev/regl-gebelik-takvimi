@@ -48,6 +48,8 @@ describe('what stays on the device', () => {
       'sync-device-id',
       'sync-preferences',
       'pending-account-deletion',
+      'sync-last-synced-at',
+      'sync-unresolved-conflict',
     ]);
   });
 

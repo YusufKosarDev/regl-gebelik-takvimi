@@ -4,6 +4,8 @@ import { AuthError } from '@/features/auth/domain/auth-error';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import { isAccountDeletionPending } from '@/features/deletion/infrastructure/pending-account-deletion';
+import { logEvent } from '@/shared/logging';
+import { markConflictUnresolved } from '../infrastructure/unresolved-conflict';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 
 import {
@@ -31,13 +33,12 @@ import { deviceIdProvider } from '../infrastructure/device-id';
  * stay where they can be tested without a database, and what is left here is
  * sequencing.
  *
- * One caller, and it is a button. The account screen's "Şimdi senkronize et"
- * runs this and nothing else does: there is no trigger, no listener, no timer
- * and no sign-in hook. A sync happens because a person asked for one.
+ * Two callers: the account screen's "Şimdi senkronize et", and the automatic
+ * scheduler. Both go through the same gate, so only one runs at a time.
  *
- * The automatic sync preference does not change that. It records what someone
- * chose and nothing acts on it yet, so turning it on starts no background work
- * — see `../infrastructure/sync-preferences`.
+ * Nothing here is a timer. The scheduler fires on things a person did — opening
+ * the app, signing in, editing a record, closing the app with an edit pending —
+ * and nothing runs while the app is closed.
  *
  * Two things it will not do, whatever happens:
  *
@@ -410,6 +411,18 @@ export async function runCloudSync(input: RunCloudSyncInput): Promise<CloudSyncO
       outcome = await attemptSync(attempt);
 
       if (outcome.kind !== 'retry-required') {
+        // Written down here rather than by the caller, so a conflict found by a
+        // manual press and one found automatically stop automatic syncing the
+        // same way. Never fatal: failing to record it would only mean asking
+        // again later.
+        if (outcome.kind === 'conflict') {
+          try {
+            await markConflictUnresolved(uid);
+          } catch (error: unknown) {
+            logEvent('automatic sync failed', error);
+          }
+        }
+
         return outcome;
       }
     }
