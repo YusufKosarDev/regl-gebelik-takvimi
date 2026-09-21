@@ -5,7 +5,12 @@ import { serializeCloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-syn
 import type { ISODate } from '@/types/iso-date';
 
 import type { SyncState } from '../../domain/sync-state';
-import { clearSyncState, loadSyncState, saveSyncState } from '../sync-state-repository';
+import {
+  clearAllSyncState,
+  clearSyncState,
+  loadSyncState,
+  saveSyncState,
+} from '../sync-state-repository';
 
 type DatabaseSpy = {
   readonly db: SQLiteDatabase;
@@ -585,5 +590,51 @@ describe('what the sync state repository never does', () => {
     await saveSyncState(spy.db, original);
 
     expect(original).toEqual(copy);
+  });
+});
+
+describe('clearing every account’s sync state', () => {
+  it('deletes the whole table rather than one row', async () => {
+    const { db, runAsync } = createDatabaseSpy();
+
+    await clearAllSyncState(db);
+
+    expect(runAsync).toHaveBeenCalledWith('DELETE FROM sync_state');
+  });
+
+  it('binds no uid, so a second account’s row cannot survive it', async () => {
+    // This is the row that would otherwise be left behind by "delete
+    // everything", carrying a full copy of somebody's period history.
+    const { db, runAsync } = createDatabaseSpy();
+
+    await clearAllSyncState(db);
+
+    const [, parameters] = runAsync.mock.calls[0] as [string, unknown];
+
+    expect(parameters).toBeUndefined();
+  });
+
+  it('issues exactly one statement', async () => {
+    const { db, runAsync } = createDatabaseSpy();
+
+    await clearAllSyncState(db);
+
+    expect(runAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('raises when the database refuses', async () => {
+    const failure = new Error('database is locked');
+    const { db } = createDatabaseSpy(null, failure);
+
+    await expect(clearAllSyncState(db)).rejects.toThrow(failure);
+  });
+
+  it('can be run twice', async () => {
+    const { db, runAsync } = createDatabaseSpy();
+
+    await clearAllSyncState(db);
+    await clearAllSyncState(db);
+
+    expect(runAsync).toHaveBeenCalledTimes(2);
   });
 });

@@ -21,6 +21,26 @@ import {
   signOut,
   signUpWithEmail,
 } from '@/features/auth/data/auth-repository';
+import { deleteAccount } from '@/features/deletion/application/delete-account';
+import {
+  ACCOUNT_DELETE_BUSY_LABEL,
+  ACCOUNT_DELETE_CANCEL_LABEL,
+  ACCOUNT_DELETE_CONFIRM_LABEL,
+  ACCOUNT_DELETE_EMPTY_PASSWORD_MESSAGE,
+  ACCOUNT_DELETE_OPEN_LABEL,
+  ACCOUNT_DELETE_PANEL_BODY,
+  ACCOUNT_DELETE_PANEL_TITLE,
+  ACCOUNT_DELETE_PASSWORD_LABEL,
+  ACCOUNT_DELETE_SECTION_DESCRIPTION,
+  ACCOUNT_DELETE_SECTION_TITLE,
+  ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL,
+  ACCOUNT_DELETE_WIPE_OFF_NOTE,
+  ACCOUNT_DELETE_WIPE_ON_NOTE,
+  accountDeletionMessage,
+  shouldRetryWithPassword,
+} from '@/features/deletion/presentation/deletion-messages';
+import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
+import { useAppStore } from '@/store/app-store';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import {
   EMPTY_EMAIL_MESSAGE,
@@ -30,7 +50,8 @@ import {
   passwordResetErrorMessage,
 } from '@/features/auth/presentation/auth-messages';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
-import { loadCloudBackup, saveCloudBackup } from '@/features/backup/data/cloud-backup-repository';
+import { createCloudBackup } from '@/features/backup/application/create-cloud-backup';
+import { loadCloudBackup } from '@/features/backup/data/cloud-backup-repository';
 import type { CloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
 import { buildCloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
 import {
@@ -61,6 +82,7 @@ import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cl
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import { logEvent } from '@/shared/logging';
 
 const BACKUP_SAVED_MESSAGE = 'Yedek oluşturuldu.';
 const RESTORE_DONE_MESSAGE = 'Yedek geri yüklendi.';
@@ -70,6 +92,8 @@ const RESTORE_WARNING =
 const BACKUP_FOUND_MESSAGE = 'Yedek bulundu.';
 const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
 const SYNC_PREFERENCE_FAILED_MESSAGE = 'Senkronizasyon tercihi kaydedilemedi.';
+const BACKUP_DELETION_PENDING_MESSAGE =
+  'Hesap silme işlemi yarım kaldı. Yedek oluşturulmadı — hesabı silmeyi tamamla ya da vazgeç.';
 
 /**
  * The account screen.
@@ -119,6 +143,14 @@ export default function AccountScreen() {
   // as false before the re-render lands, and the second would be a second
   // attempt with the same credentials.
   const inFlight = useRef(false);
+
+  // Deleting the account. Its own password field: the one above belongs to the
+  // sign-in form, which is not on screen while somebody is signed in.
+  const resetAppState = useAppStore((state) => state.resetAppState);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [wipeLocalToo, setWipeLocalToo] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
 
   /**
    * Reads the stored sync preference once.
@@ -259,10 +291,13 @@ export default function AccountScreen() {
 
     try {
       const db = await openAppDatabase();
+      const outcome = await createCloudBackup({ db, user });
 
-      await saveCloudBackup(user, await buildCloudSyncPayloadV1(db));
-
-      setBackupNotice(BACKUP_SAVED_MESSAGE);
+      // Refused rather than failed: a deletion of this account is part-way
+      // through, and writing a backup now would undo half of it.
+      setBackupNotice(
+        outcome.kind === 'saved' ? BACKUP_SAVED_MESSAGE : BACKUP_DELETION_PENDING_MESSAGE
+      );
     } catch (error) {
       // The database's own failures and Firestore's arrive here the same way,
       // and neither message is shown.
@@ -491,6 +526,91 @@ export default function AccountScreen() {
       inFlight.current = false;
       setIsBusy(false);
     }
+  };
+
+  /**
+   * Deletes the account, and — if the box is ticked — this phone with it.
+   *
+   * The use case owns the order and every failure; this only turns an outcome
+   * into a sentence. Two of those outcomes mean "type the password again", and
+   * for those the field is cleared and the panel stays open rather than closing
+   * on somebody mid-attempt.
+   *
+   * Nothing navigates on success. With the box unticked the person stays here,
+   * signed out, and `useAuthState` swaps the form in on its own; with it ticked
+   * the onboarding flag flips and `RootLayout` takes the screen away.
+   */
+  const handleConfirmDelete = async (user: AuthUser) => {
+    if (inFlight.current) {
+      return;
+    }
+
+    if (deletePassword === '') {
+      setDeleteNotice(ACCOUNT_DELETE_EMPTY_PASSWORD_MESSAGE);
+
+      return;
+    }
+
+    inFlight.current = true;
+    setIsBusy(true);
+    setDeleteNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+      const outcome = await deleteAccount({
+        db,
+        user,
+        password: deletePassword,
+        wipeLocalDataToo: wipeLocalToo,
+        resetAppState,
+      });
+
+      if (shouldRetryWithPassword(outcome)) {
+        setDeletePassword('');
+        setDeleteNotice(accountDeletionMessage(outcome));
+
+        return;
+      }
+
+      if (outcome.kind === 'failed') {
+        setDeleteNotice(accountDeletionMessage(outcome));
+
+        return;
+      }
+
+      // The account is gone. The password is no longer anything, and the panel
+      // has nothing left to confirm.
+      setDeletePassword('');
+      setIsConfirmingDelete(false);
+
+      // `deleted-and-wiped` unmounts this screen, so its message would never be
+      // read; the other two leave the person here and need one.
+      setDeleteNotice(outcome.kind === 'deleted-and-wiped' ? null : accountDeletionMessage(outcome));
+    } catch (error: unknown) {
+      logEvent('account delete failed', error);
+      setDeleteNotice(accountDeletionMessage({ kind: 'failed', reason: 'unknown' }));
+    } finally {
+      inFlight.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  /**
+   * Backs out of deleting.
+   *
+   * This also lifts the block on syncing. A deletion that got as far as
+   * removing the cloud backup leaves a note behind that stops a new one being
+   * written, and saying "vazgeç" is the person telling us they are not going to
+   * finish — so the note goes with the panel.
+   */
+  const handleCancelDelete = () => {
+    setIsConfirmingDelete(false);
+    setDeletePassword('');
+    setDeleteNotice(null);
+
+    void clearPendingAccountDeletion().catch((error: unknown) => {
+      logEvent('account delete failed', error);
+    });
   };
 
   return (
@@ -775,6 +895,126 @@ export default function AccountScreen() {
                     {isBusy ? 'Çıkış yapılıyor...' : 'Çıkış yap'}
                   </ThemedText>
                 </Pressable>
+
+                {/* Last, and set apart: everything above this is reversible. */}
+                <View style={styles.fields}>
+                  <ThemedText accessibilityRole="header" type="smallBold">
+                    {ACCOUNT_DELETE_SECTION_TITLE}
+                  </ThemedText>
+
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {ACCOUNT_DELETE_SECTION_DESCRIPTION}
+                  </ThemedText>
+
+                  {deleteNotice !== null && (
+                    <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                      {deleteNotice}
+                    </ThemedText>
+                  )}
+
+                  {!isConfirmingDelete && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={ACCOUNT_DELETE_OPEN_LABEL}
+                      accessibilityState={{ disabled: isBusy }}
+                      disabled={isBusy}
+                      onPress={() => {
+                        setDeleteNotice(null);
+                        setIsConfirmingDelete(true);
+                      }}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        isBusy && styles.disabled,
+                        pressed && !isBusy && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold">{ACCOUNT_DELETE_OPEN_LABEL}</ThemedText>
+                    </Pressable>
+                  )}
+
+                  {isConfirmingDelete && (
+                    <View style={styles.fields}>
+                      <ThemedText accessibilityRole="header" type="smallBold">
+                        {ACCOUNT_DELETE_PANEL_TITLE}
+                      </ThemedText>
+
+                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                        {ACCOUNT_DELETE_PANEL_BODY}
+                      </ThemedText>
+
+                      <View style={styles.field}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {ACCOUNT_DELETE_PASSWORD_LABEL}
+                        </ThemedText>
+
+                        <TextInput
+                          accessibilityLabel={ACCOUNT_DELETE_PASSWORD_LABEL}
+                          value={deletePassword}
+                          onChangeText={setDeletePassword}
+                          secureTextEntry
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          editable={!isBusy}
+                          style={[
+                            styles.input,
+                            { borderColor: theme.backgroundSelected, color: theme.text },
+                          ]}
+                        />
+                      </View>
+
+                      <View style={styles.syncRow}>
+                        <ThemedText type="small" style={styles.syncLabel}>
+                          {ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
+                        </ThemedText>
+
+                        <Switch
+                          accessibilityLabel={ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
+                          value={wipeLocalToo}
+                          onValueChange={setWipeLocalToo}
+                          disabled={isBusy}
+                        />
+                      </View>
+
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {wipeLocalToo ? ACCOUNT_DELETE_WIPE_ON_NOTE : ACCOUNT_DELETE_WIPE_OFF_NOTE}
+                      </ThemedText>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={ACCOUNT_DELETE_CONFIRM_LABEL}
+                        accessibilityState={{ disabled: isBusy }}
+                        disabled={isBusy}
+                        onPress={() => {
+                          void handleConfirmDelete(auth.user);
+                        }}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          { backgroundColor: theme.text },
+                          isBusy && styles.disabled,
+                          pressed && !isBusy && styles.pressed,
+                        ]}>
+                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                          {isBusy ? ACCOUNT_DELETE_BUSY_LABEL : ACCOUNT_DELETE_CONFIRM_LABEL}
+                        </ThemedText>
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={ACCOUNT_DELETE_CANCEL_LABEL}
+                        accessibilityState={{ disabled: isBusy }}
+                        disabled={isBusy}
+                        onPress={handleCancelDelete}
+                        style={({ pressed }) => [
+                          styles.secondaryButton,
+                          { borderColor: theme.backgroundSelected },
+                          isBusy && styles.disabled,
+                          pressed && !isBusy && styles.pressed,
+                        ]}>
+                        <ThemedText type="smallBold">{ACCOUNT_DELETE_CANCEL_LABEL}</ThemedText>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
               </View>
             )}
 

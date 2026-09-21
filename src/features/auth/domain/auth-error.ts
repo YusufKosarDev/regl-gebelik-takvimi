@@ -19,6 +19,17 @@ export const AUTH_ERROR_CODES = [
   'weak-password',
   'too-many-requests',
   'network-failed',
+  /**
+   * Firebase will not do this on a session that has been sitting around.
+   *
+   * Deleting an account is the only thing here that asks for it. It is not a
+   * refusal of the password — it is a refusal of the *session*, which is why it
+   * cannot be folded into `invalid-credentials`: the answer to one is "check
+   * what you typed" and the answer to the other is "type it again".
+   */
+  'requires-recent-login',
+  /** There is no session, so there is nothing to act on behalf of. */
+  'signed-out',
   'unknown',
 ] as const;
 
@@ -67,6 +78,10 @@ const FROM_FIREBASE: Readonly<Record<string, AuthErrorCode>> = {
   'auth/missing-password': 'weak-password',
   'auth/too-many-requests': 'too-many-requests',
   'auth/network-request-failed': 'network-failed',
+  'auth/requires-recent-login': 'requires-recent-login',
+  'auth/user-token-expired': 'requires-recent-login',
+  'auth/user-signed-out': 'signed-out',
+  'auth/null-user': 'signed-out',
 
   // Not the person's doing: the project this build points at will refuse
   // everything until it is set up. Saying "something went wrong" would send

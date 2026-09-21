@@ -27,6 +27,9 @@ const FAILURE_MESSAGES: Readonly<Record<CloudSyncFailure, string>> = {
   'unreadable-backup':
     'Hesabındaki yedek bu sürüm tarafından okunamadı. Hiçbir veri değiştirilmedi.',
   'local-failed': 'Telefondaki veriler okunamadı. Hiçbir veri değiştirilmedi.',
+  'deletion-pending':
+    'Hesap silme işlemi yarım kaldı. Senkronizasyon kapalı — hesabı silmeyi tamamla ' +
+    'ya da vazgeç.',
   unknown: 'Senkronizasyon tamamlanamadı. Hiçbir veri değiştirilmedi.',
 };
 

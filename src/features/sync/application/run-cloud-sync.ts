@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { AuthError } from '@/features/auth/domain/auth-error';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
+import { isAccountDeletionPending } from '@/features/deletion/infrastructure/pending-account-deletion';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 
 import {
@@ -62,6 +63,15 @@ export type CloudSyncFailure =
   | 'unreadable-backup'
   /** The phone's own database could not be read or written. */
   | 'local-failed'
+  /**
+   * This account is part-way through being deleted.
+   *
+   * Not a fault. Its backup has already been deleted and its account has not
+   * been yet, and in that window `decideSync` would answer `push` — correctly,
+   * for every other reason an account can have no backup, and disastrously for
+   * this one. Syncing waits until the deletion finishes or is abandoned.
+   */
+  | 'deletion-pending'
   | 'unknown';
 
 /**
@@ -377,6 +387,13 @@ export async function runCloudSync(input: RunCloudSyncInput): Promise<CloudSyncO
 
   if (typeof uid !== 'string' || uid.trim() === '') {
     return { kind: 'error', failure: 'signed-out' };
+  }
+
+  // Before anything is read or written. An account whose deletion has started
+  // has no backup on purpose, and every decision below this line would read
+  // that absence as "this phone has the only copy" and offer to push it.
+  if (await isAccountDeletionPending(uid)) {
+    return { kind: 'error', failure: 'deletion-pending' };
   }
 
   const attempt: Attempt = {

@@ -21,6 +21,10 @@ const MESSAGES: Readonly<Record<AuthErrorCode, string>> = {
   'weak-password': 'Şifre en az 6 karakter olmalı.',
   'too-many-requests': 'Çok fazla deneme yapıldı. Biraz sonra tekrar dene.',
   'network-failed': 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.',
+  // The password is asked for on the same screen this can appear on, so the
+  // answer is to type it again there — not to sign out and come back.
+  'requires-recent-login': 'Güvenlik için şifreni tekrar girip yeniden denemen gerekiyor.',
+  'signed-out': 'Bu işlem için giriş yapmış olman gerekiyor.',
   unknown: 'İşlem tamamlanamadı.',
 };
 

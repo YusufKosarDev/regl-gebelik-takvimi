@@ -8,6 +8,10 @@ import type { AuthUser } from '@/features/auth/domain/auth-user';
 
 // The repository and the Firebase file are faked. What this pins is what the
 // screen sends, what it shows, and what it never shows.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 jest.mock('@/features/auth/data/auth-repository', () => ({
   observeAuthUser: jest.fn(),
   signInWithEmail: jest.fn(),

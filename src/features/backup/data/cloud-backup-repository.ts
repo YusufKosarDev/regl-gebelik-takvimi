@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import type { CloudBackupV1 } from '../domain/cloud-backup-v1';
 import { CLOUD_BACKUP_VERSION, parseCloudBackupV1 } from '../domain/cloud-backup-v1';
@@ -160,4 +160,26 @@ function firestoreCodeOf(error: unknown): string | null {
   }
 
   return code.startsWith('firestore/') ? code.slice('firestore/'.length) : code;
+}
+
+/**
+ * Removes one person's backup.
+ *
+ * Deleting a document that is not there succeeds, and that is what makes this
+ * safe to call twice: an account deletion that failed after this step can be
+ * retried from the top without the retry itself becoming the failure.
+ *
+ * Only `users/{uid}/backups/current`. There is nothing else under that account
+ * today, and this deliberately does not try to walk the tree looking for more —
+ * a client cannot list what the rules do not let it read, so a sweep here would
+ * be a guess dressed up as a guarantee.
+ */
+export async function deleteCloudBackup(user: AuthUser): Promise<void> {
+  const path = backupPath(user);
+
+  try {
+    await deleteDoc(doc(requireFirestore(), ...path));
+  } catch (error) {
+    throw toBackupError(error);
+  }
 }

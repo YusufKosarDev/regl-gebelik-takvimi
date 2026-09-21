@@ -158,3 +158,16 @@ export async function loadSyncState(
 export async function clearSyncState(db: SQLiteDatabase, uid: string): Promise<void> {
   await db.runAsync(DELETE_SYNC_STATE, uid);
 }
+
+/**
+ * Forgets every account's sync base, not just one.
+ *
+ * `clearSyncState` takes a uid because everything else in this module does: a
+ * sync is always about one account. A wipe is not. It is the phone being
+ * emptied, and a row belonging to a second account that happened to be signed
+ * in here once is exactly the row that would otherwise survive it — carrying
+ * `base_payload`, which is a full copy of somebody's period history.
+ */
+export async function clearAllSyncState(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync('DELETE FROM sync_state');
+}

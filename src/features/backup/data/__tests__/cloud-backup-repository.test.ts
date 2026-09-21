@@ -7,6 +7,7 @@ import {
   BACKUP_COLLECTION,
   BACKUP_DOCUMENT_ID,
   BACKUP_ROOT_COLLECTION,
+  deleteCloudBackup,
   loadCloudBackup,
   saveCloudBackup,
 } from '../cloud-backup-repository';
@@ -15,6 +16,7 @@ import {
 // comes back, and what an error turns into — not that Firestore works.
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn((...args: unknown[]) => ({ path: args.slice(1).join('/') })),
+  deleteDoc: jest.fn(),
   getDoc: jest.fn(),
   setDoc: jest.fn(),
   serverTimestamp: jest.fn(() => ({ __serverTimestamp: true })),
@@ -415,5 +417,49 @@ describe('nothing happens on its own', () => {
     await saveCloudBackup(USER, payload());
 
     expect(firestore.setDoc).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('deleting a backup', () => {
+  const firestore = jest.requireMock('firebase/firestore') as { deleteDoc: jest.Mock };
+
+  beforeEach(() => {
+    firestore.deleteDoc.mockReset();
+  });
+
+  it('targets that account’s one document', async () => {
+    firestore.deleteDoc.mockResolvedValue(undefined);
+
+    await deleteCloudBackup(USER);
+
+    const [reference] = firestore.deleteDoc.mock.calls[0] as [{ path: string }];
+
+    expect(reference.path).toBe(
+      [BACKUP_ROOT_COLLECTION, USER.uid, BACKUP_COLLECTION, BACKUP_DOCUMENT_ID].join('/')
+    );
+  });
+
+  it('succeeds when there is nothing there, which is what makes a retry safe', async () => {
+    // Firestore treats deleting an absent document as done. An account deletion
+    // that failed after this step can be retried from the top.
+    firestore.deleteDoc.mockResolvedValue(undefined);
+
+    await expect(deleteCloudBackup(USER)).resolves.toBeUndefined();
+    await expect(deleteCloudBackup(USER)).resolves.toBeUndefined();
+  });
+
+  it('refuses a user with no uid rather than writing to a path nobody owns', async () => {
+    await expect(deleteCloudBackup({ uid: '', email: null } as AuthUser)).rejects.toBeInstanceOf(
+      AuthError
+    );
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
+  });
+
+  it('turns a refusal into an AuthError carrying no Firestore message', async () => {
+    firestore.deleteDoc.mockRejectedValue(
+      Object.assign(new Error('PERMISSION_DENIED for uid-1'), { code: 'permission-denied' })
+    );
+
+    await expect(deleteCloudBackup(USER)).rejects.toBeInstanceOf(AuthError);
   });
 });

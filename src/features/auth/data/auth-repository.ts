@@ -1,12 +1,15 @@
 import {
+  EmailAuthProvider,
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 
-import { toAuthError } from '../domain/auth-error';
+import { AuthError, toAuthError } from '../domain/auth-error';
 import type { AuthUser } from '../domain/auth-user';
 import { mapFirebaseUserOrNull } from '../domain/auth-user';
 import { requireFirebaseAuth } from '../infrastructure/firebase';
@@ -149,5 +152,61 @@ export async function sendPasswordReset(email: string): Promise<void> {
     }
 
     throw mapped;
+  }
+}
+
+/**
+ * Proves the person at the keyboard is the account holder, just now.
+ *
+ * Firebase refuses to delete an account on a session that has been sitting
+ * around, and it is right to: a phone left unlocked on a table is exactly the
+ * situation where "delete my account" should need the password again.
+ *
+ * Kept as its own function, and the only place `EmailAuthProvider` is named.
+ * This app has one sign-in method today; when it has two, the branch belongs
+ * here and nothing above this line has to learn about it.
+ *
+ * The password passes through and is not kept. It becomes a credential, goes to
+ * the SDK, and is not stored, cached or logged — the same bargain as signing in.
+ */
+export async function reauthenticateWithPassword(email: string, password: string): Promise<void> {
+  try {
+    const auth = requireFirebaseAuth();
+    const user = auth.currentUser;
+
+    if (user === null) {
+      throw new AuthError('signed-out');
+    }
+
+    await reauthenticateWithCredential(user, EmailAuthProvider.credential(email.trim(), password));
+  } catch (error) {
+    throw toAuthError(error);
+  }
+}
+
+/**
+ * Deletes the signed-in account.
+ *
+ * Only the account. Whatever that account had in Firestore is somebody else's
+ * job to remove first — deleting the account while its backup is still there
+ * would strand a document that no rule then allows anyone to read or delete,
+ * because every rule in this project is written in terms of a uid that would no
+ * longer exist.
+ *
+ * Firebase ends the session as part of this, so there is no `signOut` to call
+ * afterwards; calling one would raise on a user that is already gone.
+ */
+export async function deleteAuthUser(): Promise<void> {
+  try {
+    const auth = requireFirebaseAuth();
+    const user = auth.currentUser;
+
+    if (user === null) {
+      throw new AuthError('signed-out');
+    }
+
+    await deleteUser(user);
+  } catch (error) {
+    throw toAuthError(error);
   }
 }

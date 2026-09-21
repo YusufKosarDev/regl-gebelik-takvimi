@@ -19,6 +19,10 @@ import { runCloudSync } from '../run-cloud-sync';
  * content hash are the real ones: the point of the orchestrator is that it uses
  * them, and a fake decision engine would leave that untested.
  */
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 jest.mock('@/features/privacy/application/build-cloud-sync-payload-v1', () => ({
   buildCloudSyncPayloadV1: jest.fn(),
 }));
@@ -52,6 +56,10 @@ jest.mock('../../data/cloud-sync-repository', () => {
   };
 });
 
+jest.mock('@/features/deletion/infrastructure/pending-account-deletion', () => ({
+  isAccountDeletionPending: jest.fn(),
+}));
+
 jest.mock('../../infrastructure/device-id', () => ({
   deviceIdProvider: jest.fn(),
 }));
@@ -68,6 +76,9 @@ const syncState = jest.requireMock('../../data/sync-state-repository');
 const cloud = jest.requireMock('../../data/cloud-sync-repository');
 const deviceId = jest.requireMock('../../infrastructure/device-id');
 const logging = jest.requireMock('@/shared/logging');
+const pendingDeletion = jest.requireMock(
+  '@/features/deletion/infrastructure/pending-account-deletion'
+);
 
 const { CloudSyncDocumentError } = cloud;
 
@@ -179,6 +190,9 @@ function sync(overrides: Partial<Parameters<typeof runCloudSync>[0]> = {}) {
 
 beforeEach(() => {
   calls = [];
+
+  pendingDeletion.isAccountDeletionPending.mockReset();
+  pendingDeletion.isAccountDeletionPending.mockResolvedValue(false);
 
   builder.buildCloudSyncPayloadV1.mockReset();
   builder.buildCloudSyncPayloadV1.mockImplementation(async () => {
@@ -993,5 +1007,51 @@ describe('what a sync leaves behind', () => {
       db,
       expect.objectContaining({ updatedAt: STAMP })
     );
+  });
+});
+
+describe('an account whose deletion is part-way through', () => {
+  it('refuses to sync at all', async () => {
+    pendingDeletion.isAccountDeletionPending.mockResolvedValue(true);
+
+    expect(await sync()).toEqual({ kind: 'error', failure: 'deletion-pending' });
+  });
+
+  it('reads nothing and writes nothing', async () => {
+    // The backup was deleted a moment ago on purpose. Every decision below the
+    // guard would read that absence as "this phone has the only copy".
+    pendingDeletion.isAccountDeletionPending.mockResolvedValue(true);
+
+    await sync();
+
+    expect(calls).toEqual([]);
+  });
+
+  it('never pushes, which is what would re-create the deleted backup', async () => {
+    pendingDeletion.isAccountDeletionPending.mockResolvedValue(true);
+
+    await sync();
+
+    expect(cloud.pushRemoteSyncState).not.toHaveBeenCalled();
+  });
+
+  it('asks about the account being synced, not about any deletion', async () => {
+    await sync();
+
+    expect(pendingDeletion.isAccountDeletionPending).toHaveBeenCalledWith(UID);
+  });
+
+  it('syncs normally once the deletion is finished or abandoned', async () => {
+    pendingDeletion.isAccountDeletionPending.mockResolvedValue(false);
+    arrange({ local: AGREED, agreed: base(4, AGREED), stored: envelope(5, IN_THE_ACCOUNT) });
+
+    expect((await sync()).kind).not.toBe('error');
+  });
+
+  it('is not even asked when there is no account to sync', async () => {
+    const outcome = await sync({ uid: '   ' });
+
+    expect(outcome).toEqual({ kind: 'error', failure: 'signed-out' });
+    expect(pendingDeletion.isAccountDeletionPending).not.toHaveBeenCalled();
   });
 });
