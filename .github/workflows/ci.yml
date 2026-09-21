@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Type check, lint and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what the
+      # lockfile says and fails if the two have drifted apart.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # No Firebase environment variables and no secrets. The suite does not
+      # read them: without a project the app behaves as one with no accounts,
+      # and the tests that care set their own values.
+      - name: Test
+        run: npx jest --ci
