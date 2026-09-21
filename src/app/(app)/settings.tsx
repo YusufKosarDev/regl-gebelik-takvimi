@@ -37,7 +37,10 @@ import {
   localWipeMessage,
 } from '@/features/deletion/presentation/deletion-messages';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
+import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
+import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -81,6 +84,23 @@ export default function SettingsScreen() {
 
   const [cycleLength, setCycleLength] = useState(MIN_CYCLE_LENGTH_DAYS);
   const [periodLength, setPeriodLength] = useState(MIN_PERIOD_LENGTH_DAYS);
+
+  // Read by the reload to decide whether anything actually moved. Refs rather
+  // than state, so the reload callback stays stable across every keystroke.
+  const cycleLengthRef = useRef(cycleLength);
+  const periodLengthRef = useRef(periodLength);
+
+  // Kept in an effect rather than written during render: the compiler
+  // forbids the latter, and a reload only reads these after an await, by which
+  // time the effect has run.
+  useEffect(() => {
+    cycleLengthRef.current = cycleLength;
+    periodLengthRef.current = periodLength;
+  }, [cycleLength, periodLength]);
+
+  // Set only when a sync replaced what was on screen, and cleared on the next
+  // save: a notice about an interruption that has been dealt with is clutter.
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaveError, setHasSaveError] = useState(false);
@@ -165,47 +185,71 @@ export default function SettingsScreen() {
     return { settings: stored, reminders: storedReminders };
   }, []);
 
-  useEffect(() => {
-    // Guards against setting state after the screen is gone, e.g. when the
-    // person navigates back while the read is still in flight.
-    let isActive = true;
+  /**
+   * Reads what is stored and puts the form back on top of it.
+   *
+   * The form is always replaced, including when it holds unsaved edits. The
+   * alternative is keeping them, and keeping them means the next "Kaydet"
+   * writes a number the person chose against data that no longer exists —
+   * which is how a pulled value gets silently undone. Losing an unsaved edit
+   * is recoverable by retyping it; losing a saved record from another phone is
+   * not.
+   *
+   * `origin` is `null` when the screen was simply opened. Only an arrival that
+   * interrupted something gets a notice.
+   */
+  const load = useCallback(
+    (origin: LocalDataChangeOrigin | null) => {
+      let cancelled = false;
 
-    const load = async () => {
-      try {
-        const data = await readSettings();
+      void (async () => {
+        try {
+          const data = await readSettings();
 
-        if (!isActive) {
-          return;
+          if (cancelled) {
+            return;
+          }
+
+          setSettings(data.settings);
+          setReminders(data.reminders);
+
+          if (data.settings !== null) {
+            const changed =
+              data.settings.averageCycleLengthDays !== cycleLengthRef.current ||
+              data.settings.averagePeriodLengthDays !== periodLengthRef.current;
+
+            setCycleLength(data.settings.averageCycleLengthDays);
+            setPeriodLength(data.settings.averagePeriodLengthDays);
+
+            if (origin === 'remote' && changed) {
+              setRefreshNotice(DATA_REFRESHED_NOTICE);
+            }
+          }
+
+          setHasError(false);
+        } catch (error) {
+          logEvent('cycle settings load failed', error);
+
+          if (cancelled) {
+            return;
+          }
+
+          setHasError(true);
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
+      })();
 
-        setSettings(data.settings);
-        setReminders(data.reminders);
+      return () => {
+        cancelled = true;
+      };
+    },
+    [readSettings]
+  );
 
-        if (data.settings !== null) {
-          setCycleLength(data.settings.averageCycleLengthDays);
-          setPeriodLength(data.settings.averagePeriodLengthDays);
-        }
-      } catch (error) {
-        logEvent('cycle settings load failed', error);
-
-        if (!isActive) {
-          return;
-        }
-
-        setHasError(true);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [readSettings]);
+  useDataChangeReload(load);
 
   const maxPeriodLength = maxPeriodLengthFor(cycleLength);
 
@@ -281,6 +325,9 @@ export default function SettingsScreen() {
     saveInFlight.current = true;
     setIsSaving(true);
     setHasSaveError(false);
+
+    // They have looked and decided. The interruption is dealt with.
+    setRefreshNotice(null);
 
     try {
       const db = await openAppDatabase();
@@ -390,6 +437,14 @@ export default function SettingsScreen() {
                   disabled={isSaving}
                   theme={theme}
                 />
+
+                {/* Above the save button, because it is about what that
+                    button is now going to write. */}
+                {refreshNotice !== null && (
+                  <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                    {refreshNotice}
+                  </ThemedText>
+                )}
 
                 {hasSaveError && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">

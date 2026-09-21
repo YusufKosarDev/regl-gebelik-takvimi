@@ -12,7 +12,10 @@ import { updatePeriodEndDate } from '@/features/cycle/application/update-period-
 import { updatePeriodStartDate } from '@/features/cycle/application/update-period-start-date';
 import { MAX_PERIOD_DURATION_DAYS } from '@/features/cycle/domain/limits';
 import type { PeriodRecord } from '@/features/cycle/domain/types';
+import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
+import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
@@ -114,6 +117,10 @@ export default function HistoryScreen() {
   const [records, setRecords] = useState<readonly PeriodRecord[] | null>(null);
   const [hasError, setHasError] = useState(false);
 
+  // Set only when a sync closed a panel that was open, so the panel does not
+  // simply vanish with no explanation.
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+
   // The record the person asked to remove, held only while they confirm it.
   const [recordPendingDelete, setRecordPendingDelete] = useState<PeriodRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -129,6 +136,20 @@ export default function HistoryScreen() {
   // than just its id, because correcting the start date can rename the record
   // and the mutation has to be sent with the id it had when the edit began.
   const [recordUnderStartEdit, setRecordUnderStartEdit] = useState<PeriodRecord | null>(null);
+
+  // Whether anything is open that a pull could invalidate. A ref, so the
+  // reload callback stays stable while panels open and close.
+  const panelOpenRef = useRef(false);
+
+  // Kept in an effect rather than written during render: the compiler
+  // forbids the latter, and a reload only reads these after an await, by which
+  // time the effect has run.
+  useEffect(() => {
+    panelOpenRef.current =
+      recordPendingDelete !== null ||
+      recordUnderEndEdit !== null ||
+      recordUnderStartEdit !== null;
+  }, [recordPendingDelete, recordUnderEndEdit, recordUnderStartEdit]);
   const [selectedStartDate, setSelectedStartDate] = useState<ISODate | null>(null);
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -151,41 +172,59 @@ export default function HistoryScreen() {
     return getPeriodHistory(db);
   }, []);
 
-  useEffect(() => {
-    // Guards against setting state after the screen is gone, e.g. when the
-    // person navigates back while the read is still in flight.
-    let isActive = true;
+  /**
+   * Re-reads the history, and closes any panel a sync has invalidated.
+   *
+   * The panels edit one particular record by id. After a pull that record may
+   * hold different dates, or may not exist at all, so a panel left open would
+   * be about to write a date the person chose for a record that has changed
+   * underneath them. They are closed rather than rewritten: the record list is
+   * right there, and reopening the one they meant costs one tap.
+   */
+  const load = useCallback(
+    (origin: LocalDataChangeOrigin | null) => {
+      let cancelled = false;
 
-    const load = async () => {
-      try {
-        const history = await readHistory();
+      void (async () => {
+        try {
+          const history = await readHistory();
 
-        if (!isActive) {
-          return;
+          if (cancelled) {
+            return;
+          }
+
+          setRecords(history);
+          setHasError(false);
+
+          if (origin === 'remote' && panelOpenRef.current) {
+            setRecordPendingDelete(null);
+            setRecordUnderEndEdit(null);
+            setRecordUnderStartEdit(null);
+            setRefreshNotice(DATA_REFRESHED_NOTICE);
+          }
+        } catch (error) {
+          logEvent('period history load failed', error);
+
+          if (cancelled) {
+            return;
+          }
+
+          setHasError(true);
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
+      })();
 
-        setRecords(history);
-      } catch (error) {
-        logEvent('period history load failed', error);
+      return () => {
+        cancelled = true;
+      };
+    },
+    [readHistory]
+  );
 
-        if (!isActive) {
-          return;
-        }
-
-        setHasError(true);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [readHistory]);
+  useDataChangeReload(load);
 
   /**
    * Closes whichever panel is open and forgets what it was editing.
@@ -378,6 +417,13 @@ export default function HistoryScreen() {
               <ThemedText themeColor="textSecondary" style={styles.description}>
                 Kaydettiğin regl dönemlerini burada görebilirsin.
               </ThemedText>
+
+              {/* Only after a sync closed something that was open. */}
+              {refreshNotice !== null && (
+                <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                  {refreshNotice}
+                </ThemedText>
+              )}
             </View>
 
             {hasError ? (

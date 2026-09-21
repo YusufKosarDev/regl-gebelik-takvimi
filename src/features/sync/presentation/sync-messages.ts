@@ -201,3 +201,20 @@ export const CONFLICT_NOTICE_MESSAGE =
   'Çakışma var. Çözülene kadar otomatik senkronizasyon duracak.';
 
 export const CONFLICT_OPEN_LABEL = 'Çakışmayı çöz';
+
+/* ------------------------------------------------------ refreshed data -- */
+
+/**
+ * Shown when a sync replaced what a screen was holding.
+ *
+ * Only ever when there was something to interrupt — an unsaved edit in a form.
+ * Arriving at a screen and seeing current data is not an event, and a notice
+ * for it would be noise on every navigation.
+ *
+ * It says the data changed and asks them to look, rather than asking them to
+ * choose: the choice between two versions of a period history belongs on the
+ * conflict screen, where both sides are described. Here one side simply won,
+ * because nothing they had was written down yet.
+ */
+export const DATA_REFRESHED_NOTICE =
+  'Veriler başka bir cihazdan güncellendi. Değişikliklerini tekrar kontrol et.';

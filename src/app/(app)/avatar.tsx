@@ -18,7 +18,10 @@ import { loadAvatarConfig, saveAvatarConfig } from '@/features/avatar/data/avata
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { AvatarOption } from '@/features/avatar/domain/avatar-option';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
+import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -55,6 +58,17 @@ function startingConfig(): AvatarConfig {
  * may no longer offer — those simply show as unselected rather than being
  * silently swapped for something the person did not pick.
  */
+/** Whether two avatars are the same set of choices. Absent means absent. */
+function isSameAvatarConfig(a: AvatarConfig, b: AvatarConfig): boolean {
+  return (
+    a.skinToneId === b.skinToneId &&
+    a.hairStyleId === b.hairStyleId &&
+    a.hairColorId === b.hairColorId &&
+    a.outfitId === b.outfitId &&
+    (a.accessoryId ?? null) === (b.accessoryId ?? null)
+  );
+}
+
 export default function AvatarScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -63,6 +77,20 @@ export default function AvatarScreen() {
   const [hasError, setHasError] = useState(false);
 
   const [config, setConfig] = useState<AvatarConfig>(startingConfig);
+
+  // Read by the reload to tell a real change from a redundant read, without
+  // making the reload callback depend on the state it writes.
+  const configRef = useRef(config);
+
+  // Kept in an effect rather than written during render: the compiler
+  // forbids the latter, and a reload only reads these after an await, by which
+  // time the effect has run.
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  // Set only when a sync replaced the choices on screen.
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaveError, setHasSaveError] = useState(false);
@@ -78,44 +106,61 @@ export default function AvatarScreen() {
     return loadAvatarConfig(db);
   }, []);
 
-  useEffect(() => {
-    // Guards against setting state after the screen is gone, e.g. when the
-    // person navigates back while the read is still in flight.
-    let isActive = true;
+  /**
+   * Re-reads the stored avatar and puts the choices back on top of it.
+   *
+   * Unsaved choices are replaced for the same reason the cycle settings are:
+   * the next "Kaydet" would otherwise write choices made against an avatar that
+   * no longer exists, undoing what another phone stored. Re-picking a hair
+   * colour costs a tap; the other direction loses somebody's saved choice.
+   */
+  const load = useCallback(
+    (origin: LocalDataChangeOrigin | null) => {
+      let cancelled = false;
 
-    const load = async () => {
-      try {
-        const stored = await readAvatar();
+      void (async () => {
+        try {
+          const stored = await readAvatar();
 
-        if (!isActive) {
-          return;
+          if (cancelled) {
+            return;
+          }
+
+          // Only when there is one: otherwise the starting choices stay, unwritten.
+          if (stored !== null) {
+            const changed = !isSameAvatarConfig(stored, configRef.current);
+
+            setConfig(stored);
+
+            if (origin === 'remote' && changed) {
+              setRefreshNotice(DATA_REFRESHED_NOTICE);
+            }
+          }
+
+          setHasError(false);
+        } catch (error) {
+          logEvent('avatar load failed', error);
+
+          if (cancelled) {
+            return;
+          }
+
+          setHasError(true);
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
+      })();
 
-        // Only when there is one: otherwise the starting choices stay, unwritten.
-        if (stored !== null) {
-          setConfig(stored);
-        }
-      } catch (error) {
-        logEvent('avatar load failed', error);
+      return () => {
+        cancelled = true;
+      };
+    },
+    [readAvatar]
+  );
 
-        if (!isActive) {
-          return;
-        }
-
-        setHasError(true);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [readAvatar]);
+  useDataChangeReload(load);
 
   /** Replaces one choice, and clears a failure so the retry starts clean. */
   const choose = (change: Partial<AvatarConfig>) => {
@@ -143,6 +188,9 @@ export default function AvatarScreen() {
     saveInFlight.current = true;
     setIsSaving(true);
     setHasSaveError(false);
+
+    // They have looked and decided. The interruption is dealt with.
+    setRefreshNotice(null);
 
     try {
       const db = await openAppDatabase();
@@ -270,6 +318,14 @@ export default function AvatarScreen() {
                     noneLabel={NO_ACCESSORY_LABEL}
                   />
                 </View>
+
+                {/* Above the save button, because it is about what that
+                    button is now going to write. */}
+                {refreshNotice !== null && (
+                  <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                    {refreshNotice}
+                  </ThemedText>
+                )}
 
                 {hasSaveError && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">

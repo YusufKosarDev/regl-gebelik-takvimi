@@ -24,15 +24,48 @@ describe('the local data change notifier', () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
-  it('carries nothing with it', () => {
+  it('carries where it came from, and nothing else', () => {
     // A listener that took a table or a row would be reading health data out
-    // of an event bus. There is nothing to read: it re-reads the database.
+    // of an event bus. The origin is the one thing a listener cannot work out
+    // for itself, and it is not data — it is who did it.
     const listener = jest.fn();
 
     onLocalDataChanged(listener);
     notifyLocalDataChanged();
 
-    expect(listener).toHaveBeenCalledWith();
+    expect(listener).toHaveBeenCalledWith('local');
+  });
+
+  it('defaults to a local change, because that is what a repository is', () => {
+    const listener = jest.fn();
+
+    onLocalDataChanged(listener);
+    notifyLocalDataChanged();
+
+    expect(listener).toHaveBeenCalledWith('local');
+  });
+
+  it('passes a remote change through as one', () => {
+    // A pull, a merge or a restore. The scheduler uses this to tell an edit it
+    // should send from data it has just received.
+    const listener = jest.fn();
+
+    onLocalDataChanged(listener);
+    notifyLocalDataChanged('remote');
+
+    expect(listener).toHaveBeenCalledWith('remote');
+  });
+
+  it('suppresses a remote announcement too', async () => {
+    const listener = jest.fn();
+
+    onLocalDataChanged(listener);
+
+    await withLocalDataChangeSuppressed(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it('stops telling a listener that unsubscribed', () => {

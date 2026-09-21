@@ -13,7 +13,10 @@ import {
 } from '@/features/pregnancy/data/pregnancy-repository';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import { validateCloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
-import { withLocalDataChangeSuppressed } from '@/shared/data-change/local-data-change';
+import {
+  notifyLocalDataChanged,
+  withLocalDataChangeSuppressed,
+} from '@/shared/data-change/local-data-change';
 
 /**
  * Writes a backup over what is on the phone.
@@ -46,8 +49,10 @@ export async function restoreCloudBackup(
 ): Promise<void> {
   validateCloudSyncPayloadV1(payload);
 
-  // A restore is the *result* of a sync, not somebody editing. Announcing it
-  // would schedule a sync of what was just received.
+  // Every repository below would announce a `local` change of its own: a dozen
+  // announcements for one event, each of them wrong about where the data came
+  // from, and each one scheduling a sync of what was just received. They are
+  // suppressed, and one `remote` announcement is made afterwards instead.
   await withLocalDataChangeSuppressed(async () => {
     await db.withTransactionAsync(async () => {
       if (payload.cycleSettings === null) {
@@ -75,4 +80,9 @@ export async function restoreCloudBackup(
       await saveNotificationPreferences(db, payload.notificationPreferences);
     });
   });
+
+  // After the transaction, so a screen that re-reads on hearing this sees the
+  // whole restore rather than part of it. `remote`, because whoever is holding
+  // the phone did not do this — which is exactly why the screens need telling.
+  notifyLocalDataChanged('remote');
 }

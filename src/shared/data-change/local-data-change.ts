@@ -11,13 +11,26 @@
  * here knows who is listening or what they will do about it — so `data/` stays
  * persistence and the decision to sync stays in `application/`.
  *
- * What it carries is the fact that something changed, and nothing else. No
- * table, no row, no value: a listener that needed those would be reading health
- * data out of an event bus, and the only listener there is re-reads the
- * database anyway.
+ * What it carries is the fact that something changed and where it came from,
+ * and nothing else. No table, no row, no value: a listener that needed those
+ * would be reading health data out of an event bus, and every listener there is
+ * re-reads the database anyway.
  */
 
-type Listener = () => void;
+/**
+ * Who changed it, which is the only thing a listener needs to tell apart.
+ *
+ * `local` is somebody editing their own data on this phone. It is what schedules
+ * a sync.
+ *
+ * `remote` is a sync writing what it received — a pull, a merge, a restore, a
+ * conflict resolved in the cloud's favour. Screens must hear it, because what
+ * they are showing has just been replaced underneath them. The sync scheduler
+ * must not, or receiving data would schedule a sync of the data just received.
+ */
+export type LocalDataChangeOrigin = 'local' | 'remote';
+
+type Listener = (origin: LocalDataChangeOrigin) => void;
 
 const listeners = new Set<Listener>();
 
@@ -42,14 +55,14 @@ let suppressionDepth = 0;
  * listener's problem escape would turn a successful save into a thrown error
  * at the call site.
  */
-export function notifyLocalDataChanged(): void {
+export function notifyLocalDataChanged(origin: LocalDataChangeOrigin = 'local'): void {
   if (suppressionDepth > 0) {
     return;
   }
 
   for (const listener of [...listeners]) {
     try {
-      listener();
+      listener(origin);
     } catch {
       // Not this function's to report, and not worth failing a save over.
     }
@@ -66,14 +79,15 @@ export function onLocalDataChanged(listener: Listener): () => void {
 }
 
 /**
- * Runs something without any of its writes counting as a local change.
+ * Runs a batch of writes as one change rather than many.
  *
- * For the writes that are not somebody editing their data: a restore and a
- * merge are the *result* of a sync, and letting them announce a change would
- * schedule another sync of what was just received — a loop that settles only
- * because the second sync finds nothing to do. A wipe is the same in reverse:
- * there is nothing left to send, and the account is deliberately not being
- * touched.
+ * A restore rewrites every table through the repositories, each of which would
+ * announce a `local` change — a dozen announcements for one event, every one of
+ * them wrong about where the data came from. The caller suppresses those and
+ * makes a single `remote` announcement of its own afterwards.
+ *
+ * A wipe suppresses and announces nothing: there is nothing left to show, and
+ * the app is on its way back to onboarding.
  *
  * Restores the previous depth even when the body throws, so a failed restore
  * does not leave the app permanently unable to notice edits.

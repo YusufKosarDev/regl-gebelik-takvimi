@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -46,6 +46,7 @@ import {
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
@@ -216,12 +217,12 @@ export default function HomeScreen() {
     return { db, cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig };
   }, []);
 
-  // On focus rather than on mount, so coming back from a screen that changed the
-  // data shows the change instead of what was read before leaving. The callback
-  // is stable, so this is one read per focus: once on arrival, once on return,
-  // never on a re-render.
-  useFocusEffect(
-    useCallback(() => {
+  // On focus rather than on mount, so coming back from a screen that changed
+  // the data shows the change instead of what was read before leaving — and
+  // again whenever a change is announced while this screen is the one being
+  // looked at, which is how a sync's pull reaches it. The callback is stable,
+  // so this is one read per focus and one per announcement, never per render.
+  const load = useCallback(() => {
       // Guards against setting state after the screen is gone, e.g. when the
       // routing gate swaps groups while this read is still in flight.
       let isActive = true;
@@ -288,11 +289,12 @@ export default function HomeScreen() {
 
       void load();
 
-      return () => {
-        isActive = false;
-      };
-    }, [readCycleData])
-  );
+    return () => {
+      isActive = false;
+    };
+  }, [readCycleData]);
+
+  useDataChangeReload(load);
 
   // Derived rather than trusted: a stored 'pregnancy' mode outlives the
   // pregnancy it was chosen for, so the view falls back on its own instead of

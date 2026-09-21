@@ -2,6 +2,10 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import AvatarScreen from '@/app/(app)/avatar';
+import {
+  notifyLocalDataChanged,
+  resetLocalDataChangeListenersForTests,
+} from '@/shared/data-change/local-data-change';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 
 // The database is faked. The repository contract, the catalogue and the preview
@@ -16,9 +20,9 @@ jest.mock('@/features/avatar/data/avatar-repository', () => ({
   saveAvatarConfig: jest.fn(),
 }));
 
-jest.mock('expo-router', () => ({
-  useRouter: jest.fn(),
-}));
+// Screens re-read on focus now, so the mock has to behave like the real
+// `useFocusEffect`. Shared, so four test files cannot drift apart.
+jest.mock('expo-router', () => require('../../../../jest/expo-router-mock'));
 
 // The widget sync is faked so the screen's calls to it can be counted. It is
 // quiet by contract, so the real one would do nothing under Jest anyway.
@@ -598,5 +602,108 @@ describe('AvatarScreen widget snapshot sync', () => {
     await fireEvent.press(screen.getByLabelText('Geri'));
 
     expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('when a sync replaces the avatar underneath', () => {
+  beforeEach(() => {
+    resetLocalDataChangeListenersForTests();
+  });
+
+  it('shows the pulled avatar without the screen being left and reopened', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairStyleId: 'bun' }));
+
+    const screen = await renderScreen();
+
+    expect(isSelected(screen, 'Saç stili: Topuz')).toBe(true);
+
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairStyleId: 'curly' }));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(isSelected(screen, 'Saç stili: Kıvırcık')).toBe(true);
+    });
+  });
+
+  it('never writes the choices that were on screen before the pull', async () => {
+    // The form held one avatar, a pull replaced it, and the next "Kaydet" must
+    // not put the old one back over what another phone stored.
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairStyleId: 'bun' }));
+
+    const screen = await renderScreen();
+
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairStyleId: 'curly' }));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(isSelected(screen, 'Saç stili: Kıvırcık')).toBe(true);
+    });
+
+    await fireEvent.press(screen.getByLabelText('Avatarı kaydet'));
+
+    await waitFor(() => {
+      expect(repository.saveAvatarConfig).toHaveBeenCalled();
+    });
+
+    expect(repository.saveAvatarConfig).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hairStyleId: 'curly' })
+    );
+  });
+
+  it('replaces unsaved choices and says so', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairColorId: 'red' }));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Saç rengi: Sarı'));
+
+    await waitFor(() => {
+      expect(isSelected(screen, 'Saç rengi: Sarı')).toBe(true);
+    });
+
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairColorId: 'brown' }));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Veriler başka bir cihazdan güncellendi/)).toBeTruthy();
+    });
+
+    expect(isSelected(screen, 'Saç rengi: Kahve')).toBe(true);
+  });
+
+  it('says nothing when the screen is simply opened', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved());
+
+    const screen = await renderScreen();
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
+  it('says nothing when the change came from this phone', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairColorId: 'red' }));
+
+    const screen = await renderScreen();
+
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairColorId: 'brown' }));
+
+    await act(async () => {
+      notifyLocalDataChanged('local');
+    });
+
+    await waitFor(() => {
+      expect(isSelected(screen, 'Saç rengi: Kahve')).toBe(true);
+    });
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
   });
 });

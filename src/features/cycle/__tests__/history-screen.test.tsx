@@ -1,7 +1,11 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import HistoryScreen from '@/app/(app)/history';
+import {
+  notifyLocalDataChanged,
+  resetLocalDataChangeListenersForTests,
+} from '@/shared/data-change/local-data-change';
 import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -18,7 +22,9 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
   saveCycleProfile: jest.fn(),
 }));
 
-jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+// Screens re-read on focus now, so the mock has to behave like the real
+// `useFocusEffect`. Shared, so four test files cannot drift apart.
+jest.mock('expo-router', () => require('../../../../jest/expo-router-mock'));
 
 // The widget sync is faked so the screen's calls to it can be counted. It is
 // quiet by contract, so the real one would do nothing under Jest anyway.
@@ -1991,5 +1997,105 @@ describe('HistoryScreen period reminder sync', () => {
     await renderScreen();
 
     expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('when a sync replaces the history underneath', () => {
+  beforeEach(() => {
+    resetLocalDataChangeListenersForTests();
+    repository.loadCycleProfile.mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-02' }]));
+  });
+
+  it('shows the pulled records without the screen being left and reopened', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryAllByTestId(/^history-record-/)).toHaveLength(1);
+
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([
+        { id: 'a', startDate: '2026-09-02' },
+        { id: 'b', startDate: '2026-08-01' },
+      ])
+    );
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/^history-record-/)).toHaveLength(2);
+    });
+  });
+
+  it('picks up a record another phone deleted', async () => {
+    const screen = await renderScreen();
+
+    repository.loadCycleProfile.mockResolvedValue(profile([]));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/^history-record-/)).toHaveLength(0);
+    });
+  });
+
+  it('closes a delete confirmation a pull has invalidated, and says why', async () => {
+    // The panel is about one record by id. After a pull that record may hold
+    // different dates or be gone, so confirming would act on something that
+    // has changed underneath them.
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Sil')).toBeTruthy();
+    });
+
+    repository.loadCycleProfile.mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-03' }]));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Veriler başka bir cihazdan güncellendi/)).toBeTruthy();
+    });
+
+    expect(screen.queryByLabelText('Sil')).toBeNull();
+  });
+
+  it('says nothing when no panel was open', async () => {
+    const screen = await renderScreen();
+
+    repository.loadCycleProfile.mockResolvedValue(profile([]));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/^history-record-/)).toHaveLength(0);
+    });
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
+  it('leaves a panel alone when the change came from this phone', async () => {
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Sil')).toBeTruthy();
+    });
+
+    await act(async () => {
+      notifyLocalDataChanged('local');
+    });
+
+    expect(screen.getByLabelText('Sil')).toBeTruthy();
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
   });
 });

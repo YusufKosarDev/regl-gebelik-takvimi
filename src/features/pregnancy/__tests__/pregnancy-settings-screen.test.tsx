@@ -1,7 +1,11 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import PregnancySettingsScreen from '@/app/(app)/pregnancy-settings';
+import {
+  notifyLocalDataChanged,
+  resetLocalDataChangeListenersForTests,
+} from '@/shared/data-change/local-data-change';
 import { calculateEstimatedDueDate } from '@/features/pregnancy/domain/due-date';
 import type { PregnancyProfile } from '@/features/pregnancy/domain/types';
 import type { ISODate } from '@/types/iso-date';
@@ -20,7 +24,9 @@ jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
   clearPregnancyProfile: jest.fn(),
 }));
 
-jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+// Screens re-read on focus now, so the mock has to behave like the real
+// `useFocusEffect`. Shared, so four test files cannot drift apart.
+jest.mock('expo-router', () => require('../../../../jest/expo-router-mock'));
 
 // The weekly pregnancy reminder syncs after a start or a stop. Faked so the
 // calls can be counted; it is quiet by contract, so the real one would do
@@ -697,5 +703,118 @@ describe('PregnancySettingsScreen weekly reminder sync', () => {
     await renderScreen();
 
     expect(reminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('when a sync replaces the pregnancy underneath', () => {
+  beforeEach(() => {
+    resetLocalDataChangeListenersForTests();
+  });
+
+  it('shows the pulled due date without the screen being left and reopened', async () => {
+    const screen = await renderScreen();
+
+    const pulled = date('2027-07-01');
+
+    repository.loadPregnancyProfile.mockResolvedValue(
+      profile({ estimatedDueDate: pulled, dueDateSource: 'adjusted' })
+    );
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('1 Temmuz 2027')).toBeTruthy();
+    });
+  });
+
+  it('picks up a pregnancy another phone stopped', async () => {
+    const screen = await renderScreen();
+
+    repository.loadPregnancyProfile.mockResolvedValue(null);
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Tahmini doğum tarihini düzenle')).toBeNull();
+    });
+  });
+
+  it('closes an open date editor a pull has invalidated, and says why', async () => {
+    // The picker is seeded from the stored due date. After a pull that date may
+    // have moved, so saving would write an adjustment measured against a
+    // profile that no longer exists.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Tahmini doğum tarihini düzenle'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Tahmini doğum tarihini kaydet')).toBeTruthy();
+    });
+
+    repository.loadPregnancyProfile.mockResolvedValue(
+      profile({ estimatedDueDate: date('2027-07-01'), dueDateSource: 'adjusted' })
+    );
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Veriler başka bir cihazdan güncellendi/)).toBeTruthy();
+    });
+
+    expect(screen.queryByLabelText('Tahmini doğum tarihini kaydet')).toBeNull();
+  });
+
+  it('never writes a date measured against the version before the pull', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Tahmini doğum tarihini düzenle'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Tahmini doğum tarihini kaydet')).toBeTruthy();
+    });
+
+    repository.loadPregnancyProfile.mockResolvedValue(
+      profile({ estimatedDueDate: date('2027-07-01'), dueDateSource: 'adjusted' })
+    );
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Tahmini doğum tarihini kaydet')).toBeNull();
+    });
+
+    expect(repository.savePregnancyProfile).not.toHaveBeenCalled();
+  });
+
+  it('says nothing when the screen is simply opened', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
+  it('says nothing when the change came from this phone', async () => {
+    const screen = await renderScreen();
+
+    repository.loadPregnancyProfile.mockResolvedValue(
+      profile({ estimatedDueDate: date('2027-07-01'), dueDateSource: 'adjusted' })
+    );
+
+    await act(async () => {
+      notifyLocalDataChanged('local');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('1 Temmuz 2027')).toBeTruthy();
+    });
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
   });
 });

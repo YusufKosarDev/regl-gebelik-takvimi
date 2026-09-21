@@ -3,6 +3,10 @@ import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/settings';
 import {
+  notifyLocalDataChanged,
+  resetLocalDataChangeListenersForTests,
+} from '@/shared/data-change/local-data-change';
+import {
   MAX_CYCLE_LENGTH_DAYS,
   MAX_PERIOD_LENGTH_DAYS,
   MIN_CYCLE_LENGTH_DAYS,
@@ -40,7 +44,9 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
   saveCycleProfile: jest.fn(),
 }));
 
-jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+// Screens re-read on focus now, so the mock has to behave like the real
+// `useFocusEffect`. Shared, so four test files cannot drift apart.
+jest.mock('expo-router', () => require('../../../../jest/expo-router-mock'));
 
 // The reminder rows read their own preferences and, when switched on, ask for a
 // permission. Both are faked so this file stays about the cycle settings; the
@@ -1098,5 +1104,150 @@ describe('SettingsScreen account link', () => {
 
     // The settings screen knows nothing about sessions: the link is a link.
     expect(reminders.setReminderEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe('when a sync replaces the data underneath', () => {
+  beforeEach(() => {
+    resetLocalDataChangeListenersForTests();
+  });
+
+  it('shows the pulled value without the screen being left and reopened', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    expect(screen.getByLabelText('Ortalama döngü süresi: 28 gün')).toBeTruthy();
+
+    // What a pull does: the database now holds another phone's value.
+    repository.loadCycleProfile.mockResolvedValue(profile(32, 6));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 32 gün')).toBeTruthy();
+    });
+  });
+
+  it('never writes the value that was on screen before the pull', async () => {
+    // This is the whole point. The form held 28, a pull made it 32, and the
+    // next "Kaydet" must not put 28 back over somebody else's 32.
+    const screen = await renderLoaded(28, 5);
+
+    repository.loadCycleProfile.mockResolvedValue(profile(32, 6));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 32 gün')).toBeTruthy();
+    });
+
+    // Edit again on top of the pulled value and save. What lands says which
+    // number the form was counting from.
+    fireEvent.press(screen.getByLabelText('Ortalama döngü süresini artır'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 33 gün')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    await waitFor(() => {
+      expect(repository.saveCycleProfile).toHaveBeenCalled();
+    });
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        settings: { averageCycleLengthDays: 33, averagePeriodLengthDays: 6 },
+      })
+    );
+  });
+
+  it('replaces an unsaved edit and says so', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    // An unsaved edit: they have tapped "+" but not saved.
+    fireEvent.press(screen.getByLabelText('Ortalama döngü süresini artır'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 29 gün')).toBeTruthy();
+    });
+
+    repository.loadCycleProfile.mockResolvedValue(profile(32, 6));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Veriler başka bir cihazdan güncellendi/)).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText('Ortalama döngü süresi: 32 gün')).toBeTruthy();
+  });
+
+  it('says nothing when the screen is simply opened', async () => {
+    // Arriving and seeing current data is not an event. A notice for it would
+    // be noise on every navigation.
+    const screen = await renderLoaded(28, 5);
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
+  it('says nothing when the change came from this phone', async () => {
+    // Another screen saving something is not an interruption worth a notice.
+    const screen = await renderLoaded(28, 5);
+
+    repository.loadCycleProfile.mockResolvedValue(profile(32, 6));
+
+    await act(async () => {
+      notifyLocalDataChanged('local');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 32 gün')).toBeTruthy();
+    });
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
+  it('drops the notice once they have saved', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    fireEvent.press(screen.getByLabelText('Ortalama döngü süresini artır'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 29 gün')).toBeTruthy();
+    });
+
+    repository.loadCycleProfile.mockResolvedValue(profile(32, 6));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Veriler başka bir cihazdan güncellendi/)).toBeTruthy();
+    });
+
+    // Something to save, so the button is not sitting there disabled.
+    fireEvent.press(screen.getByLabelText('Ortalama döngü süresini artır'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 33 gün')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını kaydet'));
+
+    await waitFor(() => {
+      expect(repository.saveCycleProfile).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+    });
   });
 });

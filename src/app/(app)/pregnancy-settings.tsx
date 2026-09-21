@@ -15,7 +15,10 @@ import type {
   PregnancyProfile,
 } from '@/features/pregnancy/domain/types';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
+import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
@@ -47,6 +50,20 @@ export default function PregnancySettingsScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<PregnancyProfile | null>(null);
+
+  // Read by the reload to tell a real change from a redundant read, without
+  // making the reload callback depend on the state it writes.
+  const profileRef = useRef(profile);
+
+  // Kept in an effect rather than written during render: the compiler
+  // forbids the latter, and a reload only reads these after an await, by which
+  // time the effect has run.
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
+  // Set only when a sync moved the due date out from under an open editor.
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
   // The date being picked, held only while the editor is open.
@@ -74,41 +91,59 @@ export default function PregnancySettingsScreen() {
     return getPregnancyProfile(db);
   }, []);
 
-  useEffect(() => {
-    // Guards against setting state after the screen is gone, e.g. when the
-    // person navigates back while the read is still in flight.
-    let isActive = true;
+  /**
+   * Re-reads the profile, and drops a due-date edit a sync has invalidated.
+   *
+   * The date picker is seeded from the stored due date. After a pull that date
+   * may have moved, or the pregnancy may have been stopped on another phone, so
+   * an open picker would be about to save an adjustment measured against a
+   * profile that no longer exists.
+   */
+  const load = useCallback(
+    (origin: LocalDataChangeOrigin | null) => {
+      let cancelled = false;
 
-    const load = async () => {
-      try {
-        const stored = await readProfile();
+      void (async () => {
+        try {
+          const stored = await readProfile();
 
-        if (!isActive) {
-          return;
+          if (cancelled) {
+            return;
+          }
+
+          const changed =
+            (stored?.estimatedDueDate ?? null) !== (profileRef.current?.estimatedDueDate ?? null);
+
+          setProfile(stored);
+          setHasError(false);
+
+          if (origin === 'remote' && changed) {
+            setSelectedDueDate(null);
+            setRefreshNotice(DATA_REFRESHED_NOTICE);
+          }
+        } catch (error) {
+          logEvent('pregnancy load failed', error);
+
+          if (cancelled) {
+            return;
+          }
+
+          setHasError(true);
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
+      })();
 
-        setProfile(stored);
-      } catch (error) {
-        logEvent('pregnancy load failed', error);
+      return () => {
+        cancelled = true;
+      };
+    },
+    [readProfile]
+  );
 
-        if (!isActive) {
-          return;
-        }
-
-        setHasError(true);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [readProfile]);
+  useDataChangeReload(load);
 
   const closeEditor = () => {
     setSelectedDueDate(null);
@@ -194,6 +229,9 @@ export default function PregnancySettingsScreen() {
     setIsSaving(true);
     setHasSaveError(false);
 
+    // They have looked and decided. The interruption is dealt with.
+    setRefreshNotice(null);
+
     try {
       const db = await openAppDatabase();
 
@@ -264,6 +302,13 @@ export default function PregnancySettingsScreen() {
                 Tahmini doğum tarihini düzeltebilir ya da son regl tarihine göre hesaplanan
                 tarihe geri dönebilirsin.
               </ThemedText>
+
+              {/* Only after a sync moved the date out from under an editor. */}
+              {refreshNotice !== null && (
+                <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                  {refreshNotice}
+                </ThemedText>
+              )}
             </View>
 
             {hasError ? (
