@@ -47,6 +47,7 @@ describe('what stays on the device', () => {
       'sync-state',
       'sync-device-id',
       'sync-preferences',
+      'pending-account-deletion',
     ]);
   });
 

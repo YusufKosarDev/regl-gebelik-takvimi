@@ -13,6 +13,23 @@ import type { ISODate } from '@/types/iso-date';
 
 // The database is faked. The use cases, the repository contract and the domain
 // rules stay real, so the stepper is bounded by the limits the app really has.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+jest.mock('@/features/auth/data/auth-repository', () => ({
+  // Returns its unsubscribe, which  calls on unmount.
+  observeAuthUser: jest.fn(() => () => {}),
+  signOut: jest.fn(),
+  getCurrentAuthUser: jest.fn(() => null),
+}));
+
+jest.mock('@/features/auth/infrastructure/firebase', () => ({
+  isFirebaseConfigured: jest.fn(() => true),
+  requireFirebaseAuth: jest.fn(),
+  getFirebaseAuth: jest.fn(),
+}));
+
 jest.mock('@/storage/db', () => ({
   openAppDatabase: jest.fn(),
   DATABASE_NAME: 'regl-gebelik.db',
@@ -601,6 +618,8 @@ describe('SettingsScreen scope', () => {
       'Ortalama regl süresini artır',
       'Döngü ayarlarını kaydet',
       'Hesabı aç',
+      // Opens the confirmation panel; it deletes nothing on its own.
+      'Tüm verilerimi sil',
     ]);
   });
 

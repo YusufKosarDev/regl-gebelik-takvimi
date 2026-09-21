@@ -76,6 +76,7 @@ ekranda hiçbir şeyin değişmediği yazar.
 | `sync-state` | evet | **hayır** | Senkronizasyonun son mutabakatı: bu cihazla hesabın en son aynı olduğu andaki verinin bir kopyası, cihazda kalır ve hiçbir yere gönderilmez. |
 | `sync-device-id` | evet | **hayır** | Bu kurulumun kendine verdiği rastgele ad; donanım kimliği, hesap kimliği ya da kişisel veri değil. Yedek dokümanına "bu yazıyı hangi cihaz yaptı" bilgisi olarak yazılır, payload içine girmez. |
 | `sync-preferences` | evet | **hayır** | Otomatik senkronizasyonun bu telefonda açık olup olmadığı; cihaz kararı, hesapla taşınmaz. |
+| `pending-account-deletion` | evet | **hayır** | Yarım kalmış bir hesap silme işleminin hangi hesaba ait olduğu. Yalnızca hesap kimliği; sağlık verisi içermez ve silme tamamlanınca ya da vazgeçilince kaldırılır. Silinmiş bir yedeğin yeniden oluşturulmasını engellemek için var. |
 
 Bu tablo `src/features/privacy/domain/data-category.ts` içindeki `DATA_INVENTORY`
 ile aynı. Bir test ikisini birbirine bağlıyor: kodda olup burada olmayan (ya da

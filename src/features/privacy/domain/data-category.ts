@@ -48,6 +48,7 @@ export const EXCLUDED_FROM_CLOUD_SYNC = [
   'sync-state',
   'sync-device-id',
   'sync-preferences',
+  'pending-account-deletion',
 ] as const;
 
 export type ExcludedFromCloudSync = (typeof EXCLUDED_FROM_CLOUD_SYNC)[number];
@@ -175,6 +176,15 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
     reason:
       'Otomatik senkronizasyonun bu telefonda açık olup olmadığı; cihaz kararı, ' +
       'hesapla taşınmaz.',
+  },
+  {
+    id: 'pending-account-deletion',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Yarım kalmış bir hesap silme işleminin hangi hesaba ait olduğu. Yalnızca ' +
+      'hesap kimliği; sağlık verisi içermez ve silme tamamlanınca ya da vazgeçilince ' +
+      'kaldırılır. Silinmiş bir yedeğin yeniden oluşturulmasını engellemek için var.',
   },
 ];
 

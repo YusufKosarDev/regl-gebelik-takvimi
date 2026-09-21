@@ -22,8 +22,24 @@ import type { NotificationPreferences } from '@/features/notifications/domain/no
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domain/notification-preferences';
 import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import { wipeLocalData } from '@/features/deletion/application/wipe-local-data';
+import {
+  LOCAL_WIPE_BUSY_LABEL,
+  LOCAL_WIPE_CANCEL_LABEL,
+  LOCAL_WIPE_CLOUD_DISCLAIMER,
+  LOCAL_WIPE_CONFIRM_LABEL,
+  LOCAL_WIPE_OPEN_LABEL,
+  LOCAL_WIPE_PANEL_BODY,
+  LOCAL_WIPE_PANEL_TITLE,
+  LOCAL_WIPE_SECTION_DESCRIPTION,
+  LOCAL_WIPE_SECTION_TITLE,
+  LOCAL_WIPE_SIGNED_IN_NOTE,
+  localWipeMessage,
+} from '@/features/deletion/presentation/deletion-messages';
+import { useAuthState } from '@/features/auth/application/use-auth-state';
 import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
+import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
 
@@ -72,6 +88,56 @@ export default function SettingsScreen() {
   // A ref as well as the disabled prop: state updates are async, so two quick
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
+
+  // Deleting everything on this phone. Confirmed inline rather than in a system
+  // dialog, the same way restoring a backup is: the warning needs more than one
+  // line, and the cloud disclaimer has to be readable before the button is.
+  const auth = useAuthState();
+  const resetAppState = useAppStore((state) => state.resetAppState);
+
+  const [isConfirmingWipe, setIsConfirmingWipe] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
+  const [wipeNotice, setWipeNotice] = useState<string | null>(null);
+  const wipeInFlight = useRef(false);
+
+  /**
+   * Empties this device.
+   *
+   * Nothing is shown on success. A finished wipe turns the onboarding flag off,
+   * which swaps the route group out from under this screen — a message set here
+   * would either never be read or would be set on a component that has already
+   * gone. Only the two outcomes that leave the person here say anything.
+   */
+  const handleConfirmWipe = async () => {
+    if (wipeInFlight.current) {
+      return;
+    }
+
+    wipeInFlight.current = true;
+    setIsWiping(true);
+    setWipeNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+      const outcome = await wipeLocalData({ db, resetAppState });
+
+      const message = localWipeMessage(outcome);
+
+      if (message === null) {
+        // Gone. `RootLayout` is already unmounting this.
+        return;
+      }
+
+      setWipeNotice(message);
+      setIsConfirmingWipe(false);
+    } catch (error: unknown) {
+      logEvent('local data wipe failed', error);
+      setWipeNotice(localWipeMessage({ kind: 'failed', reason: 'unknown' }));
+    } finally {
+      wipeInFlight.current = false;
+      setIsWiping(false);
+    }
+  };
 
   // Read on the way in, so the switches show what is stored. No permission is
   // asked for until someone switches one on.
@@ -410,6 +476,100 @@ export default function SettingsScreen() {
                 ]}>
                 <ThemedText type="smallBold">Hesabı aç</ThemedText>
               </Pressable>
+            </View>
+
+            {/* Last on the screen, and available whether or not there is an
+                account: this is about the phone, not about a session. */}
+            <View style={styles.fields}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                {LOCAL_WIPE_SECTION_TITLE}
+              </ThemedText>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                {LOCAL_WIPE_SECTION_DESCRIPTION}
+              </ThemedText>
+
+              {wipeNotice !== null && (
+                <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                  {wipeNotice}
+                </ThemedText>
+              )}
+
+              {!isConfirmingWipe && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={LOCAL_WIPE_OPEN_LABEL}
+                  onPress={() => {
+                    setWipeNotice(null);
+                    setIsConfirmingWipe(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { borderColor: theme.backgroundSelected },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText type="smallBold">{LOCAL_WIPE_OPEN_LABEL}</ThemedText>
+                </Pressable>
+              )}
+
+              {isConfirmingWipe && (
+                <View style={styles.fields}>
+                  <ThemedText accessibilityRole="header" type="smallBold">
+                    {LOCAL_WIPE_PANEL_TITLE}
+                  </ThemedText>
+
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {LOCAL_WIPE_PANEL_BODY}
+                  </ThemedText>
+
+                  {/* The line that keeps this apart from "Hesabı sil". */}
+                  <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                    {LOCAL_WIPE_CLOUD_DISCLAIMER}
+                  </ThemedText>
+
+                  {auth.status === 'signed-in' && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {LOCAL_WIPE_SIGNED_IN_NOTE}
+                    </ThemedText>
+                  )}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={LOCAL_WIPE_CONFIRM_LABEL}
+                    accessibilityState={{ disabled: isWiping }}
+                    disabled={isWiping}
+                    onPress={() => {
+                      void handleConfirmWipe();
+                    }}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      { backgroundColor: theme.text },
+                      isWiping && styles.disabled,
+                      pressed && !isWiping && styles.pressed,
+                    ]}>
+                    <ThemedText type="smallBold" style={{ color: theme.background }}>
+                      {isWiping ? LOCAL_WIPE_BUSY_LABEL : LOCAL_WIPE_CONFIRM_LABEL}
+                    </ThemedText>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={LOCAL_WIPE_CANCEL_LABEL}
+                    accessibilityState={{ disabled: isWiping }}
+                    disabled={isWiping}
+                    onPress={() => {
+                      setIsConfirmingWipe(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      { borderColor: theme.backgroundSelected },
+                      isWiping && styles.disabled,
+                      pressed && !isWiping && styles.pressed,
+                    ]}>
+                    <ThemedText type="smallBold">{LOCAL_WIPE_CANCEL_LABEL}</ThemedText>
+                  </Pressable>
+                </View>
+              )}
             </View>
           </View>
         </ScrollView>

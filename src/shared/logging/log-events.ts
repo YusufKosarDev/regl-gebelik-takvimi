@@ -7,13 +7,16 @@
  * what it was working on.
  */
 export const LOG_EVENTS = [
+  'account delete failed',
   'app mode change failed',
   'app state load failed',
   'avatar load failed',
   'avatar save failed',
+  'cloud backup delete failed',
   'cycle data load failed',
   'cycle settings load failed',
   'cycle settings save failed',
+  'local data wipe failed',
   'notification preference change failed',
   'notification sync failed',
   'onboarding completion failed',
@@ -25,7 +28,9 @@ export const LOG_EVENTS = [
   'pregnancy load failed',
   'pregnancy start failed',
   'pregnancy stop failed',
+  'reminder cancel failed',
   'source link open failed',
+  'sync state clear failed',
   'widget sync failed',
 ] as const;
 
