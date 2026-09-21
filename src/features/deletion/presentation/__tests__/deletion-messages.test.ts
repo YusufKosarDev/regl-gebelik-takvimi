@@ -1,9 +1,13 @@
 import { DELETION_FAILURES } from '../../domain/deletion-outcome';
 import type { AccountDeletionOutcome } from '../../domain/deletion-outcome';
 import {
+  ACCOUNT_DELETE_OPEN_LABEL,
+  ACCOUNT_DELETE_SECTION_TITLE,
   ACCOUNT_DELETE_WIPE_OFF_NOTE,
   ACCOUNT_DELETE_WIPE_ON_NOTE,
   LOCAL_WIPE_CLOUD_DISCLAIMER,
+  LOCAL_WIPE_OPEN_LABEL,
+  LOCAL_WIPE_SECTION_TITLE,
   LOCAL_WIPE_PANEL_BODY,
   LOCAL_WIPE_SECTION_DESCRIPTION,
   accountDeletionMessage,
@@ -156,5 +160,34 @@ describe('keeping the two actions apart', () => {
     for (const copy of [LOCAL_WIPE_SECTION_DESCRIPTION, LOCAL_WIPE_PANEL_BODY]) {
       expect(copy).toMatch(/telefon|cihaz/i);
     }
+  });
+});
+
+describe('section headings versus the buttons under them', () => {
+  it('does not repeat the account button label as its heading', () => {
+    // A screen reader that announces "Hesabı sil" for the heading and again for
+    // the button gives no clue which of the two is the control.
+    expect(ACCOUNT_DELETE_SECTION_TITLE).not.toBe(ACCOUNT_DELETE_OPEN_LABEL);
+  });
+
+  it('does not repeat the wipe button label as its heading', () => {
+    expect(LOCAL_WIPE_SECTION_TITLE).not.toBe(LOCAL_WIPE_OPEN_LABEL);
+  });
+
+  it('names the two sections distinctly', () => {
+    expect(ACCOUNT_DELETE_SECTION_TITLE).toBe('Hesap silme');
+    expect(LOCAL_WIPE_SECTION_TITLE).toBe('Veri silme');
+    expect(ACCOUNT_DELETE_SECTION_TITLE).not.toBe(LOCAL_WIPE_SECTION_TITLE);
+  });
+
+  it('keeps the button labels in the first person, which is what people press', () => {
+    expect(ACCOUNT_DELETE_OPEN_LABEL).toBe('Hesabı sil');
+    expect(LOCAL_WIPE_OPEN_LABEL).toBe('Tüm verilerimi sil');
+  });
+
+  it('still points at the button label, not the heading, in the disclaimer', () => {
+    // The disclaimer tells somebody where to go; it has to name the control they
+    // will actually look for.
+    expect(LOCAL_WIPE_CLOUD_DISCLAIMER).toContain(ACCOUNT_DELETE_OPEN_LABEL);
   });
 });

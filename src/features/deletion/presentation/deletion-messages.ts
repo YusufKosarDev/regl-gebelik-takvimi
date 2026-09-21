@@ -22,7 +22,10 @@ import type {
 
 /* ---------------------------------------------------------------- account -- */
 
-export const ACCOUNT_DELETE_SECTION_TITLE = 'Hesabı sil';
+// The section heading and the button beneath it say different things on
+// purpose: a screen reader announcing "Hesabı sil" twice in a row gives no clue
+// which one is the control.
+export const ACCOUNT_DELETE_SECTION_TITLE = 'Hesap silme';
 
 export const ACCOUNT_DELETE_SECTION_DESCRIPTION =
   'Hesabın ve buluttaki yedeğin kalıcı olarak silinir. Bu işlem geri alınamaz.';
@@ -111,7 +114,8 @@ export function shouldRetryWithPassword(outcome: AccountDeletionOutcome): boolea
 
 /* ------------------------------------------------------------- local wipe -- */
 
-export const LOCAL_WIPE_SECTION_TITLE = 'Tüm verilerimi sil';
+/** Heading only; the button below it keeps the first-person wording. */
+export const LOCAL_WIPE_SECTION_TITLE = 'Veri silme';
 
 export const LOCAL_WIPE_SECTION_DESCRIPTION =
   'Bu telefondaki regl geçmişin, gebelik bilgin, avatarın ve tercihlerin silinir. ' +
