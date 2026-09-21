@@ -67,6 +67,7 @@ import {
 } from '@/features/sync/application/automatic-sync-scheduler';
 import { runCloudSync } from '@/features/sync/application/run-cloud-sync';
 import { loadLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
+import { isConflictUnresolved } from '@/features/sync/infrastructure/unresolved-conflict';
 import {
   loadSyncPreferences,
   setAutomaticSyncEnabled,
@@ -78,6 +79,8 @@ import {
   AUTOMATIC_SYNC_LABEL,
   AUTOMATIC_SYNC_NOTE,
   BACKUP_DISABLED_BY_SYNC_MESSAGE,
+  CONFLICT_NOTICE_MESSAGE,
+  CONFLICT_OPEN_LABEL,
   SYNC_BUSY_LABEL,
   SYNC_BUTTON_LABEL,
   didSyncChangeThisPhone,
@@ -148,10 +151,11 @@ export default function AccountScreen() {
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [syncDetail, setSyncDetail] = useState<string | null>(null);
 
-  // The status line, read from storage rather than remembered from this
-  // screen's own runs: the sync that moved it most likely happened while
-  // somebody was on another screen.
+  // The status line, and whether a conflict is waiting. Both are read from
+  // storage rather than remembered from this screen's own runs: the sync that
+  // set them most likely happened while somebody was on another screen.
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [hasConflict, setHasConflict] = useState(false);
 
   // A ref as well as the disabled prop: two quick taps could both read `isBusy`
   // as false before the re-render lands, and the second would be a second
@@ -196,12 +200,12 @@ export default function AccountScreen() {
   }, []);
 
   // Who the status line is about. Read here rather than inside the effect so
-  // the effect re-runs when the session changes: showing one account a fact
-  // about another one's data would be a lie about it.
+  // the effect re-runs when the session changes: a conflict is one account's,
+  // and showing another one a notice about it would be a lie about their data.
   const uid = auth.status === 'signed-in' ? auth.user.uid : null;
 
   /**
-   * Keeps the status line honest.
+   * Keeps the status line and the conflict notice honest.
    *
    * Read on mount, and read again on every finished automatic sync rather than
    * being derived from the outcome: a sync that failed to write its own
@@ -211,17 +215,21 @@ export default function AccountScreen() {
   useEffect(() => {
     let isActive = true;
 
-    // Signing out reads as "nothing synced" rather than skipping the read:
-    // leaving one account's status line up while another is signing in would
-    // be showing somebody a fact about someone else's data.
+    // Signing out reads as "nothing synced, no conflict" rather than skipping
+    // the read: leaving one account's status line up while another is signing
+    // in would be showing somebody a fact about someone else's data.
     const refresh = () => {
-      void (uid === null ? Promise.resolve(null) : loadLastSyncAt()).then(
-        (storedLastSyncAt) => {
+      void Promise.all([
+        uid === null ? Promise.resolve(null) : loadLastSyncAt(),
+        uid === null ? Promise.resolve(false) : isConflictUnresolved(uid),
+      ]).then(
+        ([storedLastSyncAt, conflictWaiting]) => {
           if (!isActive) {
             return;
           }
 
           setLastSyncAt(storedLastSyncAt);
+          setHasConflict(conflictWaiting);
         },
         () => {
           // Nothing to say. A status line that cannot be read stays as it was,
@@ -828,6 +836,32 @@ export default function AccountScreen() {
                     <ThemedText type="small" themeColor="textSecondary">
                       {lastSyncMessage(lastSyncAt)}
                     </ThemedText>
+
+                    {/* A conflict stops every automatic sync for this account
+                        until somebody settles it, so it cannot be a line that
+                        scrolls past: it comes with the way out of it. */}
+                    {hasConflict && (
+                      <>
+                        <ThemedText
+                          accessibilityRole="alert"
+                          type="small"
+                          themeColor="textSecondary">
+                          {CONFLICT_NOTICE_MESSAGE}
+                        </ThemedText>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={CONFLICT_OPEN_LABEL}
+                          onPress={() => router.push('/(app)/sync-conflict')}
+                          style={({ pressed }) => [
+                            styles.secondaryButton,
+                            { borderColor: theme.backgroundSelected },
+                            pressed && styles.pressed,
+                          ]}>
+                          <ThemedText type="smallBold">{CONFLICT_OPEN_LABEL}</ThemedText>
+                        </Pressable>
+                      </>
+                    )}
 
                     {syncNotice !== null && (
                       <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">

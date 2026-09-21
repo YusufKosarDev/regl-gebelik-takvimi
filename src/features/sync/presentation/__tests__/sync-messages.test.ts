@@ -7,6 +7,8 @@ import {
   AUTOMATIC_SYNC_LABEL,
   AUTOMATIC_SYNC_NOTE,
   BACKUP_DISABLED_BY_SYNC_MESSAGE,
+  CONFLICT_NOTICE_MESSAGE,
+  CONFLICT_OPEN_LABEL,
   SYNC_BUSY_LABEL,
   SYNC_BUTTON_LABEL,
   SYNC_NEVER_MESSAGE,
@@ -314,5 +316,15 @@ describe('the status line', () => {
 
   it('reads an unusable value as never, rather than showing an error', () => {
     expect(lastSyncMessage('dün', now)).toBe(SYNC_NEVER_MESSAGE);
+  });
+});
+
+describe('the conflict notice', () => {
+  it('says what stops until it is settled', () => {
+    expect(CONFLICT_NOTICE_MESSAGE).toContain('otomatik senkronizasyon duracak');
+  });
+
+  it('is offered with the way out of it', () => {
+    expect(CONFLICT_OPEN_LABEL).toBe('Çakışmayı çöz');
   });
 });

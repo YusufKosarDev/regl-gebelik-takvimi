@@ -194,3 +194,10 @@ export function lastSyncMessage(
 
   return `Son senkronizasyon: ${dd}.${mo}.${when.getFullYear()}`;
 }
+
+/* ----------------------------------------------------- conflict notice -- */
+
+export const CONFLICT_NOTICE_MESSAGE =
+  'Çakışma var. Çözülene kadar otomatik senkronizasyon duracak.';
+
+export const CONFLICT_OPEN_LABEL = 'Çakışmayı çöz';

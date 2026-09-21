@@ -31,6 +31,7 @@ export const LOG_EVENTS = [
   'pregnancy stop failed',
   'reminder cancel failed',
   'source link open failed',
+  'sync conflict resolve failed',
   'sync state clear failed',
   'widget sync failed',
 ] as const;

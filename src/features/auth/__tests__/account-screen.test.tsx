@@ -94,6 +94,10 @@ jest.mock('@/features/sync/infrastructure/last-sync-at', () => ({
   loadLastSyncAt: jest.fn(),
 }));
 
+jest.mock('@/features/sync/infrastructure/unresolved-conflict', () => ({
+  isConflictUnresolved: jest.fn(),
+}));
+
 jest.mock('@/features/sync/infrastructure/sync-preferences', () => ({
   loadSyncPreferences: jest.fn(),
   setAutomaticSyncEnabled: jest.fn(),
@@ -144,6 +148,7 @@ const cloudSyncRun = jest.requireMock('@/features/sync/application/run-cloud-syn
 const syncPreferences = jest.requireMock('@/features/sync/infrastructure/sync-preferences');
 const scheduler = jest.requireMock('@/features/sync/application/automatic-sync-scheduler');
 const lastSyncAt = jest.requireMock('@/features/sync/infrastructure/last-sync-at');
+const unresolvedConflict = jest.requireMock('@/features/sync/infrastructure/unresolved-conflict');
 const db = jest.requireMock('@/storage/db');
 const logging = jest.requireMock('@/shared/logging');
 const useRouterMock = useRouter as unknown as jest.Mock;
@@ -224,6 +229,8 @@ beforeEach(() => {
   scheduler.onAutomaticSyncOutcome.mockImplementation(() => () => undefined);
   lastSyncAt.loadLastSyncAt.mockReset();
   lastSyncAt.loadLastSyncAt.mockResolvedValue(null);
+  unresolvedConflict.isConflictUnresolved.mockReset();
+  unresolvedConflict.isConflictUnresolved.mockResolvedValue(false);
   syncPreferences.loadSyncPreferences.mockReset();
   syncPreferences.loadSyncPreferences.mockResolvedValue({ automaticSyncEnabled: false });
   syncPreferences.setAutomaticSyncEnabled.mockReset();
@@ -2280,7 +2287,7 @@ describe('the account deletion result outliving the session that produced it', (
   });
 });
 
-describe('the status line', () => {
+describe('the status line and the conflict notice', () => {
   it('says nothing has synced before anything has', async () => {
     const screen = await renderSignedIn();
 
@@ -2314,6 +2321,62 @@ describe('the status line', () => {
     expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
   });
 
+  it('says nothing about a conflict when there is none', async () => {
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
+    });
+
+    expect(screen.queryByText(/Çakışma var/)).toBeNull();
+    expect(screen.queryByLabelText('Çakışmayı çöz')).toBeNull();
+  });
+
+  it('says a conflict is waiting, and what it stops', async () => {
+    unresolvedConflict.isConflictUnresolved.mockResolvedValue(true);
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Çakışma var. Çözülene kadar otomatik senkronizasyon duracak.')
+      ).toBeTruthy();
+    });
+  });
+
+  it('offers the way out of it rather than only the news', async () => {
+    unresolvedConflict.isConflictUnresolved.mockResolvedValue(true);
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Çakışmayı çöz')).toBeTruthy();
+    });
+  });
+
+  it('opens the conflict screen when that is pressed', async () => {
+    unresolvedConflict.isConflictUnresolved.mockResolvedValue(true);
+
+    const screen = await renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Çakışmayı çöz')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Çakışmayı çöz'));
+
+    expect(push).toHaveBeenCalledWith('/(app)/sync-conflict');
+  });
+
+  it('asks only about the account that is signed in', async () => {
+    // A conflict belongs to one account. Two can be used on one phone.
+    await renderSignedIn();
+
+    await waitFor(() => {
+      expect(unresolvedConflict.isConflictUnresolved).toHaveBeenCalledWith(USER.uid);
+    });
+  });
+
   it('listens for automatic syncs so the line does not go stale', async () => {
     // The sync that moves this most likely happened while somebody was on
     // another screen.
@@ -2324,7 +2387,7 @@ describe('the status line', () => {
     });
   });
 
-  it('re-reads it after an automatic sync finishes', async () => {
+  it('re-reads both after an automatic sync finishes', async () => {
     let announce: () => void = () => undefined;
 
     scheduler.onAutomaticSyncOutcome.mockImplementation((listener: () => void) => {
@@ -2343,12 +2406,15 @@ describe('the status line', () => {
     when.setHours(11, 20, 0, 0);
 
     lastSyncAt.loadLastSyncAt.mockResolvedValue(when.toISOString());
+    unresolvedConflict.isConflictUnresolved.mockResolvedValue(true);
 
     announce();
 
     await waitFor(() => {
       expect(screen.getByText('Son senkronizasyon: bugün 11:20')).toBeTruthy();
     });
+
+    expect(screen.getByLabelText('Çakışmayı çöz')).toBeTruthy();
   });
 
   it('keeps the line it had when storage cannot be read', async () => {
