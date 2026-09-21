@@ -85,10 +85,13 @@ export default function SettingsScreen() {
   const [cycleLength, setCycleLength] = useState(MIN_CYCLE_LENGTH_DAYS);
   const [periodLength, setPeriodLength] = useState(MIN_PERIOD_LENGTH_DAYS);
 
-  // Read by the reload to decide whether anything actually moved. Refs rather
-  // than state, so the reload callback stays stable across every keystroke.
+  // What the form holds, and what was stored the last time it was read. The
+  // reload compares the two to tell an unsaved edit from a form that simply
+  // matches storage. Refs rather than state, so the reload callback stays
+  // stable across every keystroke.
   const cycleLengthRef = useRef(cycleLength);
   const periodLengthRef = useRef(periodLength);
+  const storedRef = useRef<CycleSettings | null>(null);
 
   // Kept in an effect rather than written during render: the compiler
   // forbids the latter, and a reload only reads these after an await, by which
@@ -96,7 +99,8 @@ export default function SettingsScreen() {
   useEffect(() => {
     cycleLengthRef.current = cycleLength;
     periodLengthRef.current = periodLength;
-  }, [cycleLength, periodLength]);
+    storedRef.current = settings;
+  }, [cycleLength, periodLength, settings]);
 
   // Set only when a sync replaced what was on screen, and cleared on the next
   // save: a notice about an interruption that has been dealt with is clutter.
@@ -214,14 +218,18 @@ export default function SettingsScreen() {
           setReminders(data.reminders);
 
           if (data.settings !== null) {
-            const changed =
-              data.settings.averageCycleLengthDays !== cycleLengthRef.current ||
-              data.settings.averagePeriodLengthDays !== periodLengthRef.current;
+            // Against what was stored, not against what has just arrived: a
+            // form that matched storage had nothing to interrupt, however far
+            // the stored value moved.
+            const hadUnsavedEdit =
+              storedRef.current !== null &&
+              (storedRef.current.averageCycleLengthDays !== cycleLengthRef.current ||
+                storedRef.current.averagePeriodLengthDays !== periodLengthRef.current);
 
             setCycleLength(data.settings.averageCycleLengthDays);
             setPeriodLength(data.settings.averagePeriodLengthDays);
 
-            if (origin === 'remote' && changed) {
+            if (origin === 'remote' && hadUnsavedEdit) {
               setRefreshNotice(DATA_REFRESHED_NOTICE);
             }
           }

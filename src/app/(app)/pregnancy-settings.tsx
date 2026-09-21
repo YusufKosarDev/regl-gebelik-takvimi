@@ -51,23 +51,22 @@ export default function PregnancySettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<PregnancyProfile | null>(null);
 
-  // Read by the reload to tell a real change from a redundant read, without
-  // making the reload callback depend on the state it writes.
-  const profileRef = useRef(profile);
-
-  // Kept in an effect rather than written during render: the compiler
-  // forbids the latter, and a reload only reads these after an await, by which
-  // time the effect has run.
-  useEffect(() => {
-    profileRef.current = profile;
-  }, [profile]);
-
   // Set only when a sync moved the due date out from under an open editor.
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
   // The date being picked, held only while the editor is open.
   const [selectedDueDate, setSelectedDueDate] = useState<ISODate | null>(null);
+
+  // Whether a due-date editor is open. A ref, so the reload callback stays
+  // stable while it opens and closes. Kept in an effect rather than written
+  // during render: the compiler forbids the latter, and a reload only reads it
+  // after an await, by which time the effect has run.
+  const editorOpenRef = useRef(false);
+
+  useEffect(() => {
+    editorOpenRef.current = selectedDueDate !== null;
+  }, [selectedDueDate]);
 
   // Whether the person has asked to stop, held only while they confirm it.
   const [isConfirmingStop, setIsConfirmingStop] = useState(false);
@@ -111,13 +110,14 @@ export default function PregnancySettingsScreen() {
             return;
           }
 
-          const changed =
-            (stored?.estimatedDueDate ?? null) !== (profileRef.current?.estimatedDueDate ?? null);
+          // An open editor is the unsaved edit here: the picker is seeded from
+          // the stored due date, so a pull moves the ground under it.
+          const editorOpen = editorOpenRef.current;
 
           setProfile(stored);
           setHasError(false);
 
-          if (origin === 'remote' && changed) {
+          if (origin === 'remote' && editorOpen) {
             setSelectedDueDate(null);
             setRefreshNotice(DATA_REFRESHED_NOTICE);
           }

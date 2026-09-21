@@ -78,9 +78,11 @@ export default function AvatarScreen() {
 
   const [config, setConfig] = useState<AvatarConfig>(startingConfig);
 
-  // Read by the reload to tell a real change from a redundant read, without
-  // making the reload callback depend on the state it writes.
+  // What the choices are, and what was stored the last time they were read.
+  // The reload compares the two to tell an unsaved choice from a form that
+  // simply matches storage.
   const configRef = useRef(config);
+  const storedRef = useRef<AvatarConfig | null>(null);
 
   // Kept in an effect rather than written during render: the compiler
   // forbids the latter, and a reload only reads these after an await, by which
@@ -128,11 +130,15 @@ export default function AvatarScreen() {
 
           // Only when there is one: otherwise the starting choices stay, unwritten.
           if (stored !== null) {
-            const changed = !isSameAvatarConfig(stored, configRef.current);
+            // Against what was stored, not against what has just arrived: an
+            // untouched screen had nothing to interrupt.
+            const hadUnsavedChoice =
+              storedRef.current !== null && !isSameAvatarConfig(storedRef.current, configRef.current);
 
             setConfig(stored);
+            storedRef.current = stored;
 
-            if (origin === 'remote' && changed) {
+            if (origin === 'remote' && hadUnsavedChoice) {
               setRefreshNotice(DATA_REFRESHED_NOTICE);
             }
           }

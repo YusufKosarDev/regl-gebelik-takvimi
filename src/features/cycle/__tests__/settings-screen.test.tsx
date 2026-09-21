@@ -1189,6 +1189,24 @@ describe('when a sync replaces the data underneath', () => {
     expect(screen.getByLabelText('Ortalama döngü süresi: 32 gün')).toBeTruthy();
   });
 
+  it('says nothing when the form had no unsaved edit', async () => {
+    // The value on screen moves, and that is not an interruption: nothing they
+    // had typed was thrown away, because they had typed nothing.
+    const screen = await renderLoaded(28, 5);
+
+    repository.loadCycleProfile.mockResolvedValue(profile(32, 6));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Ortalama döngü süresi: 32 gün')).toBeTruthy();
+    });
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
   it('says nothing when the screen is simply opened', async () => {
     // Arriving and seeing current data is not an event. A notice for it would
     // be noise on every navigation.

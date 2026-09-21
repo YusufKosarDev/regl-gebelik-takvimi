@@ -681,6 +681,24 @@ describe('when a sync replaces the avatar underneath', () => {
     expect(isSelected(screen, 'Saç rengi: Kahve')).toBe(true);
   });
 
+  it('says nothing when no choice was left unsaved', async () => {
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairColorId: 'red' }));
+
+    const screen = await renderScreen();
+
+    repository.loadAvatarConfig.mockResolvedValue(saved({ hairColorId: 'brown' }));
+
+    await act(async () => {
+      notifyLocalDataChanged('remote');
+    });
+
+    await waitFor(() => {
+      expect(isSelected(screen, 'Saç rengi: Kahve')).toBe(true);
+    });
+
+    expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+
   it('says nothing when the screen is simply opened', async () => {
     repository.loadAvatarConfig.mockResolvedValue(saved());
 
