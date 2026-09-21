@@ -135,9 +135,6 @@ npm run web      # web target (unverified; expo-sqlite needs a WASM setup)
 npm run ios      # present, but iOS is not supported — see below
 ```
 
-`npm run lint` is declared but ESLint is not installed and there is no config
-file yet, so the script does not currently work.
-
 ### Why a development build is required
 
 This app contains a local Expo native module (`modules/widget-snapshot-bridge`),
@@ -156,13 +153,22 @@ Not supported. The native widget module declares `"platforms": ["android"]`, the
 `ios/` directory is gitignored and has never been generated, and the `ios`
 script is left over from the template.
 
-## Tests and type checking
+## Checks
 
 ```sh
+npm run typecheck  # tsc --noEmit, under strict mode
+npm run lint       # ESLint, via eslint-config-expo's flat config
 npm test           # Jest — 120 suites, 4733 tests
 npm run test:watch # watch mode
-npx tsc --noEmit   # type check under strict mode
 ```
+
+All three must pass. Lint is clean of errors; the warnings that remain are
+`require()` calls in tests, where the module registry is being manipulated on
+purpose and an `import` would defeat it.
+
+ESLint is configured in `eslint.config.js`, which composes the base config from
+`eslint-config-expo/flat` and ignores everything generated — `android/`, `ios/`,
+`.expo/`, build output, and the Kotlin half of the native module.
 
 Beyond ordinary unit tests there are a few contract tests worth knowing about:
 
@@ -177,6 +183,15 @@ Beyond ordinary unit tests there are a few contract tests worth knowing about:
 The Kotlin module has its own unit tests under
 `modules/widget-snapshot-bridge/android/src/test/`, which run through Gradle
 rather than Jest.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs the same three checks on every push to `main`
+and on every pull request, on the Node version in `.nvmrc`. It uses `npm ci`,
+so a lockfile that has drifted from `package.json` fails the build.
+
+The workflow needs no secrets and sets no Firebase variables: the suite does not
+read them, and without a project the app is simply one with no accounts.
 
 ## Android build notes
 
