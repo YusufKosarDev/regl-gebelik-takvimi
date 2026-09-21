@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { AuthError } from '@/features/auth/domain/auth-error';
@@ -8,6 +9,8 @@ import type { ISODate } from '@/types/iso-date';
 import type { CloudBackupEnvelopeV1 } from '../../domain/cloud-backup-envelope-v1';
 import { cloudSyncContentHash } from '../../domain/cloud-sync-hash';
 import type { SyncState } from '../../domain/sync-state';
+import { LAST_SYNC_AT_STORAGE_KEY } from '../../infrastructure/last-sync-at';
+import { UNRESOLVED_CONFLICT_STORAGE_KEY } from '../../infrastructure/unresolved-conflict';
 import { runCloudSync } from '../run-cloud-sync';
 
 /**
@@ -1053,5 +1056,96 @@ describe('an account whose deletion is part-way through', () => {
 
     expect(outcome).toEqual({ kind: 'error', failure: 'signed-out' });
     expect(pendingDeletion.isAccountDeletionPending).not.toHaveBeenCalled();
+  });
+});
+
+describe('what a finished sync writes down, whoever started it', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('records when a push happened', async () => {
+    // The status line under the switch used to move only for syncs the
+    // scheduler ran, so pressing the button left it showing an older time.
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+
+    await expect(sync()).resolves.toEqual({ kind: 'pushed', revision: 5 });
+    await expect(AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY)).resolves.toBe(NOW);
+  });
+
+  it('records when a pull happened', async () => {
+    arrange({ local: AGREED, agreed: base(4, AGREED), stored: envelope(5, IN_THE_ACCOUNT) });
+
+    await expect(sync()).resolves.toEqual({ kind: 'pulled', revision: 5 });
+    await expect(AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY)).resolves.toBe(NOW);
+  });
+
+  it('records when there was nothing to do', async () => {
+    // "Nothing to send" is a successful sync, and the line saying so is the
+    // difference between up to date and not working.
+    arrange({ local: AGREED, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+
+    await expect(sync()).resolves.toEqual({ kind: 'noop', revision: 4 });
+    await expect(AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY)).resolves.toBe(NOW);
+  });
+
+  it('records nothing when the sync found a conflict', async () => {
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(5, CONTESTED) });
+
+    await expect(sync()).resolves.toMatchObject({ kind: 'conflict' });
+    await expect(AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY)).resolves.toBeNull();
+  });
+
+  it('records nothing when the sync failed', async () => {
+    cloud.loadRemoteSyncState.mockRejectedValue(new AuthError('network-failed'));
+
+    await expect(sync()).resolves.toMatchObject({ kind: 'error' });
+    await expect(AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY)).resolves.toBeNull();
+  });
+});
+
+describe('the note about an unresolved conflict', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('is written when a conflict is found', async () => {
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(5, CONTESTED) });
+
+    await expect(sync()).resolves.toMatchObject({ kind: 'conflict' });
+    await expect(AsyncStorage.getItem(UNRESOLVED_CONFLICT_STORAGE_KEY)).resolves.toBe(UID);
+  });
+
+  it('is dropped by a sync that agreed, even though one was set', async () => {
+    // A conflict can resolve itself — the other phone's change pulled in, or
+    // the same edit made on both sides. Leaving the note up would keep the
+    // notice on screen and automatic sync stopped for a disagreement that is
+    // over, with the only way out a screen showing two identical columns.
+    await AsyncStorage.setItem(UNRESOLVED_CONFLICT_STORAGE_KEY, UID);
+
+    arrange({ local: ON_THE_PHONE, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+
+    await expect(sync()).resolves.toEqual({ kind: 'pushed', revision: 5 });
+    await expect(AsyncStorage.getItem(UNRESOLVED_CONFLICT_STORAGE_KEY)).resolves.toBeNull();
+  });
+
+  it('runs at all while the note is set, which is what the button relies on', async () => {
+    // Automatic sync refuses while this is set — that rule lives in the
+    // scheduler. `runCloudSync` itself must not, or pressing the button would
+    // be refused too and nothing could ever clear the note.
+    await AsyncStorage.setItem(UNRESOLVED_CONFLICT_STORAGE_KEY, UID);
+
+    arrange({ local: AGREED, agreed: base(4, AGREED), stored: envelope(4, AGREED) });
+
+    await expect(sync()).resolves.toEqual({ kind: 'noop', revision: 4 });
+  });
+
+  it('survives a sync that failed', async () => {
+    await AsyncStorage.setItem(UNRESOLVED_CONFLICT_STORAGE_KEY, UID);
+
+    cloud.loadRemoteSyncState.mockRejectedValue(new AuthError('network-failed'));
+
+    await expect(sync()).resolves.toMatchObject({ kind: 'error' });
+    await expect(AsyncStorage.getItem(UNRESOLVED_CONFLICT_STORAGE_KEY)).resolves.toBe(UID);
   });
 });

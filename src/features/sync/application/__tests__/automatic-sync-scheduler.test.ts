@@ -85,7 +85,7 @@ function setUp(): void {
   clock = 1_700_000_000_000;
 
   resetLocalDataChangeListenersForTests();
-  resetAutomaticSyncForTests({ now: () => clock, isoNow: () => '2026-09-21T10:00:00.000Z' });
+  resetAutomaticSyncForTests({ now: () => clock });
 
   jest.clearAllMocks();
 
@@ -386,7 +386,7 @@ describe('what a finished run is used for', () => {
     setAutomaticSyncContext({ db, uid: 'uid-1' });
   });
 
-  it('writes down a conflict and never resolves it', async () => {
+  it('hands a conflict back without resolving it', async () => {
     runCloudSyncMock.mockResolvedValue({
       kind: 'conflict',
       conflict: { paths: ['periodRecords'] },
@@ -395,7 +395,15 @@ describe('what a finished run is used for', () => {
     const outcome = await requestAutomaticSync('sign-in');
 
     expect(outcome).toEqual(expect.objectContaining({ kind: 'conflict' }));
-    expect(markConflictUnresolvedMock).toHaveBeenCalledWith('uid-1');
+  });
+
+  it('leaves the bookkeeping to the sync itself', async () => {
+    // Writing the conflict down and recording a settled sync both live inside
+    // runCloudSync, so the button and the scheduler leave the same trail.
+    // Repeating either here would be a second, divergent copy of the rule.
+    await requestAutomaticSync('sign-in');
+
+    expect(runCloudSyncMock).toHaveBeenCalledWith({ db, uid: 'uid-1' });
   });
 
   it('stops every later automatic run once a conflict is written down', async () => {
@@ -410,44 +418,6 @@ describe('what a finished run is used for', () => {
 
     await expect(requestAutomaticSync('enabled')).resolves.toBeNull();
     expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not record a sync time for a conflict', async () => {
-    runCloudSyncMock.mockResolvedValue({
-      kind: 'conflict',
-      conflict: { paths: ['periodRecords'] },
-    } as unknown as CloudSyncOutcome);
-
-    await requestAutomaticSync('sign-in');
-
-    expect(saveLastSyncAtMock).not.toHaveBeenCalled();
-  });
-
-  it('does not record a sync time for a failure', async () => {
-    runCloudSyncMock.mockResolvedValue({
-      kind: 'error',
-      failure: 'network-failed',
-    } as CloudSyncOutcome);
-
-    await requestAutomaticSync('sign-in');
-
-    expect(saveLastSyncAtMock).not.toHaveBeenCalled();
-  });
-
-  it('records a sync time when something actually settled', async () => {
-    await requestAutomaticSync('sign-in');
-
-    expect(saveLastSyncAtMock).toHaveBeenCalledWith('2026-09-21T10:00:00.000Z');
-  });
-
-  it('records a sync time even when there was nothing to do', async () => {
-    // "Nothing to send" is a successful sync, and the status line saying so is
-    // the difference between up to date and not working.
-    runCloudSyncMock.mockResolvedValue({ kind: 'noop' } as CloudSyncOutcome);
-
-    await requestAutomaticSync('sign-in');
-
-    expect(saveLastSyncAtMock).toHaveBeenCalled();
   });
 
   it.each([['pulled'], ['merged']])('refreshes the copies after a %s', async (kind) => {

@@ -11,8 +11,7 @@ import { logEvent } from '@/shared/logging';
 
 import type { AutomaticSyncSkipReason, AutomaticSyncTrigger } from '../domain/automatic-sync-policy';
 import { LOCAL_CHANGE_DEBOUNCE_MS, decideAutomaticSync } from '../domain/automatic-sync-policy';
-import { isConflictUnresolved, markConflictUnresolved } from '../infrastructure/unresolved-conflict';
-import { saveLastSyncAt } from '../infrastructure/last-sync-at';
+import { isConflictUnresolved } from '../infrastructure/unresolved-conflict';
 import { loadSyncPreferences } from '../infrastructure/sync-preferences';
 
 import { isAutomaticSyncSuspended, resetAutomaticSyncSuspensionForTests } from './automatic-sync-suspension';
@@ -67,9 +66,6 @@ const state: SchedulerState = {
 
 /** Injected so tests need no real clock. */
 let now: () => number = () => Date.now();
-
-/** Injected so tests need no real ISO clock either. */
-let isoNow: () => string = () => new Date().toISOString();
 
 /**
  * Names the account this phone may sync, and starts listening for edits.
@@ -258,21 +254,9 @@ async function runAttempt(context: AutomaticSyncContext): Promise<CloudSyncOutco
     return null;
   }
 
-  if (outcome.kind === 'conflict') {
-    try {
-      await markConflictUnresolved(uid);
-    } catch (error: unknown) {
-      logEvent('automatic sync failed', error);
-    }
-  }
-
-  if (outcome.kind !== 'error' && outcome.kind !== 'conflict') {
-    try {
-      await saveLastSyncAt(isoNow());
-    } catch (error: unknown) {
-      logEvent('automatic sync failed', error);
-    }
-  }
+  // Writing the conflict down and recording a settled sync both happen inside
+  // runCloudSync, so a sync started by the button and one started here leave
+  // exactly the same trail. Nothing to repeat.
 
   // A pull or a merge rewrote this phone underneath whoever is holding it.
   // The widget and the reminders are copies of what just changed, and every one
@@ -322,10 +306,7 @@ export function hasPendingLocalChange(): boolean {
 }
 
 /** Puts everything back. For tests, and for a wipe that ends the session. */
-export function resetAutomaticSyncForTests(overrides?: {
-  now?: () => number;
-  isoNow?: () => string;
-}): void {
+export function resetAutomaticSyncForTests(overrides?: { now?: () => number }): void {
   cancelPendingChange();
   state.unsubscribe?.();
   state.unsubscribe = null;
@@ -335,5 +316,4 @@ export function resetAutomaticSyncForTests(overrides?: {
   resetAutomaticSyncSuspensionForTests();
   state.listeners.clear();
   now = overrides?.now ?? (() => Date.now());
-  isoNow = overrides?.isoNow ?? (() => new Date().toISOString());
 }

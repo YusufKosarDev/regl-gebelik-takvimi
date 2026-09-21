@@ -15,6 +15,7 @@ import {
   pushRemoteSyncState,
 } from '../data/cloud-sync-repository';
 import { loadSyncState, saveSyncState } from '../data/sync-state-repository';
+import { isSettledSyncOutcome, recordSyncSettled } from './settle-sync';
 import type { CloudBackupEnvelopeV1 } from '../domain/cloud-backup-envelope-v1';
 import { cloudSyncContentHash } from '../domain/cloud-sync-hash';
 import { decideSync } from '../domain/decide-sync';
@@ -421,6 +422,12 @@ export async function runCloudSync(input: RunCloudSyncInput): Promise<CloudSyncO
           } catch (error: unknown) {
             logEvent('automatic sync failed', error);
           }
+        }
+
+        // And the mirror of it: a sync that agreed is what makes an older note
+        // about a disagreement untrue, whoever pressed the button.
+        if (isSettledSyncOutcome(outcome.kind)) {
+          await recordSyncSettled({ uid, now: attempt.now });
         }
 
         return outcome;
