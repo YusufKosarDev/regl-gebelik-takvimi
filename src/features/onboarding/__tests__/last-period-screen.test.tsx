@@ -109,7 +109,6 @@ async function renderScreen(options: ScreenOptions = {}) {
 /** Presses a button n times, re-querying so the latest state is used each time. */
 async function pressTimes(getButton: () => unknown, times: number): Promise<void> {
   for (let i = 0; i < times; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
     await fireEvent.press(getButton() as never);
   }
 }

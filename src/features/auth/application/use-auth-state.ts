@@ -49,9 +49,10 @@ export function useAuthState(): AuthState {
   );
 
   useEffect(() => {
+    // No state to set here: the initial value above already asked the same
+    // question, and a build without a project cannot acquire one while it is
+    // running. Subscribing is the only thing left that depends on the answer.
     if (!isFirebaseConfigured()) {
-      setState(NOT_CONFIGURED);
-
       return undefined;
     }
 
@@ -74,6 +75,12 @@ export function useAuthState(): AuthState {
       // The only thing `observeAuthUser` refuses for is a build with no
       // project, and that is a state rather than something to show an error
       // about. Nothing is written down: the thrown value is the SDK's.
+      //
+      // This is the one transition that cannot be derived during render: it is
+      // the result of *attempting* the subscription, which only an effect may
+      // do. It moves `loading` to `not-configured` once, on mount, in a branch
+      // that ends the effect — there is no second pass for it to cascade into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(NOT_CONFIGURED);
 
       return undefined;

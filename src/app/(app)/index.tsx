@@ -314,6 +314,12 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!canBrowseWeeks && previewWeek !== null) {
+      // Not derivable during render: `shownWeek` below already ignores the
+      // preview while there is nothing to browse, so what this is for is the
+      // week *after* — the data going away and coming back should start from
+      // the current week, not the one someone was looking at before. That
+      // reset has to outlast the gap, which means it has to be stored.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewWeek(null);
     }
   }, [canBrowseWeeks, previewWeek]);
