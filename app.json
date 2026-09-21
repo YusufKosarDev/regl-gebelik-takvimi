@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "regl-gebelik-takvimi",
+    "name": "Regl & Gebelik Takvimi",
     "slug": "regl-gebelik-takvimi",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.reglgebeliktakvimi"
+      "package": "com.yusufkosardev.regltakvimi",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
