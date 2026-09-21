@@ -5,6 +5,7 @@ import { isFirebaseConfigured } from '@/features/auth/infrastructure/firebase';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { onLocalDataChanged } from '@/shared/data-change/local-data-change';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -15,6 +16,11 @@ import { isConflictUnresolved } from '../infrastructure/unresolved-conflict';
 import { loadSyncPreferences } from '../infrastructure/sync-preferences';
 
 import { isAutomaticSyncSuspended, resetAutomaticSyncSuspensionForTests } from './automatic-sync-suspension';
+import {
+  announceSyncOutcome,
+  onSyncOutcome,
+  resetSyncOutcomeListenersForTests,
+} from './sync-outcome-notifier';
 import type { CloudSyncOutcome } from './run-cloud-sync';
 import { runCloudSync } from './run-cloud-sync';
 
@@ -51,7 +57,6 @@ type SchedulerState = {
   /** An edit is waiting out its debounce. Used by the flush on the way out. */
   changePending: boolean;
   unsubscribe: (() => void) | null;
-  listeners: Set<(outcome: CloudSyncOutcome) => void>;
 };
 
 const state: SchedulerState = {
@@ -61,7 +66,6 @@ const state: SchedulerState = {
   debounceTimer: null,
   changePending: false,
   unsubscribe: null,
-  listeners: new Set(),
 };
 
 /** Injected so tests need no real clock. */
@@ -108,28 +112,27 @@ function cancelPendingChange(): void {
   state.changePending = false;
 }
 
-/** Watches what finished syncs came to. Returns the way to stop watching. */
+/**
+ * Watches what finished syncs came to.
+ *
+ * Kept here as the name callers already use; the registry itself lives in
+ * sync-outcome-notifier, so a screen or a conflict resolution can reach it
+ * without importing everything a sync needs.
+ */
 export function onAutomaticSyncOutcome(listener: (outcome: CloudSyncOutcome) => void): () => void {
-  state.listeners.add(listener);
-
-  return () => {
-    state.listeners.delete(listener);
-  };
-}
-
-function announce(outcome: CloudSyncOutcome): void {
-  for (const listener of [...state.listeners]) {
-    try {
-      listener(outcome);
-    } catch {
-      // A screen that has gone away is not this module's problem.
-    }
-  }
+  return onSyncOutcome(listener);
 }
 
 /** An edit landed. Start, or restart, the wait before sending it. */
-function handleLocalDataChanged(): void {
+function handleLocalDataChanged(origin: LocalDataChangeOrigin): void {
   if (state.context === null) {
+    return;
+  }
+
+  // A pull, a merge or a restore. Scheduling a sync for data that arrived from
+  // the account is a loop that settles only because the second sync finds
+  // nothing to do; the screens listen to this, the scheduler does not.
+  if (origin !== 'local') {
     return;
   }
 
@@ -272,7 +275,7 @@ async function runAttempt(context: AutomaticSyncContext): Promise<CloudSyncOutco
 
   // Last, so a screen that refetches on hearing this reads a database that has
   // already settled.
-  announce(outcome);
+  announceSyncOutcome(outcome);
 
   return outcome;
 }
@@ -314,6 +317,6 @@ export function resetAutomaticSyncForTests(overrides?: { now?: () => number }): 
   state.inFlight = null;
   state.lastAttemptAtMs = null;
   resetAutomaticSyncSuspensionForTests();
-  state.listeners.clear();
+  resetSyncOutcomeListenersForTests();
   now = overrides?.now ?? (() => Date.now());
 }

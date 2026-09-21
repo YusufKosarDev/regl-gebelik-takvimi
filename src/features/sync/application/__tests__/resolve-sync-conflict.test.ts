@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
@@ -8,7 +9,12 @@ import { loadRemoteSyncState, pushRemoteSyncState } from '../../data/cloud-sync-
 import { saveSyncState } from '../../data/sync-state-repository';
 import { cloudSyncContentHash } from '../../domain/cloud-sync-hash';
 import { clearUnresolvedConflict } from '../../infrastructure/unresolved-conflict';
+import { LAST_SYNC_AT_STORAGE_KEY } from '../../infrastructure/last-sync-at';
 import { keepLocalData, keepRemoteData } from '../resolve-sync-conflict';
+import {
+  onSyncOutcome,
+  resetSyncOutcomeListenersForTests,
+} from '../sync-outcome-notifier';
 
 // `device-id` reaches AsyncStorage on import. The official mock keeps that
 // from being a native call in a test runner.
@@ -414,5 +420,66 @@ describe('while a resolution is running', () => {
     await keepRemoteData(input);
 
     expect(suspensionDepth).toBe(0);
+  });
+});
+
+describe('telling the rest of the app it is over', () => {
+  beforeEach(() => {
+    resetSyncOutcomeListenersForTests();
+  });
+
+  it('announces keeping the phone as the push it was', async () => {
+    // The account screen listens to this. Without it the conflict notice stayed
+    // on screen for a conflict that had just been settled, until the screen was
+    // rebuilt from scratch.
+    const heard: unknown[] = [];
+
+    onSyncOutcome((outcome) => heard.push(outcome));
+
+    loadRemoteSyncStateMock.mockResolvedValue(remoteAt(7) as never);
+    pushRemoteSyncStateMock.mockResolvedValue({
+      kind: 'stored',
+      envelope: { revision: 8, updatedAt: '2026-09-21T10:00:00.000Z' },
+    } as never);
+
+    await keepLocalData(input);
+
+    expect(heard).toEqual([{ kind: 'pushed', revision: 8 }]);
+  });
+
+  it('announces keeping the account as the pull it was', async () => {
+    const heard: unknown[] = [];
+
+    onSyncOutcome((outcome) => heard.push(outcome));
+
+    loadRemoteSyncStateMock.mockResolvedValue(remoteAt(7) as never);
+
+    await keepRemoteData(input);
+
+    expect(heard).toEqual([{ kind: 'pulled', revision: 7 }]);
+  });
+
+  it('says nothing when the resolution failed', async () => {
+    // Nothing moved, so nothing anybody is showing has gone out of date.
+    const heard: unknown[] = [];
+
+    onSyncOutcome((outcome) => heard.push(outcome));
+
+    loadRemoteSyncStateMock.mockResolvedValue(remoteAt(9) as never);
+
+    await keepLocalData(input);
+    await keepRemoteData(input);
+
+    expect(heard).toEqual([]);
+  });
+
+  it('records the sync time, the same as any other sync that agreed', async () => {
+    loadRemoteSyncStateMock.mockResolvedValue(remoteAt(7) as never);
+
+    await keepRemoteData(input);
+
+    await expect(AsyncStorage.getItem(LAST_SYNC_AT_STORAGE_KEY)).resolves.toBe(
+      '2026-09-21T10:00:00.000Z'
+    );
   });
 });

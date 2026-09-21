@@ -9,9 +9,12 @@ import { saveSyncState } from '../data/sync-state-repository';
 import { cloudSyncContentHash } from '../domain/cloud-sync-hash';
 import type { DeviceIdProvider } from '../infrastructure/device-id';
 import { deviceIdProvider } from '../infrastructure/device-id';
-import { clearUnresolvedConflict } from '../infrastructure/unresolved-conflict';
 
+
+import { announceSyncOutcome } from './sync-outcome-notifier';
+import type { CloudSyncOutcome } from './run-cloud-sync';
 import { withAutomaticSyncSuspended } from './automatic-sync-suspension';
+import { recordSyncSettled } from './settle-sync';
 
 /**
  * Settling a conflict the only way this app offers: one whole side wins.
@@ -59,13 +62,18 @@ export type ResolveSyncConflictInput = {
 
 const isoNow = () => new Date().toISOString();
 
-/** Forgets the note, and never fails the resolution over it. */
-async function forgetConflict(): Promise<void> {
-  try {
-    await clearUnresolvedConflict();
-  } catch (error: unknown) {
-    logEvent('sync conflict resolve failed', error);
-  }
+/**
+ * Records that this phone and the account now agree, and says so out loud.
+ *
+ * The same step every ordinary sync takes: the note about the disagreement is
+ * dropped and the time is written down. The announcement is what the account
+ * screen listens to, so the notice goes without waiting for a remount — a
+ * resolution is a sync, described to a screen as the push or the pull it was.
+ */
+async function settle(uid: string, stamp: () => string, outcome: CloudSyncOutcome): Promise<void> {
+  await recordSyncSettled({ uid, now: stamp });
+
+  announceSyncOutcome(outcome);
 }
 
 /**
@@ -123,7 +131,7 @@ export async function keepLocalData(
         logEvent('sync conflict resolve failed', error);
       }
 
-      await forgetConflict();
+      await settle(uid, stamp, { kind: 'pushed', revision: stored.envelope.revision });
 
       return { kind: 'local-kept', revision: stored.envelope.revision };
     } catch (error: unknown) {
@@ -186,7 +194,7 @@ export async function keepRemoteData(
       logEvent('sync conflict resolve failed', error);
     }
 
-    await forgetConflict();
+    await settle(uid, stamp, { kind: 'pulled', revision: remote.revision });
 
     return { kind: 'remote-kept', revision: remote.revision };
   });
