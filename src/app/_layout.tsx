@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { registerForegroundNotificationHandler } from '@/features/notifications/infrastructure/foreground-notification-handler';
 import { useAutomaticSync } from '@/features/sync/application/use-automatic-sync';
 import { logEvent } from '@/shared/logging';
 import { useAppStore } from '@/store/app-store';
@@ -25,6 +26,12 @@ export default function RootLayout() {
   // Mounted here rather than on a screen: an edit made anywhere should still
   // reach the account after the person navigates away from where they made it.
   useAutomaticSync();
+
+  // Before anything can be rendered, and outside an effect: a reminder can fire
+  // while the very first frame is still being drawn, and a handler installed
+  // after it arrives is a handler that missed it. Idempotent by design, so a
+  // re-render costs nothing.
+  registerForegroundNotificationHandler();
 
   // `hydrate` is a stable store action, so this runs once per app start rather
   // than on every state change.
