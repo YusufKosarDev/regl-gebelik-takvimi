@@ -49,8 +49,8 @@ export default function OnboardingWelcomeScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Başlayalım"
-            accessibilityHint="Döngü ayarlarını girmeye geçer"
-            onPress={() => router.push('/(onboarding)/cycle-settings')}
+            accessibilityHint="Başlamadan önce bilinmesi gerekenlere geçer"
+            onPress={() => router.push('/(onboarding)/disclaimer')}
             style={({ pressed }) => [
               styles.button,
               { backgroundColor: theme.text },

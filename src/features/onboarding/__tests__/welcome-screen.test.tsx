@@ -112,18 +112,28 @@ describe('OnboardingWelcomeScreen accessibility', () => {
     const { getByRole } = await render(<OnboardingWelcomeScreen />);
     const button = getByRole('button', { name: 'Başlayalım' });
 
-    expect(button.props.accessibilityHint).toBe('Döngü ayarlarını girmeye geçer');
+    expect(button.props.accessibilityHint).toBe('Başlamadan önce bilinmesi gerekenlere geçer');
   });
 });
 
 describe('OnboardingWelcomeScreen navigation', () => {
-  it('goes to cycle settings when the button is pressed', async () => {
+  it('goes to the disclaimer when the button is pressed', async () => {
+    // Before the cycle settings, which is the first screen that asks for
+    // anything: the disclaimer has to come before any data is entered.
     const { getByRole } = await render(<OnboardingWelcomeScreen />);
 
     await fireEvent.press(getByRole('button', { name: 'Başlayalım' }));
 
     expect(push).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledWith('/(onboarding)/cycle-settings');
+    expect(push).toHaveBeenCalledWith('/(onboarding)/disclaimer');
+  });
+
+  it('does not skip past it to a screen that collects data', async () => {
+    const { getByRole } = await render(<OnboardingWelcomeScreen />);
+
+    await fireEvent.press(getByRole('button', { name: 'Başlayalım' }));
+
+    expect(push).not.toHaveBeenCalledWith('/(onboarding)/cycle-settings');
   });
 
   it('navigates only when pressed', async () => {
