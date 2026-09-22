@@ -19,6 +19,7 @@ export const LOG_EVENTS = [
   'cycle settings save failed',
   'local data wipe failed',
   'notification preference change failed',
+  'about link open failed',
   'notification settings open failed',
   'notification sync failed',
   'onboarding completion failed',

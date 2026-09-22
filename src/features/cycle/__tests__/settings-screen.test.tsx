@@ -3,6 +3,8 @@ import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/settings';
+import { LOCAL_WIPE_OPEN_LABEL } from '@/features/deletion/presentation/deletion-messages';
+import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import {
   NOTIFICATIONS_BLOCKED_NOTICE,
   OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
@@ -118,6 +120,7 @@ const { focusAgain } = jest.requireMock('expo-router') as { focusAgain: () => vo
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
+let push: jest.Mock;
 
 function profile(cycle: number, period: number): CycleProfile {
   return {
@@ -170,7 +173,8 @@ beforeEach(() => {
 
   back = jest.fn();
   useRouterMock.mockReset();
-  useRouterMock.mockReturnValue({ back, push: jest.fn(), replace: jest.fn() });
+  push = jest.fn();
+  useRouterMock.mockReturnValue({ back, push, replace: jest.fn() });
 });
 
 async function renderScreen() {
@@ -652,6 +656,7 @@ describe('SettingsScreen scope', () => {
       'Ortalama regl süresini artır',
       'Döngü ayarlarını kaydet',
       'Hesabı aç',
+      'Hakkında',
       // Opens the confirmation panel; it deletes nothing on its own.
       'Tüm verilerimi sil',
     ]);
@@ -1412,5 +1417,38 @@ describe('when notifications are blocked for this app', () => {
 
     expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
     expect(screen.getByLabelText('Regl hatırlatıcısı')).toBeTruthy();
+  });
+});
+
+describe('the about row', () => {
+  it('offers a way to what the app says about itself', async () => {
+    const screen = await renderLoaded();
+
+    expect(screen.getByLabelText(ABOUT_OPEN_LABEL)).toBeTruthy();
+  });
+
+  it('opens the about screen when pressed', async () => {
+    const screen = await renderLoaded();
+
+    fireEvent.press(screen.getByLabelText(ABOUT_OPEN_LABEL));
+
+    expect(push).toHaveBeenCalledWith('/(app)/about');
+  });
+
+  it('sits above the section that empties the phone', async () => {
+    // Somebody looking for what this app claims about itself should find it
+    // before they find the button that deletes everything.
+    const screen = await renderLoaded();
+
+    const labels = screen
+      .queryAllByRole('button')
+      .map((node) => String(node.props.accessibilityLabel ?? ''));
+
+    const aboutIndex = labels.indexOf(ABOUT_OPEN_LABEL);
+    const wipeIndex = labels.indexOf(LOCAL_WIPE_OPEN_LABEL);
+
+    expect(aboutIndex).toBeGreaterThanOrEqual(0);
+    expect(wipeIndex).toBeGreaterThanOrEqual(0);
+    expect(aboutIndex).toBeLessThan(wipeIndex);
   });
 });

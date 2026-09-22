@@ -55,6 +55,7 @@ import {
   localWipeMessage,
 } from '@/features/deletion/presentation/deletion-messages';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
+import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
@@ -627,6 +628,23 @@ export default function SettingsScreen() {
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText type="smallBold">Hesabı aç</ThemedText>
+              </Pressable>
+            </View>
+
+            {/* Above the destructive section, because somebody looking for what
+                this app claims about itself should find it before they find the
+                button that empties their phone. */}
+            <View style={styles.fields}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={ABOUT_OPEN_LABEL}
+                onPress={() => router.push('/(app)/about')}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">{ABOUT_OPEN_LABEL}</ThemedText>
               </Pressable>
             </View>
 
