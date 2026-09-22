@@ -241,6 +241,19 @@ linked, and `react-native-screens` and `react-native-worklets` fail with dozens
 of `undefined symbol: operator new` style errors that have nothing to do with
 this app's code.
 
+## TODO before release
+
+- **Notification icon.** The `expo-notifications` plugin sets the accent colour
+  (`#208AEF`) but no `icon`. Android therefore falls back to the app icon in the
+  status bar, which it renders as a white silhouette — legible, but not designed.
+  A monochrome notification icon (white on transparent, 96×96 baseline) should be
+  drawn alongside the app icon and added as `icon` in the plugin's options.
+
+- **Release bundling.** `createBundleReleaseJsAndAssets` currently fails on the
+  development machine: `hermesc.exe was blocked by your organization's Device
+  Guard policy`. The JS bundle itself is written; only the Hermes bytecode step
+  is blocked. A release build needs that policy exception, or another machine.
+
 ## License
 
 See [LICENSE](LICENSE).
