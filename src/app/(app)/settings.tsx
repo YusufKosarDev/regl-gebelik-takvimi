@@ -1,6 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +30,16 @@ import type { NotificationPreferences } from '@/features/notifications/domain/no
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domain/notification-preferences';
 import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import type { NotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
+import { getNotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
+import {
+  NOTIFICATIONS_BLOCKED_NOTICE,
+  OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
+  OPEN_SYSTEM_SETTINGS_LABEL,
+  PERMISSION_REFUSED_MESSAGE,
+  REMINDERS_INTRO,
+  REMINDER_SAVE_FAILED_MESSAGE,
+} from '@/features/notifications/presentation/reminder-messages';
 import { wipeLocalData } from '@/features/deletion/application/wipe-local-data';
 import {
   LOCAL_WIPE_BUSY_LABEL,
@@ -49,10 +67,6 @@ import { logEvent } from '@/shared/logging';
 const LOAD_ERROR_MESSAGE = 'Ayarlar yüklenemedi.';
 const SAVE_ERROR_MESSAGE = 'Ayarlar kaydedilemedi.';
 const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
-const PERMISSION_DENIED_MESSAGE =
-  'Bildirim izni verilmedi. Hatırlatıcıyı açmak için telefon ayarlarından bu uygulamaya ' +
-  'bildirim izni ver.';
-const REMINDER_ERROR_MESSAGE = 'Hatırlatıcı ayarı kaydedilemedi.';
 
 /**
  * The longest period length that makes sense alongside a given cycle length.
@@ -170,6 +184,12 @@ export default function SettingsScreen() {
   );
   const [reminderField, setReminderField] = useState<keyof NotificationPreferences | null>(null);
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
+
+  // What the system says about delivering anything at all. Held apart from the
+  // switches: a reminder can be switched on and still never arrive, and that is
+  // the case worth a standing notice rather than a message after a press.
+  const [permission, setPermission] = useState<NotificationPermissionStatus>('undetermined');
+  const [settingsLinkNotice, setSettingsLinkNotice] = useState<string | null>(null);
   const reminderInFlight = useRef(false);
 
   /**
@@ -181,12 +201,18 @@ export default function SettingsScreen() {
   const readSettings = useCallback(async () => {
     const db = await openAppDatabase();
 
-    const [stored, storedReminders] = await Promise.all([
+    // The permission is read here too, on every load and every refocus, so
+    // coming back from system settings shows the new answer without anybody
+    // having to press a switch to find out. It reads; it never prompts.
+    const [stored, storedReminders, permission] = await Promise.all([
       getCycleSettings(db),
       loadNotificationPreferences(db),
+      getNotificationPermissionStatus().catch(
+        (): NotificationPermissionStatus => 'undetermined'
+      ),
     ]);
 
-    return { settings: stored, reminders: storedReminders };
+    return { settings: stored, reminders: storedReminders, permission };
   }, []);
 
   /**
@@ -216,6 +242,7 @@ export default function SettingsScreen() {
 
           setSettings(data.settings);
           setReminders(data.reminders);
+          setPermission(data.permission);
 
           if (data.settings !== null) {
             // Against what was stored, not against what has just arrived: a
@@ -312,16 +339,44 @@ export default function SettingsScreen() {
         await syncPregnancyWeeklyReminderQuietly(db);
       }
 
+      if (result.permission !== null) {
+        setPermission(result.permission);
+      }
+
       if (enabled && result.permission !== 'granted') {
-        setReminderNotice(PERMISSION_DENIED_MESSAGE);
+        setReminderNotice(PERMISSION_REFUSED_MESSAGE);
       }
     } catch (error) {
       logEvent('notification preference change failed', error);
 
-      setReminderNotice(REMINDER_ERROR_MESSAGE);
+      setReminderNotice(REMINDER_SAVE_FAILED_MESSAGE);
     } finally {
       reminderInFlight.current = false;
       setReminderField(null);
+    }
+  };
+
+  /**
+   * Sends somebody to the one screen that can undo a refusal.
+   *
+   * Android shows the permission dialog once. After that the app cannot ask
+   * again — `ensureNotificationPermission` says as much — so a button that
+   * tried would do nothing at all, twice as confusingly. This opens the app's
+   * own page in system settings instead, which is where the switch actually is.
+   *
+   * `Linking.openSettings` is React Native's own, so nothing new is installed
+   * for it. A failure is reported rather than swallowed: somebody who pressed a
+   * button and saw nothing happen would reasonably press it again.
+   */
+  const handleOpenSystemSettings = async () => {
+    setSettingsLinkNotice(null);
+
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      logEvent('notification settings open failed', error);
+
+      setSettingsLinkNotice(OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE);
     }
   };
 
@@ -488,8 +543,42 @@ export default function SettingsScreen() {
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  Hatırlatıcılar kapalı gelir. Açtığın anda telefonun bildirim izni isteyebilir.
+                  {REMINDERS_INTRO}
                 </ThemedText>
+
+                {/* Standing, not transient: while this is true every switch in
+                    this section is a promise the phone will not keep, and that
+                    is worth saying before somebody flips one rather than after.
+                    Only for 'denied' — the one state the app cannot ask its way
+                    out of. 'undetermined' is the ordinary starting point and
+                    would be a warning about nothing. */}
+                {permission === 'denied' && (
+                  <View style={[styles.blockedPanel, { backgroundColor: theme.backgroundElement }]}>
+                    <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                      {NOTIFICATIONS_BLOCKED_NOTICE}
+                    </ThemedText>
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={OPEN_SYSTEM_SETTINGS_LABEL}
+                      onPress={() => {
+                        void handleOpenSystemSettings();
+                      }}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        pressed && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold">{OPEN_SYSTEM_SETTINGS_LABEL}</ThemedText>
+                    </Pressable>
+
+                    {settingsLinkNotice !== null && (
+                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                        {settingsLinkNotice}
+                      </ThemedText>
+                    )}
+                  </View>
+                )}
 
                 <ReminderToggle
                   label="Regl hatırlatıcısı"
@@ -815,6 +904,13 @@ const styles = StyleSheet.create({
   },
   fields: {
     gap: Spacing.four,
+  },
+  // The standing notice about blocked notifications, set apart from the
+  // switches it is about so it does not read as one more row of them.
+  blockedPanel: {
+    gap: Spacing.three,
+    borderRadius: Spacing.three,
+    padding: Spacing.four,
   },
   field: {
     gap: Spacing.half,

@@ -1,7 +1,14 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/settings';
+import {
+  NOTIFICATIONS_BLOCKED_NOTICE,
+  OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
+  OPEN_SYSTEM_SETTINGS_LABEL,
+  PERMISSION_REFUSED_MESSAGE,
+} from '@/features/notifications/presentation/reminder-messages';
 import {
   notifyLocalDataChanged,
   resetLocalDataChangeListenersForTests,
@@ -56,6 +63,13 @@ jest.mock('@/features/notifications/data/notification-preferences-repository', (
   saveNotificationPreferences: jest.fn(),
 }));
 
+// Read on every load, never prompting. Faked so each test can say what the
+// system would answer.
+jest.mock('@/features/notifications/infrastructure/notification-permission', () => ({
+  getNotificationPermissionStatus: jest.fn(),
+  ensureNotificationPermission: jest.fn(),
+}));
+
 jest.mock('@/features/notifications/application/set-reminder-enabled', () => ({
   setReminderEnabled: jest.fn(),
 }));
@@ -92,6 +106,15 @@ const reminderRepository = jest.requireMock(
   '@/features/notifications/data/notification-preferences-repository'
 );
 const reminders = jest.requireMock('@/features/notifications/application/set-reminder-enabled');
+const permissionModule = jest.requireMock(
+  '@/features/notifications/infrastructure/notification-permission'
+);
+// Spied rather than module-mocked: React Native's own Linking is already in
+// place under jest-expo, and there is no system settings screen to open here.
+const openSettingsMock = jest.spyOn(Linking, 'openSettings');
+
+// Acting out leaving the screen and coming back, from the shared router mock.
+const { focusAgain } = jest.requireMock('expo-router') as { focusAgain: () => void };
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
@@ -127,6 +150,11 @@ beforeEach(() => {
     pregnancyWeeklyReminderEnabled: false,
   });
   reminderRepository.saveNotificationPreferences.mockReset();
+  permissionModule.getNotificationPermissionStatus.mockReset();
+  permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+  permissionModule.ensureNotificationPermission.mockReset();
+  openSettingsMock.mockReset();
+  openSettingsMock.mockResolvedValue(undefined);
   reminders.setReminderEnabled.mockReset();
   reminders.setReminderEnabled.mockImplementation(
     async (_db: unknown, field: string, enabled: boolean) => ({
@@ -694,9 +722,9 @@ describe('SettingsScreen widget snapshot sync', () => {
   });
 });
 
-const DENIED_MESSAGE =
-  'Bildirim izni verilmedi. Hatırlatıcıyı açmak için telefon ayarlarından bu uygulamaya ' +
-  'bildirim izni ver.';
+// The copy now lives in the notifications feature's presentation file, so the
+// test reads the same string the screen does rather than a second copy of it.
+const DENIED_MESSAGE = PERMISSION_REFUSED_MESSAGE;
 
 /** Reads a switch's state off its accessibility state. */
 function isOn(
@@ -775,7 +803,7 @@ describe('SettingsScreen switching a reminder on', () => {
     });
 
     expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
-    expect(screen.queryByText(/Bildirim izni verilmedi/)).toBeNull();
+    expect(screen.queryByText(PERMISSION_REFUSED_MESSAGE)).toBeNull();
   });
 
   it('leaves it off and says why when permission is refused', async () => {
@@ -910,7 +938,7 @@ describe('SettingsScreen switching a reminder off', () => {
       fireEvent(screen.getByLabelText('Regl hatırlatıcısı'), 'valueChange', false);
     });
 
-    expect(screen.queryByText(/Bildirim izni verilmedi/)).toBeNull();
+    expect(screen.queryByText(PERMISSION_REFUSED_MESSAGE)).toBeNull();
   });
 });
 
@@ -1267,5 +1295,122 @@ describe('when a sync replaces the data underneath', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
     });
+  });
+});
+
+describe('when notifications are blocked for this app', () => {
+  it('says nothing while the permission has never been asked for', async () => {
+    // "undetermined" is the ordinary starting point. A warning about it would
+    // be a warning about nothing.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+    expect(screen.queryByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeNull();
+  });
+
+  it('says nothing while notifications are allowed', async () => {
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+  });
+
+  it('explains that reminders cannot arrive when the answer is a refusal', async () => {
+    // Standing, not tied to a press: while this is true every switch in the
+    // section is a promise the phone will not keep.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeTruthy();
+    });
+  });
+
+  it('offers the way out, which is the only one Android leaves', async () => {
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeTruthy();
+    });
+  });
+
+  it('opens the system settings when that is pressed', async () => {
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL));
+
+    await waitFor(() => {
+      expect(openSettingsMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('says so when the settings screen refuses to open', async () => {
+    // Somebody who pressed a button and saw nothing happen would press again.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+    openSettingsMock.mockRejectedValue(new Error('no activity'));
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL));
+
+    await waitFor(() => {
+      expect(screen.getByText(OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE)).toBeTruthy();
+    });
+  });
+
+  it('never prompts just because the screen opened', async () => {
+    // A permission dialog nobody asked for is a question with no safe answer.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    await renderLoaded();
+
+    expect(permissionModule.ensureNotificationPermission).not.toHaveBeenCalled();
+  });
+
+  it('picks up a permission granted while the app was in the background', async () => {
+    // Coming back from system settings should show the new answer without
+    // anybody having to press a switch to find out.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await act(async () => {
+      focusAgain();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+    });
+  });
+
+  it('keeps the screen usable when the permission cannot be read', async () => {
+    permissionModule.getNotificationPermissionStatus.mockRejectedValue(new Error('no module'));
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+    expect(screen.getByLabelText('Regl hatırlatıcısı')).toBeTruthy();
   });
 });
