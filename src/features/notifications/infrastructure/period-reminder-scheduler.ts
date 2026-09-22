@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import {
   PERIOD_REMINDER_BODY,
+  PERIOD_REMINDER_CHANNEL_DESCRIPTION,
   PERIOD_REMINDER_CHANNEL_ID,
   PERIOD_REMINDER_CHANNEL_NAME,
   PERIOD_REMINDER_HOUR,
@@ -45,6 +46,7 @@ export async function ensurePeriodReminderChannel(): Promise<void> {
 
   await Notifications.setNotificationChannelAsync(PERIOD_REMINDER_CHANNEL_ID, {
     name: PERIOD_REMINDER_CHANNEL_NAME,
+    description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
 }

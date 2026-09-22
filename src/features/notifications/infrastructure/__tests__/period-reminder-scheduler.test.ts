@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+import { PERIOD_REMINDER_CHANNEL_DESCRIPTION } from '../../domain/period-reminder';
+
 import {
   cancelPeriodReminders,
   ensurePeriodReminderChannel,
@@ -63,13 +65,22 @@ afterEach(() => {
 });
 
 describe('ensurePeriodReminderChannel', () => {
-  it('creates the channel with the agreed id, name and importance', async () => {
+  it('creates the channel with the agreed id, name, description and importance', async () => {
     await ensurePeriodReminderChannel();
 
     expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith('period-reminders', {
       name: 'Regl hatırlatıcıları',
+      description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
       importance: notifications.AndroidImportance.DEFAULT,
     });
+  });
+
+  it('describes what arrives and when, in Turkish', async () => {
+    // This is read in Android's own notification settings, beside every other
+    // app's. A name alone does not say whether it is one a month or one a day.
+    expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION).toContain('bir gün önce');
+    expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION).toContain('9:00');
+    expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION.length).toBeGreaterThan(20);
   });
 
   it('can be called again without complaint', async () => {

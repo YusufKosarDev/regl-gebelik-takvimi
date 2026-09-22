@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 
+import { PERIOD_REMINDER_CHANNEL_DESCRIPTION } from '../../domain/period-reminder';
+import { PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION } from '../../domain/pregnancy-weekly-reminder';
+
 import {
   cancelPregnancyWeeklyReminders,
   ensurePregnancyWeeklyReminderChannel,
@@ -55,7 +58,24 @@ describe('ensurePregnancyWeeklyReminderChannel', () => {
 
     expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
       'pregnancy-reminders',
-      { name: 'Gebelik hatırlatıcıları', importance: notifications.AndroidImportance.DEFAULT }
+      {
+        name: 'Gebelik hatırlatıcıları',
+        description: PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
+        importance: notifications.AndroidImportance.DEFAULT,
+      }
+    );
+  });
+
+  it('describes what arrives and when, in Turkish', async () => {
+    expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).toContain('pazartesi');
+    expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).toContain('9:00');
+  });
+
+  it('keeps its own channel, so one can be silenced without the other', async () => {
+    // Somebody tracking a pregnancy may well want the weekly note and nothing
+    // else, and Android only lets them say so per channel.
+    expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).not.toBe(
+      PERIOD_REMINDER_CHANNEL_DESCRIPTION
     );
   });
 

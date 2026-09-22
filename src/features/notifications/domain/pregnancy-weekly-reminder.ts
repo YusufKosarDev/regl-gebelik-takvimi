@@ -22,9 +22,16 @@
  */
 export const PREGNANCY_WEEKLY_REMINDER_TYPE = 'pregnancy-weekly-reminder-v1';
 
-/** The Android channel these are delivered on, separate from the period one. */
+/**
+ * The Android channel these are delivered on, separate from the period one.
+ *
+ * Separate so that switching one off in system settings leaves the other alone:
+ * somebody tracking a pregnancy may well want the weekly note and nothing else.
+ */
 export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID = 'pregnancy-reminders';
 export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME = 'Gebelik hatırlatıcıları';
+export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION =
+  "Gebelik takibi açıkken her pazartesi sabah 9:00'da haftalık bilgilendirme.";
 
 /**
  * Monday morning, every week.

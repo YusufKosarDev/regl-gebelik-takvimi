@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import {
   PREGNANCY_WEEKLY_REMINDER_BODY,
+  PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
   PREGNANCY_WEEKLY_REMINDER_HOUR,
@@ -44,6 +45,7 @@ export async function ensurePregnancyWeeklyReminderChannel(): Promise<void> {
 
   await Notifications.setNotificationChannelAsync(PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID, {
     name: PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
+    description: PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
 }

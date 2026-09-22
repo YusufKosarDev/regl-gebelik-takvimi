@@ -24,9 +24,19 @@ import { addDays } from '@/utils/date';
  */
 export const PERIOD_REMINDER_TYPE = 'period-reminder-v1';
 
-/** The Android channel these are delivered on. */
+/**
+ * The Android channel these are delivered on.
+ *
+ * The name and the description are what somebody reads in the system's own
+ * notification settings, where this app's words sit beside every other app's.
+ * The description says what arrives and when, because that screen is where a
+ * person decides whether to keep it — and "Regl hatırlatıcıları" alone does not
+ * tell them whether it is one a month or one a day.
+ */
 export const PERIOD_REMINDER_CHANNEL_ID = 'period-reminders';
 export const PERIOD_REMINDER_CHANNEL_NAME = 'Regl hatırlatıcıları';
+export const PERIOD_REMINDER_CHANNEL_DESCRIPTION =
+  "Tahmini regl tarihinden bir gün önce sabah 9:00'da tek bir hatırlatma.";
 
 /**
  * A day before the estimate, at nine in the morning.
