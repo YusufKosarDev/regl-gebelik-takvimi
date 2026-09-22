@@ -79,8 +79,15 @@ describe('ensurePeriodReminderChannel', () => {
     // This is read in Android's own notification settings, beside every other
     // app's. A name alone does not say whether it is one a month or one a day.
     expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION).toContain('bir gün önce');
-    expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION).toContain('9:00');
+    expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION).toContain('sabah saatlerinde');
     expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION.length).toBeGreaterThan(20);
+  });
+
+  it('promises no exact minute, because the app cannot keep one', async () => {
+    // Without the exact-alarm permission Android schedules these inexactly —
+    // the alarm carries a one-hour window — so naming a clock time would be a
+    // promise the app has no way to keep.
+    expect(PERIOD_REMINDER_CHANNEL_DESCRIPTION).not.toMatch(/d{1,2}[:.]d{2}/);
   });
 
   it('can be called again without complaint', async () => {

@@ -31,7 +31,7 @@ export const PREGNANCY_WEEKLY_REMINDER_TYPE = 'pregnancy-weekly-reminder-v1';
 export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID = 'pregnancy-reminders';
 export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME = 'Gebelik hatırlatıcıları';
 export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION =
-  "Gebelik takibi açıkken her pazartesi sabah 9:00'da haftalık bilgilendirme.";
+  'Gebelik takibi açıkken her pazartesi sabah saatlerinde haftalık bilgilendirme.';
 
 /**
  * Monday morning, every week.

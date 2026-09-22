@@ -36,7 +36,7 @@ export const PERIOD_REMINDER_TYPE = 'period-reminder-v1';
 export const PERIOD_REMINDER_CHANNEL_ID = 'period-reminders';
 export const PERIOD_REMINDER_CHANNEL_NAME = 'Regl hatırlatıcıları';
 export const PERIOD_REMINDER_CHANNEL_DESCRIPTION =
-  "Tahmini regl tarihinden bir gün önce sabah 9:00'da tek bir hatırlatma.";
+  'Tahmini regl tarihinden bir gün önce, sabah saatlerinde tek bir hatırlatma.';
 
 /**
  * A day before the estimate, at nine in the morning.

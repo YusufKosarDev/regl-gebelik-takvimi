@@ -68,7 +68,11 @@ describe('ensurePregnancyWeeklyReminderChannel', () => {
 
   it('describes what arrives and when, in Turkish', async () => {
     expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).toContain('pazartesi');
-    expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).toContain('9:00');
+    expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).toContain('sabah saatlerinde');
+  });
+
+  it('promises no exact minute, because the app cannot keep one', async () => {
+    expect(PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION).not.toMatch(/d{1,2}[:.]d{2}/);
   });
 
   it('keeps its own channel, so one can be silenced without the other', async () => {
