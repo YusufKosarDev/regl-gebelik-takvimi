@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/index';
+import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useAppStore } from '@/store/app-store';
 import type { AppMode } from '@/types/app-state';
 import type { CycleProfile } from '@/features/cycle/domain/types';
@@ -2468,6 +2469,20 @@ describe('HomeScreen pregnancy dashboard', () => {
     expect(getByText('• Zigot rahme doğru ilerler')).toBeTruthy();
   });
 
+  it('closes the weekly content with the general-information footer', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(CONTENT_DISCLAIMER_FOOTER)).toBeTruthy();
+  });
+
+  it('uses the same line the cycle view uses, not a second wording', async () => {
+    // Somebody who has read it under the daily note should recognise it here
+    // rather than read it again as something new.
+    const { queryAllByText } = await renderScreen();
+
+    expect(queryAllByText(CONTENT_DISCLAIMER_FOOTER)).toHaveLength(1);
+  });
+
   it('exposes the week content to assistive technology', async () => {
     const { getByLabelText } = await renderScreen();
 
@@ -3737,6 +3752,34 @@ describe('HomeScreen cycle daily support', () => {
   beforeEach(() => {
     repository.loadCycleProfile.mockResolvedValue(profile());
   });
+
+  it.each(['2026-09-03', '2026-09-10', '2026-09-14', '2026-09-20'])(
+    'closes the support section with the general-information footer on %s',
+    async (today) => {
+      getTodayMock.mockReturnValue(today as ISODate);
+
+      const { getByText } = await renderScreen();
+
+      expect(getByText(CONTENT_DISCLAIMER_FOOTER)).toBeTruthy();
+    }
+  );
+
+  it('says something different from the variability note beside it', async () => {
+    // One is about the content changing from person to person; this one is
+    // about it not being medical advice. Neither replaces the other.
+    const { getByText } = await renderScreen();
+
+    expect(CONTENT_DISCLAIMER_FOOTER).not.toBe(SUPPORT_DISCLAIMER);
+    expect(getByText(SUPPORT_DISCLAIMER)).toBeTruthy();
+    expect(getByText(CONTENT_DISCLAIMER_FOOTER)).toBeTruthy();
+  });
+
+  it('shows it once for the section, not once per card', async () => {
+    const { queryAllByText } = await renderScreen();
+
+    expect(queryAllByText(CONTENT_DISCLAIMER_FOOTER)).toHaveLength(1);
+  });
+
 
   it.each(['2026-09-03', '2026-09-10', '2026-09-20'])(
     'lists the moods written for the phase on %s',

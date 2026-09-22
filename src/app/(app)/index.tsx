@@ -46,6 +46,7 @@ import {
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
@@ -654,6 +655,13 @@ export default function HomeScreen() {
                     ))}
                   </View>
                 )}
+
+                {/* Closes the section rather than sitting inside one card: it
+                    is about all of it — the mood words, the message and the
+                    sources — not about the message alone. */}
+                <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+                  {CONTENT_DISCLAIMER_FOOTER}
+                </ThemedText>
               </View>
             )}
 
@@ -989,6 +997,10 @@ export default function HomeScreen() {
                         ))}
                       </View>
                     )}
+
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+                      {CONTENT_DISCLAIMER_FOOTER}
+                    </ThemedText>
                   </>
                 )}
 
