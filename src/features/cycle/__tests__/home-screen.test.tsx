@@ -2439,7 +2439,7 @@ describe('HomeScreen pregnancy dashboard', () => {
     const { getByText } = await renderScreen();
 
     expect(getByText('Bu hafta')).toBeTruthy();
-    expect(getByText(/Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+    expect(getByText(/Döllenme genellikle bu haftalarda gerçekleşir/)).toBeTruthy();
   });
 
   it('shows no size for a week that has none', async () => {
@@ -2486,7 +2486,7 @@ describe('HomeScreen pregnancy dashboard', () => {
   it('exposes the week content to assistive technology', async () => {
     const { getByLabelText } = await renderScreen();
 
-    expect(getByLabelText(/^Bu hafta: Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+    expect(getByLabelText(/^Bu hafta: Döllenme genellikle bu haftalarda gerçekleşir/)).toBeTruthy();
     expect(
       getByLabelText(/^Bu hafta gelişenler: Sperm ve yumurta birleşerek zigotu oluşturur/)
     ).toBeTruthy();
@@ -3427,11 +3427,11 @@ describe('HomeScreen pregnancy week navigation', () => {
   it('shows the content of the week it moved to', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByText(/Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+    expect(screen.getByText(/Döllenme genellikle bu haftalarda gerçekleşir/)).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Sonraki hafta'));
 
-    expect(screen.queryByText(/Döllenme bu hafta gerçekleşir/)).toBeNull();
+    expect(screen.queryByText(/Döllenme genellikle bu haftalarda gerçekleşir/)).toBeNull();
     // Narrow enough to match the summary rather than the feature beside it.
     expect(screen.getByText(/içi sıvı dolu amniyotik kesenin/)).toBeTruthy();
   });
@@ -3586,7 +3586,7 @@ describe('HomeScreen returning to the current week', () => {
     await fireEvent.press(screen.getByLabelText('Bugünkü haftaya dön'));
 
     expect(screen.getByLabelText('Gösterilen hafta: 3. hafta')).toBeTruthy();
-    expect(screen.getByText(/Döllenme bu hafta gerçekleşir/)).toBeTruthy();
+    expect(screen.getByText(/Döllenme genellikle bu haftalarda gerçekleşir/)).toBeTruthy();
   });
 
   it('goes away again once it is back', async () => {

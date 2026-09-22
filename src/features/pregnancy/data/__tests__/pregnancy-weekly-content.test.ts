@@ -309,3 +309,95 @@ describe('PREGNANCY_WEEKLY_CONTENT stays as written', () => {
     );
   });
 });
+
+describe('PREGNANCY_WEEKLY_CONTENT and fetal movement', () => {
+  /** Every week that says anything about the baby moving. */
+  const MOVEMENT = /hareket|tekme|kıpırda/i;
+
+  /** Telling somebody who to contact, rather than only what is usual. */
+  const WHO_TO_CONTACT = /doktoruna ya da ebene başvur/;
+
+  function weeksMentioningMovement(from: number) {
+    return PREGNANCY_WEEKLY_CONTENT.filter(
+      (entry) => entry.week >= from && MOVEMENT.test(entry.developmentSummary)
+    );
+  }
+
+  it('tells somebody what to do about reduced movement in the late weeks', () => {
+    // Reduced fetal movement is a recognised warning sign. Describing the usual
+    // pattern without saying who to call is the risky half of the sentence.
+    const late = weeksMentioningMovement(28);
+
+    expect(late.length).toBeGreaterThan(0);
+
+    for (const entry of late) {
+      expect(entry.developmentSummary).toMatch(WHO_TO_CONTACT);
+    }
+  });
+
+  it('says it without hedging the instruction', () => {
+    const week40 = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 40);
+
+    expect(week40?.developmentSummary).toContain(
+      'Bebeğinin hareketlerinin nasıl olduğunu takip et.'
+    );
+    expect(week40?.developmentSummary).toContain('beklemeden doktoruna ya da ebene başvur');
+  });
+
+  it('leaves the highlight pointing at watching rather than at a norm', () => {
+    const week40 = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 40);
+
+    expect(week40?.developingFeatures).toContain('Hareketlerin takibi önemlidir');
+    expect(week40?.developingFeatures).not.toContain('Hareketler her zamanki düzeninde sürer');
+  });
+
+  it('does not describe a normal pattern as a fact in the late weeks', () => {
+    // "Movements continue as usual" reads as a promise about this pregnancy.
+    for (const entry of weeksMentioningMovement(28)) {
+      expect(entry.developmentSummary).not.toMatch(/her zamanki düzeninde sürer|sürmelidir/);
+    }
+  });
+
+  it('leaves the early weeks alone, where movement is only development', () => {
+    // Before about 28 weeks movement is a milestone, not a warning sign, and a
+    // contact-your-doctor line on every week would be noise.
+    const early = PREGNANCY_WEEKLY_CONTENT.filter(
+      (entry) => entry.week < 28 && MOVEMENT.test(entry.developmentSummary)
+    );
+
+    expect(early.length).toBeGreaterThan(0);
+
+    for (const entry of early) {
+      expect(entry.developmentSummary).not.toMatch(WHO_TO_CONTACT);
+    }
+  });
+});
+
+describe('PREGNANCY_WEEKLY_CONTENT certainty', () => {
+  it('does not state conception as certain for one week', () => {
+    expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 3)?.developmentSummary).toContain(
+      'Döllenme genellikle bu haftalarda gerçekleşir'
+    );
+  });
+
+  it('does not state ovulation as happening on a fixed day', () => {
+    expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 2)?.developingFeatures).toContain(
+      'Ovulasyon çoğunlukla döngünün ortasına yakın gerçekleşir'
+    );
+  });
+
+  it('does not promise lung maturity', () => {
+    expect(getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 36)?.developingFeatures).toContain(
+      'Akciğerler desteksiz nefes alabilecek olgunluğa ulaşmış olabilir'
+    );
+  });
+
+  it('does not call one position the correct one', () => {
+    // Whether the baby has turned is a clinical judgement, not a verdict this
+    // app should hand down.
+    const week37 = getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, 37);
+
+    expect(week37?.developmentSummary).not.toContain('en uygun konum');
+    expect(week37?.developmentSummary).toContain('Bebeğin konumunu doktorun değerlendirir');
+  });
+});

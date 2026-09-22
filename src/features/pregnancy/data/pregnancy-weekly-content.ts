@@ -72,14 +72,14 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
     developingFeatures: [
       'Rahmin hazırlanması sürer',
       'Olgunlaşan folikül yumurtayı salar',
-      'Döngünün ortasında ovulasyon gerçekleşir',
+      'Ovulasyon çoğunlukla döngünün ortasına yakın gerçekleşir',
     ],
     sources: [CLEVELAND_CLINIC],
   },
   {
     week: 3,
     developmentSummary:
-      'Döllenme bu hafta gerçekleşir. Bir sperm ile yumurta birleşerek zigotu oluşturur; ' +
+      'Döllenme genellikle bu haftalarda gerçekleşir. Bir sperm ile yumurta birleşerek ' +
       'zigot bölünerek rahme doğru ilerler.',
     developingFeatures: [
       'Sperm ve yumurta birleşerek zigotu oluşturur',
@@ -442,7 +442,8 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
     size: { label: 'yaklaşık 41,1 cm', comparison: 'hindistan cevizi' },
     developmentSummary:
       'Bebek her geçen gün yağlanır ve daha az kırışık görünür. Rahim dışındaki sesleri ' +
-      'tanımaya başlar; parmaklarını emip takla atacak kadar hareketlidir.',
+      'tanımaya başlar; parmaklarını emip takla atacak kadar hareketlidir. Hareketlerde ' +
+      'azalma ya da değişiklik fark edersen doktoruna ya da ebene başvur.',
     developingFeatures: [
       'Yağlanarak daha az kırışık görünür',
       'Rahim dışındaki sesleri tanımaya başlar',
@@ -504,7 +505,7 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
       'Akciğerler büyük olasılıkla rahim dışında desteksiz nefes alabilecek olgunluktadır. ' +
       'Bebek anne sütünü emip sindirebilir.',
     developingFeatures: [
-      'Akciğerler desteksiz nefes alabilecek olgunluğa ulaşır',
+      'Akciğerler desteksiz nefes alabilecek olgunluğa ulaşmış olabilir',
       'Anne sütünü emip sindirebilir',
     ],
     sources: [nhsWeek(36), CLEVELAND_CLINIC],
@@ -513,8 +514,8 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
     week: 37,
     size: { label: 'yaklaşık 48,6 cm', comparison: 'pırasa' },
     developmentSummary:
-      'Bebek kaş çatmak ve gülümsemek gibi farklı yüz ifadeleri dener. Bebeklerin büyük ' +
-      'çoğunluğu artık doğum için en uygun konum olan baş aşağı pozisyondadır.',
+      'Bebek kaş çatmak ve gülümsemek gibi farklı yüz ifadeleri dener. Bebeklerin çoğu bu ' +
+      'haftalarda baş aşağı döner. Bebeğin konumunu doktorun değerlendirir.',
     developingFeatures: [
       'Farklı yüz ifadeleri dener',
       'Bebeklerin çoğu doğum için baş aşağı pozisyondadır',
@@ -550,11 +551,12 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
     week: 40,
     size: { label: 'yaklaşık 51,2 cm', comparison: 'balkabağı' },
     developmentSummary:
-      'Rahimde yer iyice daralmıştır ve bebek sıkışık durumdadır; yine de hareketleri her ' +
-      'zamanki düzeninde sürmelidir.',
+      'Rahimde yer iyice daralmıştır ve bebek sıkışık durumdadır. Bebeğinin hareketlerinin ' +
+      'nasıl olduğunu takip et. Hareketlerde azalma ya da her zamankinden farklı bir ' +
+      'değişiklik fark edersen beklemeden doktoruna ya da ebene başvur.',
     developingFeatures: [
       'Rahimde yer daraldığı için sıkışıktır',
-      'Hareketler her zamanki düzeninde sürer',
+      'Hareketlerin takibi önemlidir',
     ],
     sources: [nhsWeek(40), CLEVELAND_CLINIC],
   },

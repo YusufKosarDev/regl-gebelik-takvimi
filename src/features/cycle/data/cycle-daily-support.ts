@@ -94,7 +94,7 @@ export const CYCLE_DAILY_SUPPORT: readonly CycleDailySupport[] = [
     ],
     supportMessage:
       'Regl öncesi günlerde belirtiler herkeste aynı değildir, aydan aya da değişebilir. ' +
-      'Hareket, uyku ve kendine nazik davranmak bazı kişilere iyi gelir.',
+      'Hareket, uyku ve kendine nazik davranmak bazı kişilere iyi gelebilir.',
     sources: [NHS_PMS, OWH_CYCLE_HEALTH, OWH_PHYSICAL_ACTIVITY],
   },
 ] as const;
