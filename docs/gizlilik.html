@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gizlilik Politikası — Regl &amp; Gebelik Takvimi</title>
+    <meta
+      name="description"
+      content="Regl &amp; Gebelik Takvimi gizlilik politikası: hangi veriler işleniyor, nerede saklanıyor, nasıl silinir."
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <p class="app-name">Regl &amp; Gebelik Takvimi</p>
+        <h1>Gizlilik Politikası</h1>
+      </header>
+
+      <p class="lead">
+        Kısaca: sağlık verilerin telefonunda durur. Cihazdan yalnızca sen istediğinde ve
+        yalnızca senin kendi hesabına gider. Reklam yok, analiz yok, izleme yok; veriler
+        satılmaz.
+      </p>
+
+      <h2>Veri sorumlusu</h2>
+
+      <p>
+        Bu uygulamanın veri sorumlusu <strong>Yusuf Koşar</strong>'dır (bireysel
+        geliştirici, Türkiye). Her türlü soru, talep ve silme başvurusu için:
+        <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+      </p>
+
+      <h2>Veriler nerede duruyor</h2>
+
+      <p>
+        Regl kayıtların, döngü ayarların, gebelik bilgin, avatar seçimlerin ve hatırlatıcı
+        tercihlerin <strong>varsayılan olarak yalnızca telefonunda</strong>, uygulamanın
+        kendi veritabanında tutulur. Hesap açmasan da uygulamanın tamamı çalışır.
+      </p>
+
+      <p>
+        Bu veriler cihazdan yalnızca tek bir yere gider: <strong>senin kendi Firebase
+        hesabın</strong>. Başka hiçbir yere gönderilmez.
+      </p>
+
+      <h2>Veriler cihazdan ne zaman çıkar</h2>
+
+      <p>Sağlık verilerinin telefonundan çıkmasının iki yolu vardır:</p>
+
+      <ol>
+        <li>
+          <strong>Bir düğmeye basman:</strong> "Yedek oluştur" ya da "Şimdi senkronize et".
+        </li>
+        <li>
+          <strong>"Otomatik senkronizasyon" anahtarını açman.</strong> Bu anahtar
+          <strong>varsayılan olarak kapalıdır.</strong> Açarsan, gönderim şu beş durumda
+          tetiklenir: anahtarı açtığında, hesabına giriş yaptığında, uygulamayı öne
+          aldığında, bir kaydı değiştirdiğinde ve uygulamayı arka plana alırken bekleyen
+          bir değişiklik kaldığında.
+        </li>
+      </ol>
+
+      <div class="card">
+        <p>
+          <strong>Uygulama kapalıyken hiçbir şey gönderilmez.</strong> Arka planda çalışan
+          bir görev, periyodik iş ya da zamanlanmış gönderim yoktur. Her gönderim, senin az
+          önce yaptığın bir şeyin devamıdır.
+        </p>
+      </div>
+
+      <h2>İşlenen veriler</h2>
+
+      <table>
+        <tr>
+          <th>Veri</th>
+          <th>Ne zaman işlenir</th>
+        </tr>
+        <tr>
+          <td>E-posta adresi</td>
+          <td>
+            Yalnızca hesap açarsan. Firebase Authentication üzerinden hesabını oluşturmak
+            ve girişini doğrulamak için kullanılır.
+          </td>
+        </tr>
+        <tr>
+          <td>Regl kayıtları</td>
+          <td rowspan="5">
+            Yalnızca yedekleme ya da senkronizasyon kullanırsan hesabına kopyalanır.
+            Kullanmazsan telefonundan çıkmaz.
+          </td>
+        </tr>
+        <tr>
+          <td>Döngü ayarları (ortalama döngü ve regl süresi)</td>
+        </tr>
+        <tr>
+          <td>Gebelik bilgisi (son regl tarihi, tahmini doğum tarihi)</td>
+        </tr>
+        <tr>
+          <td>Avatar seçimleri</td>
+        </tr>
+        <tr>
+          <td>Hatırlatıcı tercihleri</td>
+        </tr>
+      </table>
+
+      <p>
+        Bunların dışında hiçbir şey gönderilmez. Uygulamanın hesapladığı bilgiler (döngü
+        günü, evre, doğurganlık tahmini, ruh hali önerileri, takvim), ana ekran widget'ı,
+        bildirim kuyruğu ve arayüz durumu telefonunda kalır.
+      </p>
+
+      <h2>Toplanmayan veriler</h2>
+
+      <ul>
+        <li><strong>Reklam yok.</strong> Uygulamada hiçbir reklam gösterilmez.</li>
+        <li>
+          <strong>Analitik yok.</strong> Google Analytics, Firebase Analytics ya da başka
+          bir kullanım analizi aracı kullanılmaz.
+        </li>
+        <li><strong>Çökme raporlama yok.</strong> Crashlytics ya da benzeri bir araç yoktur.</li>
+        <li><strong>Reklam kimliği (Advertising ID) okunmaz.</strong></li>
+        <li><strong>Üçüncü taraf izleme (tracking) yoktur.</strong></li>
+        <li><strong>Konum, kişiler, kamera, mikrofon ve dosyalarına erişilmez.</strong></li>
+      </ul>
+
+      <p>
+        Verilerin <strong>satılmaz</strong>, pazarlama amacıyla <strong>paylaşılmaz</strong>
+        ve reklam gösterimi için kullanılmaz. Sağlık verilerin hiçbir koşulda işe alım ya da
+        sigorta uygunluğu değerlendirmesi için kullanılmaz.
+      </p>
+
+      <h2>Hizmet sağlayıcı ve verilerin saklandığı yer</h2>
+
+      <p>
+        Hesap ve yedekleme özellikleri için <strong>Google</strong>'ın Firebase hizmetleri
+        kullanılır: kimlik doğrulama için Firebase Authentication, yedek için Cloud
+        Firestore. Google bu kapsamda veri işleyen sıfatıyla hareket eder. Başka hiçbir
+        Firebase ürünü (Analytics, Crashlytics, Messaging, Storage, Functions)
+        kullanılmamaktadır.
+      </p>
+
+      <p>
+        Yedeklerin, Cloud Firestore'un <code>eur3</code> çoklu bölgesinde,
+        <strong>Avrupa Birliği içindeki Google sunucularında</strong> saklanır.
+      </p>
+
+      <p>
+        Yedeğin yalnızca senin hesabının altında, tek bir dokümanda tutulur. Sunucu
+        kuralları yalnızca kendi hesabının bu dokümanı okumasına ve yazmasına izin verir;
+        başka hiçbir kullanıcı ona erişemez.
+      </p>
+
+      <h2>Güvenlik</h2>
+
+      <p>
+        Cihazla sunucu arasındaki tüm iletişim <strong>HTTPS/TLS</strong> ile şifrelenir.
+        Telefonundaki veriler, işletim sisteminin diğer uygulamalardan yalıttığı,
+        uygulamaya özel depolama alanında tutulur.
+      </p>
+
+      <p>
+        Uygulamanın kayıtlarına (log) ham sağlık verisi yazılmaz: yalnızca kapalı bir
+        listeden gelen genel olay adları yazılır; tarih, kayıt ya da avatar bilgisi yazılmaz.
+      </p>
+
+      <h2>Saklama süresi</h2>
+
+      <p>
+        Verilerin, sen silene kadar saklanır. Belirli bir süre sonunda otomatik olarak
+        silinmez, çünkü bunlar senin kendi geçmişindir.
+      </p>
+
+      <p>
+        Sildiğinde ne olduğu ve nasıl sileceğin
+        <a href="veri-silme.html">Hesap ve veri silme</a> sayfasında anlatılmıştır.
+      </p>
+
+      <h2>Çocuklar</h2>
+
+      <p>
+        Bu uygulama <strong>13 yaşın altındaki çocuklara yönelik değildir</strong> ve
+        bilerek 13 yaşın altındaki bir kişiden veri toplanmaz. 13 yaşın altındaki bir
+        çocuğa ait veri işlendiğini fark edersek siliriz. Böyle bir durumu fark eden ebeveyn
+        ya da vasiler bize
+        <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+        adresinden ulaşabilir.
+      </p>
+
+      <h2>Haklarının kullanımı</h2>
+
+      <p>
+        Kişisel verilerine erişme, düzeltme, silme ve işlemeye itiraz etme haklarına
+        sahipsin. Bunların 6698 sayılı Kanun kapsamındaki ayrıntılı karşılığı için
+        <a href="kvkk.html">KVKK aydınlatma metni</a> sayfasına bakabilirsin.
+      </p>
+
+      <p>
+        Verilerinin çoğunu uygulamanın içinden doğrudan görüntüleyebilir, değiştirebilir ve
+        silebilirsin. Talebin için
+        <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+        adresine de yazabilirsin; başvurulara <strong>en geç 30 gün içinde</strong> yanıt
+        verilir.
+      </p>
+
+      <h2>Bu metinde değişiklik</h2>
+
+      <p>
+        Uygulama değiştikçe bu metin de güncellenir. Güncel sürüm her zaman bu adreste
+        yayımlanır ve en altta güncelleme tarihi yer alır.
+      </p>
+
+      <a class="back" href="index.html">← Tüm belgeler</a>
+
+      <footer class="site">
+        <p>Son güncelleme: 24 Eylül 2026</p>
+        <p>Veri sorumlusu: Yusuf Koşar (bireysel geliştirici, Türkiye)</p>
+        <p>
+          İletişim:
+          <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

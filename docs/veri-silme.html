@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hesap ve Veri Silme — Regl &amp; Gebelik Takvimi</title>
+    <meta
+      name="description"
+      content="Regl &amp; Gebelik Takvimi hesabını ve verilerini uygulamadan ya da e-posta ile silme."
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <p class="app-name">Regl &amp; Gebelik Takvimi</p>
+        <h1>Hesap ve Veri Silme</h1>
+      </header>
+
+      <p class="lead">
+        <strong>Regl &amp; Gebelik Takvimi</strong> (geliştirici: Yusuf Koşar) hesabını ve
+        verilerini iki yoldan silebilirsin: uygulamanın içinden ya da bize e-posta
+        göndererek. Uygulamayı kurmana gerek yok.
+      </p>
+
+      <h2>1. Uygulamadan silme</h2>
+
+      <p>
+        Uygulamada iki ayrı silme işlemi vardır ve <strong>farklı şeyleri silerler</strong>.
+      </p>
+
+      <h3>"Hesabı sil" — hesabını ve buluttaki yedeğini siler</h3>
+
+      <p><strong>Nerede:</strong> Ayarlar → Hesap → Hesabı sil</p>
+
+      <p><strong>Ne silinir:</strong></p>
+
+      <ul>
+        <li>Firebase hesabın (e-posta adresin dahil) kalıcı olarak silinir.</li>
+        <li>Buluttaki yedeğin — regl kayıtların, döngü ayarların, gebelik bilgin, avatarın
+          ve hatırlatıcı tercihlerin — kalıcı olarak silinir.</li>
+      </ul>
+
+      <p>
+        Bu ekranda ayrıca <strong>"Bu cihazdaki kayıtlarımı da sil"</strong> seçeneği
+        bulunur. Varsayılan olarak kapalıdır: kapalı bırakırsan telefonundaki kayıtların
+        kalır ve uygulamayı hesapsız kullanmaya devam edebilirsin. Açarsan telefonundaki
+        veriler de silinir.
+      </p>
+
+      <p>
+        Güvenlik için şifreni girmen istenir. Silme işlemi önce buluttaki yedeği, sonra
+        hesabı siler.
+      </p>
+
+      <h3>"Tüm verilerimi sil" — yalnızca bu telefondaki her şeyi siler</h3>
+
+      <p><strong>Nerede:</strong> Ayarlar → Veri silme → Tüm verilerimi sil</p>
+
+      <p><strong>Ne silinir:</strong></p>
+
+      <ul>
+        <li>Regl kayıtların, döngü ayarların, gebelik bilgin, avatarın ve hatırlatıcı
+          tercihlerin bu telefondan silinir.</li>
+        <li>Zamanlanmış hatırlatıcılar iptal edilir, ana ekran widget'ı temizlenir.</li>
+        <li>Senkronizasyon tercihleri ve bu cihaza ait teknik kayıtlar silinir.</li>
+        <li>Giriş yapmışsan oturumun kapatılır ve uygulama baştan başlar.</li>
+      </ul>
+
+      <div class="card">
+        <p>
+          <strong>Bu işlem buluttaki yedeğine ve hesabına dokunmaz.</strong> Hesabını da
+          silmek istiyorsan yukarıdaki "Hesabı sil" işlemini kullan.
+        </p>
+      </div>
+
+      <h2>2. E-posta ile silme talebi</h2>
+
+      <p>
+        Uygulamayı kurmadan ya da telefonuna erişemeden de hesabının silinmesini
+        isteyebilirsin.
+      </p>
+
+      <p>
+        <strong>Şu adrese yaz:</strong>
+        <a href="mailto:regltakvimi.destek@gmail.com?subject=Hesap%20silme%20talebi"
+          >regltakvimi.destek@gmail.com</a
+        >
+      </p>
+
+      <p><strong>E-postanda şunlar bulunsun:</strong></p>
+
+      <ul>
+        <li>Konu satırına: <code>Hesap silme talebi</code></li>
+        <li>
+          Uygulamada hesap açarken kullandığın <strong>e-posta adresi</strong>. Talebi bu
+          adresten göndermen, hesabın sahibi olduğunu doğrulamanın en kolay yoludur.
+        </li>
+        <li>
+          Yalnızca buluttaki yedeğinin mi, yoksa hesabının tamamının mı silinmesini
+          istediğin.
+        </li>
+      </ul>
+
+      <p>
+        Talebini aldıktan sonra <strong>en geç 30 gün içinde</strong> işleme alır ve sana
+        yanıt veririz. Hesabın sahibi olduğunu doğrulayamadığımız durumlarda ek bilgi
+        isteyebiliriz; bu, başkasının hesabının silinmesini önlemek içindir.
+      </p>
+
+      <p>
+        Telefonundaki kayıtlara yalnızca sen erişebilirsin; onları bizim silmemiz mümkün
+        değildir. Cihazındaki verileri silmek için uygulamadaki "Tüm verilerimi sil"
+        işlemini kullanabilir ya da uygulamayı kaldırabilirsin.
+      </p>
+
+      <h2>Ne siliniyor, ne saklanıyor</h2>
+
+      <table>
+        <tr>
+          <th>Veri</th>
+          <th>Silme sonrası</th>
+        </tr>
+        <tr>
+          <td>E-posta adresi (Firebase hesabı)</td>
+          <td>Silinir.</td>
+        </tr>
+        <tr>
+          <td>Buluttaki yedek: regl kayıtları, döngü ayarları, gebelik bilgisi, avatar,
+            hatırlatıcı tercihleri</td>
+          <td>Silinir.</td>
+        </tr>
+        <tr>
+          <td>Telefonundaki kayıtlar</td>
+          <td>
+            "Bu cihazdaki kayıtlarımı da sil" seçeneğini açtıysan ya da "Tüm verilerimi sil"
+            işlemini kullandıysan silinir; aksi hâlde telefonunda kalır.
+          </td>
+        </tr>
+        <tr>
+          <td>Yedek yedekleri (backup) ve sunucu günlükleri</td>
+          <td>
+            Google'ın altyapısında kısa süreli teknik kopyalar bulunabilir; bunlar Google'ın
+            kendi saklama süreleri içinde kendiliğinden silinir ve bizim tarafımızdan
+            okunmaz ya da kullanılmaz.
+          </td>
+        </tr>
+        <tr>
+          <td>Silme talebine ilişkin yazışma</td>
+          <td>
+            Talebin yerine getirildiğini kanıtlayabilmek için e-posta yazışması en fazla
+            <strong>1 yıl</strong> saklanır, sonra silinir.
+          </td>
+        </tr>
+      </table>
+
+      <p>
+        Bunların dışında silme sonrasında elimizde kalan hiçbir veri yoktur. Pazarlama
+        listesi, analiz kaydı ya da profil tutulmaz — zaten hiç oluşturulmaz.
+      </p>
+
+      <h2>Silmeden önce yapman gereken bir şey var mı</h2>
+
+      <p>
+        Hayır. Uygulamanın ücretli bir sürümü, aboneliği ya da uygulama içi satın alımı
+        yoktur; iptal etmen gereken bir şey bulunmaz.
+      </p>
+
+      <a class="back" href="index.html">← Tüm belgeler</a>
+
+      <footer class="site">
+        <p>Son güncelleme: 24 Eylül 2026</p>
+        <p>Veri sorumlusu: Yusuf Koşar (bireysel geliştirici, Türkiye)</p>
+        <p>
+          İletişim:
+          <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
