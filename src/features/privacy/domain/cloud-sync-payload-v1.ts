@@ -195,3 +195,71 @@ export function parseCloudSyncPayloadV1(json: string): CloudSyncPayloadV1 {
 
   return parsed as CloudSyncPayloadV1;
 }
+
+/**
+ * The keys in a payload that this build has no meaning for.
+ *
+ * Derived rather than declared. A later build that adds a field does not have
+ * to remember to announce it anywhere: the field itself is the announcement,
+ * and every earlier build can see it by comparing what it was handed against
+ * what it knows. A marker stored beside the payload could be forgotten, could
+ * be wrong, and would only work for builds shipped after the marker existed.
+ *
+ * This is the whole basis of the rule that nothing may overwrite what it cannot
+ * reproduce: a non-empty answer means this build would be writing a smaller
+ * payload than the one it read, and the difference is somebody's data.
+ *
+ * Pure: the payload is read and never mutated.
+ */
+export function unknownCloudSyncPayloadFields(payload: CloudSyncPayloadV1): readonly string[] {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    return [];
+  }
+
+  const known = new Set<string>(CLOUD_SYNC_PAYLOAD_V1_FIELDS);
+
+  return Object.keys(payload).filter((key) => !known.has(key));
+}
+
+/**
+ * Whether this build could write the payload it was handed without losing any
+ * of it.
+ */
+export function canReproduceCloudSyncPayload(payload: CloudSyncPayloadV1): boolean {
+  return unknownCloudSyncPayloadFields(payload).length === 0;
+}
+
+/**
+ * A payload with the fields this build does not understand copied onto it.
+ *
+ * `target` is this build's answer and wins every field it owns: it is the
+ * merged result, and the point of merging was to work those out. `source` is
+ * the payload that came from outside, and contributes only what `target` could
+ * not have had an opinion about.
+ *
+ * This is the backstop rather than the defence. The defence is refusing to
+ * write at all when there is something here to carry — a field carried through
+ * is a field kept, not a field merged, and two sides that both edited one would
+ * still lose an edit. But if a write does happen, it should take everything
+ * with it rather than nothing.
+ *
+ * Pure: neither argument is mutated and the result is a new object.
+ */
+export function carryUnknownCloudSyncPayloadFields(
+  target: CloudSyncPayloadV1,
+  source: CloudSyncPayloadV1
+): CloudSyncPayloadV1 {
+  const unknown = unknownCloudSyncPayloadFields(source);
+
+  if (unknown.length === 0) {
+    return target;
+  }
+
+  const carried: Record<string, unknown> = { ...target };
+
+  for (const key of unknown) {
+    carried[key] = (source as unknown as Record<string, unknown>)[key];
+  }
+
+  return carried as unknown as CloudSyncPayloadV1;
+}

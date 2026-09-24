@@ -54,6 +54,7 @@ import {
 } from '@/features/auth/presentation/auth-messages';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { createCloudBackup } from '@/features/backup/application/create-cloud-backup';
+import type { CreateCloudBackupOutcome } from '@/features/backup/application/create-cloud-backup';
 import { loadCloudBackup } from '@/features/backup/data/cloud-backup-repository';
 import type { CloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
 import { buildCloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
@@ -110,6 +111,20 @@ const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
 const SYNC_PREFERENCE_FAILED_MESSAGE = 'Senkronizasyon tercihi kaydedilemedi.';
 const BACKUP_DELETION_PENDING_MESSAGE =
   'Hesap silme işlemi yarım kaldı. Yedek oluşturulmadı — hesabı silmeyi tamamla ya da vazgeç.';
+const BACKUP_OUTDATED_APP_MESSAGE =
+  'Hesabındaki yedek, bu uygulama sürümünün tanımadığı bilgiler içeriyor. Üzerine ' +
+  'yazmamak için yedek oluşturulmadı. Uygulamayı güncelleyip tekrar dene.';
+
+/** What to say about a backup that was saved, or refused for one of two reasons. */
+function backupOutcomeMessage(outcome: CreateCloudBackupOutcome): string {
+  if (outcome.kind === 'saved') {
+    return BACKUP_SAVED_MESSAGE;
+  }
+
+  return outcome.kind === 'refused-deletion-pending'
+    ? BACKUP_DELETION_PENDING_MESSAGE
+    : BACKUP_OUTDATED_APP_MESSAGE;
+}
 
 /**
  * The account screen.
@@ -375,11 +390,10 @@ export default function AccountScreen() {
       const db = await openAppDatabase();
       const outcome = await createCloudBackup({ db, user });
 
-      // Refused rather than failed: a deletion of this account is part-way
-      // through, and writing a backup now would undo half of it.
-      setBackupNotice(
-        outcome.kind === 'saved' ? BACKUP_SAVED_MESSAGE : BACKUP_DELETION_PENDING_MESSAGE
-      );
+      // Two of the three are refusals rather than failures: a deletion is
+      // part-way through, or the account holds something this build cannot
+      // write back. Neither is worth retrying and neither changed anything.
+      setBackupNotice(backupOutcomeMessage(outcome));
     } catch (error) {
       // The database's own failures and Firestore's arrive here the same way,
       // and neither message is shown.

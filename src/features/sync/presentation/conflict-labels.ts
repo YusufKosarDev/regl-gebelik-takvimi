@@ -78,6 +78,9 @@ const FAILURE_MESSAGES: Readonly<Record<ResolveSyncConflictFailure, string>> = {
   'revision-moved': 'Bulut bu sırada değişti. Seçimini güncel verilere göre tekrar yap.',
   'network-failed': 'Bağlantı kurulamadı. Hiçbir veri değiştirilmedi.',
   'local-failed': 'Telefondaki veriler yazılamadı. Hiçbir veri değiştirilmedi.',
+  'app-out-of-date':
+    'Hesabındaki yedek, bu uygulama sürümünün tanımadığı bilgiler içeriyor. Üzerine ' +
+    'yazmamak için işlem durduruldu. Uygulamayı güncelleyip tekrar dene.',
   unknown: 'Çakışma çözülemedi. Hiçbir veri değiştirilmedi.',
 };
 

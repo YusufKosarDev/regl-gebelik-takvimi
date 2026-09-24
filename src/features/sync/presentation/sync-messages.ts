@@ -27,6 +27,13 @@ const FAILURE_MESSAGES: Readonly<Record<CloudSyncFailure, string>> = {
   'unreadable-backup':
     'Hesabındaki yedek bu sürüm tarafından okunamadı. Hiçbir veri değiştirilmedi.',
   'local-failed': 'Telefondaki veriler okunamadı. Hiçbir veri değiştirilmedi.',
+  // Not a fault and not worth retrying: the account is ahead of this build.
+  // Says what was protected and what to do, because "güncelle" on its own
+  // reads as nagging rather than as the thing standing between somebody and
+  // losing what they wrote on another phone.
+  'app-out-of-date':
+    'Hesabındaki yedek, bu uygulama sürümünün tanımadığı bilgiler içeriyor. Üzerine ' +
+    'yazmamak için gönderim durduruldu. Uygulamayı güncelleyip tekrar dene.',
   'deletion-pending':
     'Hesap silme işlemi yarım kaldı. Senkronizasyon kapalı — hesabı silmeyi tamamla ' +
     'ya da vazgeç.',

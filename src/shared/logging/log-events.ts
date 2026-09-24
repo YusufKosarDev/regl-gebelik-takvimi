@@ -34,6 +34,7 @@ export const LOG_EVENTS = [
   'reminder cancel failed',
   'source link open failed',
   'sync conflict resolve failed',
+  'sync refused outdated app',
   'sync state clear failed',
   'widget sync failed',
 ] as const;

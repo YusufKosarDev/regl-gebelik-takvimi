@@ -16,7 +16,8 @@ import {
 } from '@/features/backup/data/cloud-backup-repository';
 import { requireFirestore } from '@/features/backup/infrastructure/firestore';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
-import { validateCloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
+import { unknownCloudSyncPayloadFields,
+  validateCloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import { describeValue } from '@/shared/logging';
 
 /**
@@ -87,7 +88,16 @@ export class CloudSyncDocumentError extends Error {
  */
 export type CloudSyncPushResult =
   | { readonly kind: 'stored'; readonly envelope: CloudBackupEnvelopeV1 }
-  | { readonly kind: 'conflict'; readonly actualRevision: number };
+  | { readonly kind: 'conflict'; readonly actualRevision: number }
+  /**
+   * The stored document holds something this build cannot write back.
+   *
+   * Nothing was written. A later build put a field in the payload that this
+   * one has no meaning for, and the payload on its way in does not carry it,
+   * so storing it would delete somebody data. The names are the schema
+   * keys, not anything a person typed.
+   */
+  | { readonly kind: 'refused-unknown-fields'; readonly unknownFields: readonly string[] };
 
 /** What a push needs to know. */
 export type CloudSyncPushInput = {
@@ -278,13 +288,40 @@ export async function pushRemoteSyncState(
       const snapshot = await transaction.get(reference);
 
       let actualRevision = NO_REMOTE_REVISION;
+      let stored: CloudBackupEnvelopeV1 | null = null;
 
       if (snapshot.exists()) {
         try {
-          actualRevision = readEnvelope(snapshot.data()).revision;
+          stored = readEnvelope(snapshot.data());
+          actualRevision = stored.revision;
         } catch (error) {
           documentError = error as CloudSyncDocumentError;
           throw error;
+        }
+      }
+
+      /**
+       * Never overwrite what you cannot reproduce.
+       *
+       * Enforced here rather than at each caller because this is the only
+       * place that has both halves at once: the document as it is stored,
+       * read inside the transaction that is about to replace it, and the
+       * payload that would replace it. A rule checked at the callers is a
+       * rule the next caller forgets.
+       *
+       * Missing keys rather than unequal values. A build that does not know
+       * a field cannot have changed it, so the only thing that can happen to
+       * it is being dropped, and that is what this looks for. A merge that
+       * carried the field through passes, which is the point of carrying it.
+       */
+      if (stored !== null) {
+        const carried = new Set(unknownCloudSyncPayloadFields(payload));
+        const dropped = unknownCloudSyncPayloadFields(stored.payload).filter(
+          (field) => !carried.has(field)
+        );
+
+        if (dropped.length > 0) {
+          return { kind: 'refused-unknown-fields', unknownFields: dropped } as const;
         }
       }
 

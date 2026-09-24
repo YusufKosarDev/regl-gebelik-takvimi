@@ -67,6 +67,15 @@ export type CloudSyncFailure =
   /** The phone's own database could not be read or written. */
   | 'local-failed'
   /**
+   * The account holds something this build cannot write back.
+   *
+   * A newer build wrote the backup and put a field in it that this one has
+   * no meaning for. Reading it is fine and pulling it is fine; writing over
+   * it would delete that field, so nothing was written. The answer is to
+   * update the app, not to retry.
+   */
+  | 'app-out-of-date'
+  /**
    * This account is part-way through being deleted.
    *
    * Not a fault. Its backup has already been deleted and its account has not
@@ -307,6 +316,14 @@ async function attemptSync(attempt: Attempt): Promise<CloudSyncOutcome> {
       return { kind: 'retry-required', actualRevision: stored.actualRevision };
     }
 
+    if (stored.kind === 'refused-unknown-fields') {
+      // The phone has nothing to contribute to those fields and would have
+      // written a smaller payload than it read. Nothing was stored.
+      logEvent('sync refused outdated app');
+
+      return { kind: 'error', failure: 'app-out-of-date' };
+    }
+
     await rememberAgreement(db, uid, stored.envelope, now);
 
     return { kind: 'pushed', revision: stored.envelope.revision };
@@ -354,6 +371,14 @@ async function attemptSync(attempt: Attempt): Promise<CloudSyncOutcome> {
 
   if (stored.kind === 'conflict') {
     return { kind: 'retry-required', actualRevision: stored.actualRevision };
+  }
+
+  if (stored.kind === 'refused-unknown-fields') {
+    // The merge carries unknown fields through, so reaching this means the
+    // account gained one between the read and the write. Nothing was stored.
+    logEvent('sync refused outdated app');
+
+    return { kind: 'error', failure: 'app-out-of-date' };
   }
 
   // Then the phone, and only then the base. Should this fail, the account is

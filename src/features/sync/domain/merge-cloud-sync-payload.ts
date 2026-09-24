@@ -17,6 +17,7 @@ import { validatePregnancyProfile } from '@/features/pregnancy/domain/validation
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import {
   CLOUD_SYNC_PAYLOAD_VERSION,
+  carryUnknownCloudSyncPayloadFields,
   validateCloudSyncPayloadV1,
 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 
@@ -766,7 +767,7 @@ export function mergeCloudSyncPayload(input: CloudSyncMergeInput): CloudSyncMerg
     conflicts
   ) as NotificationPreferences;
 
-  const payload: CloudSyncPayloadV1 = {
+  const known: CloudSyncPayloadV1 = {
     version: CLOUD_SYNC_PAYLOAD_VERSION,
     cycleSettings,
     periodRecords: chosenRecords(choices),
@@ -774,6 +775,22 @@ export function mergeCloudSyncPayload(input: CloudSyncMergeInput): CloudSyncMerg
     avatarConfig,
     notificationPreferences,
   };
+
+  /**
+   * Whatever a later build put in the account that this one has no meaning for.
+   *
+   * Taken from `remote` alone, and not from `base`. `remote` is the stored
+   * state as it is now: if a later build removed one of its own fields, base
+   * still has it and putting it back would be this build resurrecting data
+   * somebody deleted. `local` cannot have any — it is built from this phone's
+   * tables, and a field with no table cannot come out of one.
+   *
+   * Carried rather than merged, which is the honest description: two sides that
+   * both edited such a field would still lose an edit here. That is why the
+   * caller refuses to write at all when there is anything to carry, and why
+   * this is the backstop rather than the protection.
+   */
+  const payload = carryUnknownCloudSyncPayloadFields(known, remote);
 
   validateCloudSyncPayloadV1(payload);
 

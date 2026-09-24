@@ -42,6 +42,11 @@ export type ResolveSyncConflictFailure =
   | 'network-failed'
   /** The phone's own database refused. Nothing was written. */
   | 'local-failed'
+  /**
+   * The account holds a field this build cannot write back, so keeping the
+   * phone copy would delete it. Nothing was written. Updating is the answer.
+   */
+  | 'app-out-of-date'
   | 'unknown';
 
 export type ResolveSyncConflictOutcome =
@@ -114,6 +119,14 @@ export async function keepLocalData(
 
       if (stored.kind === 'conflict') {
         return { kind: 'failed', reason: 'revision-moved' };
+      }
+
+      if (stored.kind === 'refused-unknown-fields') {
+        // Choosing the phone copy here would drop whatever a newer build put
+        // in the account. Nothing was written, and the choice stands unmade.
+        logEvent('sync refused outdated app');
+
+        return { kind: 'failed', reason: 'app-out-of-date' };
       }
 
       // The account now holds this. The base has to say so, or the next sync

@@ -1,3 +1,23 @@
+/**
+ * Catalogue rule: entries are never removed, only hidden.
+ *
+ * Applies to every catalogue in this app — avatar options here, and the
+ * symptom, flow and mood catalogues that come with daily logging.
+ *
+ * The stored value is the id. Nothing in the database constrains it to the
+ * catalogue, on purpose: a CHECK that knew the values would have to be
+ * migrated every time one is added, and would lock somebody out of their own
+ * saved row the moment one is dropped. The cost of that freedom is that
+ * removing an entry does not remove the rows pointing at it — it only makes
+ * them unreadable, and what somebody chose quietly disappears from their own
+ * record.
+ *
+ * So: to retire an entry, mark it hidden so it is not offered to anyone
+ * choosing now, and leave it in the catalogue so that what was already
+ * chosen still has a name. Deleting the line is the one thing that is not
+ * allowed.
+ */
+
 import { describeValue } from '@/shared/logging';
 
 /**

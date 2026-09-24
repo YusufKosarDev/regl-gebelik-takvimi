@@ -234,6 +234,53 @@ adb shell bmgr backupnow com.yusufkosardev.regltakvimi
 
 `Backup is not allowed` is the answer to expect.
 
+## Two rules about stored data
+
+Both exist because this app keeps a period history, and the way to lose one
+is not a crash — it is a newer build and an older build disagreeing quietly.
+
+### Never overwrite what you cannot reproduce
+
+The cloud payload is versioned, and a field may be **added** to a version
+without changing the number. An older build reads past a field it does not
+know and keeps it: that is what `parseCloudSyncPayloadV1` promises.
+
+The danger is the write, not the read. A build that has no table for a field
+rebuilds its payload without it, and a push would then delete whatever a newer
+phone wrote. So every write reads what it is about to replace, inside the same
+transaction, and refuses when this build cannot reproduce it:
+
+| | |
+| --- | --- |
+| `unknownCloudSyncPayloadFields` | names the fields this build has no meaning for |
+| `pushRemoteSyncState` | refuses with `refused-unknown-fields` |
+| `saveCloudBackup` | refuses with `OutdatedAppError` |
+| `mergeCloudSyncPayload` | carries them through, as a backstop |
+
+The marker is **derived, not stored**. A later build that adds a field does not
+have to announce it anywhere — the field is the announcement, and every earlier
+build can see it by comparing what it was handed against what it knows. A flag
+written beside the payload could be forgotten or wrong, and would only work for
+builds shipped after the flag existed.
+
+Pulling is always allowed. An older build may read and restore everything it
+understands; it just may not write over the rest.
+
+The content hash stays deliberately blind to unknown fields. It answers "would
+a restore write something different?", and a build with no table for a field
+cannot write it either way — the reasoning is in `cloud-sync-hash.ts`.
+
+### Catalogue entries are hidden, never removed
+
+Avatar options, and the symptom, flow and mood catalogues. The database stores
+the id and deliberately does not constrain it to the catalogue, so that adding
+an option needs no migration. The price is that deleting one does not delete
+the rows pointing at it — it only makes them unreadable, and what somebody
+chose disappears from their own record.
+
+To retire an entry, mark it hidden so it is not offered to anyone choosing now,
+and leave it in the catalogue so what was already chosen still has a name.
+
 ## Icons and artwork
 
 Every icon in the app is one crescent, drawn once. The geometry, the palette

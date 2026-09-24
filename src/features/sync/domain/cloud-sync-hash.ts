@@ -30,6 +30,25 @@ import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-pa
  *   - the order period records arrive in.
  *
  * What it is not blind to: any value a restore would write.
+ *
+ * The second of those was argued over and kept. The case for changing it is
+ * that a hash which ignores a field is part of how losing that field goes
+ * unnoticed. The case for keeping it is stronger:
+ *
+ *   - The question this answers is "would a restore write something
+ *     different?", and a build with no table for a field cannot write it
+ *     either way. Including it would make the hash answer a question its
+ *     caller cannot act on.
+ *   - Noticing is not this function’s job and doing it here would not help.
+ *     The damage happens at the write, so the guard is at the write:
+ *     `pushRemoteSyncState` and `saveCloudBackup` read what they are about
+ *     to replace and refuse when this build cannot reproduce it.
+ *   - A hash that noticed would turn every sync on an older build into an
+ *     error, including the ones with nothing to write, and would protect
+ *     nothing the guard does not already protect.
+ *   - These fingerprints are shared with the restore preview. A hash that
+ *     counted unknown fields would make the preview announce a change it
+ *     cannot name, which is the bug the fingerprints were written to fix.
  */
 
 /**

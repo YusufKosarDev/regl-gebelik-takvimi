@@ -1,13 +1,17 @@
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import type { CloudBackupV1 } from '../domain/cloud-backup-v1';
 import { CLOUD_BACKUP_VERSION, parseCloudBackupV1 } from '../domain/cloud-backup-v1';
+import { OutdatedAppError } from '../domain/outdated-app-error';
 import { requireFirestore } from '../infrastructure/firestore';
 
 import { AuthError } from '@/features/auth/domain/auth-error';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
-import { validateCloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
+import {
+  unknownCloudSyncPayloadFields,
+  validateCloudSyncPayloadV1,
+} from '@/features/privacy/domain/cloud-sync-payload-v1';
 
 /**
  * Where a backup is kept, and how it gets there.
@@ -65,6 +69,35 @@ function backupPath(user: AuthUser): readonly [string, string, string, string] {
  * developer and, for a permission failure, the path it was refused. What comes
  * out is an `AuthError` with a code.
  */
+/**
+ * Never overwrite what you cannot reproduce.
+ *
+ * Read inside the transaction that is about to replace the document, so the
+ * thing being checked is the thing being replaced. A newer build may have put
+ * a field in the payload that this one has no meaning for; writing a payload
+ * without it would delete it, and nobody asked for that.
+ *
+ * The stored document is read leniently on purpose. It has been outside this
+ * device and this is a guard, not a parser: anything that does not look like a
+ * payload has no fields worth protecting, and the ordinary read path is where
+ * a malformed document gets its proper error.
+ */
+function assertNothingWouldBeDropped(document: unknown, outgoing: CloudSyncPayloadV1): void {
+  const stored = (document as { payload?: unknown } | null)?.payload;
+
+  if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) {
+    return;
+  }
+
+  const carried = new Set(unknownCloudSyncPayloadFields(outgoing));
+  const dropped = unknownCloudSyncPayloadFields(stored as CloudSyncPayloadV1).filter(
+    (field) => !carried.has(field)
+  );
+
+  if (dropped.length > 0) {
+    throw new OutdatedAppError(dropped);
+  }
+}
 export async function saveCloudBackup(
   user: AuthUser,
   payload: CloudSyncPayloadV1
@@ -74,12 +107,27 @@ export async function saveCloudBackup(
   validateCloudSyncPayloadV1(payload);
 
   try {
-    await setDoc(doc(requireFirestore(), ...path), {
-      version: CLOUD_BACKUP_VERSION,
-      payload,
-      updatedAt: serverTimestamp(),
+    const firestore = requireFirestore();
+    const reference = doc(firestore, ...path);
+
+    await runTransaction(firestore, async (transaction) => {
+      const snapshot = await transaction.get(reference);
+
+      if (snapshot.exists()) {
+        assertNothingWouldBeDropped(snapshot.data(), payload);
+      }
+
+      transaction.set(reference, {
+        version: CLOUD_BACKUP_VERSION,
+        payload,
+        updatedAt: serverTimestamp(),
+      });
     });
   } catch (error) {
+    if (error instanceof OutdatedAppError) {
+      throw error;
+    }
+
     throw toBackupError(error);
   }
 }

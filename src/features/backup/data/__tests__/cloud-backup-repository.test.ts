@@ -21,6 +21,29 @@ jest.mock('firebase/firestore', () => ({
   setDoc: jest.fn(),
   serverTimestamp: jest.fn(() => ({ __serverTimestamp: true })),
   getFirestore: jest.fn(),
+  /**
+   * A save is a read and a write in one transaction now, because it has to
+   * refuse to overwrite a field this build cannot reproduce.
+   *
+   * The write is still routed through the `setDoc` spy, so every assertion
+   * below about what reaches the document reads the same as it did before.
+   * It is applied after the body rather than during it, so a `setDoc` that
+   * was told to reject still rejects the whole save.
+   */
+  runTransaction: jest.fn(async (_firestore: unknown, body: (t: unknown) => Promise<unknown>) => {
+    const writes: unknown[][] = [];
+
+    await body({
+      get: (...args: unknown[]) => (jest.requireMock('firebase/firestore') as any).getDoc(...args),
+      set: (...args: unknown[]) => {
+        writes.push(args);
+      },
+    });
+
+    for (const write of writes) {
+      await (jest.requireMock('firebase/firestore') as any).setDoc(...write);
+    }
+  }),
 }));
 
 jest.mock('../../infrastructure/firestore', () => ({
@@ -101,6 +124,7 @@ beforeEach(() => {
   firestore.setDoc.mockResolvedValue(undefined);
   firestore.getDoc.mockReset();
   firestore.getDoc.mockResolvedValue(snapshot(null));
+  firestore.runTransaction.mockClear();
   firestore.serverTimestamp.mockClear();
 
   logging.logEvent.mockReset();
