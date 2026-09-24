@@ -65,6 +65,25 @@ describe.each([
     expect(contrast(palette.primary, palette.background)).toBeGreaterThanOrEqual(AA_NON_TEXT);
   });
 
+  it('shows which way a switch is set', () => {
+    // The thumb against the track is what says on or off.
+    expect(contrast(palette.switchThumbOn, palette.switchTrackOn)).toBeGreaterThanOrEqual(
+      AA_NON_TEXT
+    );
+  });
+
+  it('keeps a switch findable on the card it sits on', () => {
+    // Android draws the thumb slightly proud of the track, so at least one of
+    // the two has to hold against the card behind it. A dark thumb on a dark
+    // card turned the control into a lavender half-pill once already.
+    const visible = Math.max(
+      contrast(palette.switchThumbOn, palette.backgroundElement),
+      contrast(palette.switchTrackOn, palette.backgroundElement)
+    );
+
+    expect(visible).toBeGreaterThanOrEqual(AA_NON_TEXT);
+  });
+
   it('keeps ordinary text readable, which the accent must not quietly change', () => {
     expect(contrast(palette.text, palette.background)).toBeGreaterThanOrEqual(AA_TEXT);
     expect(contrast(palette.textSecondary, palette.background)).toBeGreaterThanOrEqual(AA_TEXT);

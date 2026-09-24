@@ -775,8 +775,8 @@ function ReminderToggle({
       <ThemedText style={styles.reminderLabel}>{label}</ThemedText>
 
       <Switch
-        trackColor={{ false: theme.backgroundSelected, true: theme.primary }}
-        thumbColor={value ? theme.onPrimary : undefined}
+        trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
+        thumbColor={value ? theme.switchThumbOn : undefined}
         accessibilityLabel={label}
         accessibilityState={{ checked: value, disabled }}
         value={value}

@@ -43,6 +43,17 @@ export const Colors = {
     primary: '#7160AB',
     /** What goes on top of `primary`. 5.30:1. */
     onPrimary: '#ffffff',
+    /**
+     * The on position of a switch.
+     *
+     * Its own pair rather than `primary`/`onPrimary`, because Android draws the
+     * thumb slightly proud of the track: whatever colour the thumb is also
+     * has to hold against the card behind it, not only against the track.
+     * Here the white thumb sits inside a purple track, which is what a light
+     * switch looks like everywhere else on the phone.
+     */
+    switchTrackOn: '#7160AB',
+    switchThumbOn: '#ffffff',
   },
   dark: {
     text: '#ffffff',
@@ -54,6 +65,16 @@ export const Colors = {
     primary: '#B6A9DD',
     /** What goes on top of `primary`. 7.42:1. Plum, not black, to stay in the family. */
     onPrimary: '#241C3D',
+    /**
+     * The on position of a switch, the other way round.
+     *
+     * A dark thumb on a light track reads correctly by the numbers and badly
+     * on screen: the part of the thumb that overhangs the track disappears
+     * into the card, and the control turns into a lavender half-pill. Dim
+     * track, bright thumb is both legible and what Android does in the dark.
+     */
+    switchTrackOn: '#4A3D78',
+    switchThumbOn: '#B6A9DD',
   },
 } as const;
 

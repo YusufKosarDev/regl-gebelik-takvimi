@@ -815,8 +815,8 @@ export default function AccountScreen() {
                       </ThemedText>
 
                       <Switch
-                        trackColor={{ false: theme.backgroundSelected, true: theme.primary }}
-                        thumbColor={automaticSync ? theme.onPrimary : undefined}
+                        trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
+                        thumbColor={automaticSync ? theme.switchThumbOn : undefined}
                         accessibilityLabel={AUTOMATIC_SYNC_LABEL}
                         accessibilityState={{ checked: automaticSync, disabled: isBusy }}
                         value={automaticSync}
@@ -1106,8 +1106,8 @@ export default function AccountScreen() {
                         </ThemedText>
 
                         <Switch
-                          trackColor={{ false: theme.backgroundSelected, true: theme.primary }}
-                          thumbColor={wipeLocalToo ? theme.onPrimary : undefined}
+                          trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
+                          thumbColor={wipeLocalToo ? theme.switchThumbOn : undefined}
                           accessibilityLabel={ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
                           value={wipeLocalToo}
                           onValueChange={setWipeLocalToo}
