@@ -103,6 +103,15 @@ export function didSyncChangeThisPhone(outcome: CloudSyncOutcome): boolean {
   return outcome.kind === 'pulled' || outcome.kind === 'merged';
 }
 
+/**
+ * The shorter half of what the About screen says about changing phones.
+ *
+ * Here it can be an instruction rather than a fact, because the button it
+ * refers to is a few lines below it.
+ */
+export const PHONE_TRANSFER_NOTE =
+  'Telefon değiştirirsen kayıtların kendiliğinden gelmez; taşımak için buradan yedek al.';
+
 /** What the switch that turns automatic sync on says about itself. */
 export const AUTOMATIC_SYNC_LABEL = 'Otomatik senkronizasyon';
 

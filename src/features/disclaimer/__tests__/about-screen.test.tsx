@@ -16,6 +16,8 @@ import {
   ABOUT_IMPORTANT_PARAGRAPHS,
   ABOUT_IMPORTANT_SECTION_TITLE,
   ABOUT_SCREEN_TITLE,
+  ABOUT_TRANSFER_PARAGRAPH,
+  ABOUT_TRANSFER_SECTION_TITLE,
   ABOUT_DELETION_LABEL,
   ABOUT_KVKK_LABEL,
   ABOUT_PRIVACY_LABEL,
@@ -143,12 +145,44 @@ describe('what the screen says', () => {
   });
 });
 
+describe('what happens when the phone changes', () => {
+  it('says so under its own heading', async () => {
+    const screen = await render(<AboutScreen />);
+
+    expect(screen.getByRole('header', { name: ABOUT_TRANSFER_SECTION_TITLE })).toBeTruthy();
+    expect(screen.getByText(ABOUT_TRANSFER_PARAGRAPH)).toBeTruthy();
+  });
+
+  it("says the records are out of Android's backup", async () => {
+    const screen = await render(<AboutScreen />);
+
+    expect(screen.getByText(/otomatik yedeklemesine dahil edilmez/)).toBeTruthy();
+  });
+
+  it('says what to do about it rather than only what happens', async () => {
+    // A warning with no instruction leaves somebody knowing they are about
+    // to lose something and not how to stop it.
+    const screen = await render(<AboutScreen />);
+
+    expect(screen.getByText(/yedek al/)).toBeTruthy();
+  });
+
+  it('reaches somebody who never made an account', async () => {
+    // The whole reason it is on this screen too: the account screen is
+    // behind signing in, and this is the person who loses everything.
+    const screen = await render(<AboutScreen />);
+
+    expect(screen.queryByText(ABOUT_TRANSFER_PARAGRAPH)).not.toBeNull();
+  });
+});
+
 describe('headings and navigation', () => {
-  it('marks both headings as headings', async () => {
+  it('marks all three headings as headings', async () => {
     const screen = await render(<AboutScreen />);
 
     expect(screen.getByRole('header', { name: ABOUT_SCREEN_TITLE })).toBeTruthy();
     expect(screen.getByRole('header', { name: ABOUT_IMPORTANT_SECTION_TITLE })).toBeTruthy();
+    expect(screen.getByRole('header', { name: ABOUT_TRANSFER_SECTION_TITLE })).toBeTruthy();
   });
 
   it('offers a way back', async () => {

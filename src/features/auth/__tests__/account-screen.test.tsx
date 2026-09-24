@@ -5,6 +5,7 @@ import AccountScreen from '@/app/(app)/account';
 import { AuthError } from '@/features/auth/domain/auth-error';
 import type { AuthErrorCode } from '@/features/auth/domain/auth-error';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
+import { PHONE_TRANSFER_NOTE } from '@/features/sync/presentation/sync-messages';
 
 // The repository and the Firebase file are faked. What this pins is what the
 // screen sends, what it shows, and what it never shows.
@@ -1083,6 +1084,20 @@ describe('AccountScreen cloud backup, signed in', () => {
     // promise it keeps is the same: nothing leaves without a press.
     expect(screen.getByText(/sen bir düğmeye basmadan hiçbir gönderim olmaz/)).toBeTruthy();
     expect(screen.getByText(/Yedek oluşturduğunda ya da senkronize ettiğinde/)).toBeTruthy();
+  });
+
+  it('says what happens to the records when the phone changes', async () => {
+    // Android auto backup is off, so nothing moves by itself. Said next to
+    // the button that is the only thing that does move it.
+    const screen = await renderSignedIn();
+
+    expect(screen.getByText(PHONE_TRANSFER_NOTE)).toBeTruthy();
+  });
+
+  it('tells somebody what to do about it, not only what happens', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByText(/yedek al/)).toBeTruthy();
   });
 
   it('sends nothing until a button is pressed', async () => {

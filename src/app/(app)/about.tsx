@@ -21,6 +21,8 @@ import {
   ABOUT_LINKS_SECTION_TITLE,
   ABOUT_PRIVACY_LABEL,
   ABOUT_SCREEN_TITLE,
+  ABOUT_TRANSFER_PARAGRAPH,
+  ABOUT_TRANSFER_SECTION_TITLE,
   ABOUT_SUPPORT_SECTION_TITLE,
   ABOUT_VERSION_LABEL,
   aboutSupportLabel,
@@ -135,6 +137,16 @@ export default function AboutScreen() {
                   {paragraph}
                 </ThemedText>
               ))}
+            </View>
+
+            <View style={styles.section}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                {ABOUT_TRANSFER_SECTION_TITLE}
+              </ThemedText>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                {ABOUT_TRANSFER_PARAGRAPH}
+              </ThemedText>
             </View>
 
             <View style={styles.section}>

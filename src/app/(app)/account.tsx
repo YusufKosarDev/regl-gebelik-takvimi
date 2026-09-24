@@ -80,6 +80,7 @@ import {
   AUTOMATIC_SYNC_ENABLED_MESSAGE,
   AUTOMATIC_SYNC_FAILED_MESSAGE,
   AUTOMATIC_SYNC_LABEL,
+  PHONE_TRANSFER_NOTE,
   AUTOMATIC_SYNC_NOTE,
   BACKUP_DISABLED_BY_SYNC_MESSAGE,
   CONFLICT_NOTICE_MESSAGE,
@@ -818,6 +819,10 @@ export default function AccountScreen() {
                     Yedek oluşturduğunda ya da senkronize ettiğinde regl kayıtların, gebelik
                     bilgin, avatarın ve hatırlatıcı tercihlerin hesabına kopyalanır. Başka
                     hiçbir şey gönderilmez ve sen bir düğmeye basmadan hiçbir gönderim olmaz.
+                  </ThemedText>
+
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {PHONE_TRANSFER_NOTE}
                   </ThemedText>
 
                   {/* The switch records a choice. Nothing runs on it yet, and

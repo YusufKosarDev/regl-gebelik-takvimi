@@ -70,6 +70,22 @@ export const ABOUT_VERSION_LABEL = 'Sürüm';
 /** When the version cannot be read, which should not happen but is not fatal. */
 export const ABOUT_VERSION_UNKNOWN = 'Bilinmiyor';
 
+/* ------------------------------------------------- moving to a phone -- */
+
+/**
+ * What happens to the records when the phone changes.
+ *
+ * On this screen rather than only on the account screen, because the account
+ * screen is behind signing in and the person who loses everything is exactly
+ * the one who never made an account.
+ */
+export const ABOUT_TRANSFER_SECTION_TITLE = 'Verilerin taşınması';
+
+export const ABOUT_TRANSFER_PARAGRAPH =
+  "Kayıtların bu telefonda tutulur ve Android'in otomatik yedeklemesine dahil " +
+  'edilmez. Telefon değiştirirsen geçmişin kendiliğinden gelmez — taşımak için ' +
+  'Hesap ekranından yedek al.';
+
 /* ------------------------------------------------ links and support -- */
 
 export const ABOUT_LINKS_SECTION_TITLE = 'Belgeler';
