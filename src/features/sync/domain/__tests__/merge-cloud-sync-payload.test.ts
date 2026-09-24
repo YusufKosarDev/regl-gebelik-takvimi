@@ -58,6 +58,7 @@ function payload(overrides: Partial<CloudSyncPayloadV1> = {}): CloudSyncPayloadV
     pregnancyProfile: null,
     avatarConfig: null,
     notificationPreferences: preferences(),
+    dailyEntries: [],
     ...overrides,
   };
 }

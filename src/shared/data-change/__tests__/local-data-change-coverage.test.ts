@@ -26,6 +26,7 @@ const SYNCED_TABLES: Readonly<Record<string, string>> = {
   pregnancy_profile: 'pregnancy-profile',
   avatar_config: 'avatar-config',
   notification_preferences: 'notification-preferences',
+  daily_entries: 'daily-entries',
 };
 
 /**
@@ -80,7 +81,7 @@ function repositorySources(): readonly { readonly id: string; readonly source: s
     }));
 }
 
-/** Which of the five tables a file writes to. */
+/** Which of the synced tables a file writes to. */
 function mutatedSyncedTables(source: string): readonly string[] {
   return Object.keys(SYNCED_TABLES).filter((table) => {
     const mutation = new RegExp(
@@ -99,7 +100,7 @@ describe('every write a sync would carry is announced', () => {
     expect(repositories.length).toBeGreaterThan(5);
   });
 
-  it('covers each of the five categories with at least one announcing repository', () => {
+  it('covers each category with at least one announcing repository', () => {
     // Without this, deleting the notifier from a repository would only remove
     // the file from the scan rather than fail it.
     const announcedTables = new Set<string>();

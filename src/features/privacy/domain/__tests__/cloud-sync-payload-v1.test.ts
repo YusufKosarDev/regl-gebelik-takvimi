@@ -58,6 +58,7 @@ function payload(overrides: Partial<CloudSyncPayloadV1> = {}): CloudSyncPayloadV
     pregnancyProfile: pregnancy(),
     avatarConfig: avatar(),
     notificationPreferences: preferences(),
+    dailyEntries: [],
     ...overrides,
   };
 }
@@ -75,6 +76,7 @@ describe('what a payload is made of', () => {
       'pregnancyProfile',
       'avatarConfig',
       'notificationPreferences',
+      'dailyEntries',
     ]);
   });
 

@@ -2,11 +2,13 @@ import type { Fingerprint } from '@/features/backup/domain/cloud-restore-preview
 import {
   fingerprintAvatarConfig,
   fingerprintCycleSettings,
+  fingerprintDailyEntry,
   fingerprintNotificationPreferences,
   fingerprintPeriodRecord,
   fingerprintPregnancyProfile,
 } from '@/features/backup/domain/cloud-restore-preview-v1';
 import type { PeriodRecord } from '@/features/cycle/domain/types';
+import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 
 /**
@@ -117,6 +119,19 @@ function sortRecordsById(records: readonly PeriodRecord[]): readonly PeriodRecor
  * "no pregnancy" and "a pregnancy whose fields happen to be empty" have to hash
  * differently.
  */
+/**
+ * The recorded days in a fixed order, whatever order they arrived in.
+ *
+ * By code unit rather than by `localeCompare`, exactly as the records sort: a
+ * comparison that depended on the device's language would hash the same
+ * history differently on two phones.
+ */
+function sortEntriesByDate(entries: readonly DailyEntry[]): readonly DailyEntry[] {
+  return [...entries].sort((left, right) =>
+    left.date === right.date ? 0 : left.date < right.date ? -1 : 1
+  );
+}
+
 function canonicalText(payload: CloudSyncPayloadV1): string {
   const parts = [
     encode(payload.version),
@@ -138,6 +153,13 @@ function canonicalText(payload: CloudSyncPayloadV1): string {
       payload.avatarConfig === null ? null : fingerprintAvatarConfig(payload.avatarConfig)
     ),
     encodeFingerprint(fingerprintNotificationPreferences(payload.notificationPreferences)),
+    // Absent in a document written before the field existed, which hashes the
+    // same as nothing recorded. The count goes in too, so a list that lost a
+    // day cannot hash the same as one that never had it.
+    encode((payload.dailyEntries ?? []).length),
+    ...sortEntriesByDate(payload.dailyEntries ?? []).map((entry) =>
+      encodeFingerprint(fingerprintDailyEntry(entry))
+    ),
   ];
 
   return parts.join('');

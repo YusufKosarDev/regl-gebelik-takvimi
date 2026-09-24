@@ -47,6 +47,7 @@ function payload(): CloudSyncPayloadV1 {
       periodReminderEnabled: false,
       pregnancyWeeklyReminderEnabled: false,
     },
+    dailyEntries: [],
   };
 }
 
@@ -62,7 +63,7 @@ beforeEach(() => {
 
 describe('when the stored backup holds a field this build does not know', () => {
   beforeEach(() => {
-    stored({ version: 1, payload: { ...payload(), dailyEntries: [{ date: '2026-10-14' }] } });
+    stored({ version: 1, payload: { ...payload(), somethingFromALaterBuild: [{ noted: 'on the 14th' }] } });
   });
 
   it('refuses rather than writing', async () => {
@@ -80,7 +81,7 @@ describe('when the stored backup holds a field this build does not know', () => 
   it('names the field it protected, for a log line and a test', async () => {
     const error = await saveCloudBackup(USER, payload()).catch((thrown: unknown) => thrown);
 
-    expect((error as OutdatedAppError).unknownFields).toEqual(['dailyEntries']);
+    expect((error as OutdatedAppError).unknownFields).toEqual(['somethingFromALaterBuild']);
   });
 
   it('says nothing about what is in the field', async () => {
@@ -95,9 +96,9 @@ describe('when the outgoing payload carries the unknown field', () => {
   it('writes, because nothing would be dropped', async () => {
     // This is the merge path: the field was carried through, so storing it
     // loses nothing and the guard has no reason to stand in the way.
-    stored({ version: 1, payload: { ...payload(), dailyEntries: [{ date: '2026-10-14' }] } });
+    stored({ version: 1, payload: { ...payload(), somethingFromALaterBuild: [{ noted: 'on the 14th' }] } });
 
-    const carrying = { ...payload(), dailyEntries: [{ date: '2026-10-14' }] } as CloudSyncPayloadV1;
+    const carrying = { ...payload(), somethingFromALaterBuild: [{ noted: 'on the 14th' }] } as CloudSyncPayloadV1;
 
     await saveCloudBackup(USER, carrying);
 

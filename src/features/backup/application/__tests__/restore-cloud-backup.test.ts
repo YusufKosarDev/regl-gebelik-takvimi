@@ -27,6 +27,10 @@ jest.mock('@/features/avatar/data/avatar-repository', () => ({
   loadAvatarConfig: jest.fn(),
 }));
 
+jest.mock('@/features/daily-log/data/daily-log-repository', () => ({
+  replaceDailyEntries: jest.fn(),
+}));
+
 jest.mock('@/features/notifications/data/notification-preferences-repository', () => ({
   saveNotificationPreferences: jest.fn(),
   loadNotificationPreferences: jest.fn(),
@@ -94,6 +98,7 @@ function payload(overrides: Partial<CloudSyncPayloadV1> = {}): CloudSyncPayloadV
       periodReminderEnabled: true,
       pregnancyWeeklyReminderEnabled: false,
     },
+    dailyEntries: [],
     ...overrides,
   };
 }

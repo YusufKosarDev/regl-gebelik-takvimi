@@ -39,6 +39,7 @@ function payload(overrides: Partial<CloudSyncPayloadV1> = {}): CloudSyncPayloadV
       periodReminderEnabled: true,
       pregnancyWeeklyReminderEnabled: false,
     },
+    dailyEntries: [],
     ...overrides,
   };
 }
@@ -51,6 +52,7 @@ describe('a backup that matches the phone', () => {
       pregnancyProfile: 'unchanged',
       avatarConfig: 'unchanged',
       notificationPreferences: 'unchanged',
+      dailyEntries: { localCount: 0, remoteCount: 0, added: 0, removed: 0, changed: 0 },
     });
   });
 
@@ -306,10 +308,11 @@ describe('what a preview never carries', () => {
     expect(JSON.stringify(preview)).not.toMatch(/cycleDay|phase|fertil|mood|support|widget/i);
   });
 
-  it('has the five fields the screen shows and no more', () => {
+  it('has the six fields the screen shows and no more', () => {
     expect(Object.keys(preview).sort()).toEqual([
       'avatarConfig',
       'cycleSettings',
+      'dailyEntries',
       'notificationPreferences',
       'periodRecords',
       'pregnancyProfile',
@@ -380,6 +383,7 @@ describe('a backup whose keys come back in another order', () => {
       pregnancyProfile: 'unchanged',
       avatarConfig: 'unchanged',
       notificationPreferences: 'unchanged',
+      dailyEntries: { localCount: 0, remoteCount: 0, added: 0, removed: 0, changed: 0 },
     });
   });
 
@@ -484,6 +488,7 @@ describe('two plain objects whose keys are written in another order', () => {
       pregnancyProfile: 'unchanged',
       avatarConfig: 'unchanged',
       notificationPreferences: 'unchanged',
+      dailyEntries: { localCount: 0, remoteCount: 0, added: 0, removed: 0, changed: 0 },
     });
   });
 });

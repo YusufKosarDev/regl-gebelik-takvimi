@@ -8,13 +8,14 @@ import {
 
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import { loadCycleProfile } from '@/features/cycle/data/cycle-repository';
+import { loadAllDailyEntries } from '@/features/daily-log/data/daily-log-repository';
 import { loadNotificationPreferences } from '@/features/notifications/data/notification-preferences-repository';
 import { loadPregnancyProfile } from '@/features/pregnancy/data/pregnancy-repository';
 
 /**
  * Collects what a sync would be allowed to carry.
  *
- * Four reads, all of them repositories, and nothing else. No clock, no
+ * Five reads, all of them repositories, and nothing else. No clock, no
  * dashboard, no daily support, no widget snapshot and no notification queue:
  * every one of those is either worked out from what is read here or belongs to
  * this device, and a payload that carried one would be sending an answer
@@ -35,12 +36,14 @@ import { loadPregnancyProfile } from '@/features/pregnancy/data/pregnancy-reposi
  * which are pure.
  */
 export async function buildCloudSyncPayloadV1(db: SQLiteDatabase): Promise<CloudSyncPayloadV1> {
-  const [cycle, pregnancyProfile, avatarConfig, notificationPreferences] = await Promise.all([
-    loadCycleProfile(db),
-    loadPregnancyProfile(db),
-    loadAvatarConfig(db),
-    loadNotificationPreferences(db),
-  ]);
+  const [cycle, pregnancyProfile, avatarConfig, notificationPreferences, dailyEntries] =
+    await Promise.all([
+      loadCycleProfile(db),
+      loadPregnancyProfile(db),
+      loadAvatarConfig(db),
+      loadNotificationPreferences(db),
+      loadAllDailyEntries(db),
+    ]);
 
   const payload: CloudSyncPayloadV1 = {
     version: CLOUD_SYNC_PAYLOAD_VERSION,
@@ -52,6 +55,7 @@ export async function buildCloudSyncPayloadV1(db: SQLiteDatabase): Promise<Cloud
     pregnancyProfile,
     avatarConfig,
     notificationPreferences,
+    dailyEntries,
   };
 
   validateCloudSyncPayloadV1(payload);

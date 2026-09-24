@@ -29,6 +29,10 @@ jest.mock('@/features/notifications/data/notification-preferences-repository', (
   saveNotificationPreferences: jest.fn(),
 }));
 
+jest.mock('@/features/daily-log/data/daily-log-repository', () => ({
+  loadAllDailyEntries: jest.fn(),
+}));
+
 // Not allowed to be read, and named here so the test can say so rather than
 // hope. Each one is either derived from the four above or belongs to this
 // device alone.
@@ -70,6 +74,7 @@ const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-reposit
 const preferencesRepository = jest.requireMock(
   '@/features/notifications/data/notification-preferences-repository'
 );
+const dailyLogRepository = jest.requireMock('@/features/daily-log/data/daily-log-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const widgetBridge = jest.requireMock('@/features/widget/infrastructure/widget-snapshot-bridge');
 const dashboard = jest.requireMock('@/features/cycle/application/get-cycle-dashboard');
@@ -141,6 +146,11 @@ beforeEach(() => {
   avatarRepository.loadAvatarConfig.mockResolvedValue(avatar());
   avatarRepository.saveAvatarConfig.mockReset();
 
+  dailyLogRepository.loadAllDailyEntries.mockReset();
+  dailyLogRepository.loadAllDailyEntries.mockResolvedValue([
+    { date: '2026-10-14', flowId: 'medium', moodId: 'good', symptomIds: ['cramps'] },
+  ]);
+
   preferencesRepository.loadNotificationPreferences.mockReset();
   preferencesRepository.loadNotificationPreferences.mockResolvedValue({
     periodReminderEnabled: true,
@@ -165,6 +175,9 @@ describe('buildCloudSyncPayloadV1 with everything stored', () => {
         periodReminderEnabled: true,
         pregnancyWeeklyReminderEnabled: false,
       },
+      dailyEntries: [
+        { date: '2026-10-14', flowId: 'medium', moodId: 'good', symptomIds: ['cramps'] },
+      ],
     });
   });
 
@@ -181,6 +194,7 @@ describe('buildCloudSyncPayloadV1 with everything stored', () => {
     expect(pregnancyRepository.loadPregnancyProfile).toHaveBeenCalledTimes(1);
     expect(avatarRepository.loadAvatarConfig).toHaveBeenCalledTimes(1);
     expect(preferencesRepository.loadNotificationPreferences).toHaveBeenCalledTimes(1);
+    expect(dailyLogRepository.loadAllDailyEntries).toHaveBeenCalledTimes(1);
   });
 
   it('reads them on the database it was handed', async () => {
@@ -215,6 +229,9 @@ describe('buildCloudSyncPayloadV1 with nothing stored', () => {
         periodReminderEnabled: false,
         pregnancyWeeklyReminderEnabled: false,
       },
+      dailyEntries: [
+        { date: '2026-10-14', flowId: 'medium', moodId: 'good', symptomIds: ['cramps'] },
+      ],
     });
   });
 

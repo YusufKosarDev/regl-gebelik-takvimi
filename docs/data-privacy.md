@@ -60,6 +60,7 @@ tek biçim `CloudSyncPayloadV1`:
 3. `pregnancy-profile` — son regl tarihi, tahmini doğum tarihi ve kaynağı
 4. `avatar-config` — avatar seçimleri
 5. `notification-preferences` — iki hatırlatıcı anahtarı
+6. `daily-entries` — günlük kayıtlar: akış yoğunluğu, belirtiler, ruh hali
 
 Bunlara ek olarak dokümanda yalnızca bir sürüm numarası ve sunucunun yazdığı
 zaman damgası bulunur. **Widget snapshot'ı, loglar, bildirim kuyruğu, arayüz
@@ -134,6 +135,7 @@ olmadığı gösterilir.
 | `pregnancy-profile` | evet | evet | Son regl tarihi ve tahmini doğum tarihi; kişinin girdiği kayıt. |
 | `avatar-config` | evet | evet | Kişinin seçtiği görünüm; yeni cihazda yeniden seçtirmek gereksiz. |
 | `notification-preferences` | evet | evet | Kişinin açıp kapattığı hatırlatıcılar; tercih, cihaz durumu değil. |
+| `daily-entries` | evet | evet | Kişinin kendi girdiği günlük kayıtlar: akış yoğunluğu, belirtiler ve ruh hali. Hesaplanan değil, yazılan bir şey; yeniden kurulumda kaybolmamalı. |
 | `widget-snapshot` | evet | **hayır** | Bu cihazın ana ekranı için üretilmiş kopya; kaynak veriden her an yeniden üretilir, yedeğe girmez. |
 | `auth-session` | evet | **hayır** | Firebase Auth oturumu ve tokeni; bu cihaza ait, zaten hesabın kendisinde duruyor. |
 | `shared-preferences` | evet | **hayır** | Android tarafındaki yerel depolama; içeriği bu cihaza ait. |

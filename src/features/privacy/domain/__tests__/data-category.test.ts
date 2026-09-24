@@ -16,13 +16,14 @@ const DOC = readFileSync(
 );
 
 describe('what a sync may carry', () => {
-  it('is the five things a person entered', () => {
+  it('is the six things a person entered', () => {
     expect([...DATA_CATEGORIES]).toEqual([
       'cycle-settings',
       'period-records',
       'pregnancy-profile',
       'avatar-config',
       'notification-preferences',
+      'daily-entries',
     ]);
   });
 
@@ -192,7 +193,7 @@ describe('the inventory and the document say the same thing', () => {
     expect(DOC).toContain('request.auth.uid == userId');
   });
 
-  it('lists the five categories a backup carries, and says what it leaves out', () => {
+  it('lists every category a backup carries, and says what it leaves out', () => {
     for (const category of DATA_CATEGORIES) {
       expect(DOC).toContain(`\`${category}\` — `);
     }

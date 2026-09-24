@@ -1,5 +1,6 @@
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { CycleSettings, PeriodRecord } from '@/features/cycle/domain/types';
+import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
 import type { PregnancyProfile } from '@/features/pregnancy/domain/types';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
@@ -18,8 +19,8 @@ import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-pa
 /** What would happen to one thing the app stores. */
 export type CloudRestoreStatus = 'unchanged' | 'replace' | 'add' | 'remove';
 
-/** What would happen to the period history, in counts. */
-export type CloudRestorePeriodRecordsPreview = {
+/** What would happen to a list of things, in counts. */
+export type CloudRestoreCountsPreview = {
   readonly localCount: number;
   readonly remoteCount: number;
   readonly added: number;
@@ -27,12 +28,20 @@ export type CloudRestorePeriodRecordsPreview = {
   readonly changed: number;
 };
 
+/** Kept under its old name, which a screen and several tests still use. */
+export type CloudRestorePeriodRecordsPreview = CloudRestoreCountsPreview;
+
 export type CloudRestorePreviewV1 = {
   readonly cycleSettings: CloudRestoreStatus;
   readonly periodRecords: CloudRestorePeriodRecordsPreview;
   readonly pregnancyProfile: CloudRestoreStatus;
   readonly avatarConfig: CloudRestoreStatus;
   readonly notificationPreferences: CloudRestoreStatus;
+  /**
+   * Counts rather than a status, like the period history: a restore can add,
+   * remove and change days at once, and "replace" would say none of it.
+   */
+  readonly dailyEntries: CloudRestoreCountsPreview;
 };
 
 /**
@@ -68,6 +77,17 @@ export function fingerprintPeriodRecord(record: PeriodRecord): Fingerprint {
   // `endDate` is absent rather than null on a record with no end, and Firestore
   // has no way to store "absent" differently from "not there". Both become null.
   return [record.id, record.startDate, record.endDate ?? null, record.isOngoing];
+}
+
+/**
+ * One recorded day, reduced to what this app stores.
+ *
+ * The symptoms are sorted before they are joined: two devices can hold the
+ * same day with its symptoms in a different order, and a fingerprint that
+ * cared would call the same day different.
+ */
+export function fingerprintDailyEntry(entry: DailyEntry): Fingerprint {
+  return [entry.date, entry.flowId, entry.moodId, [...entry.symptomIds].sort().join(',')];
 }
 
 export function fingerprintPregnancyProfile(profile: PregnancyProfile): Fingerprint {
@@ -189,6 +209,46 @@ function periodRecordsPreview(
  *
  * Pure: neither payload is mutated and neither is kept.
  */
+/**
+ * What would happen to the recorded days, counted by date.
+ *
+ * The same shape as the period history, keyed by date instead of by id,
+ * because a date is what identifies a day.
+ */
+function dailyEntriesPreview(
+  local: readonly DailyEntry[],
+  remote: readonly DailyEntry[]
+): CloudRestoreCountsPreview {
+  const localByDate = new Map(local.map((entry) => [entry.date as string, entry]));
+  const remoteByDate = new Map(remote.map((entry) => [entry.date as string, entry]));
+
+  let added = 0;
+  let changed = 0;
+
+  for (const entry of remote) {
+    const match = localByDate.get(entry.date);
+
+    if (match === undefined) {
+      added += 1;
+      continue;
+    }
+
+    if (!isSame(fingerprintDailyEntry(match), fingerprintDailyEntry(entry))) {
+      changed += 1;
+    }
+  }
+
+  let removed = 0;
+
+  for (const entry of local) {
+    if (!remoteByDate.has(entry.date)) {
+      removed += 1;
+    }
+  }
+
+  return { localCount: local.length, remoteCount: remote.length, added, removed, changed };
+}
+
 export function buildCloudRestorePreviewV1(
   local: CloudSyncPayloadV1,
   remote: CloudSyncPayloadV1
@@ -209,6 +269,7 @@ export function buildCloudRestorePreviewV1(
       remote.notificationPreferences,
       fingerprintNotificationPreferences
     ),
+    dailyEntries: dailyEntriesPreview(local.dailyEntries ?? [], remote.dailyEntries ?? []),
   };
 }
 

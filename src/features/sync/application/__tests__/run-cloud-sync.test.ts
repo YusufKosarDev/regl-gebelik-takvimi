@@ -124,6 +124,7 @@ function payload(overrides: Partial<CloudSyncPayloadV1> = {}): CloudSyncPayloadV
       periodReminderEnabled: false,
       pregnancyWeeklyReminderEnabled: false,
     },
+    dailyEntries: [],
     ...overrides,
   };
 }

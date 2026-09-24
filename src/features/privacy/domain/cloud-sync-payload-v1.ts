@@ -1,6 +1,8 @@
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { validateAvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { CycleSettings, PeriodRecord } from '@/features/cycle/domain/types';
+import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
+import { validateDailyEntries } from '@/features/daily-log/domain/validation';
 import {
   validateCycleSettings,
   validatePeriodRecord,
@@ -35,6 +37,20 @@ export type CloudSyncPayloadV1 = {
   readonly avatarConfig: AvatarConfig | null;
   /** Always present: "nothing chosen" is the defaults, not an absence. */
   readonly notificationPreferences: NotificationPreferences;
+  /**
+   * What was noticed, one entry per day that holds anything.
+   *
+   * Added to version 1 rather than making a version 2. A reader that does
+   * not know this field keeps it and refuses to write over it, which is what
+   * `unknownCloudSyncPayloadFields` and the guards in the repositories are
+   * for; a version bump would instead have locked such a build out of the
+   * backup entirely. The version number is the marker for fields that
+   * *moved*, and nothing here moved.
+   *
+   * Empty before anything is recorded; never absent in a payload this build
+   * writes, and tolerated as absent in one written before the field existed.
+   */
+  readonly dailyEntries: readonly DailyEntry[];
 };
 
 /**
@@ -54,6 +70,7 @@ export const CLOUD_SYNC_PAYLOAD_V1_FIELDS = [
   'pregnancyProfile',
   'avatarConfig',
   'notificationPreferences',
+  'dailyEntries',
 ] as const satisfies readonly (keyof CloudSyncPayloadV1)[];
 
 function assertVersion(version: unknown): void {
@@ -150,6 +167,13 @@ export function validateCloudSyncPayloadV1(payload: CloudSyncPayloadV1): void {
   }
 
   validateNotificationPreferences(payload.notificationPreferences);
+
+  // Absent rather than empty in a document written before this field
+  // existed. That is an older backup, not a broken one, and it reads as
+  // nothing recorded.
+  if (payload.dailyEntries !== undefined) {
+    validateDailyEntries(payload.dailyEntries);
+  }
 }
 
 /**

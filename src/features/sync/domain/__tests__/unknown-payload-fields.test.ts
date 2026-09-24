@@ -19,7 +19,7 @@ import { mergeCloudSyncPayload } from '../merge-cloud-sync-payload';
  * drop it, and must not push over it.
  */
 
-const FUTURE_FIELD = 'dailyEntries';
+const FUTURE_FIELD = 'somethingFromALaterBuild';
 
 const FUTURE_VALUE = [
   { date: '2026-10-14', flow: 'medium', mood: 'good', symptoms: ['cramps'] },
@@ -36,6 +36,7 @@ function payload(overrides: Partial<CloudSyncPayloadV1> = {}): CloudSyncPayloadV
       periodReminderEnabled: false,
       pregnancyWeeklyReminderEnabled: false,
     },
+    dailyEntries: [],
     ...overrides,
   };
 }

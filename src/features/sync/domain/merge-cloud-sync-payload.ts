@@ -9,6 +9,8 @@ import {
   fingerprintPregnancyProfile,
 } from '@/features/backup/domain/cloud-restore-preview-v1';
 import type { CycleSettings, PeriodRecord } from '@/features/cycle/domain/types';
+import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
+import { sortDailyEntries } from '@/features/daily-log/domain/validation';
 import { validateCycleSettings } from '@/features/cycle/domain/validation';
 import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
 import { validateNotificationPreferences } from '@/features/notifications/domain/notification-preferences';
@@ -75,7 +77,8 @@ export type CloudSyncConflictValue =
   | PregnancyProfile
   | AvatarConfig
   | NotificationPreferences
-  | PeriodRecord;
+  | PeriodRecord
+  | DailyEntry;
 
 /**
  * What one side held, which may be nothing at all.
@@ -664,6 +667,94 @@ function recordConflicts(choices: readonly RecordMerge[]): CloudSyncConflict[] {
     }));
 }
 
+/**
+ * One recorded day reduced to the fields this app stores, in a fixed order.
+ *
+ * The symptoms are sorted before they are joined, because two devices can
+ * hold the same day with its symptoms in different orders and a fingerprint
+ * that cared would call the same day different.
+ */
+function fingerprintDailyEntry(entry: DailyEntry): Fingerprint {
+  return [
+    entry.date,
+    entry.flowId,
+    entry.moodId,
+    [...entry.symptomIds].sort().join(','),
+  ];
+}
+
+const sameDailyEntry = sameBy(fingerprintDailyEntry);
+
+/**
+ * The recorded days, merged a day at a time.
+ *
+ * The date is identity, which is what makes this simpler than the period
+ * history: there is nothing to reconcile about *which* day two sides mean.
+ *
+ * A day is merged whole rather than field by field. Flow, mood and symptoms
+ * are independent enough that a field-level merge would work, and it was left
+ * out on purpose: it would turn "you wrote different things for the 14th" into
+ * three separate questions about one day, and a person answering them cannot
+ * see the day they add up to. Whole days also match how the screen edits them.
+ *
+ * Deleting is absence, as everywhere else here: a day the payload no longer
+ * lists is a day somebody cleared.
+ */
+function mergeDailyEntries(
+  base: readonly DailyEntry[],
+  local: readonly DailyEntry[],
+  remote: readonly DailyEntry[],
+  conflicts: CloudSyncConflict[]
+): readonly DailyEntry[] {
+  const byDate = (entries: readonly DailyEntry[]) =>
+    new Map(entries.map((entry) => [entry.date as string, entry]));
+
+  const baseByDate = byDate(base);
+  const localByDate = byDate(local);
+  const remoteByDate = byDate(remote);
+
+  const dates = new Set<string>([
+    ...baseByDate.keys(),
+    ...localByDate.keys(),
+    ...remoteByDate.keys(),
+  ]);
+
+  // Sorted by code unit, exactly as the content hash sorts. A comparison
+  // that depended on the device's language would order the same history
+  // differently on two phones.
+  const ordered = [...dates].sort((left, right) =>
+    left === right ? 0 : left < right ? -1 : 1
+  );
+
+  const chosen: DailyEntry[] = [];
+
+  for (const date of ordered) {
+    const sides = {
+      base: sideOf(baseByDate.get(date)),
+      local: sideOf(localByDate.get(date)),
+      remote: sideOf(remoteByDate.get(date)),
+    };
+
+    const resolved = resolve(sides.base, sides.local, sides.remote, sameDailyEntry);
+
+    if (resolved.reason !== null) {
+      conflicts.push({
+        path: `dailyEntries/${date}`,
+        reason: resolved.reason,
+        base: toConflictSide(sides.base),
+        local: toConflictSide(sides.local),
+        remote: toConflictSide(sides.remote),
+      });
+    }
+
+    if (resolved.value.present) {
+      chosen.push(resolved.value.value);
+    }
+  }
+
+  return sortDailyEntries(chosen);
+}
+
 function chosenRecords(choices: readonly RecordMerge[]): readonly PeriodRecord[] {
   return choices
     .filter((choice) => choice.chosen.present)
@@ -767,6 +858,18 @@ export function mergeCloudSyncPayload(input: CloudSyncMergeInput): CloudSyncMerg
     conflicts
   ) as NotificationPreferences;
 
+  /**
+  * Absent on a side written before the field existed, which reads as nothing
+  * recorded rather than as everything deleted. Without this an older backup
+  * would merge as a deletion of every day on the other side.
+  */
+  const dailyEntries = mergeDailyEntries(
+    base.dailyEntries ?? [],
+    local.dailyEntries ?? [],
+    remote.dailyEntries ?? [],
+    conflicts
+  );
+
   const known: CloudSyncPayloadV1 = {
     version: CLOUD_SYNC_PAYLOAD_VERSION,
     cycleSettings,
@@ -774,6 +877,7 @@ export function mergeCloudSyncPayload(input: CloudSyncMergeInput): CloudSyncMerg
     pregnancyProfile,
     avatarConfig,
     notificationPreferences,
+    dailyEntries,
   };
 
   /**

@@ -23,6 +23,7 @@ export const DATA_CATEGORIES = [
   'pregnancy-profile',
   'avatar-config',
   'notification-preferences',
+  'daily-entries',
 ] as const;
 
 export type DataCategory = (typeof DATA_CATEGORIES)[number];
@@ -101,6 +102,14 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
     storedOnDevice: true,
     cloudSyncCandidate: true,
     reason: 'Kişinin açıp kapattığı hatırlatıcılar; tercih, cihaz durumu değil.',
+  },
+  {
+    id: 'daily-entries',
+    storedOnDevice: true,
+    cloudSyncCandidate: true,
+    reason:
+      'Kişinin kendi girdiği günlük kayıtlar: akış yoğunluğu, belirtiler ve ruh hali. ' +
+      'Hesaplanan değil, yazılan bir şey; yeniden kurulumda kaybolmamalı.',
   },
   {
     id: 'widget-snapshot',

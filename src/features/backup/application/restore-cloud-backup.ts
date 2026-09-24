@@ -6,6 +6,7 @@ import {
   replacePeriodRecords,
   writeCycleSettings,
 } from '@/features/cycle/data/cycle-repository';
+import { replaceDailyEntries } from '@/features/daily-log/data/daily-log-repository';
 import { saveNotificationPreferences } from '@/features/notifications/data/notification-preferences-repository';
 import {
   clearPregnancyProfile,
@@ -62,6 +63,10 @@ export async function restoreCloudBackup(
       }
 
       await replacePeriodRecords(db, payload.periodRecords);
+      // Absent in a backup written before the field existed. That is an older
+      // backup, not an instruction to delete every recorded day, so it reads
+      // as an empty list.
+      await replaceDailyEntries(db, payload.dailyEntries ?? []);
 
       if (payload.pregnancyProfile === null) {
         await clearPregnancyProfile(db);
