@@ -531,10 +531,14 @@ export default function HomeScreen() {
                 onPress={() => chooseMode('cycle')}
                 style={({ pressed }) => [
                   styles.modeOption,
-                  !isPregnancyView && { backgroundColor: theme.backgroundSelected },
+                  !isPregnancyView && { backgroundColor: theme.primary },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type={isPregnancyView ? 'small' : 'smallBold'}>Döngü</ThemedText>
+                <ThemedText
+                  type={isPregnancyView ? 'small' : 'smallBold'}
+                  themeColor={isPregnancyView ? 'text' : 'onPrimary'}>
+                  Döngü
+                </ThemedText>
               </Pressable>
 
               <Pressable
@@ -545,11 +549,15 @@ export default function HomeScreen() {
                 onPress={() => chooseMode('pregnancy')}
                 style={({ pressed }) => [
                   styles.modeOption,
-                  isPregnancyView && { backgroundColor: theme.backgroundSelected },
+                  isPregnancyView && { backgroundColor: theme.primary },
                   pregnancy === null && styles.disabled,
                   pressed && pregnancy !== null && styles.pressed,
                 ]}>
-                <ThemedText type={isPregnancyView ? 'smallBold' : 'small'}>Gebelik</ThemedText>
+                <ThemedText
+                  type={isPregnancyView ? 'smallBold' : 'small'}
+                  themeColor={isPregnancyView ? 'onPrimary' : 'text'}>
+                  Gebelik
+                </ThemedText>
               </Pressable>
             </View>
 
@@ -715,11 +723,11 @@ export default function HomeScreen() {
                     onPress={handleSavePeriod}
                     style={({ pressed }) => [
                       styles.primaryButton,
-                      { backgroundColor: theme.text },
+                      { backgroundColor: theme.primary },
                       isSaving && styles.disabled,
                       pressed && !isSaving && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold" style={{ color: theme.background }}>
+                    <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                       {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
                     </ThemedText>
                   </Pressable>
@@ -732,10 +740,10 @@ export default function HomeScreen() {
                 onPress={() => setIsConfirming(true)}
                 style={({ pressed }) => [
                   styles.primaryButton,
-                  { backgroundColor: theme.text },
+                  { backgroundColor: theme.primary },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold" style={{ color: theme.background }}>
+                <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                   {isEnding ? 'Regl bitti' : 'Regl başladı'}
                 </ThemedText>
               </Pressable>

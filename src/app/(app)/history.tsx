@@ -533,13 +533,13 @@ export default function HistoryScreen() {
                             onPress={handleDelete}
                             style={({ pressed }) => [
                               styles.primaryButton,
-                              { backgroundColor: theme.text },
+                              { backgroundColor: theme.primary },
                               isDeleting && styles.disabled,
                               pressed && !isDeleting && styles.pressed,
                             ]}>
                             <ThemedText
                               type="smallBold"
-                              style={{ color: theme.background }}>
+                              style={{ color: theme.onPrimary }}>
                               {isDeleting ? 'Siliniyor...' : 'Sil'}
                             </ThemedText>
                           </Pressable>
@@ -631,7 +631,7 @@ function StartDateEditor({
   hasError: boolean;
   onCancel: () => void;
   onSave: () => void;
-  theme: { text: string; background: string };
+  theme: { primary: string; onPrimary: string };
 }) {
   const maxDate = maxSelectableStartDate(record, today);
   const minDate = minSelectableStartDate(record);
@@ -717,11 +717,11 @@ function StartDateEditor({
           onPress={onSave}
           style={({ pressed }) => [
             styles.primaryButton,
-            { backgroundColor: theme.text },
+            { backgroundColor: theme.primary },
             isUpdating && styles.disabled,
             pressed && !isUpdating && styles.pressed,
           ]}>
-          <ThemedText type="smallBold" style={{ color: theme.background }}>
+          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
             {isUpdating ? 'Kaydediliyor...' : 'Kaydet'}
           </ThemedText>
         </Pressable>
@@ -764,7 +764,7 @@ function EndDateEditor({
   onCancel: () => void;
   onSave: () => void;
   onRemove: () => void;
-  theme: { text: string; background: string };
+  theme: { primary: string; onPrimary: string };
 }) {
   const maxDate = maxSelectableEndDate(record.startDate, today);
 
@@ -811,11 +811,11 @@ function EndDateEditor({
             onPress={onRemove}
             style={({ pressed }) => [
               styles.primaryButton,
-              { backgroundColor: theme.text },
+              { backgroundColor: theme.primary },
               isUpdating && styles.disabled,
               pressed && !isUpdating && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={{ color: theme.background }}>
+            <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
               {isUpdating ? 'Kaldırılıyor...' : 'Kaldır'}
             </ThemedText>
           </Pressable>
@@ -900,11 +900,11 @@ function EndDateEditor({
           onPress={onSave}
           style={({ pressed }) => [
             styles.primaryButton,
-            { backgroundColor: theme.text },
+            { backgroundColor: theme.primary },
             isUpdating && styles.disabled,
             pressed && !isUpdating && styles.pressed,
           ]}>
-          <ThemedText type="smallBold" style={{ color: theme.background }}>
+          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
             {isUpdating ? 'Kaydediliyor...' : 'Kaydet'}
           </ThemedText>
         </Pressable>

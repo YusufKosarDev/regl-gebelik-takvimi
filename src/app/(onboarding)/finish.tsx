@@ -139,11 +139,11 @@ export default function FinishScreen() {
             onPress={handleSubmit}
             style={({ pressed }) => [
               styles.primaryButton,
-              { backgroundColor: theme.text },
+              { backgroundColor: theme.primary },
               isSubmitting && styles.primaryButtonDisabled,
               pressed && !isSubmitting && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.background }]}>
+            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
               {isSubmitting ? 'Kaydediliyor...' : 'Takibe başla'}
             </ThemedText>
           </Pressable>

@@ -524,11 +524,11 @@ export default function SettingsScreen() {
                   onPress={handleSave}
                   style={({ pressed }) => [
                     styles.primaryButton,
-                    { backgroundColor: theme.text },
+                    { backgroundColor: theme.primary },
                     isSaving && styles.disabled,
                     pressed && !isSaving && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.background }}>
+                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                     {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
                   </ThemedText>
                 </Pressable>
@@ -713,11 +713,11 @@ export default function SettingsScreen() {
                     }}
                     style={({ pressed }) => [
                       styles.primaryButton,
-                      { backgroundColor: theme.text },
+                      { backgroundColor: theme.primary },
                       isWiping && styles.disabled,
                       pressed && !isWiping && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold" style={{ color: theme.background }}>
+                    <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                       {isWiping ? LOCAL_WIPE_BUSY_LABEL : LOCAL_WIPE_CONFIRM_LABEL}
                     </ThemedText>
                   </Pressable>
@@ -775,6 +775,8 @@ function ReminderToggle({
       <ThemedText style={styles.reminderLabel}>{label}</ThemedText>
 
       <Switch
+        trackColor={{ false: theme.backgroundSelected, true: theme.primary }}
+        thumbColor={value ? theme.onPrimary : undefined}
         accessibilityLabel={label}
         accessibilityState={{ checked: value, disabled }}
         value={value}

@@ -53,10 +53,10 @@ export default function OnboardingWelcomeScreen() {
             onPress={() => router.push('/(onboarding)/disclaimer')}
             style={({ pressed }) => [
               styles.button,
-              { backgroundColor: theme.text },
+              { backgroundColor: theme.primary },
               pressed && styles.buttonPressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.background }]}>
+            <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.onPrimary }]}>
               Başlayalım
             </ThemedText>
           </Pressable>

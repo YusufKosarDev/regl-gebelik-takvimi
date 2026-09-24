@@ -381,11 +381,11 @@ export default function PregnancySettingsScreen() {
                         onPress={handleStop}
                         style={({ pressed }) => [
                           styles.primaryButton,
-                          { backgroundColor: theme.text },
+                          { backgroundColor: theme.primary },
                           isStopping && styles.disabled,
                           pressed && !isStopping && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                           {isStopping ? 'Sonlandırılıyor...' : 'Takibi sonlandır'}
                         </ThemedText>
                       </Pressable>
@@ -401,11 +401,11 @@ export default function PregnancySettingsScreen() {
                       onPress={openEditor}
                       style={({ pressed }) => [
                         styles.primaryButton,
-                        { backgroundColor: theme.text },
+                        { backgroundColor: theme.primary },
                         isSaving && styles.disabled,
                         pressed && !isSaving && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold" style={{ color: theme.background }}>
+                      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                         Tarihi düzenle
                       </ThemedText>
                     </Pressable>
@@ -541,11 +541,11 @@ export default function PregnancySettingsScreen() {
                         onPress={() => applyDueDate(selectedDueDate, 'adjusted')}
                         style={({ pressed }) => [
                           styles.primaryButton,
-                          { backgroundColor: theme.text },
+                          { backgroundColor: theme.primary },
                           isSaving && styles.disabled,
                           pressed && !isSaving && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                           {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
                         </ThemedText>
                       </Pressable>

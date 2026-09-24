@@ -815,6 +815,8 @@ export default function AccountScreen() {
                       </ThemedText>
 
                       <Switch
+                        trackColor={{ false: theme.backgroundSelected, true: theme.primary }}
+                        thumbColor={automaticSync ? theme.onPrimary : undefined}
                         accessibilityLabel={AUTOMATIC_SYNC_LABEL}
                         accessibilityState={{ checked: automaticSync, disabled: isBusy }}
                         value={automaticSync}
@@ -979,11 +981,11 @@ export default function AccountScreen() {
                         }}
                         style={({ pressed }) => [
                           styles.primaryButton,
-                          { backgroundColor: theme.text },
+                          { backgroundColor: theme.primary },
                           isBusy && styles.disabled,
                           pressed && !isBusy && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                           {isBusy ? 'Geri yükleniyor...' : 'Geri yükle'}
                         </ThemedText>
                       </Pressable>
@@ -1104,6 +1106,8 @@ export default function AccountScreen() {
                         </ThemedText>
 
                         <Switch
+                          trackColor={{ false: theme.backgroundSelected, true: theme.primary }}
+                          thumbColor={wipeLocalToo ? theme.onPrimary : undefined}
                           accessibilityLabel={ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
                           value={wipeLocalToo}
                           onValueChange={setWipeLocalToo}
@@ -1125,11 +1129,11 @@ export default function AccountScreen() {
                         }}
                         style={({ pressed }) => [
                           styles.primaryButton,
-                          { backgroundColor: theme.text },
+                          { backgroundColor: theme.primary },
                           isBusy && styles.disabled,
                           pressed && !isBusy && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.background }}>
+                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                           {isBusy ? ACCOUNT_DELETE_BUSY_LABEL : ACCOUNT_DELETE_CONFIRM_LABEL}
                         </ThemedText>
                       </Pressable>
@@ -1238,11 +1242,11 @@ export default function AccountScreen() {
                       onPress={handleSendReset}
                       style={({ pressed }) => [
                         styles.primaryButton,
-                        { backgroundColor: theme.text },
+                        { backgroundColor: theme.primary },
                         isBusy && styles.disabled,
                         pressed && !isBusy && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold" style={{ color: theme.background }}>
+                      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                         {isBusy ? 'Gönderiliyor...' : 'Sıfırlama bağlantısı gönder'}
                       </ThemedText>
                     </Pressable>
@@ -1275,11 +1279,11 @@ export default function AccountScreen() {
                       onPress={() => attempt(signInWithEmail)}
                       style={({ pressed }) => [
                         styles.primaryButton,
-                        { backgroundColor: theme.text },
+                        { backgroundColor: theme.primary },
                         isBusy && styles.disabled,
                         pressed && !isBusy && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold" style={{ color: theme.background }}>
+                      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                         {isBusy ? 'Gönderiliyor...' : 'Giriş yap'}
                       </ThemedText>
                     </Pressable>

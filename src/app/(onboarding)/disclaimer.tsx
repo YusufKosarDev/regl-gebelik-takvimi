@@ -70,10 +70,10 @@ export default function OnboardingDisclaimerScreen() {
             onPress={() => router.push('/(onboarding)/cycle-settings')}
             style={({ pressed }) => [
               styles.button,
-              { backgroundColor: theme.text },
+              { backgroundColor: theme.primary },
               pressed && styles.buttonPressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.background }]}>
+            <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.onPrimary }]}>
               Devam et
             </ThemedText>
           </Pressable>

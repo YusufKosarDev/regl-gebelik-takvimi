@@ -106,10 +106,10 @@ export default function ReviewScreen() {
             }
             style={({ pressed }) => [
               styles.primaryButton,
-              { backgroundColor: theme.text },
+              { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.background }]}>
+            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
               Bilgiler doğru
             </ThemedText>
           </Pressable>

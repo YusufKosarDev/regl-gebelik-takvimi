@@ -174,11 +174,11 @@ export default function PregnancyStartScreen() {
               onPress={handleStart}
               style={({ pressed }) => [
                 styles.primaryButton,
-                { backgroundColor: theme.text },
+                { backgroundColor: theme.primary },
                 isSaving && styles.disabled,
                 pressed && !isSaving && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={{ color: theme.background }}>
+              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                 {isSaving ? 'Başlatılıyor...' : 'Takibi başlat'}
               </ThemedText>
             </Pressable>

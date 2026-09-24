@@ -339,11 +339,11 @@ export default function SyncConflictScreen() {
                   }}
                   style={({ pressed }) => [
                     styles.primaryButton,
-                    { backgroundColor: theme.text },
+                    { backgroundColor: theme.primary },
                     isBusy && styles.disabled,
                     pressed && !isBusy && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.background }}>
+                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                     {isBusy
                       ? CONFLICT_BUSY_LABEL
                       : confirming === 'local'

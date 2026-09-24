@@ -152,10 +152,12 @@ export default function AboutScreen() {
                   }}
                   style={({ pressed }) => [
                     styles.linkButton,
-                    { borderColor: theme.backgroundSelected },
+                    { borderColor: theme.primary },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{link.label}</ThemedText>
+                  <ThemedText type="smallBold" themeColor="primary">
+                    {link.label}
+                  </ThemedText>
                 </Pressable>
               ))}
             </View>
@@ -173,10 +175,12 @@ export default function AboutScreen() {
                 }}
                 style={({ pressed }) => [
                   styles.linkButton,
-                  { borderColor: theme.backgroundSelected },
+                  { borderColor: theme.primary },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{aboutSupportLabel(SUPPORT_EMAIL)}</ThemedText>
+                <ThemedText type="smallBold" themeColor="primary">
+                  {aboutSupportLabel(SUPPORT_EMAIL)}
+                </ThemedText>
               </Pressable>
             </View>
 

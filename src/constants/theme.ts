@@ -7,6 +7,26 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+/**
+ * The brand palette, as it appears in the app icon and the splash screen.
+ *
+ * These are the artwork colours. They are not the accent the interface uses:
+ * `Brand.main` on white is 3.72:1, which is under WCAG AA for text, so
+ * the interface uses a darker sibling in light mode and a lighter one in dark
+ * mode (see `Colors.light.primary` and `Colors.dark.primary` below).
+ * The artwork these come from lives in `assets/icon-source/`.
+ */
+export const Brand = {
+  /** Lavender mist. The crescent itself. */
+  light: '#EDE8FA',
+  /** Supporting lavender. The disc beside the crescent. */
+  mid: '#C3B6E4',
+  /** Muted lavender. The light end of the icon's background. */
+  main: '#8B7AC0',
+  /** Deep plum-indigo. The dark end of the icon's background. */
+  deep: '#4A3D78',
+} as const;
+
 export const Colors = {
   light: {
     text: '#000000',
@@ -14,6 +34,15 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    /**
+     * The accent: primary buttons, the on position of a switch, a selected
+     * tile, a link. A darkened `Brand.main`, chosen so white text on it
+     * reaches 5.30:1 and so it still reaches 4.66:1 as link text on
+     * `backgroundElement`. Brand.main itself reaches neither.
+     */
+    primary: '#7160AB',
+    /** What goes on top of `primary`. 5.30:1. */
+    onPrimary: '#ffffff',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +50,10 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    /** The same accent lifted for a dark background: 9.71:1 on it, 7.35:1 on an element. */
+    primary: '#B6A9DD',
+    /** What goes on top of `primary`. 7.42:1. Plum, not black, to stay in the family. */
+    onPrimary: '#241C3D',
   },
 } as const;
 

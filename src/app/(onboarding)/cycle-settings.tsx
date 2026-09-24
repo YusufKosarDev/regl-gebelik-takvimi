@@ -105,10 +105,10 @@ export default function CycleSettingsScreen() {
             }
             style={({ pressed }) => [
               styles.primaryButton,
-              { backgroundColor: theme.text },
+              { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.background }]}>
+            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
               Devam
             </ThemedText>
           </Pressable>

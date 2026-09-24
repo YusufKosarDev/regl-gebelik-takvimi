@@ -347,11 +347,11 @@ export default function AvatarScreen() {
                   onPress={handleSave}
                   style={({ pressed }) => [
                     styles.primaryButton,
-                    { backgroundColor: theme.text },
+                    { backgroundColor: theme.primary },
                     isSaving && styles.disabled,
                     pressed && !isSaving && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.background }}>
+                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                     {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
                   </ThemedText>
                 </Pressable>
@@ -414,13 +414,17 @@ function OptionSection({
               style={({ pressed }) => [
                 styles.option,
                 {
-                  backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement,
-                  borderColor: isSelected ? theme.text : 'transparent',
+                  backgroundColor: isSelected ? theme.primary : theme.backgroundElement,
+                  borderColor: isSelected ? theme.primary : 'transparent',
                 },
                 disabled && styles.disabled,
                 pressed && !disabled && styles.pressed,
               ]}>
-              <ThemedText type={isSelected ? 'smallBold' : 'small'}>{choice.label}</ThemedText>
+              <ThemedText
+                type={isSelected ? 'smallBold' : 'small'}
+                themeColor={isSelected ? 'onPrimary' : 'text'}>
+                {choice.label}
+              </ThemedText>
             </Pressable>
           );
         })}
