@@ -1,21 +1,26 @@
 /**
  * The one rule this app has about passwords.
  *
- * Firebase's own default minimum is six. The project has a policy set to eight,
- * but its `enforcementState` reads `OFF`, so the server accepts six today and
- * this check is the only thing standing in the way. It shapes what somebody
- * chooses on this screen and stops nothing anywhere else.
+ * The server enforces it. The project's password policy is set to a minimum of
+ * eight with `enforcementState: ENFORCE`, so Firebase itself refuses anything
+ * shorter, whatever sends the request. This check is not what makes the rule
+ * real.
  *
- * If that enforcement is ever switched on, this stays useful: it fails at the
- * keyboard with a sentence in Turkish instead of after a round trip with a
- * code. To check which it is, without creating anything, read the project's
- * live policy:
+ * What it is for is the answer arriving at the keyboard. Without it the person
+ * waits for a round trip and gets `auth/weak-password` back, which this app then
+ * has to translate. With it they get a Turkish sentence immediately and the
+ * request is never sent. The number lives here once and the message, the hint
+ * and the mapped error are all built from it, so the two layers cannot come to
+ * disagree about what it is.
+ *
+ * To confirm the server's side again later, without creating anything:
  *
  *     curl "https://identitytoolkit.googleapis.com/v2/passwordPolicy?key=$API_KEY"
  *
- * It therefore applies to choosing a password and never to typing one that
- * already exists. Accounts made before this rule have passwords shorter than
- * eight characters, and those people have to be able to sign in.
+ * It applies to choosing a password and never to typing one that already
+ * exists. Accounts made before the policy have shorter passwords, and their
+ * owners still have to get in; the project leaves `forceUpgradeOnSignin` unset,
+ * so Firebase does not block them either.
  *
  * Length only. No rule about capitals, digits or symbols: they push people
  * towards `Sifre1!` and away from something long, and the length is what makes
