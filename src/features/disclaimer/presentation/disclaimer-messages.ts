@@ -70,6 +70,36 @@ export const ABOUT_VERSION_LABEL = 'Sürüm';
 /** When the version cannot be read, which should not happen but is not fatal. */
 export const ABOUT_VERSION_UNKNOWN = 'Bilinmiyor';
 
+/* ------------------------------------------------ links and support -- */
+
+export const ABOUT_LINKS_SECTION_TITLE = 'Belgeler';
+
+export const ABOUT_PRIVACY_LABEL = 'Gizlilik politikası';
+export const ABOUT_KVKK_LABEL = 'KVKK aydınlatma metni';
+export const ABOUT_DELETION_LABEL = 'Veri silme';
+
+export const ABOUT_SUPPORT_SECTION_TITLE = 'Destek';
+
+/** Prefixed, so the address reads as something to write to rather than a link. */
+export function aboutSupportLabel(email: string): string {
+  return `Destek: ${email}`;
+}
+
+/**
+ * Shown when the phone will not open a link or the mail app.
+ *
+ * It carries the address itself rather than only apologising: somebody who
+ * cannot open the privacy policy still needs to be able to reach it, and an
+ * address on screen can be typed into a browser or copied by hand.
+ */
+export function linkOpenFailedMessage(target: string): string {
+  return `Açılamadı. Bu adresi tarayıcına yazabilirsin: ${target}`;
+}
+
+export function mailOpenFailedMessage(email: string): string {
+  return `E-posta uygulaması açılamadı. Bu adrese yazabilirsin: ${email}`;
+}
+
 /* -------------------------------------------------------- footers -- */
 
 /**

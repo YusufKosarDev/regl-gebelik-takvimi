@@ -1,17 +1,31 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import {
+  SUPPORT_EMAIL,
+  legalPageUrl,
+  supportMailtoUrl,
+} from '@/features/disclaimer/domain/legal-links';
 import { getAppVersion } from '@/features/disclaimer/infrastructure/app-version';
 import {
   ABOUT_APP_NAME,
   ABOUT_IMPORTANT_PARAGRAPHS,
+  ABOUT_DELETION_LABEL,
   ABOUT_IMPORTANT_SECTION_TITLE,
+  ABOUT_KVKK_LABEL,
+  ABOUT_LINKS_SECTION_TITLE,
+  ABOUT_PRIVACY_LABEL,
   ABOUT_SCREEN_TITLE,
+  ABOUT_SUPPORT_SECTION_TITLE,
   ABOUT_VERSION_LABEL,
+  aboutSupportLabel,
+  linkOpenFailedMessage,
+  mailOpenFailedMessage,
 } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
@@ -25,22 +39,23 @@ import { logEvent } from '@/shared/logging';
  * did not match what happened.
  */
 
-/**
- * A link out, once there is one to show.
- *
- * The privacy policy and the account-deletion request form both need a hosted
- * page, and neither exists yet. The list is empty rather than stubbed: a row
- * that says "yakında" or opens nothing is worse than no row, because somebody
- * looking for a privacy policy has a reason to be looking and deserves a
- * straight answer rather than a dead end. When the pages exist, they go in here
- * and the section appears on its own.
- */
+/** One row that leaves the app. */
 type AboutLink = {
   readonly label: string;
   readonly url: string;
 };
 
-const ABOUT_LINKS: readonly AboutLink[] = [];
+/**
+ * The public pages, built from one base address.
+ *
+ * Derived rather than written out, so moving the site to another host is one
+ * edit in `legal-links` and cannot leave a single row pointing at the old one.
+ */
+const ABOUT_LINKS: readonly AboutLink[] = [
+  { label: ABOUT_PRIVACY_LABEL, url: legalPageUrl('privacy') },
+  { label: ABOUT_KVKK_LABEL, url: legalPageUrl('kvkk') },
+  { label: ABOUT_DELETION_LABEL, url: legalPageUrl('deletion') },
+];
 
 export default function AboutScreen() {
   const router = useRouter();
@@ -48,13 +63,31 @@ export default function AboutScreen() {
 
   const version = getAppVersion();
 
-  const openLink = async (url: string) => {
+  /**
+   * What is shown when the phone will not open something.
+   *
+   * Held as one message rather than one per row: only one can have just failed,
+   * and a screen carrying three stale failures would be worse than one.
+   */
+  const [openFailure, setOpenFailure] = useState<string | null>(null);
+
+  /**
+   * Opens a page, or says where it was.
+   *
+   * `openURL` rejects when there is no browser, when the phone blocks the
+   * scheme, and on some devices for reasons it does not explain. None of those
+   * are worth a silent failure: somebody who pressed "Gizlilik politikası" has
+   * a reason to want it, so the address goes on screen to be typed or copied.
+   */
+  const openLink = async (url: string, onFailure: (target: string) => string) => {
+    setOpenFailure(null);
+
     try {
       await Linking.openURL(url);
     } catch (error) {
-      // Nothing is shown: there is no link on screen today, and when there is,
-      // a browser that refuses to open is the phone's problem to report.
       logEvent('about link open failed', error);
+
+      setOpenFailure(onFailure(url === supportMailtoUrl() ? SUPPORT_EMAIL : url));
     }
   };
 
@@ -104,26 +137,54 @@ export default function AboutScreen() {
               ))}
             </View>
 
-            {/* Nothing is rendered while there is nothing to link to. */}
-            {ABOUT_LINKS.length > 0 && (
-              <View style={styles.section}>
-                {ABOUT_LINKS.map((link) => (
-                  <Pressable
-                    key={link.url}
-                    accessibilityRole="link"
-                    accessibilityLabel={link.label}
-                    onPress={() => {
-                      void openLink(link.url);
-                    }}
-                    style={({ pressed }) => [
-                      styles.linkButton,
-                      { borderColor: theme.backgroundSelected },
-                      pressed && styles.pressed,
-                    ]}>
-                    <ThemedText type="smallBold">{link.label}</ThemedText>
-                  </Pressable>
-                ))}
-              </View>
+            <View style={styles.section}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                {ABOUT_LINKS_SECTION_TITLE}
+              </ThemedText>
+
+              {ABOUT_LINKS.map((link) => (
+                <Pressable
+                  key={link.url}
+                  accessibilityRole="link"
+                  accessibilityLabel={link.label}
+                  onPress={() => {
+                    void openLink(link.url, linkOpenFailedMessage);
+                  }}
+                  style={({ pressed }) => [
+                    styles.linkButton,
+                    { borderColor: theme.backgroundSelected },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText type="smallBold">{link.label}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.section}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                {ABOUT_SUPPORT_SECTION_TITLE}
+              </ThemedText>
+
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={aboutSupportLabel(SUPPORT_EMAIL)}
+                onPress={() => {
+                  void openLink(supportMailtoUrl(), mailOpenFailedMessage);
+                }}
+                style={({ pressed }) => [
+                  styles.linkButton,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">{aboutSupportLabel(SUPPORT_EMAIL)}</ThemedText>
+              </Pressable>
+            </View>
+
+            {/* Below every row, because any of them can be the one that failed. */}
+            {openFailure !== null && (
+              <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                {openFailure}
+              </ThemedText>
             )}
           </View>
         </ScrollView>
