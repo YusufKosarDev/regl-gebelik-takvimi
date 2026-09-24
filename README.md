@@ -191,6 +191,53 @@ which only compiles the rules and checks them for errors; the comparison above
 happens in the deploy phase, which a dry run skips. A dry run is a syntax
 check, not a diff against what is live.
 
+## Icons and artwork
+
+Every icon in the app is one crescent, drawn once. The geometry, the palette
+and the code that renders it all live in
+[`assets/icon-source/generate-icons.mjs`](assets/icon-source/generate-icons.mjs).
+It writes the SVG sources next to itself and the PNGs into `assets/images/`,
+so the launcher icon, the three Android adaptive layers, the notification
+silhouette, both splash images and the favicon cannot drift apart.
+
+To change any of them, edit that file and run it again:
+
+```sh
+npm install --no-save sharp
+node assets/icon-source/generate-icons.mjs
+```
+
+`sharp` renders the SVG and resizes it. `--no-save` keeps it out of
+`package.json` and the lockfile: it is a build tool for this one script, and
+nothing the app or CI needs.
+
+### The palette
+
+| | Hex | Where |
+| --- | --- | --- |
+| Lavender mist | `#EDE8FA` | The crescent itself; the dark-mode splash mark |
+| Supporting lavender | `#C3B6E4` | The disc beside the crescent |
+| Muted lavender | `#8B7AC0` | The light end of the icon background |
+| Deep plum-indigo | `#4A3D78` | The dark end of the icon background; the light-mode splash mark |
+| Light-mode accent | `#7160AB` | `Colors.light.primary`; the notification tint; the adaptive icon fallback colour |
+| Dark-mode accent | `#B6A9DD` | `Colors.dark.primary` |
+
+The first four are in `Brand` in [`src/constants/theme.ts`](src/constants/theme.ts);
+the last two are the interface accent. They differ on purpose. `#8B7AC0` reads
+at 3.72:1 on white, which is under WCAG AA, so it stays in the artwork — where
+no text sits on it — and the interface uses a darkened sibling in light mode
+and a lightened one in dark mode. `src/constants/__tests__/theme-contrast.test.ts`
+holds those ratios to AA so the palette cannot be loosened by accident.
+
+### Sizes
+
+The Android adaptive layers are 432×432, which is Expo's 108dp baseline at
+xxxhdpi — the largest size `expo prebuild` asks for. The artwork sits in the
+middle 72dp of that canvas and the outer ring is left empty, because a
+launcher may crop the icon to a circle and only the central 66dp is
+guaranteed to survive. The notification icon is 96×96, all white on
+transparent, as `expo-notifications` documents.
+
 ## Running the app
 
 ```sh
