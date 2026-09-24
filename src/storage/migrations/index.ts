@@ -8,7 +8,7 @@ import { describeValue } from '@/shared/logging';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 6;
+export const LATEST_SCHEMA_VERSION = 7;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -259,6 +259,70 @@ async function migrateToVersion6(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 7: what a person noticed on a day.
+ *
+ * Two tables rather than one. `daily_entries` holds the parts there is at
+ * most one of — how heavy the bleeding was, how the day felt — and
+ * `daily_entry_symptoms` holds the parts there can be several of. A JSON
+ * column would have made the second one opaque to every query and to the
+ * merge; a bitmask would have made adding a symptom easy and removing one a
+ * trap.
+ *
+ * The date is the key. A day is the unit a person thinks in, and it is also
+ * the unit two devices can disagree about, so it is what the merge works on.
+ *
+ * No CHECK lists the catalogue values, for the same reason the avatar table
+ * has none: a constraint that knew them would need a migration every time a
+ * symptom is added, and would lock a recorded day out of the app the moment
+ * one is dropped. Which ids are meaningful is the catalogue’s business, and
+ * the catalogue rule is that entries are hidden rather than removed.
+ *
+ * Flow is here rather than on `period_records`, and that is a decision rather
+ * than a convenience. A period record is a span; how heavy the bleeding was
+ * varies day to day inside it, and spotting happens on days that belong to no
+ * span at all. Putting flow on the record would have meant either inventing a
+ * period to hold a spot or losing it.
+ *
+ * `ON DELETE CASCADE` with `PRAGMA foreign_keys` left as the connection finds
+ * it: the repository deletes the symptoms itself in the same transaction, so
+ * the rows go whether or not the pragma is on. The clause states the
+ * relationship for anyone reading the schema.
+ */
+const MIGRATION_V7 = `
+  CREATE TABLE daily_entries (
+    entry_date TEXT PRIMARY KEY NOT NULL CHECK (length(entry_date) = 10),
+    flow_id TEXT NULL CHECK (flow_id IS NULL OR length(trim(flow_id)) > 0),
+    mood_id TEXT NULL CHECK (mood_id IS NULL OR length(trim(mood_id)) > 0)
+  );
+
+  CREATE TABLE daily_entry_symptoms (
+    entry_date TEXT NOT NULL
+      REFERENCES daily_entries(entry_date) ON DELETE CASCADE,
+    symptom_id TEXT NOT NULL CHECK (length(trim(symptom_id)) > 0),
+    PRIMARY KEY (entry_date, symptom_id)
+  );
+`;
+
+/**
+ * Adds the daily log tables.
+ *
+ * Touches nothing that is already there. No period record is read, rewritten
+ * or reinterpreted, and no day is invented from one: a person who has been
+ * using the app has recorded periods, not symptoms, and filling the new
+ * tables from the old ones would be the app putting words in their mouth.
+ *
+ * Same bargain as every step before it: the DDL and the version bump share
+ * one transaction, so a failure leaves the database still reporting version 6
+ * rather than claiming tables it does not have.
+ */
+async function migrateToVersion7(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V7);
+    await db.execAsync('PRAGMA user_version = 7');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -312,5 +376,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 6) {
     await migrateToVersion6(db);
+  }
+
+  if (currentVersion < 7) {
+    await migrateToVersion7(db);
   }
 }

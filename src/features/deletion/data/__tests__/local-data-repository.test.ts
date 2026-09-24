@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { LATEST_SCHEMA_VERSION } from '@/storage/migrations';
+import { runMigrations } from '@/storage/migrations';
 
 import { WIPED_TABLES, clearAllLocalTables } from '../local-data-repository';
 
@@ -32,6 +32,8 @@ describe('the list of tables a wipe empties', () => {
     expect([...WIPED_TABLES].sort()).toEqual([
       'avatar_config',
       'cycle_settings',
+      'daily_entries',
+      'daily_entry_symptoms',
       'notification_preferences',
       'period_records',
       'pregnancy_profile',
@@ -39,10 +41,28 @@ describe('the list of tables a wipe empties', () => {
     ]);
   });
 
-  it('has one table per schema version, which is how a new one gets noticed', () => {
-    // Six versions, six tables. If this ever stops holding, the migration that
-    // broke it is the one to check against `WIPED_TABLES`.
-    expect(WIPED_TABLES).toHaveLength(LATEST_SCHEMA_VERSION);
+  it('names every table the migrations actually create', async () => {
+    // This used to count tables against schema versions, which held only
+    // while every migration happened to add exactly one. Version 7 adds two,
+    // so the count is now read off the migrations themselves: whatever any
+    // migration creates has to be in the wipe list, and a table added
+    // without one fails here rather than surviving "delete everything".
+    const created: string[] = [];
+    const db = {
+      getFirstAsync: async () => ({ user_version: 0 }),
+      execAsync: async (sql: string) => {
+        for (const match of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(\w+)/gi)) {
+          created.push(match[1]);
+        }
+      },
+      withTransactionAsync: async (task: () => Promise<void>) => {
+        await task();
+      },
+    } as unknown as SQLiteDatabase;
+
+    await runMigrations(db);
+
+    expect(created.sort()).toEqual([...WIPED_TABLES].sort());
   });
 
   it('lists no table twice', () => {

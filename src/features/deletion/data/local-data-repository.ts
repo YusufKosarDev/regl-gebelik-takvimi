@@ -31,6 +31,11 @@ import { withLocalDataChangeSuppressed } from '@/shared/data-change/local-data-c
  * constraint failure halfway through a delete.
  */
 const TABLES_TO_CLEAR = [
+  // The symptoms first: they point at a day, and a wipe should not leave rows
+  // hanging off a date that no longer exists even for the length of a
+  // transaction.
+  'daily_entry_symptoms',
+  'daily_entries',
   'sync_state',
   'notification_preferences',
   'avatar_config',
