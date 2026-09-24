@@ -39,6 +39,15 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
   environment variable'larından okunuyor.
 - **Sağlık verisi cihazda.** Her şey uygulamanın kendi SQLite dosyasında
   (`regl-gebelik.db`) ve uygulamaya özel Android depolamasında duruyor.
+- **Android'in otomatik yedeklemesi kapalı.** `android:allowBackup="false"`,
+  artı `dataExtractionRules` ve `fullBackupContent` her şeyi hariç tutuyor.
+  İki mekanizma birden gerekiyor: Google, Android 12+'da bazı üreticilerin
+  cihazlarında `allowBackup="false"` ayarının bulut yedeğini kapattığını ama
+  cihazdan cihaza aktarımı kapatmadığını belgeliyor. Böylece SQLite veritabanı,
+  AsyncStorage satırı ve widget anlık görüntüsü Google Drive'a gitmiyor.
+  Karşılığı: telefon değişince ya da uygulama silinip yeniden kurulunca veriler
+  kendiliğinden geri gelmez; taşımanın tek yolu uygulamanın kendi hesap yedeği.
+  Bkz. `plugins/with-backups-disabled.js`.
 - **Loglar ham sağlık verisi içermez.** Konsola yalnızca kapalı bir listeden
   gelen genel olay adları yazılır (`[app] widget sync failed` gibi); tarih,
   kayıt, avatar ya da hata mesajı yazılmaz. Bkz. `src/shared/logging/`.

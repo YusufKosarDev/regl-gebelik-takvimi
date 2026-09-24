@@ -191,6 +191,49 @@ which only compiles the rules and checks them for errors; the comparison above
 happens in the deploy phase, which a dry run skips. A dry run is a syntax
 check, not a diff against what is live.
 
+## What must not be committed
+
+`.gitignore` refuses `google-services.json` and `GoogleService-Info.plist`, and
+that is deliberate rather than tidiness.
+
+This app reaches Firebase through the **JS SDK**, configured from the
+`EXPO_PUBLIC_FIREBASE_*` variables. It uses Authentication and Cloud Firestore
+and nothing else. `expo-notifications` still declares Cloud Messaging
+components in the merged manifest — `ExpoFirebaseMessagingService` and
+`FirebaseInstanceIdReceiver` — but they are inert, because the native Firebase
+SDK has no project to initialise from and the Google Services Gradle plugin is
+not applied.
+
+Dropping `google-services.json` into `android/app/` would change that. The
+native SDK would initialise, those components would become live, and the app
+would register for Cloud Messaging. The published privacy policy states that
+no Firebase product other than Authentication and Firestore is used, so that
+file turns a true statement into a false one without anybody editing a line of
+code.
+
+If push notifications are ever genuinely needed, the policy and
+[`docs/data-privacy.md`](docs/data-privacy.md) have to change first.
+
+## Android auto backup
+
+Android copies an app's data to the user's Google Drive by default. This app
+is excluded from that, because the privacy policy says health data leaves the
+phone only when the person asks it to, and the default would have made that
+untrue.
+
+Two mechanisms, both in [`plugins/with-backups-disabled.js`](plugins/with-backups-disabled.js)
+and `android.allowBackup` in `app.json`, because Google documents that on some
+manufacturers' devices `allowBackup="false"` stops the Drive backup but not
+the device-to-device transfer.
+
+To check a build:
+
+```sh
+adb shell bmgr backupnow com.yusufkosardev.regltakvimi
+```
+
+`Backup is not allowed` is the answer to expect.
+
 ## Icons and artwork
 
 Every icon in the app is one crescent, drawn once. The geometry, the palette

@@ -31,6 +31,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Firebase native config. Not used and must not be: the app talks to Firebase
+# through the JS SDK, and committing this would switch on Cloud Messaging,
+# which the privacy policy says the app does not use. See the README.
+google-services.json
+GoogleService-Info.plist
+
 # local env files
 .env*.local
 .env
