@@ -374,6 +374,18 @@ describe('AccountScreen signing in', () => {
     expect(repository.signInWithEmail).toHaveBeenCalledWith(EMAIL, '  spaces are characters  ');
   });
 
+  it('signs in with a password shorter than new ones are allowed to be', async () => {
+    // An account made before the eight-character rule. Its owner has to be
+    // able to get in, and the rule is about choosing, not about typing.
+    const screen = await renderSignedOut();
+
+    await fill(screen, EMAIL, 'abc123');
+    await fireEvent.press(screen.getByLabelText('Giriş yap'));
+
+    expect(repository.signInWithEmail).toHaveBeenCalledWith(EMAIL, 'abc123');
+    expect(screen.queryByText('Şifre en az 8 karakter olmalı.')).toBeNull();
+  });
+
   it('shows the signed-in state once the session says so', async () => {
     const screen = await renderSignedOut();
 
@@ -400,15 +412,42 @@ describe('AccountScreen creating an account', () => {
     expect(repository.signInWithEmail).not.toHaveBeenCalled();
   });
 
-  it('says what to fix when the password is too short for Firebase', async () => {
+  it('refuses a short password before Firebase is asked', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen, EMAIL, '1234567');
+    await fireEvent.press(screen.getByLabelText('Hesap oluştur'));
+
+    expect(await screen.findByText('Şifre en az 8 karakter olmalı.')).toBeTruthy();
+    expect(repository.signUpWithEmail).not.toHaveBeenCalled();
+  });
+
+  it('accepts one of exactly the minimum length', async () => {
+    const screen = await renderSignedOut();
+
+    await fill(screen, EMAIL, '12345678');
+    await fireEvent.press(screen.getByLabelText('Hesap oluştur'));
+
+    expect(repository.signUpWithEmail).toHaveBeenCalledWith(EMAIL, '12345678');
+  });
+
+  it('still says what to fix if Firebase refuses one anyway', async () => {
+    // The form cannot produce this any more, but the code is still mapped
+    // and the sentence still has to be the right one.
     repository.signUpWithEmail.mockRejectedValue(authError('weak-password'));
 
     const screen = await renderSignedOut();
 
-    await fill(screen, EMAIL, '123');
+    await fill(screen);
     await fireEvent.press(screen.getByLabelText('Hesap oluştur'));
 
-    expect(await screen.findByText('Şifre en az 6 karakter olmalı.')).toBeTruthy();
+    expect(await screen.findByText('Şifre en az 8 karakter olmalı.')).toBeTruthy();
+  });
+
+  it('shows the minimum in the hint under the field', async () => {
+    const screen = await renderSignedOut();
+
+    expect(screen.getByLabelText('Şifre').props.placeholder).toBe('En az 8 karakter');
   });
 
   it('clears the password after a refusal, so a retry is typed again', async () => {
@@ -416,7 +455,7 @@ describe('AccountScreen creating an account', () => {
 
     const screen = await renderSignedOut();
 
-    await fill(screen, EMAIL, '123');
+    await fill(screen);
     await fireEvent.press(screen.getByLabelText('Hesap oluştur'));
 
     await waitFor(() => {

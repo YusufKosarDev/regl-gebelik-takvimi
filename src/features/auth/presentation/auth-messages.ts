@@ -1,4 +1,17 @@
 import type { AuthErrorCode } from '../domain/auth-error';
+import { MINIMUM_PASSWORD_LENGTH } from '../domain/password-policy';
+
+/**
+ * What to say about a password that is too short.
+ *
+ * Built from the constant rather than written out, so the screen's hint, the
+ * message the form shows and the message Firebase triggers can never disagree
+ * about what the number is.
+ */
+export const SHORT_PASSWORD_MESSAGE = `Şifre en az ${MINIMUM_PASSWORD_LENGTH} karakter olmalı.`;
+
+/** The hint under the password field while somebody is choosing one. */
+export const PASSWORD_HINT = `En az ${MINIMUM_PASSWORD_LENGTH} karakter`;
 
 /**
  * What the account screen says when something does not work.
@@ -18,7 +31,9 @@ const MESSAGES: Readonly<Record<AuthErrorCode, string>> = {
   'invalid-email': 'Bu e-posta adresi kullanılamıyor.',
   'email-already-in-use': 'Bu e-posta adresi kullanılamıyor.',
   'invalid-credentials': 'E-posta veya şifre hatalı.',
-  'weak-password': 'Şifre en az 6 karakter olmalı.',
+  // Firebase's own floor is six, which this app never reaches because the form
+  // refuses anything shorter than eight first. Same sentence either way.
+  'weak-password': SHORT_PASSWORD_MESSAGE,
   'too-many-requests': 'Çok fazla deneme yapıldı. Biraz sonra tekrar dene.',
   'network-failed': 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.',
   // The password is asked for on the same screen this can appear on, so the

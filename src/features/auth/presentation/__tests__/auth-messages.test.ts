@@ -12,7 +12,7 @@ describe('what the account screen says about a failure', () => {
     ['invalid-credentials', 'E-posta veya şifre hatalı.'],
     ['email-already-in-use', 'Bu e-posta adresi kullanılamıyor.'],
     ['invalid-email', 'Bu e-posta adresi kullanılamıyor.'],
-    ['weak-password', 'Şifre en az 6 karakter olmalı.'],
+    ['weak-password', 'Şifre en az 8 karakter olmalı.'],
     ['not-configured', 'Bulut hesabı şu anda yapılandırılmamış.'],
     ['unknown', 'İşlem tamamlanamadı.'],
   ])('says %s as "%s"', (code, message) => {

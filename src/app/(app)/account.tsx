@@ -42,9 +42,12 @@ import {
 import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
 import { useAppStore } from '@/store/app-store';
 import { toAuthError } from '@/features/auth/domain/auth-error';
+import { isPasswordLongEnough } from '@/features/auth/domain/password-policy';
 import {
   EMPTY_EMAIL_MESSAGE,
   EMPTY_PASSWORD_MESSAGE,
+  PASSWORD_HINT,
+  SHORT_PASSWORD_MESSAGE,
   PASSWORD_RESET_SENT_MESSAGE,
   authErrorMessage,
   passwordResetErrorMessage,
@@ -261,7 +264,10 @@ export default function AccountScreen() {
    * that brings a space are not the person getting their own address wrong. The
    * password is not: a space in a password is a character in a password.
    */
-  const attempt = async (action: (email: string, password: string) => Promise<unknown>) => {
+  const attempt = async (
+    action: (email: string, password: string) => Promise<unknown>,
+    { isNewPassword = false }: { isNewPassword?: boolean } = {}
+  ) => {
     if (inFlight.current) {
       return;
     }
@@ -276,6 +282,14 @@ export default function AccountScreen() {
 
     if (password === '') {
       setNotice(EMPTY_PASSWORD_MESSAGE);
+
+      return;
+    }
+
+    // Only when one is being chosen. An account made before this rule has a
+    // shorter password, and its owner still has to be able to sign in.
+    if (isNewPassword && !isPasswordLongEnough(password)) {
+      setNotice(SHORT_PASSWORD_MESSAGE);
 
       return;
     }
@@ -1209,7 +1223,7 @@ export default function AccountScreen() {
                       // ends up being remembered.
                       secureTextEntry
                       textContentType="password"
-                      placeholder="En az 6 karakter"
+                      placeholder={PASSWORD_HINT}
                       placeholderTextColor={theme.textSecondary}
                       style={[
                         styles.input,
@@ -1293,7 +1307,7 @@ export default function AccountScreen() {
                       accessibilityLabel="Hesap oluştur"
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
-                      onPress={() => attempt(signUpWithEmail)}
+                      onPress={() => attempt(signUpWithEmail, { isNewPassword: true })}
                       style={({ pressed }) => [
                         styles.secondaryButton,
                         { borderColor: theme.backgroundSelected },
