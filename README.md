@@ -125,9 +125,71 @@ If any of the six is missing the app still runs, as an app with no accounts:
 signing in raises an `AuthError` with the code `not-configured`, and nothing
 else changes.
 
-`firestore.rules` is not deployed by anything in this repository. Deploy it to
-the Firebase project yourself, or the stored backups will not be protected by
-the rules this repository describes.
+The rules that actually protect the stored backups are deployed separately,
+from this repository — see [Firestore rules](#firestore-rules) below.
+
+## Firestore rules
+
+The security rules live in [`firestore.rules`](firestore.rules) at the root of
+the repository. `firebase.json` points the Firebase CLI at that file and
+`.firebaserc` pins the project (`regl-gebelik-takvimi`), so neither has to be
+passed on the command line. Nothing else is configured: no Hosting, no
+Functions, no Storage, no indexes — the app writes one document per user and
+runs no queries, so there is no index to declare.
+
+### Deploying
+
+```sh
+npm run rules:deploy
+```
+
+The script is `npx --yes firebase-tools@15 deploy --only firestore:rules`. The
+CLI is deliberately **not** a dependency of this project: it drags in a large
+dependency tree that has nothing to do with building the app, and as a
+devDependency it would be installed by `npm ci` on every CI run that never
+deploys anything. npx fetches it on demand instead.
+
+It has to be `firebase-tools`, not `firebase`. `npx firebase` resolves to the
+Firebase **JS SDK** already installed here, which ships no executable, and npm
+fails with `could not determine executable to run`.
+
+Once per machine, log in first:
+
+```sh
+npx --yes firebase-tools@15 login
+```
+
+The account needs write access to the Firebase project.
+
+### Deploy after every change
+
+Editing `firestore.rules` changes nothing on its own. Until the file is
+deployed, the rules enforced on the stored backups are whatever was released
+last — so a commit that tightens the rules leaves the data as loosely protected
+as before, with the repository claiming otherwise.
+
+### Checking that the deployed rules match the file
+
+The deploy itself reports this. Before uploading, the CLI downloads the
+released ruleset and compares it with the local file, and says which of the two
+happened:
+
+```
+i  firestore: latest version of firestore.rules already up to date, skipping upload...
+```
+
+means the deployed rules are identical to the file, and nothing was changed.
+
+```
+i  firestore: uploading rules firestore.rules...
+```
+
+means they differed, and the file has now been released.
+
+`--dry-run` does not answer this question. It stops after the prepare phase,
+which only compiles the rules and checks them for errors; the comparison above
+happens in the deploy phase, which a dry run skips. A dry run is a syntax
+check, not a diff against what is live.
 
 ## Running the app
 

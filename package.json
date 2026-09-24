@@ -43,7 +43,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watchAll"
+    "test:watch": "jest --watchAll",
+    "rules:deploy": "npx --yes firebase-tools@15 deploy --only firestore:rules"
   },
   "private": true,
   "jest": {
