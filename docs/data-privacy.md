@@ -6,15 +6,21 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
 
 ## Bugünkü durum
 
-- **Sağlık verisi yalnızca sen bir düğmeye bastığında gönderiliyor.** Bu iki
-  düğme var: "Yedek oluştur" ve "Şimdi senkronize et". Başka hiçbir durumda
-  cihazdan çıkmıyor: otomatik yedekleme, açılışta senkronizasyon, arka planda
-  gönderim ve değişiklik dinleyicisi **yok**. Hesabın olsun ya da olmasın, o
-  düğmelerden birine basmadığın sürece hiçbir sağlık verisi gitmez.
-- **"Otomatik senkronizasyon" anahtarı şimdilik yalnızca tercihini kaydediyor.**
-  Açman hiçbir arka plan gönderimi başlatmaz; kendiliğinden çalışan
-  senkronizasyon henüz yok. Tercih bu telefonda duruyor, hesapla taşınmıyor:
-  başka bir cihaza giriş yapmak orada senkronizasyonu açmaz.
+- **Sağlık verisi yalnızca senin kendi Firebase hesabına gidiyor.** Başka hiçbir
+  yere gönderilmiyor. Gitmesinin iki yolu var: "Yedek oluştur" ya da "Şimdi
+  senkronize et" düğmesine basmak; bir de "Otomatik senkronizasyon" açıksa
+  aşağıdaki beş tetikleyici.
+- **"Otomatik senkronizasyon" varsayılan olarak kapalı.** Kapalıyken hiçbir
+  gönderim olmaz ve yalnızca o iki düğme çalışır. Açıldığında ne gönderildiği
+  değişmez — taşınan şey yine envanterdeki beş kategoridir — değişen tek şey
+  gönderimin ne zaman tetiklendiğidir: anahtarın açılması, oturum açılması,
+  uygulamanın öne gelmesi, bir kaydın değişmesi ve uygulama arka plana alınırken
+  bekleyen bir değişikliğin son kez gönderilmesi.
+- **Uygulama kapalıyken hiçbir şey gönderilmez.** Arka plan görevi, periyodik iş
+  ve zamanlanmış gönderim yok; her gönderim kişinin az önce yaptığı bir şeyin
+  devamı. Ayrıntılar aşağıda "Otomatik senkronizasyon" bölümünde.
+- **Senkronizasyon tercihi bu telefonda duruyor, hesapla taşınmıyor:** başka bir
+  cihaza giriş yapmak orada senkronizasyonu açmaz.
 - **Firebase Auth ve Firestore var; başka Firebase ürünü yok.** Hesap için Auth,
   yedek için Firestore. Storage, Messaging, Functions, Analytics ve Crashlytics
   yok — bağımlılık listesinde de yok, bir tarama testi her çalıştırmada
@@ -51,10 +57,10 @@ zaman damgası bulunur. **Widget snapshot'ı, loglar, bildirim kuyruğu, arayüz
 durumu ve hesaplanan hiçbir veri (döngü günü, evre, doğurganlık, ruh hali,
 takvim) yedekte yer almaz.**
 
-Geri yükleme (restore) ve elle başlatılan senkronizasyon var. Kendiliğinden
-çalışan senkronizasyon ve çakışmaları çözme ekranı henüz yok: bir çakışma
-bulunduğunda senkronizasyon durur, iki taraftaki veriler olduğu gibi bırakılır ve
-ekranda hiçbir şeyin değişmediği yazar.
+Geri yükleme (restore), elle başlatılan senkronizasyon, kendiliğinden çalışan
+senkronizasyon ve çakışmaları çözme ekranı var. Bir çakışma bulunduğunda
+senkronizasyon durur ve iki taraftaki veriler olduğu gibi bırakılır; ne
+yapılacağını kişi "Çakışmayı çöz" ekranında seçer.
 
 ## Silme
 
@@ -63,7 +69,8 @@ ekranda hiçbir şeyin değişmediği yazar.
 - **"Tüm verilerimi sil" (Ayarlar).** Bu telefondaki her şeyi siler: altı
   tablonun tamamı (`cycle_settings`, `period_records`, `pregnancy_profile`,
   `avatar_config`, `notification_preferences`, `sync_state`), zamanlanmış
-  hatırlatıcılar, widget kopyası, senkronizasyon tercihleri ve cihaz kimliği.
+  hatırlatıcılar, widget kopyası, senkronizasyon tercihleri, cihaz kimliği, son
+  senkronizasyon zamanı ve çözülmemiş çakışma notu.
   Giriş yapılmışsa oturum da kapatılır ve uygulama onboarding'e döner.
   **Buluttaki yedeğe ve hesaba dokunmaz** — ekrandaki metin bunu açıkça söyler.
 - **"Hesabı sil" (Hesap).** Firestore'daki yedeği (`users/{uid}/backups/current`)
@@ -77,8 +84,9 @@ yedek dokümanı Firestore'da erişilemez halde kalırdı — bu projedeki her k
 kuralı karşılamaz.
 
 Hesap silinsin ya da silinmesin, silme başarılı olduğunda `sync_state`,
-`sync-preferences` ve `sync-device-id` her durumda temizlenir: bunlar kayıt
-değil, artık var olmayan bir hesaba ait defter kayıtlarıdır.
+`sync-preferences`, `sync-device-id`, `sync-last-synced-at` ve
+`sync-unresolved-conflict` her durumda temizlenir: bunlar kayıt değil, artık
+var olmayan bir hesaba ait defter kayıtlarıdır.
 
 İki adım arasında yedek silinmiş ama hesap henüz silinmemişken
 `pending-account-deletion` yazılır. O sırada senkronizasyon ve "Yedek oluştur"

@@ -140,19 +140,46 @@ describe('the inventory and the document say the same thing', () => {
     }
   });
 
-  it('says out loud when health data is sent, and when it is not', () => {
-    expect(DOC).toContain('Sağlık verisi yalnızca sen bir düğmeye bastığında gönderiliyor');
+  it('says out loud where health data goes, and that it goes nowhere else', () => {
+    expect(DOC).toContain('Sağlık verisi yalnızca senin kendi Firebase hesabına gidiyor');
     // Both of them, named. A document that still said "Yedek oluştur" alone
     // would be wrong about a button that is on the same screen.
-    expect(DOC).toContain('"Yedek oluştur" ve "Şimdi senkronize et"');
-    expect(DOC).toContain('otomatik yedekleme, açılışta senkronizasyon');
+    expect(DOC).toContain('"Yedek oluştur" ya da "Şimdi');
+    expect(DOC).toContain('senkronize et" düğmesine basmak');
     expect(DOC).toContain('Sağlık verisi cihazda');
     expect(DOC).toContain('Loglar ham sağlık verisi içermez');
   });
 
-  it('says what the automatic sync switch does today, which is only to remember', () => {
-    expect(DOC).toContain('yalnızca tercihini kaydediyor');
-    expect(DOC).toContain('kendiliğinden çalışan');
+  it('says the switch is off until somebody turns it on', () => {
+    // The default is the whole claim: a policy built on this document says
+    // nothing leaves the phone unless the person asked for it.
+    expect(DOC).toContain('varsayılan olarak kapalı');
+  });
+
+  it('names every trigger that can send, so none can be added quietly', () => {
+    for (const trigger of [
+      'anahtarın açılması',
+      'oturum açılması',
+      'uygulamanın öne gelmesi',
+      'bir kaydın değişmesi',
+      'arka plana alınırken',
+    ]) {
+      expect(DOC).toContain(trigger);
+    }
+  });
+
+  it('says nothing is sent while the app is closed', () => {
+    expect(DOC).toContain('Uygulama kapalıyken hiçbir şey gönderilmez');
+    expect(DOC).toContain('Arka plan görevi, periyodik iş');
+    expect(DOC).toContain('ve zamanlanmış gönderim yok');
+  });
+
+  it('no longer describes the switch as remembering a preference and nothing more', () => {
+    // It did exactly that until automatic sync shipped, and this test pinned
+    // the old sentence rather than the behaviour — which is how the document
+    // drifted without anything failing.
+    expect(DOC).not.toContain('yalnızca tercihini kaydediyor');
+    expect(DOC).not.toContain('senkronizasyon henüz yok');
   });
 
   it('says which services are used, and which are not', () => {
@@ -173,10 +200,21 @@ describe('the inventory and the document say the same thing', () => {
     expect(DOC).toContain('loglar, bildirim kuyruğu');
   });
 
-  it('says which parts of a sync exist and which do not', () => {
-    expect(DOC).toContain('Geri yükleme (restore) ve elle başlatılan senkronizasyon var');
-    expect(DOC).toContain('çakışmaları çözme ekranı henüz yok');
+  it('says which parts of a sync exist', () => {
+    expect(DOC).toContain('senkronizasyon ve çakışmaları çözme ekranı var');
     // The promise the conflict message on screen makes, written down here too.
     expect(DOC).toContain('iki taraftaki veriler olduğu gibi bırakılır');
+  });
+
+  it('names every key a deletion clears, including the two the sync added', () => {
+    for (const key of [
+      'sync_state',
+      'sync-preferences',
+      'sync-device-id',
+      'sync-last-synced-at',
+      'sync-unresolved-conflict',
+    ]) {
+      expect(DOC).toContain(key);
+    }
   });
 });
