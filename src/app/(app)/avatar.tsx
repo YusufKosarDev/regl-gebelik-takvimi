@@ -38,7 +38,12 @@ import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-chan
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
-import { BACK_LABEL, LOADING_MESSAGE } from '@/shared/presentation/app-messages';
+import {
+  BACK_LABEL,
+  LOADING_MESSAGE,
+  SAVE_LABEL,
+  SAVING_LABEL,
+} from '@/shared/presentation/app-messages';
 import { logEvent } from '@/shared/logging';
 
 /**
@@ -363,7 +368,7 @@ export default function AvatarScreen() {
                     pressed && !isSaving && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                    {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                    {isSaving ? SAVING_LABEL : SAVE_LABEL}
                   </ThemedText>
                 </Pressable>
               </>

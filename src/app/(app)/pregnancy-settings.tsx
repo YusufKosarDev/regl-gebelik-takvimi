@@ -15,26 +15,49 @@ import type {
   PregnancyProfile,
 } from '@/features/pregnancy/domain/types';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
+import {
+  PREGNANCY_BACK_TO_LMP_LABEL,
+  PREGNANCY_BACK_TO_LMP_TEXT,
+  PREGNANCY_EDIT_DUE_DATE_LABEL,
+  PREGNANCY_EDIT_DUE_DATE_TEXT,
+  PREGNANCY_LMP_PREFIX,
+  PREGNANCY_SAVE_DUE_DATE_LABEL,
+  PREGNANCY_SETTINGS_DESCRIPTION,
+  PREGNANCY_SETTINGS_EMPTY_MESSAGE,
+  PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE,
+  PREGNANCY_SETTINGS_NEXT_DAY_LABEL,
+  PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL,
+  PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE,
+  PREGNANCY_SETTINGS_TITLE,
+  PREGNANCY_STOPPING_LABEL,
+  PREGNANCY_STOP_CONFIRM_LABEL,
+  PREGNANCY_STOP_CONFIRM_TEXT,
+  PREGNANCY_STOP_CONSEQUENCE,
+  PREGNANCY_STOP_FAILED_MESSAGE,
+  PREGNANCY_STOP_OPEN_LABEL,
+  PREGNANCY_STOP_QUESTION,
+  PREGNANCY_DUE_DATE_LABEL,
+  dueDateSourceLabel,
+  pregnancyDueDateRowLabel,
+  selectedDueDateLabel,
+} from '@/features/pregnancy/presentation/pregnancy-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
+import {
+  BACK_LABEL,
+  CANCEL_LABEL,
+  LOADING_MESSAGE,
+  SAVE_LABEL,
+  SAVING_LABEL,
+} from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
-
-const LOAD_ERROR_MESSAGE = 'Gebelik ayarları yüklenemedi.';
-const SAVE_ERROR_MESSAGE = 'Tahmini doğum tarihi güncellenemedi.';
-const EMPTY_MESSAGE = 'Takip edilen bir gebelik bulunamadı.';
-const STOP_ERROR_MESSAGE = 'Gebelik takibi sonlandırılamadı.';
-
-/** Where the due date came from, so an adjusted one is not read as calculated. */
-function dueDateSourceLabel(source: PregnancyDueDateSource): string {
-  return source === 'adjusted' ? 'Düzeltilmiş tarih' : 'Son regl tarihine göre';
-}
 
 /**
  * The estimated due date, and how to change it.
@@ -254,11 +277,11 @@ export default function PregnancySettingsScreen() {
   const backButton = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Geri"
+      accessibilityLabel={BACK_LABEL}
       onPress={() => router.back()}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
       <ThemedText type="small" themeColor="textSecondary">
-        Geri
+        {BACK_LABEL}
       </ThemedText>
     </Pressable>
   );
@@ -269,7 +292,7 @@ export default function PregnancySettingsScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="pregnancy-settings-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            Veriler yükleniyor
+            {LOADING_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -295,12 +318,11 @@ export default function PregnancySettingsScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                Gebelik ayarları
+                {PREGNANCY_SETTINGS_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Tahmini doğum tarihini düzeltebilir ya da son regl tarihine göre hesaplanan
-                tarihe geri dönebilirsin.
+                {PREGNANCY_SETTINGS_DESCRIPTION}
               </ThemedText>
 
               {/* Only after a sync moved the date out from under an editor. */}
@@ -313,21 +335,21 @@ export default function PregnancySettingsScreen() {
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {LOAD_ERROR_MESSAGE}
+                {PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE}
               </ThemedText>
             ) : profile === null ? (
-              <ThemedText themeColor="textSecondary">{EMPTY_MESSAGE}</ThemedText>
+              <ThemedText themeColor="textSecondary">{PREGNANCY_SETTINGS_EMPTY_MESSAGE}</ThemedText>
             ) : (
               <View style={styles.fields}>
                 <View
                   accessible
-                  accessibilityLabel={
-                    `Tahmini doğum tarihi: ${formatDisplayDate(profile.estimatedDueDate)}, ` +
+                  accessibilityLabel={pregnancyDueDateRowLabel(
+                    formatDisplayDate(profile.estimatedDueDate),
                     dueDateSourceLabel(profile.dueDateSource)
-                  }
+                  )}
                   style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    Tahmini doğum tarihi
+                    {PREGNANCY_DUE_DATE_LABEL}
                   </ThemedText>
                   <ThemedText style={styles.rowValue}>
                     {formatDisplayDate(profile.estimatedDueDate)}
@@ -340,11 +362,11 @@ export default function PregnancySettingsScreen() {
                 {isConfirmingStop ? (
                   <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                     <ThemedText type="small">
-                      Gebelik takibini sonlandırmak istiyor musun?
+                      {PREGNANCY_STOP_QUESTION}
                     </ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary">
-                      Gebelik takip bilgilerin silinecek.
+                      {PREGNANCY_STOP_CONSEQUENCE}
                     </ThemedText>
 
                     {hasStopError && (
@@ -352,14 +374,14 @@ export default function PregnancySettingsScreen() {
                         accessibilityRole="alert"
                         type="small"
                         themeColor="textSecondary">
-                        {STOP_ERROR_MESSAGE}
+                        {PREGNANCY_STOP_FAILED_MESSAGE}
                       </ThemedText>
                     )}
 
                     <View style={styles.confirmActions}>
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Vazgeç"
+                      accessibilityLabel={CANCEL_LABEL}
                         accessibilityState={{ disabled: isStopping }}
                         disabled={isStopping}
                         onPress={dismissStop}
@@ -369,13 +391,13 @@ export default function PregnancySettingsScreen() {
                           pressed && !isStopping && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          Vazgeç
+                          {CANCEL_LABEL}
                         </ThemedText>
                       </Pressable>
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Gebelik takibini sonlandır"
+                      accessibilityLabel={PREGNANCY_STOP_CONFIRM_LABEL}
                         accessibilityState={{ disabled: isStopping }}
                         disabled={isStopping}
                         onPress={handleStop}
@@ -386,7 +408,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isStopping && styles.pressed,
                         ]}>
                         <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isStopping ? 'Sonlandırılıyor...' : 'Takibi sonlandır'}
+                          {isStopping ? PREGNANCY_STOPPING_LABEL : PREGNANCY_STOP_CONFIRM_TEXT}
                         </ThemedText>
                       </Pressable>
                     </View>
@@ -395,7 +417,7 @@ export default function PregnancySettingsScreen() {
                   <View style={styles.actions}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Tahmini doğum tarihini düzenle"
+                    accessibilityLabel={PREGNANCY_EDIT_DUE_DATE_LABEL}
                       accessibilityState={{ disabled: isSaving }}
                       disabled={isSaving}
                       onPress={openEditor}
@@ -406,7 +428,7 @@ export default function PregnancySettingsScreen() {
                         pressed && !isSaving && styles.pressed,
                       ]}>
                       <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                        Tarihi düzenle
+                        {PREGNANCY_EDIT_DUE_DATE_TEXT}
                       </ThemedText>
                     </Pressable>
 
@@ -415,7 +437,7 @@ export default function PregnancySettingsScreen() {
                     {profile.dueDateSource === 'adjusted' && (
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Son regl tarihine göre hesaplanan tarihe dön"
+                        accessibilityLabel={PREGNANCY_BACK_TO_LMP_LABEL}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() =>
@@ -430,7 +452,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {isSaving ? 'Kaydediliyor...' : 'LMP hesabına dön'}
+                          {isSaving ? SAVING_LABEL : PREGNANCY_BACK_TO_LMP_TEXT}
                         </ThemedText>
                       </Pressable>
                     )}
@@ -440,13 +462,13 @@ export default function PregnancySettingsScreen() {
                         accessibilityRole="alert"
                         type="small"
                         themeColor="textSecondary">
-                        {SAVE_ERROR_MESSAGE}
+                        {PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE}
                       </ThemedText>
                     )}
 
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Gebelik takibini sonlandırmayı seç"
+                      accessibilityLabel={PREGNANCY_STOP_OPEN_LABEL}
                       accessibilityState={{ disabled: isSaving }}
                       disabled={isSaving}
                       onPress={askToStop}
@@ -457,23 +479,23 @@ export default function PregnancySettingsScreen() {
                         pressed && !isSaving && styles.pressed,
                       ]}>
                       <ThemedText type="small" themeColor="textSecondary">
-                        Gebelik takibini sonlandır
+                        {PREGNANCY_STOP_CONFIRM_LABEL}
                       </ThemedText>
                     </Pressable>
                   </View>
                 ) : (
                   <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText type="smallBold">Tahmini doğum tarihini düzenle</ThemedText>
+                    <ThemedText type="smallBold">{PREGNANCY_EDIT_DUE_DATE_LABEL}</ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary">
-                      Son regl başlangıcı:{' '}
+                      {PREGNANCY_LMP_PREFIX}{' '}
                       {formatDisplayDate(profile.lastMenstrualPeriodStartDate)}
                     </ThemedText>
 
                     <View style={styles.dateBar}>
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Önceki gün"
+                        accessibilityLabel={PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL}
                         accessibilityState={{ disabled: !canGoBack }}
                         disabled={!canGoBack}
                         onPress={() => setSelectedDueDate(addDays(selectedDueDate, -1))}
@@ -486,7 +508,7 @@ export default function PregnancySettingsScreen() {
                       </Pressable>
 
                       <ThemedText
-                        accessibilityLabel={`Seçilen tahmini doğum tarihi: ${formatDisplayDate(selectedDueDate)}`}
+                        accessibilityLabel={selectedDueDateLabel(formatDisplayDate(selectedDueDate))}
                         type="smallBold"
                         style={styles.selectedDate}>
                         {formatDisplayDate(selectedDueDate)}
@@ -494,7 +516,7 @@ export default function PregnancySettingsScreen() {
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Sonraki gün"
+                        accessibilityLabel={PREGNANCY_SETTINGS_NEXT_DAY_LABEL}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() => setSelectedDueDate(addDays(selectedDueDate, 1))}
@@ -512,14 +534,14 @@ export default function PregnancySettingsScreen() {
                         accessibilityRole="alert"
                         type="small"
                         themeColor="textSecondary">
-                        {SAVE_ERROR_MESSAGE}
+                        {PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE}
                       </ThemedText>
                     )}
 
                     <View style={styles.confirmActions}>
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Vazgeç"
+                      accessibilityLabel={CANCEL_LABEL}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={closeEditor}
@@ -529,13 +551,13 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          Vazgeç
+                          {CANCEL_LABEL}
                         </ThemedText>
                       </Pressable>
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Tahmini doğum tarihini kaydet"
+                        accessibilityLabel={PREGNANCY_SAVE_DUE_DATE_LABEL}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() => applyDueDate(selectedDueDate, 'adjusted')}
@@ -546,7 +568,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                          {isSaving ? SAVING_LABEL : SAVE_LABEL}
                         </ThemedText>
                       </Pressable>
                     </View>

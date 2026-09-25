@@ -15,3 +15,15 @@ export const BACK_LABEL = 'Geri';
 
 /** Shown while a screen reads what it needs. */
 export const LOADING_MESSAGE = 'Veriler yükleniyor';
+
+/**
+ * The three words on every form.
+ *
+ * Five screens across four features have a save button, a busy state for it and
+ * a way out. Features that own their own version of these - the period card and
+ * the daily entry screen - keep theirs; these are for the screens that have no
+ * feature to ask.
+ */
+export const SAVE_LABEL = 'Kaydet';
+export const SAVING_LABEL = 'Kaydediliyor...';
+export const CANCEL_LABEL = 'Vazgeç';

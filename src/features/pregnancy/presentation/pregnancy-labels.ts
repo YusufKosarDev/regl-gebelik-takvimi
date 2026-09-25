@@ -133,3 +133,50 @@ export function developmentsLabel(features: readonly string[]): string {
 export function pregnancySourceLabel(name: string): string {
   return `${name} kaynağını aç`;
 }
+
+/* ---------------------------------------------- the settings screen -- */
+
+/**
+ * What the pregnancy settings screen says, in Turkish.
+ *
+ * Moved out of `app/(app)/pregnancy-settings.tsx` verbatim. Its own copy of
+ * `dueDateSourceLabel` went with it: the function above was already here, word
+ * for word, and the screen had a second one.
+ */
+
+export const PREGNANCY_SETTINGS_TITLE = 'Gebelik ayarları';
+
+export const PREGNANCY_SETTINGS_DESCRIPTION =
+  'Tahmini doğum tarihini düzeltebilir ya da son regl tarihine göre hesaplanan ' +
+  'tarihe geri dönebilirsin.';
+
+export const PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE = 'Gebelik ayarları yüklenemedi.';
+export const PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE = 'Tahmini doğum tarihi güncellenemedi.';
+export const PREGNANCY_SETTINGS_EMPTY_MESSAGE = 'Takip edilen bir gebelik bulunamadı.';
+export const PREGNANCY_STOP_FAILED_MESSAGE = 'Gebelik takibi sonlandırılamadı.';
+
+export const PREGNANCY_STOP_QUESTION = 'Gebelik takibini sonlandırmak istiyor musun?';
+export const PREGNANCY_STOP_CONSEQUENCE = 'Gebelik takip bilgilerin silinecek.';
+
+export const PREGNANCY_STOP_OPEN_LABEL = 'Gebelik takibini sonlandırmayı seç';
+export const PREGNANCY_STOP_CONFIRM_LABEL = 'Gebelik takibini sonlandır';
+export const PREGNANCY_STOP_CONFIRM_TEXT = 'Takibi sonlandır';
+export const PREGNANCY_STOPPING_LABEL = 'Sonlandırılıyor...';
+
+export const PREGNANCY_EDIT_DUE_DATE_LABEL = 'Tahmini doğum tarihini düzenle';
+export const PREGNANCY_EDIT_DUE_DATE_TEXT = 'Tarihi düzenle';
+export const PREGNANCY_SAVE_DUE_DATE_LABEL = 'Tahmini doğum tarihini kaydet';
+
+export const PREGNANCY_BACK_TO_LMP_LABEL = 'Son regl tarihine göre hesaplanan tarihe dön';
+export const PREGNANCY_BACK_TO_LMP_TEXT = 'LMP hesabına dön';
+
+export const PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL = 'Önceki gün';
+export const PREGNANCY_SETTINGS_NEXT_DAY_LABEL = 'Sonraki gün';
+
+/** The label before the stored last menstrual period, which follows it. */
+export const PREGNANCY_LMP_PREFIX = 'Son regl başlangıcı:';
+
+/** The day being chosen, read as what it is rather than as a bare date. */
+export function selectedDueDateLabel(readableDate: string): string {
+  return `Seçilen tahmini doğum tarihi: ${readableDate}`;
+}
