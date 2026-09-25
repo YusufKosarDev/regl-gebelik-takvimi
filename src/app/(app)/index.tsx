@@ -498,58 +498,58 @@ export default function HomeScreen() {
 
             {isPregnancyView ? null : (
               <>
-            <CycleSummary rows={rows} />
+              <CycleSummary rows={rows} />
 
-            {/* Today, above the general content and below the four facts
-                about it. Recording is a thing to do; everything under it is
-                a thing to read. */}
-            {!isPregnancyView && (
-              <DailyEntryCard
-                entry={todayEntry ?? emptyDailyEntry(dashboard.today)}
-                onOpen={() => {
-                  router.push({
-                    pathname: '/daily-entry',
-                    params: { date: dashboard.today },
-                  });
-                }}
-              />
-            )}
+              {/* Today, above the general content and below the four facts
+                  about it. Recording is a thing to do; everything under it is
+                  a thing to read. */}
+              {!isPregnancyView && (
+                <DailyEntryCard
+                  entry={todayEntry ?? emptyDailyEntry(dashboard.today)}
+                  onOpen={() => {
+                    router.push({
+                      pathname: '/daily-entry',
+                      params: { date: dashboard.today },
+                    });
+                  }}
+                />
+              )}
 
-            {/* Only in the cycle view, and only for a day that has a phase:
-                without one there is nothing to look words up by, and a heading
-                over an empty card would read as content that failed to load. */}
-            {dailySupport !== null && (
-              <DailySupportSection
-                dailySupport={dailySupport}
-                openSource={openSource}
-                hasSourceError={hasSourceError}
-              />
-            )}
+              {/* Only in the cycle view, and only for a day that has a phase:
+                  without one there is nothing to look words up by, and a heading
+                  over an empty card would read as content that failed to load. */}
+              {dailySupport !== null && (
+                <DailySupportSection
+                  dailySupport={dailySupport}
+                  openSource={openSource}
+                  hasSourceError={hasSourceError}
+                />
+              )}
 
-            {periodAction === 'none' ? null : (
-              <PeriodActionCard
+              {periodAction === 'none' ? null : (
+                <PeriodActionCard
+                  today={dashboard.today}
+                  isEnding={isEnding}
+                  isConfirming={isConfirming}
+                  setIsConfirming={setIsConfirming}
+                  isSaving={isSaving}
+                  hasSaveError={hasSaveError}
+                  setHasSaveError={setHasSaveError}
+                  handleSavePeriod={handleSavePeriod}
+                />
+              )}
+
+              <CycleCalendarSection
                 today={dashboard.today}
-                isEnding={isEnding}
-                isConfirming={isConfirming}
-                setIsConfirming={setIsConfirming}
-                isSaving={isSaving}
-                hasSaveError={hasSaveError}
-                setHasSaveError={setHasSaveError}
-                handleSavePeriod={handleSavePeriod}
+                monthHeading={monthHeading}
+                canGoBack={canGoBack}
+                canGoForward={canGoForward}
+                setMonthOffset={setMonthOffset}
+                calendarGrid={calendarGrid}
+                selectedDay={selectedDay}
+                setPickedDate={setPickedDate}
+                pickedEntry={pickedEntry}
               />
-            )}
-
-            <CycleCalendarSection
-              today={dashboard.today}
-              monthHeading={monthHeading}
-              canGoBack={canGoBack}
-              canGoForward={canGoForward}
-              setMonthOffset={setMonthOffset}
-              calendarGrid={calendarGrid}
-              selectedDay={selectedDay}
-              setPickedDate={setPickedDate}
-              pickedEntry={pickedEntry}
-            />
               </>
             )}
 

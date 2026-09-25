@@ -54,192 +54,192 @@ export function PregnancySection({
   const theme = useTheme();
 
   return (
-          <View style={styles.pregnancySection}>
-            <ThemedText accessibilityRole="header" type="smallBold">
-              Gebelik takibi
+    <View style={styles.pregnancySection}>
+      <ThemedText accessibilityRole="header" type="smallBold">
+        Gebelik takibi
+      </ThemedText>
+
+      <View
+        accessible
+        accessibilityLabel={`Gebelik haftası: ${pregnancyProgressLabel(pregnancy)}`}
+        style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="small" themeColor="textSecondary">
+          Gebelik haftası
+        </ThemedText>
+        <ThemedText style={styles.rowValue}>
+          {pregnancyProgressLabel(pregnancy)}
+        </ThemedText>
+      </View>
+
+      <View
+        accessible
+        accessibilityLabel={
+          `Tahmini doğum tarihi: ${formatDisplayDate(pregnancy.estimatedDueDate)}, ` +
+          dueDateSourceLabel(pregnancy.dueDateSource)
+        }
+        style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="small" themeColor="textSecondary">
+          Tahmini doğum tarihi
+        </ThemedText>
+        <ThemedText style={styles.rowValue}>
+          {formatDisplayDate(pregnancy.estimatedDueDate)}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+          {dueDateSourceLabel(pregnancy.dueDateSource)}
+        </ThemedText>
+      </View>
+
+      {/* Absent before the pregnancy starts and past week 40, where
+          there is nothing written to show. */}
+      {shownContent !== null && shownWeek !== null && (
+        <>
+          <View style={styles.weekBar}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Önceki hafta"
+              accessibilityState={{ disabled: shownWeek <= MIN_PREGNANCY_WEEK }}
+              disabled={shownWeek <= MIN_PREGNANCY_WEEK}
+              onPress={() => stepWeek(-1)}
+              style={({ pressed }) => [
+                styles.weekButton,
+                shownWeek <= MIN_PREGNANCY_WEEK && styles.disabled,
+                pressed && shownWeek > MIN_PREGNANCY_WEEK && styles.pressed,
+              ]}>
+              <ThemedText style={styles.weekButtonLabel}>‹</ThemedText>
+            </Pressable>
+
+            <ThemedText
+              accessibilityLabel={`Gösterilen hafta: ${shownWeek}. hafta`}
+              type="smallBold"
+              style={styles.selectedWeek}>
+              {shownWeek}. hafta
             </ThemedText>
-
-            <View
-              accessible
-              accessibilityLabel={`Gebelik haftası: ${pregnancyProgressLabel(pregnancy)}`}
-              style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Gebelik haftası
-              </ThemedText>
-              <ThemedText style={styles.rowValue}>
-                {pregnancyProgressLabel(pregnancy)}
-              </ThemedText>
-            </View>
-
-            <View
-              accessible
-              accessibilityLabel={
-                `Tahmini doğum tarihi: ${formatDisplayDate(pregnancy.estimatedDueDate)}, ` +
-                dueDateSourceLabel(pregnancy.dueDateSource)
-              }
-              style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Tahmini doğum tarihi
-              </ThemedText>
-              <ThemedText style={styles.rowValue}>
-                {formatDisplayDate(pregnancy.estimatedDueDate)}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                {dueDateSourceLabel(pregnancy.dueDateSource)}
-              </ThemedText>
-            </View>
-
-            {/* Absent before the pregnancy starts and past week 40, where
-                there is nothing written to show. */}
-            {shownContent !== null && shownWeek !== null && (
-              <>
-                <View style={styles.weekBar}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Önceki hafta"
-                    accessibilityState={{ disabled: shownWeek <= MIN_PREGNANCY_WEEK }}
-                    disabled={shownWeek <= MIN_PREGNANCY_WEEK}
-                    onPress={() => stepWeek(-1)}
-                    style={({ pressed }) => [
-                      styles.weekButton,
-                      shownWeek <= MIN_PREGNANCY_WEEK && styles.disabled,
-                      pressed && shownWeek > MIN_PREGNANCY_WEEK && styles.pressed,
-                    ]}>
-                    <ThemedText style={styles.weekButtonLabel}>‹</ThemedText>
-                  </Pressable>
-
-                  <ThemedText
-                    accessibilityLabel={`Gösterilen hafta: ${shownWeek}. hafta`}
-                    type="smallBold"
-                    style={styles.selectedWeek}>
-                    {shownWeek}. hafta
-                  </ThemedText>
-
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Sonraki hafta"
-                    accessibilityState={{ disabled: shownWeek >= MAX_PREGNANCY_WEEK }}
-                    disabled={shownWeek >= MAX_PREGNANCY_WEEK}
-                    onPress={() => stepWeek(1)}
-                    style={({ pressed }) => [
-                      styles.weekButton,
-                      shownWeek >= MAX_PREGNANCY_WEEK && styles.disabled,
-                      pressed && shownWeek < MAX_PREGNANCY_WEEK && styles.pressed,
-                    ]}>
-                    <ThemedText style={styles.weekButtonLabel}>›</ThemedText>
-                  </Pressable>
-                </View>
-
-                {/* Only worth offering once the reading has wandered off the
-                    week the pregnancy is actually in. */}
-                {shownWeek !== currentWeek && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Bugünkü haftaya dön"
-                    onPress={() => {
-                      setPreviewWeek(null);
-                      setHasSourceError(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      pressed && styles.pressed,
-                    ]}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Bugünkü haftaya dön
-                    </ThemedText>
-                  </Pressable>
-                )}
-
-                <View
-                  accessible
-                  accessibilityLabel={`Bu hafta: ${weeklyHighlight(shownContent)}`}
-                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Bu hafta
-                  </ThemedText>
-
-                  {/* Only the weeks that have a size show one. */}
-                  {shownContent.size !== undefined && (
-                    <ThemedText style={styles.rowValue}>
-                      {shownContent.size.label} —{' '}
-                      {shownContent.size.comparison}
-                    </ThemedText>
-                  )}
-
-                  <ThemedText type="small" style={styles.weeklySummary}>
-                    {shownContent.developmentSummary}
-                  </ThemedText>
-                </View>
-
-                <View
-                  accessible
-                  accessibilityLabel={`Bu hafta gelişenler: ${shownContent.developingFeatures.join(', ')}`}
-                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Bu hafta gelişenler
-                  </ThemedText>
-
-                  {shownContent.developingFeatures.map((feature) => (
-                    <ThemedText key={feature} type="small" style={styles.weeklyFeature}>
-                      • {feature}
-                    </ThemedText>
-                  ))}
-                </View>
-
-                {/* The domain requires at least one source, but the section
-                    is still conditional: an empty heading would be worse
-                    than no heading. */}
-                {shownContent.sources.length > 0 && (
-                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Kaynaklar
-                    </ThemedText>
-
-                    {hasSourceError && (
-                      <ThemedText
-                        accessibilityRole="alert"
-                        type="small"
-                        themeColor="textSecondary"
-                        style={styles.weeklyFeature}>
-                        {SOURCE_ERROR_MESSAGE}
-                      </ThemedText>
-                    )}
-
-                    {shownContent.sources.map((source) => (
-                      <Pressable
-                        key={source.url}
-                        accessibilityRole="link"
-                        accessibilityLabel={`${source.name} kaynağını aç`}
-                        onPress={() => openSource(source.url)}
-                        style={({ pressed }) => [
-                          styles.sourceLink,
-                          pressed && styles.pressed,
-                        ]}>
-                        <ThemedText type="small">{source.name}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {source.url}
-                        </ThemedText>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-
-                <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                  {CONTENT_DISCLAIMER_FOOTER}
-                </ThemedText>
-              </>
-            )}
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Gebelik ayarlarını düzenle"
-              onPress={() => router.push('/(app)/pregnancy-settings')}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Gebelik ayarları
-              </ThemedText>
+              accessibilityLabel="Sonraki hafta"
+              accessibilityState={{ disabled: shownWeek >= MAX_PREGNANCY_WEEK }}
+              disabled={shownWeek >= MAX_PREGNANCY_WEEK}
+              onPress={() => stepWeek(1)}
+              style={({ pressed }) => [
+                styles.weekButton,
+                shownWeek >= MAX_PREGNANCY_WEEK && styles.disabled,
+                pressed && shownWeek < MAX_PREGNANCY_WEEK && styles.pressed,
+              ]}>
+              <ThemedText style={styles.weekButtonLabel}>›</ThemedText>
             </Pressable>
           </View>
+
+          {/* Only worth offering once the reading has wandered off the
+              week the pregnancy is actually in. */}
+          {shownWeek !== currentWeek && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Bugünkü haftaya dön"
+              onPress={() => {
+                setPreviewWeek(null);
+                setHasSourceError(false);
+              }}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Bugünkü haftaya dön
+              </ThemedText>
+            </Pressable>
+          )}
+
+          <View
+            accessible
+            accessibilityLabel={`Bu hafta: ${weeklyHighlight(shownContent)}`}
+            style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Bu hafta
+            </ThemedText>
+
+            {/* Only the weeks that have a size show one. */}
+            {shownContent.size !== undefined && (
+              <ThemedText style={styles.rowValue}>
+                {shownContent.size.label} —{' '}
+                {shownContent.size.comparison}
+              </ThemedText>
+            )}
+
+            <ThemedText type="small" style={styles.weeklySummary}>
+              {shownContent.developmentSummary}
+            </ThemedText>
+          </View>
+
+          <View
+            accessible
+            accessibilityLabel={`Bu hafta gelişenler: ${shownContent.developingFeatures.join(', ')}`}
+            style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Bu hafta gelişenler
+            </ThemedText>
+
+            {shownContent.developingFeatures.map((feature) => (
+              <ThemedText key={feature} type="small" style={styles.weeklyFeature}>
+                • {feature}
+              </ThemedText>
+            ))}
+          </View>
+
+          {/* The domain requires at least one source, but the section
+              is still conditional: an empty heading would be worse
+              than no heading. */}
+          {shownContent.sources.length > 0 && (
+            <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Kaynaklar
+              </ThemedText>
+
+              {hasSourceError && (
+                <ThemedText
+                  accessibilityRole="alert"
+                  type="small"
+                  themeColor="textSecondary"
+                  style={styles.weeklyFeature}>
+                  {SOURCE_ERROR_MESSAGE}
+                </ThemedText>
+              )}
+
+              {shownContent.sources.map((source) => (
+                <Pressable
+                  key={source.url}
+                  accessibilityRole="link"
+                  accessibilityLabel={`${source.name} kaynağını aç`}
+                  onPress={() => openSource(source.url)}
+                  style={({ pressed }) => [
+                    styles.sourceLink,
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText type="small">{source.name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {source.url}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+            {CONTENT_DISCLAIMER_FOOTER}
+          </ThemedText>
+        </>
+      )}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Gebelik ayarlarını düzenle"
+        onPress={() => router.push('/(app)/pregnancy-settings')}
+        style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+        <ThemedText type="small" themeColor="textSecondary">
+          Gebelik ayarları
+        </ThemedText>
+      </Pressable>
+    </View>
   );
 }
 
