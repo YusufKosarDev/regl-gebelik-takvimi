@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import { PERIOD_REMINDER_CHANNEL_DESCRIPTION } from '../../domain/period-reminder';
+import { PERIOD_REMINDER_CHANNEL_DESCRIPTION } from '../../presentation/reminder-messages';
 
 import {
   cancelPeriodReminders,

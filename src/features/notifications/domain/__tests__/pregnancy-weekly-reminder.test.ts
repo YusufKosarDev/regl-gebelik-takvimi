@@ -1,16 +1,19 @@
 import { PERIOD_REMINDER_TYPE } from '../period-reminder';
 import {
-  PREGNANCY_WEEKLY_REMINDER_BODY,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID,
-  PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
   PREGNANCY_WEEKLY_REMINDER_HOUR,
   PREGNANCY_WEEKLY_REMINDER_MINUTE,
-  PREGNANCY_WEEKLY_REMINDER_TITLE,
   PREGNANCY_WEEKLY_REMINDER_TYPE,
   PREGNANCY_WEEKLY_REMINDER_WEEKDAY,
   isPregnancyWeeklyReminderData,
   pregnancyWeeklyReminderData,
 } from '../pregnancy-weekly-reminder';
+
+import {
+  PREGNANCY_WEEKLY_REMINDER_BODY,
+  PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
+  PREGNANCY_WEEKLY_REMINDER_TITLE,
+} from '@/features/notifications/presentation/reminder-messages';
 
 describe('what a weekly pregnancy reminder says', () => {
   it('names itself plainly', () => {

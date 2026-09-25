@@ -1,15 +1,18 @@
 import {
-  PERIOD_REMINDER_BODY,
   PERIOD_REMINDER_CHANNEL_ID,
-  PERIOD_REMINDER_CHANNEL_NAME,
   PERIOD_REMINDER_DAYS_BEFORE,
   PERIOD_REMINDER_HOUR,
-  PERIOD_REMINDER_TITLE,
   PERIOD_REMINDER_TYPE,
   isPeriodReminderData,
   periodReminderData,
   periodReminderDate,
 } from '../period-reminder';
+
+import {
+  PERIOD_REMINDER_BODY,
+  PERIOD_REMINDER_CHANNEL_NAME,
+  PERIOD_REMINDER_TITLE,
+} from '@/features/notifications/presentation/reminder-messages';
 
 import type { ISODate } from '@/types/iso-date';
 

@@ -2,15 +2,17 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import {
-  PERIOD_REMINDER_BODY,
-  PERIOD_REMINDER_CHANNEL_DESCRIPTION,
   PERIOD_REMINDER_CHANNEL_ID,
-  PERIOD_REMINDER_CHANNEL_NAME,
   PERIOD_REMINDER_HOUR,
-  PERIOD_REMINDER_TITLE,
   PERIOD_REMINDER_TYPE,
   periodReminderData,
 } from '../domain/period-reminder';
+import {
+  PERIOD_REMINDER_BODY,
+  PERIOD_REMINDER_CHANNEL_DESCRIPTION,
+  PERIOD_REMINDER_CHANNEL_NAME,
+  PERIOD_REMINDER_TITLE,
+} from '../presentation/reminder-messages';
 
 import { cancelScheduledRemindersOfType } from './scheduled-reminders';
 

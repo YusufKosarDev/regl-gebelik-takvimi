@@ -2,17 +2,19 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import {
-  PREGNANCY_WEEKLY_REMINDER_BODY,
-  PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID,
-  PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
   PREGNANCY_WEEKLY_REMINDER_HOUR,
   PREGNANCY_WEEKLY_REMINDER_MINUTE,
-  PREGNANCY_WEEKLY_REMINDER_TITLE,
   PREGNANCY_WEEKLY_REMINDER_TYPE,
   PREGNANCY_WEEKLY_REMINDER_WEEKDAY,
   pregnancyWeeklyReminderData,
 } from '../domain/pregnancy-weekly-reminder';
+import {
+  PREGNANCY_WEEKLY_REMINDER_BODY,
+  PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
+  PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
+  PREGNANCY_WEEKLY_REMINDER_TITLE,
+} from '../presentation/reminder-messages';
 
 import { cancelScheduledRemindersOfType } from './scheduled-reminders';
 

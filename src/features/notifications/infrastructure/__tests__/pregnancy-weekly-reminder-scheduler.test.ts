@@ -1,7 +1,9 @@
 import { Platform } from 'react-native';
 
-import { PERIOD_REMINDER_CHANNEL_DESCRIPTION } from '../../domain/period-reminder';
-import { PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION } from '../../domain/pregnancy-weekly-reminder';
+import {
+  PERIOD_REMINDER_CHANNEL_DESCRIPTION,
+  PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
+} from '../../presentation/reminder-messages';
 
 import {
   cancelPregnancyWeeklyReminders,

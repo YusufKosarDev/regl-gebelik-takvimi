@@ -27,16 +27,11 @@ export const PERIOD_REMINDER_TYPE = 'period-reminder-v1';
 /**
  * The Android channel these are delivered on.
  *
- * The name and the description are what somebody reads in the system's own
- * notification settings, where this app's words sit beside every other app's.
- * The description says what arrives and when, because that screen is where a
- * person decides whether to keep it — and "Regl hatırlatıcıları" alone does not
- * tell them whether it is one a month or one a day.
+ * The id is identity and lives here; what the channel is *called* is Turkish
+ * somebody reads in Android's own settings, and lives with the rest of the
+ * wording in `presentation/reminder-messages.ts`.
  */
 export const PERIOD_REMINDER_CHANNEL_ID = 'period-reminders';
-export const PERIOD_REMINDER_CHANNEL_NAME = 'Regl hatırlatıcıları';
-export const PERIOD_REMINDER_CHANNEL_DESCRIPTION =
-  'Tahmini regl tarihinden bir gün önce, sabah saatlerinde tek bir hatırlatma.';
 
 /**
  * A day before the estimate, at nine in the morning.
@@ -47,17 +42,6 @@ export const PERIOD_REMINDER_CHANNEL_DESCRIPTION =
  */
 export const PERIOD_REMINDER_DAYS_BEFORE = 1;
 export const PERIOD_REMINDER_HOUR = 9;
-
-/**
- * What it says.
- *
- * "Yaklaşıyor" and "tahminine göre": the app is working from an average, and it
- * does not know when anyone's period will start. A notification saying it begins
- * today would be stating something the prediction cannot support, on a day
- * someone may well be somewhere they would rather not be surprised.
- */
-export const PERIOD_REMINDER_TITLE = 'Regl hatırlatıcısı';
-export const PERIOD_REMINDER_BODY = 'Tahminine göre regl dönemin yaklaşıyor.';
 
 /** The payload, which is what makes a queued reminder recognisable. */
 export function periodReminderData(): { readonly type: string } {
