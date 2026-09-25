@@ -23,6 +23,7 @@ import { endCurrentPeriod } from '@/features/cycle/application/end-current-perio
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
+import { DailySupportSection } from '@/features/cycle/components/daily-support-section';
 import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
@@ -39,7 +40,6 @@ import {
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
-import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { DailyEntryCard } from '@/features/daily-log/components/daily-entry-card';
 import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
@@ -58,8 +58,6 @@ import {
   FERTILITY_DISCLAIMER,
   LOAD_ERROR_MESSAGE,
   SAVE_ERROR_MESSAGE,
-  SOURCE_ERROR_MESSAGE,
-  SUPPORT_DISCLAIMER,
 } from '@/features/cycle/presentation/home-messages';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -598,80 +596,11 @@ export default function HomeScreen() {
                 without one there is nothing to look words up by, and a heading
                 over an empty card would read as content that failed to load. */}
             {dailySupport !== null && (
-              <View style={styles.supportSection}>
-                {/* Absent where the sources do not support any, which is the
-                    ovulatory phase today. The heading goes with the list, so
-                    neither appears without the other. */}
-                {dailySupport.moodLabels !== undefined && (
-                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-                      Olası ruh hali
-                    </ThemedText>
-
-                    {dailySupport.moodLabels.map((mood) => (
-                      <ThemedText key={mood} type="small" style={styles.weeklyFeature}>
-                        • {mood}
-                      </ThemedText>
-                    ))}
-                  </View>
-                )}
-
-                <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                  <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-                    Bugünün mesajı
-                  </ThemedText>
-
-                  <ThemedText style={styles.weeklySummary}>
-                    {dailySupport.supportMessage}
-                  </ThemedText>
-
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                    {SUPPORT_DISCLAIMER}
-                  </ThemedText>
-                </View>
-
-                {/* The domain requires at least one source, but the section is
-                    still conditional: an empty heading would be worse than no
-                    heading. */}
-                {dailySupport.sources.length > 0 && (
-                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-                      Kaynaklar
-                    </ThemedText>
-
-                    {hasSourceError && (
-                      <ThemedText
-                        accessibilityRole="alert"
-                        type="small"
-                        themeColor="textSecondary"
-                        style={styles.weeklyFeature}>
-                        {SOURCE_ERROR_MESSAGE}
-                      </ThemedText>
-                    )}
-
-                    {dailySupport.sources.map((source) => (
-                      <Pressable
-                        key={source.url}
-                        accessibilityRole="link"
-                        accessibilityLabel={`${source.name} kaynağını aç`}
-                        onPress={() => openSource(source.url)}
-                        style={({ pressed }) => [styles.sourceLink, pressed && styles.pressed]}>
-                        <ThemedText type="small">{source.name}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {source.url}
-                        </ThemedText>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-
-                {/* Closes the section rather than sitting inside one card: it
-                    is about all of it — the mood words, the message and the
-                    sources — not about the message alone. */}
-                <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                  {CONTENT_DISCLAIMER_FOOTER}
-                </ThemedText>
-              </View>
+              <DailySupportSection
+                dailySupport={dailySupport}
+                openSource={openSource}
+                hasSourceError={hasSourceError}
+              />
             )}
 
             {periodAction === 'none' ? null : isConfirming ? (
@@ -936,22 +865,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   pregnancySection: {
-    gap: Spacing.two,
-  },
-  weeklySummary: {
-    marginTop: Spacing.one,
-    lineHeight: 22,
-  },
-  weeklyFeature: {
-    marginTop: Spacing.half,
-    lineHeight: 22,
-  },
-  sourceLink: {
-    minHeight: 44,
-    justifyContent: 'center',
-    marginTop: Spacing.one,
-  },
-  supportSection: {
     gap: Spacing.two,
   },
   confirmActions: {
