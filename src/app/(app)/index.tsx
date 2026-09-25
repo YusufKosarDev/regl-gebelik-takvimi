@@ -24,8 +24,6 @@ import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
 import { CycleCalendarLegend } from '@/features/cycle/components/cycle-calendar-legend';
-import { getOpenPeriodRecord } from '@/features/cycle/domain/open-period';
-import type { CycleProfile } from '@/features/cycle/domain/types';
 import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
@@ -35,10 +33,6 @@ import {
   getPregnancyDashboard,
   getWeeklyContentForWeek,
 } from '@/features/pregnancy/application/get-pregnancy-dashboard';
-import type {
-  PregnancyDueDateSource,
-  PregnancyWeeklyContent,
-} from '@/features/pregnancy/domain/types';
 import {
   MAX_PREGNANCY_WEEK,
   MIN_PREGNANCY_WEEK,
@@ -61,86 +55,25 @@ import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
+import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
+import {
+  EMPTY_MESSAGE,
+  END_SAVE_ERROR_MESSAGE,
+  FERTILITY_DISCLAIMER,
+  LOAD_ERROR_MESSAGE,
+  SAVE_ERROR_MESSAGE,
+  SOURCE_ERROR_MESSAGE,
+  SUPPORT_DISCLAIMER,
+  selectedDayRows,
+} from '@/features/cycle/presentation/home-messages';
+import {
+  dueDateSourceLabel,
+  pregnancyProgressLabel,
+  weeklyHighlight,
+} from '@/features/pregnancy/presentation/pregnancy-labels';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
-
-/**
- * The selected day's rows, read straight off the day the calendar already holds.
- *
- * No domain function is called again here: `CycleCalendarDay` carries everything
- * this card shows, so the card and the square it came from cannot disagree.
- */
-function selectedDayRows(day: CycleCalendarDay): { label: string; value: string }[] {
-  return [
-    {
-      label: 'Döngü günü',
-      value: day.cycleDay === null ? 'Henüz başlamadı' : `${day.cycleDay}. gün`,
-    },
-    { label: 'Döngü evresi', value: getCyclePhaseLabel(day.phase) },
-    { label: 'Doğurganlık tahmini', value: getFertilityLevelLabel(day.fertilityLevel) },
-  ];
-}
-
-/**
- * Which period action the stored data allows, if any.
- *
- * `getOpenPeriodRecord` refuses to choose between several open records rather
- * than closing one the person did not mean to close. The screen cannot act on
- * that either, so it offers nothing instead of crashing on the way past.
- */
-function resolvePeriodAction(profile: CycleProfile): 'start' | 'end' | 'none' {
-  try {
-    return getOpenPeriodRecord(profile) === null ? 'start' : 'end';
-  } catch {
-    return 'none';
-  }
-}
-
-/**
- * How far along the pregnancy is, in words.
- *
- * A stored pregnancy whose last menstrual period has not arrived yet has no
- * progress to report. It says so rather than showing week 0 or a negative day,
- * and the due date beside it is still shown because that much is known.
- */
-function pregnancyProgressLabel(pregnancy: PregnancyDashboard): string {
-  if (pregnancy.pregnancyWeek === null) {
-    return NOT_STARTED_MESSAGE;
-  }
-
-  return `${pregnancy.pregnancyWeek.week}. hafta ${pregnancy.pregnancyWeek.day}. gün`;
-}
-
-/**
- * The week's content in one line, for assistive technology.
- *
- * The size leads when there is one, because that is the part a screen reader
- * would otherwise have to reach the summary to get any sense of.
- */
-function weeklyHighlight(content: PregnancyWeeklyContent): string {
-  if (content.size === undefined) {
-    return content.developmentSummary;
-  }
-
-  return `${content.size.label} — ${content.size.comparison}. ${content.developmentSummary}`;
-}
-
-/** Where the due date came from, so an adjusted one is not read as calculated. */
-function dueDateSourceLabel(source: PregnancyDueDateSource): string {
-  return source === 'adjusted' ? 'Düzeltilmiş tarih' : 'Son regl tarihine göre';
-}
-
-const LOAD_ERROR_MESSAGE = 'Bilgiler yüklenemedi.';
-const NOT_STARTED_MESSAGE = 'Gebelik başlangıç tarihi henüz gelmedi.';
-const SOURCE_ERROR_MESSAGE = 'Kaynak açılamadı.';
-const SAVE_ERROR_MESSAGE = 'Regl başlangıcı kaydedilemedi.';
-const END_SAVE_ERROR_MESSAGE = 'Regl bitişi kaydedilemedi.';
-const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
-const SUPPORT_DISCLAIMER =
-  'Bu bilgiler geneldir; kişiden kişiye ve aydan aya değişebilir.';
-const FERTILITY_DISCLAIMER =
-  'Doğurganlık bilgileri tahminidir ve gebelikten korunma yöntemi olarak kullanılmamalıdır.';
 
 /**
  * Today's cycle summary.
