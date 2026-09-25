@@ -44,13 +44,57 @@ import { useAppStore } from '@/store/app-store';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { isPasswordLongEnough } from '@/features/auth/domain/password-policy';
 import {
+  ACCOUNT_DESCRIPTION,
+  ACCOUNT_LOADING_MESSAGE,
+  ACCOUNT_NOT_CONFIGURED_MESSAGE,
+  ACCOUNT_NOT_CONFIGURED_NOTE,
+  ACCOUNT_TITLE,
+  BACKUP_CHECK_LABEL,
+  BACKUP_CREATE_LABEL,
+  BACKUP_DELETION_PENDING_MESSAGE,
+  BACKUP_FOUND_MESSAGE,
+  BACKUP_MISSING_MESSAGE,
+  BACKUP_OUTDATED_APP_MESSAGE,
+  BACKUP_SAVED_MESSAGE,
+  BACKUP_SECTION_DESCRIPTION,
+  BACKUP_SECTION_TITLE,
+  EMAIL_LABEL,
+  EMAIL_PLACEHOLDER,
   EMPTY_EMAIL_MESSAGE,
   EMPTY_PASSWORD_MESSAGE,
+  FORGOT_PASSWORD_LABEL,
+  NO_EMAIL_TEXT,
   PASSWORD_HINT,
-  SHORT_PASSWORD_MESSAGE,
+  PASSWORD_LABEL,
+  PASSWORD_RESET_DESCRIPTION,
+  PASSWORD_RESET_SEND_LABEL,
   PASSWORD_RESET_SENT_MESSAGE,
+  RESTORE_CANCEL_LABEL,
+  RESTORE_CONFIRM_LABEL,
+  RESTORE_DONE_MESSAGE,
+  RESTORE_FAILED_MESSAGE,
+  RESTORE_OPEN_LABEL,
+  RESTORE_PREVIEW_TITLE,
+  RESTORE_ROW_AVATAR,
+  RESTORE_ROW_CYCLE_SETTINGS,
+  RESTORE_ROW_DAILY_ENTRIES,
+  RESTORE_ROW_PERIOD_RECORDS,
+  RESTORE_ROW_PREGNANCY,
+  RESTORE_ROW_REMINDERS,
+  RESTORE_WARNING,
+  RESTORING_LABEL,
+  SENDING_LABEL,
+  SHORT_PASSWORD_MESSAGE,
+  SIGNED_IN_LABEL,
+  SIGNING_OUT_LABEL,
+  SIGN_IN_LABEL,
+  SIGN_OUT_LABEL,
+  SIGN_UP_LABEL,
+  SYNC_PREFERENCE_FAILED_MESSAGE,
   authErrorMessage,
   passwordResetErrorMessage,
+  previewRowLabel,
+  signedInAccountLabel,
 } from '@/features/auth/presentation/auth-messages';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { createCloudBackup } from '@/features/backup/application/create-cloud-backup';
@@ -98,22 +142,12 @@ import { getTodayLocalISODate } from '@/utils/today';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  BACK_LABEL,
+  CANCEL_LABEL,
+} from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
 import { logEvent } from '@/shared/logging';
-
-const BACKUP_SAVED_MESSAGE = 'Yedek oluşturuldu.';
-const RESTORE_DONE_MESSAGE = 'Yedek geri yüklendi.';
-const RESTORE_FAILED_MESSAGE = 'Yedek geri yüklenemedi.';
-const RESTORE_WARNING =
-  'Bu yedek telefondaki mevcut verilerin üzerine yazılacak.';
-const BACKUP_FOUND_MESSAGE = 'Yedek bulundu.';
-const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
-const SYNC_PREFERENCE_FAILED_MESSAGE = 'Senkronizasyon tercihi kaydedilemedi.';
-const BACKUP_DELETION_PENDING_MESSAGE =
-  'Hesap silme işlemi yarım kaldı. Yedek oluşturulmadı — hesabı silmeyi tamamla ya da vazgeç.';
-const BACKUP_OUTDATED_APP_MESSAGE =
-  'Hesabındaki yedek, bu uygulama sürümünün tanımadığı bilgiler içeriyor. Üzerine ' +
-  'yazmamak için yedek oluşturulmadı. Uygulamayı güncelleyip tekrar dene.';
 
 /** What to say about a backup that was saved, or refused for one of two reasons. */
 function backupOutcomeMessage(outcome: CreateCloudBackupOutcome): string {
@@ -747,22 +781,21 @@ export default function AccountScreen() {
             {/* The stack hides its header, so back has to be offered here. */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri"
+              accessibilityLabel={BACK_LABEL}
               onPress={() => router.back()}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Geri
+                {BACK_LABEL}
               </ThemedText>
             </Pressable>
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                Hesap
+                {ACCOUNT_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Hesap açmak isteğe bağlı. Regl, gebelik ve avatar bilgilerin telefonunda
-                kalır; hesabın olsun ya da olmasın hiçbir yere gönderilmez.
+                {ACCOUNT_DESCRIPTION}
               </ThemedText>
             </View>
 
@@ -770,7 +803,7 @@ export default function AccountScreen() {
               <View style={styles.loading}>
                 <ActivityIndicator testID="account-loading" />
                 <ThemedText type="small" themeColor="textSecondary">
-                  Hesap bilgileri yükleniyor
+                  {ACCOUNT_LOADING_MESSAGE}
                 </ThemedText>
               </View>
             )}
@@ -778,11 +811,11 @@ export default function AccountScreen() {
             {auth.status === 'not-configured' && (
               <View style={styles.fields}>
                 <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                  Bulut hesabı şu anda yapılandırılmamış.
+                  {ACCOUNT_NOT_CONFIGURED_MESSAGE}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  Uygulamanın geri kalanı hesapsız da tam olarak çalışır.
+                  {ACCOUNT_NOT_CONFIGURED_NOTE}
                 </ThemedText>
               </View>
             )}
@@ -805,14 +838,14 @@ export default function AccountScreen() {
               <View style={styles.fields}>
                 <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    Giriş yapıldı
+                    {SIGNED_IN_LABEL}
                   </ThemedText>
 
                   <ThemedText
-                    accessibilityLabel={`Giriş yapılan hesap: ${auth.user.email ?? 'e-posta yok'}`}
+                    accessibilityLabel={signedInAccountLabel(auth.user.email ?? null)}
                     type="smallBold"
                     style={styles.email}>
-                    {auth.user.email ?? 'E-posta adresi yok'}
+                    {auth.user.email ?? NO_EMAIL_TEXT}
                   </ThemedText>
                 </View>
 
@@ -826,14 +859,11 @@ export default function AccountScreen() {
                     backup, and a backup happens when someone asks for one. */}
                 <View style={styles.fields}>
                   <ThemedText accessibilityRole="header" type="smallBold">
-                    Bulut yedekleme
+                    {BACKUP_SECTION_TITLE}
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
-                    Yedek oluşturduğunda ya da senkronize ettiğinde regl kayıtların, gebelik
-                    bilgin, günlük kayıtların, avatarın ve hatırlatıcı tercihlerin hesabına
-                    kopyalanır. Başka hiçbir şey gönderilmez ve sen bir düğmeye basmadan
-                    hiçbir gönderim olmaz.
+                    {BACKUP_SECTION_DESCRIPTION}
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
@@ -947,7 +977,7 @@ export default function AccountScreen() {
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Yedek oluştur"
+                    accessibilityLabel={BACKUP_CREATE_LABEL}
                     accessibilityState={{ disabled: isBusy || automaticSync }}
                     disabled={isBusy || automaticSync}
                     onPress={() => handleCreateBackup(auth.user)}
@@ -957,13 +987,13 @@ export default function AccountScreen() {
                       (isBusy || automaticSync) && styles.disabled,
                       pressed && !isBusy && !automaticSync && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">Yedek oluştur</ThemedText>
+                    <ThemedText type="smallBold">{BACKUP_CREATE_LABEL}</ThemedText>
                   </Pressable>
 
                   {preview === null ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Yedeği geri yükle"
+                      accessibilityLabel={RESTORE_OPEN_LABEL}
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
                       onPress={() => handlePreviewRestore(auth.user)}
@@ -973,33 +1003,33 @@ export default function AccountScreen() {
                         isBusy && styles.disabled,
                         pressed && !isBusy && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold">Yedeği geri yükle</ThemedText>
+                      <ThemedText type="smallBold">{RESTORE_OPEN_LABEL}</ThemedText>
                     </Pressable>
                   ) : (
                     <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                       <ThemedText accessibilityRole="header" type="smallBold">
-                        Neler değişecek
+                        {RESTORE_PREVIEW_TITLE}
                       </ThemedText>
 
                       <PreviewRow
-                        label="Döngü ayarları"
+                        label={RESTORE_ROW_CYCLE_SETTINGS}
                         value={restoreStatusLabel(preview.cycleSettings)}
                       />
                       <PreviewRow
-                        label="Regl kayıtları"
+                        label={RESTORE_ROW_PERIOD_RECORDS}
                         value={restorePeriodRecordsLabel(preview.periodRecords)}
                       />
                       <PreviewRow
-                        label="Gebelik bilgisi"
+                        label={RESTORE_ROW_PREGNANCY}
                         value={restoreStatusLabel(preview.pregnancyProfile)}
                       />
-                      <PreviewRow label="Avatar" value={restoreStatusLabel(preview.avatarConfig)} />
+                      <PreviewRow label={RESTORE_ROW_AVATAR} value={restoreStatusLabel(preview.avatarConfig)} />
                       <PreviewRow
-                        label="Hatırlatıcı tercihleri"
+                        label={RESTORE_ROW_REMINDERS}
                         value={restoreStatusLabel(preview.notificationPreferences)}
                       />
                       <PreviewRow
-                        label="Günlük kayıtlar"
+                        label={RESTORE_ROW_DAILY_ENTRIES}
                         value={restorePeriodRecordsLabel(preview.dailyEntries)}
                       />
 
@@ -1009,7 +1039,7 @@ export default function AccountScreen() {
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Geri yükle"
+                        accessibilityLabel={RESTORE_CONFIRM_LABEL}
                         accessibilityState={{ disabled: isBusy || pending === null }}
                         disabled={isBusy || pending === null}
                         onPress={() => {
@@ -1024,13 +1054,13 @@ export default function AccountScreen() {
                           pressed && !isBusy && styles.pressed,
                         ]}>
                         <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isBusy ? 'Geri yükleniyor...' : 'Geri yükle'}
+                          {isBusy ? RESTORING_LABEL : RESTORE_CONFIRM_LABEL}
                         </ThemedText>
                       </Pressable>
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel="Geri yüklemekten vazgeç"
+                        accessibilityLabel={RESTORE_CANCEL_LABEL}
                         accessibilityState={{ disabled: isBusy }}
                         disabled={isBusy}
                         onPress={handleCancelRestore}
@@ -1040,14 +1070,14 @@ export default function AccountScreen() {
                           isBusy && styles.disabled,
                           pressed && !isBusy && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold">Vazgeç</ThemedText>
+                        <ThemedText type="smallBold">{CANCEL_LABEL}</ThemedText>
                       </Pressable>
                     </View>
                   )}
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Yedeği kontrol et"
+                    accessibilityLabel={BACKUP_CHECK_LABEL}
                     accessibilityState={{ disabled: isBusy }}
                     disabled={isBusy}
                     onPress={() => handleCheckBackup(auth.user)}
@@ -1057,13 +1087,13 @@ export default function AccountScreen() {
                       isBusy && styles.disabled,
                       pressed && !isBusy && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">Yedeği kontrol et</ThemedText>
+                    <ThemedText type="smallBold">{BACKUP_CHECK_LABEL}</ThemedText>
                   </Pressable>
                 </View>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Çıkış yap"
+                  accessibilityLabel={SIGN_OUT_LABEL}
                   accessibilityState={{ disabled: isBusy }}
                   disabled={isBusy}
                   onPress={handleSignOut}
@@ -1074,7 +1104,7 @@ export default function AccountScreen() {
                     pressed && !isBusy && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold">
-                    {isBusy ? 'Çıkış yapılıyor...' : 'Çıkış yap'}
+                    {isBusy ? SIGNING_OUT_LABEL : SIGN_OUT_LABEL}
                   </ThemedText>
                 </Pressable>
 
@@ -1200,11 +1230,11 @@ export default function AccountScreen() {
               <View style={styles.fields}>
                 <View style={styles.field}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    E-posta
+                    {EMAIL_LABEL}
                   </ThemedText>
 
                   <TextInput
-                    accessibilityLabel="E-posta"
+                    accessibilityLabel={EMAIL_LABEL}
                     value={email}
                     onChangeText={(next) => {
                       setEmail(next);
@@ -1216,7 +1246,7 @@ export default function AccountScreen() {
                     autoCorrect={false}
                     keyboardType="email-address"
                     textContentType="emailAddress"
-                    placeholder="ornek@eposta.com"
+                    placeholder={EMAIL_PLACEHOLDER}
                     placeholderTextColor={theme.textSecondary}
                     style={[
                       styles.input,
@@ -1228,11 +1258,11 @@ export default function AccountScreen() {
                 {!isResetting && (
                   <View style={styles.field}>
                     <ThemedText type="small" themeColor="textSecondary">
-                      Şifre
+                      {PASSWORD_LABEL}
                     </ThemedText>
 
                     <TextInput
-                      accessibilityLabel="Şifre"
+                      accessibilityLabel={PASSWORD_LABEL}
                       value={password}
                       onChangeText={(next) => {
                         setPassword(next);
@@ -1259,8 +1289,7 @@ export default function AccountScreen() {
 
                 {isResetting && (
                   <ThemedText type="small" themeColor="textSecondary">
-                    Bu adrese şifre sıfırlama bağlantısı gönderelim. Bağlantı, tarayıcıda
-                    açılan bir sayfaya götürür.
+                    {PASSWORD_RESET_DESCRIPTION}
                   </ThemedText>
                 )}
 
@@ -1274,7 +1303,7 @@ export default function AccountScreen() {
                   <>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Sıfırlama bağlantısı gönder"
+                      accessibilityLabel={PASSWORD_RESET_SEND_LABEL}
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
                       onPress={handleSendReset}
@@ -1285,13 +1314,13 @@ export default function AccountScreen() {
                         pressed && !isBusy && styles.pressed,
                       ]}>
                       <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                        {isBusy ? 'Gönderiliyor...' : 'Sıfırlama bağlantısı gönder'}
+                        {isBusy ? SENDING_LABEL : PASSWORD_RESET_SEND_LABEL}
                       </ThemedText>
                     </Pressable>
 
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Vazgeç"
+                      accessibilityLabel={CANCEL_LABEL}
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
                       onPress={() => {
@@ -1304,14 +1333,14 @@ export default function AccountScreen() {
                         isBusy && styles.disabled,
                         pressed && !isBusy && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold">Vazgeç</ThemedText>
+                      <ThemedText type="smallBold">{CANCEL_LABEL}</ThemedText>
                     </Pressable>
                   </>
                 ) : (
                   <>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Giriş yap"
+                      accessibilityLabel={SIGN_IN_LABEL}
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
                       onPress={() => attempt(signInWithEmail)}
@@ -1322,13 +1351,13 @@ export default function AccountScreen() {
                         pressed && !isBusy && styles.pressed,
                       ]}>
                       <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                        {isBusy ? 'Gönderiliyor...' : 'Giriş yap'}
+                        {isBusy ? SENDING_LABEL : SIGN_IN_LABEL}
                       </ThemedText>
                     </Pressable>
 
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Hesap oluştur"
+                      accessibilityLabel={SIGN_UP_LABEL}
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
                       onPress={() => attempt(signUpWithEmail, { isNewPassword: true })}
@@ -1338,14 +1367,14 @@ export default function AccountScreen() {
                         isBusy && styles.disabled,
                         pressed && !isBusy && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold">Hesap oluştur</ThemedText>
+                      <ThemedText type="smallBold">{SIGN_UP_LABEL}</ThemedText>
                     </Pressable>
 
                     {/* Last, and quiet: it is the way out of a form that did
                         not work, not one of the two things to do here. */}
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Şifremi unuttum"
+                      accessibilityLabel={FORGOT_PASSWORD_LABEL}
                       accessibilityState={{ disabled: isBusy }}
                       disabled={isBusy}
                       onPress={() => {
@@ -1358,7 +1387,7 @@ export default function AccountScreen() {
                         pressed && !isBusy && styles.pressed,
                       ]}>
                       <ThemedText type="small" themeColor="textSecondary">
-                        Şifremi unuttum
+                        {FORGOT_PASSWORD_LABEL}
                       </ThemedText>
                     </Pressable>
                   </>
@@ -1380,7 +1409,7 @@ export default function AccountScreen() {
  */
 function PreviewRow({ label, value }: { label: string; value: string }) {
   return (
-    <View accessibilityLabel={`${label}: ${value}`} style={styles.previewRow}>
+    <View accessibilityLabel={previewRowLabel(label, value)} style={styles.previewRow}>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>

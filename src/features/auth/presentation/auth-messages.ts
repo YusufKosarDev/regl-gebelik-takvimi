@@ -85,3 +85,119 @@ export function passwordResetErrorMessage(code: AuthErrorCode | string): string 
  */
 export const PASSWORD_RESET_SENT_MESSAGE =
   'Eğer bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.';
+
+/* ------------------------------------------------ the account screen -- */
+
+/**
+ * Everything the account screen says, in Turkish.
+ *
+ * Moved out of `app/(app)/account.tsx` verbatim. The messages above are about
+ * what went wrong; these are the screen itself - its headings, its two forms
+ * and the backup section.
+ *
+ * The backup wording that belongs to the backup and sync features stays in
+ * theirs: this screen already imports PHONE_TRANSFER_NOTE, AUTOMATIC_SYNC_NOTE
+ * and the restore labels from where they live.
+ */
+
+export const ACCOUNT_TITLE = 'Hesap';
+
+export const ACCOUNT_DESCRIPTION =
+  'Hesap açmak isteğe bağlı. Regl, gebelik ve avatar bilgilerin telefonunda ' +
+  'kalır; hesabın olsun ya da olmasın hiçbir yere gönderilmez.';
+
+export const ACCOUNT_LOADING_MESSAGE = 'Hesap bilgileri yükleniyor';
+
+/**
+ * The status line when the project has no Firebase configuration.
+ *
+ * The same sentence as the 'not-configured' error above, and kept separate on
+ * purpose: one is what a failed call is reported as, the other is what the
+ * screen says about itself when there is nothing to call.
+ */
+export const ACCOUNT_NOT_CONFIGURED_MESSAGE = 'Bulut hesabı şu anda yapılandırılmamış.';
+
+export const ACCOUNT_NOT_CONFIGURED_NOTE = 'Uygulamanın geri kalanı hesapsız da tam olarak çalışır.';
+
+/* ------------------------------------------------------- signed in -- */
+
+export const SIGNED_IN_LABEL = 'Giriş yapıldı';
+export const NO_EMAIL_TEXT = 'E-posta adresi yok';
+
+/** Which account is signed in. The spoken form of the address, or its absence. */
+export function signedInAccountLabel(email: string | null): string {
+  return `Giriş yapılan hesap: ${email ?? 'e-posta yok'}`;
+}
+
+export const SIGN_OUT_LABEL = 'Çıkış yap';
+export const SIGNING_OUT_LABEL = 'Çıkış yapılıyor...';
+
+/* --------------------------------------------------- cloud backup -- */
+
+export const BACKUP_SECTION_TITLE = 'Bulut yedekleme';
+
+export const BACKUP_SECTION_DESCRIPTION =
+  'Yedek oluşturduğunda ya da senkronize ettiğinde regl kayıtların, gebelik ' +
+  'bilgin, günlük kayıtların, avatarın ve hatırlatıcı tercihlerin hesabına ' +
+  'kopyalanır. Başka hiçbir şey gönderilmez ve sen bir düğmeye basmadan ' +
+  'hiçbir gönderim olmaz.';
+
+export const BACKUP_CREATE_LABEL = 'Yedek oluştur';
+export const BACKUP_CHECK_LABEL = 'Yedeği kontrol et';
+
+export const BACKUP_SAVED_MESSAGE = 'Yedek oluşturuldu.';
+export const BACKUP_FOUND_MESSAGE = 'Yedek bulundu.';
+export const BACKUP_MISSING_MESSAGE = 'Henüz yedek yok.';
+
+export const SYNC_PREFERENCE_FAILED_MESSAGE = 'Senkronizasyon tercihi kaydedilemedi.';
+
+export const BACKUP_DELETION_PENDING_MESSAGE =
+  'Hesap silme işlemi yarım kaldı. Yedek oluşturulmadı — hesabı silmeyi tamamla ya da vazgeç.';
+
+export const BACKUP_OUTDATED_APP_MESSAGE =
+  'Hesabındaki yedek, bu uygulama sürümünün tanımadığı bilgiler içeriyor. Üzerine ' +
+  'yazmamak için yedek oluşturulmadı. Uygulamayı güncelleyip tekrar dene.';
+
+/* ------------------------------------------------------ restoring -- */
+
+export const RESTORE_OPEN_LABEL = 'Yedeği geri yükle';
+export const RESTORE_PREVIEW_TITLE = 'Neler değişecek';
+
+export const RESTORE_ROW_CYCLE_SETTINGS = 'Döngü ayarları';
+export const RESTORE_ROW_PERIOD_RECORDS = 'Regl kayıtları';
+export const RESTORE_ROW_PREGNANCY = 'Gebelik bilgisi';
+export const RESTORE_ROW_AVATAR = 'Avatar';
+export const RESTORE_ROW_REMINDERS = 'Hatırlatıcı tercihleri';
+export const RESTORE_ROW_DAILY_ENTRIES = 'Günlük kayıtlar';
+
+export const RESTORE_WARNING = 'Bu yedek telefondaki mevcut verilerin üzerine yazılacak.';
+
+export const RESTORE_CONFIRM_LABEL = 'Geri yükle';
+export const RESTORING_LABEL = 'Geri yükleniyor...';
+export const RESTORE_CANCEL_LABEL = 'Geri yüklemekten vazgeç';
+
+export const RESTORE_DONE_MESSAGE = 'Yedek geri yüklendi.';
+export const RESTORE_FAILED_MESSAGE = 'Yedek geri yüklenemedi.';
+
+/** A preview row, read as the thing it is about and what will happen to it. */
+export function previewRowLabel(label: string, value: string): string {
+  return `${label}: ${value}`;
+}
+
+/* ------------------------------------------------------- the forms -- */
+
+export const EMAIL_LABEL = 'E-posta';
+export const EMAIL_PLACEHOLDER = 'ornek@eposta.com';
+export const PASSWORD_LABEL = 'Şifre';
+
+export const SIGN_IN_LABEL = 'Giriş yap';
+export const SIGN_UP_LABEL = 'Hesap oluştur';
+export const SENDING_LABEL = 'Gönderiliyor...';
+
+export const FORGOT_PASSWORD_LABEL = 'Şifremi unuttum';
+
+export const PASSWORD_RESET_DESCRIPTION =
+  'Bu adrese şifre sıfırlama bağlantısı gönderelim. Bağlantı, tarayıcıda ' +
+  'açılan bir sayfaya götürür.';
+
+export const PASSWORD_RESET_SEND_LABEL = 'Sıfırlama bağlantısı gönder';
