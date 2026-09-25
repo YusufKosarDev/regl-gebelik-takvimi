@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
@@ -23,6 +22,7 @@ import { endCurrentPeriod } from '@/features/cycle/application/end-current-perio
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
+import { HomeLinks } from '@/features/cycle/components/home-links';
 import { DailySupportSection } from '@/features/cycle/components/daily-support-section';
 import {
   getCyclePhaseLabel,
@@ -707,62 +707,7 @@ export default function HomeScreen() {
               />
             )}
 
-            {isPregnancyView ? null : (
-              <>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Geçmiş regl kayıtlarını görüntüle"
-                  onPress={() => router.push('/(app)/history')}
-                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Geçmiş kayıtlar
-                  </ThemedText>
-                </Pressable>
-
-                {/* The preview only once there is an avatar, and the label
-                    says which of the two errands the link is on. */}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={avatar === null ? 'Avatar oluştur' : 'Avatarı düzenle'}
-                  onPress={() => router.push('/(app)/avatar')}
-                  style={({ pressed }) => [styles.avatarLink, pressed && styles.pressed]}>
-                  {avatar !== null && (
-                    <AvatarPreview config={avatar} size="small" testID="home-avatar-preview" />
-                  )}
-
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {avatar === null ? 'Avatarım' : 'Avatarı düzenle'}
-                  </ThemedText>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Döngü ayarlarını düzenle"
-                  onPress={() => router.push('/(app)/settings')}
-                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Ayarlar
-                  </ThemedText>
-                </Pressable>
-
-                {/* The way in to pregnancy tracking, and the only way to enable
-                    the view that shows it. */}
-                {pregnancy === null && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Gebelik takibini başlat"
-                    onPress={() => router.push('/(app)/pregnancy-start')}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      pressed && styles.pressed,
-                    ]}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Gebelik takibini başlat
-                    </ThemedText>
-                  </Pressable>
-                )}
-              </>
-            )}
+            {isPregnancyView ? null : <HomeLinks avatar={avatar} pregnancy={pregnancy} />}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -879,13 +824,6 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  avatarLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    minHeight: 48,
     paddingHorizontal: Spacing.four,
   },
   secondaryButton: {
