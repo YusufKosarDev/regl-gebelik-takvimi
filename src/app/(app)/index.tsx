@@ -47,6 +47,14 @@ import { syncPeriodReminderQuietly } from '@/features/notifications/application/
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { DailyEntryCard } from '@/features/daily-log/components/daily-entry-card';
+import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
+import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
+import { emptyDailyEntry, hasAnything } from '@/features/daily-log/domain/catalogues';
+import {
+  CALENDAR_DAY_ADD_LABEL,
+  CALENDAR_DAY_EDIT_LABEL,
+} from '@/features/daily-log/presentation/daily-log-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
@@ -178,6 +186,12 @@ export default function HomeScreen() {
   // whichever month is on screen and fall away by itself when it is not there.
   const [pickedDate, setPickedDate] = useState<ISODate | null>(null);
 
+  /** What was recorded today, for the card. An unvisited day reads as empty. */
+  const [todayEntry, setTodayEntry] = useState<DailyEntry | null>(null);
+
+  /** What was recorded on the day picked in the calendar, for its row. */
+  const [pickedEntry, setPickedEntry] = useState<DailyEntry | null>(null);
+
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaveError, setHasSaveError] = useState(false);
@@ -209,13 +223,14 @@ export default function HomeScreen() {
     const forDate = today ?? getTodayLocalISODate();
     const db = await openAppDatabase();
 
-    const [cycle, pregnancyDashboard, avatarConfig] = await Promise.all([
+    const [cycle, pregnancyDashboard, avatarConfig, daily] = await Promise.all([
       getCycleHomeData(db, forDate),
       getPregnancyDashboard(db, forDate),
       loadAvatarConfig(db),
+      loadDailyEntry(db, forDate),
     ]);
 
-    return { db, cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig };
+    return { db, cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig, daily };
   }, []);
 
   // On focus rather than on mount, so coming back from a screen that changed
@@ -241,6 +256,7 @@ export default function HomeScreen() {
           setHomeData(data.cycle);
           setPregnancy(data.pregnancy);
           setAvatar(data.avatar);
+          setTodayEntry(data.daily);
           setHasError(false);
 
           // Best effort, and only once: this catches changes made while the app
@@ -593,6 +609,21 @@ export default function HomeScreen() {
               ))}
             </View>
 
+            {/* Today, above the general content and below the four facts
+                about it. Recording is a thing to do; everything under it is
+                a thing to read. */}
+            {!isPregnancyView && (
+              <DailyEntryCard
+                entry={todayEntry ?? emptyDailyEntry(dashboard.today)}
+                onOpen={() => {
+                  router.push({
+                    pathname: '/daily-entry',
+                    params: { date: dashboard.today },
+                  });
+                }}
+              />
+            )}
+
             {/* Only in the cycle view, and only for a day that has a phase:
                 without one there is nothing to look words up by, and a heading
                 over an empty card would read as content that failed to load. */}
@@ -797,7 +828,22 @@ export default function HomeScreen() {
                 grid={calendarGrid}
                 today={dashboard.today}
                 selectedDate={selectedDay?.date ?? null}
-                onSelectDay={(day) => setPickedDate(day.date)}
+                onSelectDay={(day) => {
+                  setPickedDate(day.date);
+                  // Read here rather than with the screen: only the picked
+                  // day is needed, and reading every day to show one would
+                  // grow with the history.
+                  void (async () => {
+                    try {
+                      const db = await openAppDatabase();
+
+                      setPickedEntry(await loadDailyEntry(db, day.date));
+                    } catch (error) {
+                      logEvent('daily entry load failed', error);
+                      setPickedEntry(null);
+                    }
+                  })();
+                }}
               />
 
               <View style={styles.selectedSection}>
@@ -826,6 +872,34 @@ export default function HomeScreen() {
                         Sonraki regl başlangıcı tahmini
                       </ThemedText>
                     )}
+
+                    {/* The way in for any day that is not today. The label
+                        says which it is, so nobody has to guess whether
+                        there is already something there. */}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        pickedEntry !== null && hasAnything(pickedEntry)
+                          ? CALENDAR_DAY_EDIT_LABEL
+                          : CALENDAR_DAY_ADD_LABEL
+                      }
+                      onPress={() => {
+                        router.push({
+                          pathname: '/daily-entry',
+                          params: { date: selectedDay.date },
+                        });
+                      }}
+                      style={({ pressed }) => [
+                        styles.dayEntryLink,
+                        { borderColor: theme.primary },
+                        pressed && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold" themeColor="primary">
+                        {pickedEntry !== null && hasAnything(pickedEntry)
+                          ? CALENDAR_DAY_EDIT_LABEL
+                          : CALENDAR_DAY_ADD_LABEL}
+                      </ThemedText>
+                    </Pressable>
                   </View>
                 )}
               </View>
@@ -1216,6 +1290,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  dayEntryLink: {
+    minHeight: 48,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.four,
+    marginTop: Spacing.two,
   },
   avatarLink: {
     flexDirection: 'row',

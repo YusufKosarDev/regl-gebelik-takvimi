@@ -38,6 +38,10 @@ jest.mock('@/features/avatar/data/avatar-repository', () => ({
   saveAvatarConfig: jest.fn(),
 }));
 
+jest.mock('@/features/daily-log/data/daily-log-repository', () => ({
+  loadDailyEntry: jest.fn(),
+}));
+
 // The widget sync is faked so the screen's calls to it can be counted. It is
 // quiet by contract, so the real one would do nothing under Jest anyway.
 jest.mock('@/features/widget/application/sync-widget-snapshot', () => ({
@@ -109,6 +113,7 @@ const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
 const avatarRepository = jest.requireMock('@/features/avatar/data/avatar-repository');
+const dailyLogRepository = jest.requireMock('@/features/daily-log/data/daily-log-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
 const pregnancyReminderSync = jest.requireMock(
@@ -203,6 +208,14 @@ beforeEach(() => {
   pregnancyRepository.savePregnancyProfile.mockReset();
   avatarRepository.loadAvatarConfig.mockReset();
   avatarRepository.loadAvatarConfig.mockResolvedValue(null);
+
+  dailyLogRepository.loadDailyEntry.mockReset();
+  dailyLogRepository.loadDailyEntry.mockImplementation(async (_db: unknown, date: string) => ({
+    date,
+    flowId: null,
+    moodId: null,
+    symptomIds: [],
+  }));
   avatarRepository.saveAvatarConfig.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockReset();
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
@@ -469,15 +482,18 @@ describe('HomeScreen scope', () => {
 
     const { queryAllByRole } = await renderScreen();
 
-    // The record action, the two month steps and one button per real day of the
-    // month, and nothing else: no summary rows, no padding cells.
+    // The record action, the two ways into a daily entry, the two month steps
+    // and one button per real day of the month, and nothing else: no summary
+    // rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(37);
+    expect(labels).toHaveLength(39);
     expect(
       labels.filter(
         (label) =>
           label === 'Regl başlangıcını kaydet' ||
+          label === 'Ekle' ||
+          label === 'Bu güne ekle' ||
           label === 'Önceki ay' ||
           label === 'Sonraki ay' ||
           label === 'Avatar oluştur' ||
@@ -486,9 +502,11 @@ describe('HomeScreen scope', () => {
           label === 'Gebelik takibini başlat'
       )
     ).toEqual([
+      'Ekle',
       'Regl başlangıcını kaydet',
       'Önceki ay',
       'Sonraki ay',
+      'Bu güne ekle',
       'Geçmiş regl kayıtlarını görüntüle',
       'Avatar oluştur',
       'Döngü ayarlarını düzenle',
@@ -617,9 +635,10 @@ describe('HomeScreen calendar section', () => {
       expect(empty.props.onClick).toBeUndefined();
     }
 
-    // 30 days, the two month steps, the record action, the history link, the
-    // avatar link, the settings link and the pregnancy link.
-    expect(queryAllByRole('button')).toHaveLength(37);
+    // 30 days, the two month steps, the record action, the two ways into a
+    // daily entry, the history link, the avatar link, the settings link and
+    // the pregnancy link.
+    expect(queryAllByRole('button')).toHaveLength(39);
   });
 });
 
@@ -1173,7 +1192,10 @@ describe('HomeScreen selection leaves the rest alone', () => {
     ).toBeTruthy();
   });
 
-  it('reads nothing from the database', async () => {
+  it('re-reads nothing about the cycle', async () => {
+    // Picking a day reads that day’s own entry, so the row under the
+    // calendar can say whether there is already something recorded there.
+    // Everything else the screen shows is left exactly as it was read.
     const screen = await renderScreen();
 
     await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
@@ -1181,9 +1203,23 @@ describe('HomeScreen selection leaves the rest alone', () => {
     await fireEvent.press(screen.getByTestId('calendar-day-2026-10-02'));
     await fireEvent.press(screen.getByLabelText('Önceki ay'));
 
-    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
     expect(repository.loadCycleProfile).toHaveBeenCalledTimes(1);
     expect(getTodayMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads only the picked day, and only when one is picked', async () => {
+    const screen = await renderScreen();
+
+    expect(dailyLogRepository.loadDailyEntry).toHaveBeenCalledTimes(1);
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
+
+    expect(dailyLogRepository.loadDailyEntry).toHaveBeenCalledTimes(2);
+    expect(dailyLogRepository.loadDailyEntry.mock.calls[1][1]).toBe('2026-09-03');
+
+    await fireEvent.press(screen.getByLabelText('Sonraki ay'));
+
+    expect(dailyLogRepository.loadDailyEntry).toHaveBeenCalledTimes(2);
   });
 });
 
