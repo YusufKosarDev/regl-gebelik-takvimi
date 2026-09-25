@@ -6,6 +6,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import {
+  DISCLAIMER_CONTINUE_HINT,
+  DISCLAIMER_CONTINUE_LABEL,
+} from '@/features/onboarding/presentation/onboarding-messages';
+import {
   DISCLAIMER_INTRO,
   DISCLAIMER_POINTS,
   DISCLAIMER_TITLE,
@@ -65,8 +69,8 @@ export default function OnboardingDisclaimerScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Devam et"
-            accessibilityHint="Döngü ayarlarını girmeye geçer"
+            accessibilityLabel={DISCLAIMER_CONTINUE_LABEL}
+            accessibilityHint={DISCLAIMER_CONTINUE_HINT}
             onPress={() => router.push('/(onboarding)/cycle-settings')}
             style={({ pressed }) => [
               styles.button,
@@ -74,7 +78,7 @@ export default function OnboardingDisclaimerScreen() {
               pressed && styles.buttonPressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.onPrimary }]}>
-              Devam et
+              {DISCLAIMER_CONTINUE_LABEL}
             </ThemedText>
           </Pressable>
         </View>

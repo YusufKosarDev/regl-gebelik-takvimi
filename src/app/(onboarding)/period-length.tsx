@@ -8,6 +8,16 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { MAX_PERIOD_LENGTH_DAYS, MIN_PERIOD_LENGTH_DAYS } from '@/features/cycle/domain/limits';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
+import {
+  CONTINUE_LABEL,
+  DAYS_UNIT,
+  INVALID_CYCLE_INFO_MESSAGE,
+  PERIOD_LENGTH_DECREASE_LABEL,
+  PERIOD_LENGTH_DESCRIPTION,
+  PERIOD_LENGTH_INCREASE_LABEL,
+  PERIOD_LENGTH_TITLE,
+  periodLengthValueLabel,
+} from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -33,7 +43,7 @@ export default function PeriodLengthScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorText}>
-            Geçersiz döngü bilgisi.
+            {INVALID_CYCLE_INFO_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -53,18 +63,18 @@ export default function PeriodLengthScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                Regl dönemin ortalama kaç gün sürüyor?
+                {PERIOD_LENGTH_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Kanamanın başladığı ilk günden tamamen bittiği güne kadar geçen ortalama süre.
+                {PERIOD_LENGTH_DESCRIPTION}
               </ThemedText>
             </View>
 
             <View style={styles.stepper}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Regl süresini azalt"
+                accessibilityLabel={PERIOD_LENGTH_DECREASE_LABEL}
                 accessibilityState={{ disabled: !canDecrease }}
                 disabled={!canDecrease}
                 onPress={() => setPeriodLength((current) => current - 1)}
@@ -79,7 +89,7 @@ export default function PeriodLengthScreen() {
 
               <View
                 accessible
-                accessibilityLabel={`Ortalama regl süresi: ${periodLength} gün`}
+                accessibilityLabel={periodLengthValueLabel(periodLength)}
                 accessibilityValue={{
                   min: MIN_PERIOD_LENGTH_DAYS,
                   max: maxPeriodLength,
@@ -88,13 +98,13 @@ export default function PeriodLengthScreen() {
                 style={styles.valueBlock}>
                 <ThemedText style={styles.value}>{periodLength}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  gün
+                  {DAYS_UNIT}
                 </ThemedText>
               </View>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Regl süresini artır"
+                accessibilityLabel={PERIOD_LENGTH_INCREASE_LABEL}
                 accessibilityState={{ disabled: !canIncrease }}
                 disabled={!canIncrease}
                 onPress={() => setPeriodLength((current) => current + 1)}
@@ -113,7 +123,7 @@ export default function PeriodLengthScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Devam"
+            accessibilityLabel={CONTINUE_LABEL}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/last-period',
@@ -129,7 +139,7 @@ export default function PeriodLengthScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              Devam
+              {CONTINUE_LABEL}
             </ThemedText>
           </Pressable>
         </View>

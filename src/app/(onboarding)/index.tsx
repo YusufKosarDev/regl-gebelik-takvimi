@@ -5,6 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import {
+  WELCOME_DESCRIPTION,
+  WELCOME_NOTE,
+  WELCOME_START_HINT,
+  WELCOME_START_LABEL,
+  WELCOME_TITLE,
+} from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -29,17 +36,16 @@ export default function OnboardingWelcomeScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <ThemedText type="subtitle" style={styles.title}>
-              Döngünü birlikte takip edelim
+              {WELCOME_TITLE}
             </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.description}>
-              Regl döngünü anlamana, tahmini dönemlerini takip etmene ve günlük değişimleri
-              daha kolay görmene yardımcı olacağız.
+              {WELCOME_DESCRIPTION}
             </ThemedText>
 
             <View style={[styles.note, { borderLeftColor: theme.backgroundSelected }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Tahminler geçmiş döngü bilgilerine dayanır ve tıbbi tavsiye yerine geçmez.
+                {WELCOME_NOTE}
               </ThemedText>
             </View>
           </View>
@@ -48,8 +54,8 @@ export default function OnboardingWelcomeScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Başlayalım"
-            accessibilityHint="Başlamadan önce bilinmesi gerekenlere geçer"
+            accessibilityLabel={WELCOME_START_LABEL}
+            accessibilityHint={WELCOME_START_HINT}
             onPress={() => router.push('/(onboarding)/disclaimer')}
             style={({ pressed }) => [
               styles.button,
@@ -57,7 +63,7 @@ export default function OnboardingWelcomeScreen() {
               pressed && styles.buttonPressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.onPrimary }]}>
-              Başlayalım
+              {WELCOME_START_LABEL}
             </ThemedText>
           </Pressable>
         </View>

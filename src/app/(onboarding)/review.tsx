@@ -10,6 +10,18 @@ import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-
 import { parseLastPeriodStartDateParam } from '@/features/onboarding/parse-last-period-start-date-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  INVALID_CYCLE_INFO_MESSAGE,
+  REVIEW_CONFIRM_LABEL,
+  REVIEW_CYCLE_LENGTH_LABEL,
+  REVIEW_DESCRIPTION,
+  REVIEW_EDIT_LABEL,
+  REVIEW_LAST_PERIOD_LABEL,
+  REVIEW_PERIOD_LENGTH_LABEL,
+  REVIEW_TITLE,
+  reviewDaysValue,
+  reviewRowLabel,
+} from '@/features/onboarding/presentation/onboarding-messages';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -43,7 +55,7 @@ export default function ReviewScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorText}>
-            Geçersiz döngü bilgisi.
+            {INVALID_CYCLE_INFO_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -51,9 +63,9 @@ export default function ReviewScreen() {
   }
 
   const rows: { label: string; value: string }[] = [
-    { label: 'Döngü uzunluğu', value: `${cycleLength} gün` },
-    { label: 'Regl süresi', value: `${periodLength} gün` },
-    { label: 'Son regl başlangıcı', value: formatDisplayDate(lastPeriodStartDate) },
+    { label: REVIEW_CYCLE_LENGTH_LABEL, value: reviewDaysValue(cycleLength) },
+    { label: REVIEW_PERIOD_LENGTH_LABEL, value: reviewDaysValue(periodLength) },
+    { label: REVIEW_LAST_PERIOD_LABEL, value: formatDisplayDate(lastPeriodStartDate) },
   ];
 
   return (
@@ -65,11 +77,11 @@ export default function ReviewScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                Bilgilerini kontrol et
+                {REVIEW_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Devam etmeden önce döngü bilgilerini gözden geçir.
+                {REVIEW_DESCRIPTION}
               </ThemedText>
             </View>
 
@@ -78,7 +90,7 @@ export default function ReviewScreen() {
                 <View
                   key={row.label}
                   accessible
-                  accessibilityLabel={`${row.label}: ${row.value}`}
+                  accessibilityLabel={reviewRowLabel(row.label, row.value)}
                   style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText type="small" themeColor="textSecondary">
                     {row.label}
@@ -93,7 +105,7 @@ export default function ReviewScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Bilgiler doğru"
+            accessibilityLabel={REVIEW_CONFIRM_LABEL}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/finish',
@@ -110,17 +122,17 @@ export default function ReviewScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              Bilgiler doğru
+              {REVIEW_CONFIRM_LABEL}
             </ThemedText>
           </Pressable>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Bilgileri düzenle"
+            accessibilityLabel={REVIEW_EDIT_LABEL}
             onPress={() => router.back()}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Bilgileri düzenle
+              {REVIEW_EDIT_LABEL}
             </ThemedText>
           </Pressable>
         </View>

@@ -7,6 +7,15 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { MAX_CYCLE_LENGTH_DAYS, MIN_CYCLE_LENGTH_DAYS } from '@/features/cycle/domain/limits';
+import {
+  CONTINUE_LABEL,
+  CYCLE_LENGTH_DECREASE_LABEL,
+  CYCLE_LENGTH_DESCRIPTION,
+  CYCLE_LENGTH_INCREASE_LABEL,
+  CYCLE_LENGTH_TITLE,
+  DAYS_UNIT,
+  cycleLengthValueLabel,
+} from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -35,19 +44,18 @@ export default function CycleSettingsScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                Döngün ortalama kaç gün sürüyor?
+                {CYCLE_LENGTH_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Bir regl döneminin ilk gününden, sonraki regl döneminin ilk gününe kadar geçen
-                süre.
+                {CYCLE_LENGTH_DESCRIPTION}
               </ThemedText>
             </View>
 
             <View style={styles.stepper}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Döngü uzunluğunu azalt"
+                accessibilityLabel={CYCLE_LENGTH_DECREASE_LABEL}
                 accessibilityState={{ disabled: !canDecrease }}
                 disabled={!canDecrease}
                 onPress={() => setCycleLength((current) => current - 1)}
@@ -62,7 +70,7 @@ export default function CycleSettingsScreen() {
 
               <View
                 accessible
-                accessibilityLabel={`Ortalama döngü uzunluğu: ${cycleLength} gün`}
+                accessibilityLabel={cycleLengthValueLabel(cycleLength)}
                 accessibilityValue={{
                   min: MIN_CYCLE_LENGTH_DAYS,
                   max: MAX_CYCLE_LENGTH_DAYS,
@@ -71,13 +79,13 @@ export default function CycleSettingsScreen() {
                 style={styles.valueBlock}>
                 <ThemedText style={styles.value}>{cycleLength}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  gün
+                  {DAYS_UNIT}
                 </ThemedText>
               </View>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Döngü uzunluğunu artır"
+                accessibilityLabel={CYCLE_LENGTH_INCREASE_LABEL}
                 accessibilityState={{ disabled: !canIncrease }}
                 disabled={!canIncrease}
                 onPress={() => setCycleLength((current) => current + 1)}
@@ -96,7 +104,7 @@ export default function CycleSettingsScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Devam"
+            accessibilityLabel={CONTINUE_LABEL}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/period-length',
@@ -109,7 +117,7 @@ export default function CycleSettingsScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              Devam
+              {CONTINUE_LABEL}
             </ThemedText>
           </Pressable>
         </View>

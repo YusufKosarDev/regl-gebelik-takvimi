@@ -10,6 +10,14 @@ import { completeCycleOnboarding } from '@/features/cycle/application/complete-c
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
 import { parseLastPeriodStartDateParam } from '@/features/onboarding/parse-last-period-start-date-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
+import {
+  FINISH_DESCRIPTION,
+  FINISH_SAVE_FAILED_MESSAGE,
+  FINISH_SAVING_LABEL,
+  FINISH_START_LABEL,
+  FINISH_TITLE,
+  INVALID_CYCLE_INFO_MESSAGE,
+} from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
 import { openAppDatabase } from '@/storage/db';
@@ -18,8 +26,6 @@ import { syncPeriodReminderQuietly } from '@/features/notifications/application/
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
-
-const SAVE_ERROR_MESSAGE = 'Bilgiler kaydedilemedi. Lütfen tekrar dene.';
 
 /**
  * Last onboarding step: write the answers down.
@@ -60,7 +66,7 @@ export default function FinishScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorTitle}>
-            Geçersiz döngü bilgisi.
+            {INVALID_CYCLE_INFO_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -99,7 +105,7 @@ export default function FinishScreen() {
 
       submitInFlight.current = false;
       setIsSubmitting(false);
-      setErrorMessage(SAVE_ERROR_MESSAGE);
+      setErrorMessage(FINISH_SAVE_FAILED_MESSAGE);
     }
   };
 
@@ -111,11 +117,11 @@ export default function FinishScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <ThemedText type="subtitle" style={styles.title}>
-              Her şey hazır
+              {FINISH_TITLE}
             </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.description}>
-              Bilgilerini kaydedip döngü takibine başlayabilirsin.
+              {FINISH_DESCRIPTION}
             </ThemedText>
           </View>
         </ScrollView>
@@ -133,7 +139,7 @@ export default function FinishScreen() {
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Takibe başla"
+            accessibilityLabel={FINISH_START_LABEL}
             accessibilityState={{ disabled: isSubmitting }}
             disabled={isSubmitting}
             onPress={handleSubmit}
@@ -144,7 +150,7 @@ export default function FinishScreen() {
               pressed && !isSubmitting && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              {isSubmitting ? 'Kaydediliyor...' : 'Takibe başla'}
+              {isSubmitting ? FINISH_SAVING_LABEL : FINISH_START_LABEL}
             </ThemedText>
           </Pressable>
         </View>

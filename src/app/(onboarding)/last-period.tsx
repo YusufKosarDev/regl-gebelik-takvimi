@@ -8,6 +8,17 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
+import {
+  CONTINUE_LABEL,
+  INVALID_CYCLE_INFO_MESSAGE,
+  LAST_PERIOD_DESCRIPTION,
+  LAST_PERIOD_NEXT_DAY_LABEL,
+  LAST_PERIOD_NEXT_DAY_TEXT,
+  LAST_PERIOD_PREVIOUS_DAY_LABEL,
+  LAST_PERIOD_PREVIOUS_DAY_TEXT,
+  LAST_PERIOD_TITLE,
+  selectedDateLabel,
+} from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
@@ -44,7 +55,7 @@ export default function LastPeriodScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorText}>
-            Geçersiz döngü bilgisi.
+            {INVALID_CYCLE_INFO_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -63,23 +74,23 @@ export default function LastPeriodScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                Son regl dönemin ne zaman başladı?
+                {LAST_PERIOD_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Kanamanın başladığı ilk günü seç.
+                {LAST_PERIOD_DESCRIPTION}
               </ThemedText>
             </View>
 
             <View style={styles.picker}>
-              <View accessible accessibilityLabel={`Seçili tarih: ${readableDate}`}>
+              <View accessible accessibilityLabel={selectedDateLabel(readableDate)}>
                 <ThemedText style={styles.date}>{readableDate}</ThemedText>
               </View>
 
               <View style={styles.dayButtons}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Önceki günü seç"
+                  accessibilityLabel={LAST_PERIOD_PREVIOUS_DAY_LABEL}
                   accessibilityState={{ disabled: false }}
                   onPress={() => setSelectedDate((current) => addDays(current, -1))}
                   style={({ pressed }) => [
@@ -87,12 +98,12 @@ export default function LastPeriodScreen() {
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="small">Önceki gün</ThemedText>
+                  <ThemedText type="small">{LAST_PERIOD_PREVIOUS_DAY_TEXT}</ThemedText>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Sonraki günü seç"
+                  accessibilityLabel={LAST_PERIOD_NEXT_DAY_LABEL}
                   accessibilityState={{ disabled: !canGoToNextDay }}
                   disabled={!canGoToNextDay}
                   onPress={() => setSelectedDate((current) => addDays(current, 1))}
@@ -102,7 +113,7 @@ export default function LastPeriodScreen() {
                     !canGoToNextDay && styles.dayButtonDisabled,
                     pressed && canGoToNextDay && styles.pressed,
                   ]}>
-                  <ThemedText type="small">Sonraki gün</ThemedText>
+                  <ThemedText type="small">{LAST_PERIOD_NEXT_DAY_TEXT}</ThemedText>
                 </Pressable>
               </View>
             </View>
@@ -112,7 +123,7 @@ export default function LastPeriodScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Devam"
+            accessibilityLabel={CONTINUE_LABEL}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/review',
@@ -129,7 +140,7 @@ export default function LastPeriodScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              Devam
+              {CONTINUE_LABEL}
             </ThemedText>
           </Pressable>
         </View>
