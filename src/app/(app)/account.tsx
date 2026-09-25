@@ -998,6 +998,10 @@ export default function AccountScreen() {
                         label="Hatırlatıcı tercihleri"
                         value={restoreStatusLabel(preview.notificationPreferences)}
                       />
+                      <PreviewRow
+                        label="Günlük kayıtlar"
+                        value={restorePeriodRecordsLabel(preview.dailyEntries)}
+                      />
 
                       <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
                         {RESTORE_WARNING}

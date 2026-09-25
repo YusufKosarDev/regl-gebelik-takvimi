@@ -25,7 +25,10 @@ export function restoreStatusLabel(status: CloudRestoreStatus): string {
 }
 
 /**
- * What would happen to the period history.
+ * What would happen to a list of stored things.
+ *
+ * Used for the period history and for the recorded days: both can gain, lose
+ * and change entries in one restore, so a single verdict would say none of it.
  *
  * Only the parts that are not zero, so "3 eklenecek" does not arrive padded
  * with two noughts. When nothing would move at all it says so in words rather

@@ -192,6 +192,16 @@ export default function HomeScreen() {
   /** What was recorded on the day picked in the calendar, for its row. */
   const [pickedEntry, setPickedEntry] = useState<DailyEntry | null>(null);
 
+  /**
+   * Bumped by every reload, so the picked day is re-read on the same two
+   * triggers as the rest of the screen.
+   *
+   * Without it, saving a past day and coming back left its row still
+   * offering to add one - the screen reloaded, and the only thing that had
+   * not was the one day the person had just edited.
+   */
+  const [reloadKey, setReloadKey] = useState(0);
+
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaveError, setHasSaveError] = useState(false);
@@ -257,6 +267,7 @@ export default function HomeScreen() {
           setPregnancy(data.pregnancy);
           setAvatar(data.avatar);
           setTodayEntry(data.daily);
+          setReloadKey((key) => key + 1);
           setHasError(false);
 
           // Best effort, and only once: this catches changes made while the app
@@ -312,6 +323,42 @@ export default function HomeScreen() {
   }, [readCycleData]);
 
   useDataChangeReload(load);
+
+  /**
+   * What is recorded on the picked day.
+   *
+   * Only the picked one: reading every day to label one row would grow with
+   * the history. Re-runs when the picked day changes and when the screen
+   * reloads, which is what makes the row right after editing that day.
+   */
+  useEffect(() => {
+    if (pickedDate === null) {
+      return;
+    }
+
+    let isActive = true;
+
+    void (async () => {
+      try {
+        const db = await openAppDatabase();
+        const stored = await loadDailyEntry(db, pickedDate);
+
+        if (isActive) {
+          setPickedEntry(stored);
+        }
+      } catch (error) {
+        logEvent('daily entry load failed', error);
+
+        if (isActive) {
+          setPickedEntry(null);
+        }
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [pickedDate, reloadKey]);
 
   // Derived rather than trusted: a stored 'pregnancy' mode outlives the
   // pregnancy it was chosen for, so the view falls back on its own instead of
@@ -828,22 +875,7 @@ export default function HomeScreen() {
                 grid={calendarGrid}
                 today={dashboard.today}
                 selectedDate={selectedDay?.date ?? null}
-                onSelectDay={(day) => {
-                  setPickedDate(day.date);
-                  // Read here rather than with the screen: only the picked
-                  // day is needed, and reading every day to show one would
-                  // grow with the history.
-                  void (async () => {
-                    try {
-                      const db = await openAppDatabase();
-
-                      setPickedEntry(await loadDailyEntry(db, day.date));
-                    } catch (error) {
-                      logEvent('daily entry load failed', error);
-                      setPickedEntry(null);
-                    }
-                  })();
-                }}
+                onSelectDay={(day) => setPickedDate(day.date)}
               />
 
               <View style={styles.selectedSection}>
@@ -879,7 +911,7 @@ export default function HomeScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={
-                        pickedEntry !== null && hasAnything(pickedEntry)
+                        pickedEntry?.date === selectedDay.date && hasAnything(pickedEntry)
                           ? CALENDAR_DAY_EDIT_LABEL
                           : CALENDAR_DAY_ADD_LABEL
                       }
@@ -895,7 +927,7 @@ export default function HomeScreen() {
                         pressed && styles.pressed,
                       ]}>
                       <ThemedText type="smallBold" themeColor="primary">
-                        {pickedEntry !== null && hasAnything(pickedEntry)
+                        {pickedEntry?.date === selectedDay.date && hasAnything(pickedEntry)
                           ? CALENDAR_DAY_EDIT_LABEL
                           : CALENDAR_DAY_ADD_LABEL}
                       </ThemedText>

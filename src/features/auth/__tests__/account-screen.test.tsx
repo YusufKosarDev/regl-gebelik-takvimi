@@ -1443,6 +1443,10 @@ describe('AccountScreen restore preview', () => {
     expect(screen.getByText('Gebelik bilgisi')).toBeTruthy();
     expect(screen.getByText('Avatar')).toBeTruthy();
     expect(screen.getByText('Hatırlatıcı tercihleri')).toBeTruthy();
+    // Every category a restore would write has a row. One missing here means
+    // somebody is told their data is safe while a category is replaced
+    // without being named.
+    expect(screen.getByText('Günlük kayıtlar')).toBeTruthy();
   });
 
   it('says what would happen to the settings', async () => {
