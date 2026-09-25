@@ -23,14 +23,51 @@ import { formatDisplayDate } from '@/utils/format-date';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
+import {
+  CLEAR_END_BUSY_LABEL,
+  CLEAR_END_CONFIRM_LABEL,
+  CLEAR_END_CONSEQUENCE,
+  CLEAR_END_OPEN_LABEL,
+  CLEAR_END_QUESTION,
+  DELETE_CONFIRM_LABEL,
+  DELETE_CONSEQUENCE,
+  DELETE_QUESTION,
+  DELETE_TEXT,
+  EDIT_END_PANEL_TITLE,
+  EDIT_END_TEXT,
+  EDIT_START_PANEL_TITLE,
+  EDIT_START_TEXT,
+  HISTORY_DELETE_FAILED_MESSAGE,
+  HISTORY_DESCRIPTION,
+  HISTORY_EMPTY_MESSAGE,
+  HISTORY_LOAD_FAILED_MESSAGE,
+  HISTORY_TITLE,
+  HISTORY_UPDATE_FAILED_MESSAGE,
+  NEXT_DAY_LABEL,
+  PREVIOUS_DAY_LABEL,
+  RECORD_END_LABEL,
+  RECORD_ONGOING_LABEL,
+  RECORD_START_LABEL,
+  RECORD_UNKNOWN_END_LABEL,
+  SAVE_END_LABEL,
+  SAVE_START_LABEL,
+  deleteRecordLabel,
+  editEndLabel,
+  editStartLabel,
+  endDateLine,
+  recordAccessibilityLabel,
+  selectedEndDateLabel,
+  selectedStartDateLabel,
+  startDateLine,
+} from '@/features/cycle/presentation/history-messages';
+import {
+  BACK_LABEL,
+  CANCEL_LABEL,
+  LOADING_MESSAGE,
+  SAVE_LABEL,
+  SAVING_LABEL,
+} from '@/shared/presentation/app-messages';
 import { logEvent } from '@/shared/logging';
-
-const LOAD_ERROR_MESSAGE = 'Kayıtlar yüklenemedi.';
-const DELETE_ERROR_MESSAGE = 'Kayıt silinemedi.';
-const UPDATE_ERROR_MESSAGE = 'Kayıt güncellenemedi.';
-const EMPTY_MESSAGE = 'Henüz kayıt bulunamadı.';
-const ONGOING_LABEL = 'Devam ediyor';
-const UNKNOWN_END_LABEL = 'Bitiş tarihi bilinmiyor';
 
 /**
  * How a record's end reads.
@@ -41,10 +78,10 @@ const UNKNOWN_END_LABEL = 'Bitiş tarihi bilinmiyor';
  */
 function endLabel(record: PeriodRecord): string {
   if (record.isOngoing) {
-    return ONGOING_LABEL;
+    return RECORD_ONGOING_LABEL;
   }
 
-  return record.endDate === undefined ? UNKNOWN_END_LABEL : formatDisplayDate(record.endDate);
+  return record.endDate === undefined ? RECORD_UNKNOWN_END_LABEL : formatDisplayDate(record.endDate);
 }
 
 /**
@@ -88,18 +125,6 @@ function minSelectableStartDate(record: PeriodRecord): ISODate | null {
   }
 
   return addDays(record.endDate, -(MAX_PERIOD_DURATION_DAYS - 1));
-}
-
-function accessibilityLabelFor(record: PeriodRecord): string {
-  const start = `Başlangıç: ${formatDisplayDate(record.startDate)}`;
-
-  if (record.isOngoing) {
-    return `${start}, devam ediyor`;
-  }
-
-  return record.endDate === undefined
-    ? `${start}, bitiş tarihi bilinmiyor`
-    : `${start}, bitiş: ${formatDisplayDate(record.endDate)}`;
 }
 
 /**
@@ -378,11 +403,11 @@ export default function HistoryScreen() {
   const backButton = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Geri"
+      accessibilityLabel={BACK_LABEL}
       onPress={() => router.back()}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
       <ThemedText type="small" themeColor="textSecondary">
-        Geri
+        {BACK_LABEL}
       </ThemedText>
     </Pressable>
   );
@@ -393,7 +418,7 @@ export default function HistoryScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="period-history-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            Veriler yükleniyor
+            {LOADING_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -411,11 +436,11 @@ export default function HistoryScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                Geçmiş kayıtlar
+                {HISTORY_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Kaydettiğin regl dönemlerini burada görebilirsin.
+                {HISTORY_DESCRIPTION}
               </ThemedText>
 
               {/* Only after a sync closed something that was open. */}
@@ -428,28 +453,28 @@ export default function HistoryScreen() {
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {LOAD_ERROR_MESSAGE}
+                {HISTORY_LOAD_FAILED_MESSAGE}
               </ThemedText>
             ) : records === null || records.length === 0 ? (
-              <ThemedText themeColor="textSecondary">{EMPTY_MESSAGE}</ThemedText>
+              <ThemedText themeColor="textSecondary">{HISTORY_EMPTY_MESSAGE}</ThemedText>
             ) : (
               <View style={styles.list}>
                 {records.map((record) => (
                   <View
                     key={record.id}
                     accessible
-                    accessibilityLabel={accessibilityLabelFor(record)}
+                    accessibilityLabel={recordAccessibilityLabel(record)}
                     testID={`history-record-${record.id}`}
                     style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                     <ThemedText type="small" themeColor="textSecondary">
-                      Başlangıç
+                      {RECORD_START_LABEL}
                     </ThemedText>
                     <ThemedText style={styles.rowValue}>
                       {formatDisplayDate(record.startDate)}
                     </ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary" style={styles.endLabel}>
-                      Bitiş
+                      {RECORD_END_LABEL}
                     </ThemedText>
                     <ThemedText type="small">{endLabel(record)}</ThemedText>
 
@@ -489,14 +514,14 @@ export default function HistoryScreen() {
                       />
                     ) : recordPendingDelete?.id === record.id ? (
                       <View style={styles.confirmation}>
-                        <ThemedText type="small">Bu regl kaydını silmek istiyor musun?</ThemedText>
+                        <ThemedText type="small">{DELETE_QUESTION}</ThemedText>
 
                         <ThemedText type="smallBold">
                           {formatDisplayDate(record.startDate)}
                         </ThemedText>
 
                         <ThemedText type="small" themeColor="textSecondary">
-                          Bu işlem geri alınamaz.
+                          {DELETE_CONSEQUENCE}
                         </ThemedText>
 
                         {hasDeleteError && (
@@ -504,14 +529,14 @@ export default function HistoryScreen() {
                             accessibilityRole="alert"
                             type="small"
                             themeColor="textSecondary">
-                            {DELETE_ERROR_MESSAGE}
+                            {HISTORY_DELETE_FAILED_MESSAGE}
                           </ThemedText>
                         )}
 
                         <View style={styles.confirmActions}>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel="Vazgeç"
+                            accessibilityLabel={CANCEL_LABEL}
                             accessibilityState={{ disabled: isDeleting }}
                             disabled={isDeleting}
                             onPress={closePanels}
@@ -521,13 +546,13 @@ export default function HistoryScreen() {
                               pressed && !isDeleting && styles.pressed,
                             ]}>
                             <ThemedText type="small" themeColor="textSecondary">
-                              Vazgeç
+                              {CANCEL_LABEL}
                             </ThemedText>
                           </Pressable>
 
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel="Sil"
+                            accessibilityLabel={DELETE_CONFIRM_LABEL}
                             accessibilityState={{ disabled: isDeleting }}
                             disabled={isDeleting}
                             onPress={handleDelete}
@@ -554,27 +579,27 @@ export default function HistoryScreen() {
                           <>
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydının başlangıç tarihini düzenle`}
+                              accessibilityLabel={editStartLabel(formatDisplayDate(record.startDate))}
                               onPress={() => openStartEditor(record)}
                               style={({ pressed }) => [
                                 styles.rowAction,
                                 pressed && styles.pressed,
                               ]}>
                               <ThemedText type="small" themeColor="textSecondary">
-                                Başlangıcı düzenle
+                                {EDIT_START_TEXT}
                               </ThemedText>
                             </Pressable>
 
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydının bitiş tarihini düzenle`}
+                              accessibilityLabel={editEndLabel(formatDisplayDate(record.startDate))}
                               onPress={() => openEndEditor(record)}
                               style={({ pressed }) => [
                                 styles.rowAction,
                                 pressed && styles.pressed,
                               ]}>
                               <ThemedText type="small" themeColor="textSecondary">
-                                Bitişi düzenle
+                                {EDIT_END_TEXT}
                               </ThemedText>
                             </Pressable>
                           </>
@@ -582,11 +607,11 @@ export default function HistoryScreen() {
 
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`${formatDisplayDate(record.startDate)} regl kaydını sil`}
+                          accessibilityLabel={deleteRecordLabel(formatDisplayDate(record.startDate))}
                           onPress={() => askToDelete(record)}
                           style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
                           <ThemedText type="small" themeColor="textSecondary">
-                            Sil
+                            {DELETE_TEXT}
                           </ThemedText>
                         </Pressable>
                       </View>
@@ -643,16 +668,16 @@ function StartDateEditor({
 
   return (
     <View style={styles.confirmation}>
-      <ThemedText type="smallBold">Başlangıç tarihini düzenle</ThemedText>
+      <ThemedText type="smallBold">{EDIT_START_PANEL_TITLE}</ThemedText>
 
       <ThemedText type="small" themeColor="textSecondary">
-        Bitiş: {endLabel(record)}
+        {endDateLine(endLabel(record))}
       </ThemedText>
 
       <View style={styles.dateBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Önceki gün"
+          accessibilityLabel={PREVIOUS_DAY_LABEL}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => onSelectStartDate(addDays(selectedStartDate, -1))}
@@ -665,7 +690,7 @@ function StartDateEditor({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={`Seçilen başlangıç tarihi: ${formatDisplayDate(selectedStartDate)}`}
+          accessibilityLabel={selectedStartDateLabel(formatDisplayDate(selectedStartDate))}
           type="smallBold"
           style={styles.selectedDate}>
           {formatDisplayDate(selectedStartDate)}
@@ -673,7 +698,7 @@ function StartDateEditor({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Sonraki gün"
+          accessibilityLabel={NEXT_DAY_LABEL}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => onSelectStartDate(addDays(selectedStartDate, 1))}
@@ -688,14 +713,14 @@ function StartDateEditor({
 
       {hasError && (
         <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-          {UPDATE_ERROR_MESSAGE}
+          {HISTORY_UPDATE_FAILED_MESSAGE}
         </ThemedText>
       )}
 
       <View style={styles.confirmActions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Vazgeç"
+          accessibilityLabel={CANCEL_LABEL}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onCancel}
@@ -705,13 +730,13 @@ function StartDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            Vazgeç
+            {CANCEL_LABEL}
           </ThemedText>
         </Pressable>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Başlangıç tarihini kaydet"
+          accessibilityLabel={SAVE_START_LABEL}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onSave}
@@ -722,7 +747,7 @@ function StartDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-            {isUpdating ? 'Kaydediliyor...' : 'Kaydet'}
+            {isUpdating ? SAVING_LABEL : SAVE_LABEL}
           </ThemedText>
         </Pressable>
       </View>
@@ -774,22 +799,22 @@ function EndDateEditor({
   if (isRemoving) {
     return (
       <View style={styles.confirmation}>
-        <ThemedText type="small">Bitiş tarihini kaldırmak istiyor musun?</ThemedText>
+        <ThemedText type="small">{CLEAR_END_QUESTION}</ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary">
-          Bu kayıt bitiş tarihi bilinmiyor olarak gösterilecek.
+          {CLEAR_END_CONSEQUENCE}
         </ThemedText>
 
         {hasError && (
           <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-            {UPDATE_ERROR_MESSAGE}
+            {HISTORY_UPDATE_FAILED_MESSAGE}
           </ThemedText>
         )}
 
         <View style={styles.confirmActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Vazgeç"
+            accessibilityLabel={CANCEL_LABEL}
             accessibilityState={{ disabled: isUpdating }}
             disabled={isUpdating}
             onPress={onCancelRemove}
@@ -799,13 +824,13 @@ function EndDateEditor({
               pressed && !isUpdating && styles.pressed,
             ]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Vazgeç
+              {CANCEL_LABEL}
             </ThemedText>
           </Pressable>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Kaldır"
+            accessibilityLabel={CLEAR_END_CONFIRM_LABEL}
             accessibilityState={{ disabled: isUpdating }}
             disabled={isUpdating}
             onPress={onRemove}
@@ -816,7 +841,7 @@ function EndDateEditor({
               pressed && !isUpdating && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-              {isUpdating ? 'Kaldırılıyor...' : 'Kaldır'}
+              {isUpdating ? CLEAR_END_BUSY_LABEL : CLEAR_END_CONFIRM_LABEL}
             </ThemedText>
           </Pressable>
         </View>
@@ -826,16 +851,16 @@ function EndDateEditor({
 
   return (
     <View style={styles.confirmation}>
-      <ThemedText type="smallBold">Bitiş tarihini düzenle</ThemedText>
+      <ThemedText type="smallBold">{EDIT_END_PANEL_TITLE}</ThemedText>
 
       <ThemedText type="small" themeColor="textSecondary">
-        Başlangıç: {formatDisplayDate(record.startDate)}
+        {startDateLine(formatDisplayDate(record.startDate))}
       </ThemedText>
 
       <View style={styles.dateBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Önceki gün"
+          accessibilityLabel={PREVIOUS_DAY_LABEL}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => onSelectEndDate(addDays(selectedEndDate, -1))}
@@ -848,7 +873,7 @@ function EndDateEditor({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={`Seçilen bitiş tarihi: ${formatDisplayDate(selectedEndDate)}`}
+          accessibilityLabel={selectedEndDateLabel(formatDisplayDate(selectedEndDate))}
           type="smallBold"
           style={styles.selectedDate}>
           {formatDisplayDate(selectedEndDate)}
@@ -856,7 +881,7 @@ function EndDateEditor({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Sonraki gün"
+          accessibilityLabel={NEXT_DAY_LABEL}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => onSelectEndDate(addDays(selectedEndDate, 1))}
@@ -871,14 +896,14 @@ function EndDateEditor({
 
       {hasError && (
         <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-          {UPDATE_ERROR_MESSAGE}
+          {HISTORY_UPDATE_FAILED_MESSAGE}
         </ThemedText>
       )}
 
       <View style={styles.confirmActions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Vazgeç"
+          accessibilityLabel={CANCEL_LABEL}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onCancel}
@@ -888,13 +913,13 @@ function EndDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            Vazgeç
+            {CANCEL_LABEL}
           </ThemedText>
         </Pressable>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Bitiş tarihini kaydet"
+          accessibilityLabel={SAVE_END_LABEL}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onSave}
@@ -905,7 +930,7 @@ function EndDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-            {isUpdating ? 'Kaydediliyor...' : 'Kaydet'}
+            {isUpdating ? SAVING_LABEL : SAVE_LABEL}
           </ThemedText>
         </Pressable>
       </View>
@@ -914,7 +939,7 @@ function EndDateEditor({
       {record.endDate !== undefined && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Bitiş tarihini kaldır"
+          accessibilityLabel={CLEAR_END_OPEN_LABEL}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onAskToRemove}
@@ -924,7 +949,7 @@ function EndDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            Bitiş tarihini kaldır
+            {CLEAR_END_OPEN_LABEL}
           </ThemedText>
         </Pressable>
       )}
