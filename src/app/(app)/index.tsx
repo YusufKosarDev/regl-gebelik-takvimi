@@ -22,8 +22,7 @@ import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-
 import { endCurrentPeriod } from '@/features/cycle/application/end-current-period';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
-import { CycleCalendar } from '@/features/cycle/components/cycle-calendar';
-import { CycleCalendarLegend } from '@/features/cycle/components/cycle-calendar-legend';
+import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
 import {
   getCyclePhaseLabel,
   getFertilityLevelLabel,
@@ -44,11 +43,7 @@ import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/di
 import { DailyEntryCard } from '@/features/daily-log/components/daily-entry-card';
 import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
-import { emptyDailyEntry, hasAnything } from '@/features/daily-log/domain/catalogues';
-import {
-  CALENDAR_DAY_ADD_LABEL,
-  CALENDAR_DAY_EDIT_LABEL,
-} from '@/features/daily-log/presentation/daily-log-messages';
+import { emptyDailyEntry } from '@/features/daily-log/domain/catalogues';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
@@ -65,7 +60,6 @@ import {
   SAVE_ERROR_MESSAGE,
   SOURCE_ERROR_MESSAGE,
   SUPPORT_DISCLAIMER,
-  selectedDayRows,
 } from '@/features/cycle/presentation/home-messages';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -756,117 +750,17 @@ export default function HomeScreen() {
               </Pressable>
             )}
 
-            <View style={styles.calendarSection}>
-              <ThemedText
-                accessibilityRole="header"
-                type="small"
-                themeColor="textSecondary">
-                Takvim
-              </ThemedText>
-
-              <View style={styles.monthBar}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Önceki ay"
-                  accessibilityState={{ disabled: !canGoBack }}
-                  disabled={!canGoBack}
-                  onPress={() => setMonthOffset((current) => current - 1)}
-                  style={({ pressed }) => [
-                    styles.monthButton,
-                    !canGoBack && styles.monthButtonDisabled,
-                    pressed && canGoBack && styles.pressed,
-                  ]}>
-                  <ThemedText style={styles.monthButtonLabel}>‹</ThemedText>
-                </Pressable>
-
-                <ThemedText
-                  accessibilityLabel={`${monthHeading} takvimi`}
-                  style={styles.monthHeading}>
-                  {monthHeading}
-                </ThemedText>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Sonraki ay"
-                  accessibilityState={{ disabled: !canGoForward }}
-                  disabled={!canGoForward}
-                  onPress={() => setMonthOffset((current) => current + 1)}
-                  style={({ pressed }) => [
-                    styles.monthButton,
-                    !canGoForward && styles.monthButtonDisabled,
-                    pressed && canGoForward && styles.pressed,
-                  ]}>
-                  <ThemedText style={styles.monthButtonLabel}>›</ThemedText>
-                </Pressable>
-              </View>
-
-              <CycleCalendar
-                grid={calendarGrid}
-                today={dashboard.today}
-                selectedDate={selectedDay?.date ?? null}
-                onSelectDay={(day) => setPickedDate(day.date)}
-              />
-
-              <View style={styles.selectedSection}>
-                <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-                  Seçilen gün
-                </ThemedText>
-
-                {selectedDay === null ? (
-                  <ThemedText themeColor="textSecondary">Bir gün seç.</ThemedText>
-                ) : (
-                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText accessibilityRole="header" style={styles.selectedDate}>
-                      {formatDisplayDate(selectedDay.date)}
-                    </ThemedText>
-
-                    {/* The visible text already reads "label: value", so it
-                        needs no separate accessibility label. */}
-                    {selectedDayRows(selectedDay).map((row) => (
-                      <ThemedText key={row.label} type="small">
-                        {row.label}: {row.value}
-                      </ThemedText>
-                    ))}
-
-                    {selectedDay.isPredictedPeriodStart && (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        Sonraki regl başlangıcı tahmini
-                      </ThemedText>
-                    )}
-
-                    {/* The way in for any day that is not today. The label
-                        says which it is, so nobody has to guess whether
-                        there is already something there. */}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        pickedEntry?.date === selectedDay.date && hasAnything(pickedEntry)
-                          ? CALENDAR_DAY_EDIT_LABEL
-                          : CALENDAR_DAY_ADD_LABEL
-                      }
-                      onPress={() => {
-                        router.push({
-                          pathname: '/daily-entry',
-                          params: { date: selectedDay.date },
-                        });
-                      }}
-                      style={({ pressed }) => [
-                        styles.dayEntryLink,
-                        { borderColor: theme.primary },
-                        pressed && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold" themeColor="primary">
-                        {pickedEntry?.date === selectedDay.date && hasAnything(pickedEntry)
-                          ? CALENDAR_DAY_EDIT_LABEL
-                          : CALENDAR_DAY_ADD_LABEL}
-                      </ThemedText>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-
-              <CycleCalendarLegend />
-            </View>
+            <CycleCalendarSection
+              today={dashboard.today}
+              monthHeading={monthHeading}
+              canGoBack={canGoBack}
+              canGoForward={canGoForward}
+              setMonthOffset={setMonthOffset}
+              calendarGrid={calendarGrid}
+              selectedDay={selectedDay}
+              setPickedDate={setPickedDate}
+              pickedEntry={pickedEntry}
+            />
               </>
             )}
 
@@ -1060,9 +954,6 @@ const styles = StyleSheet.create({
   supportSection: {
     gap: Spacing.two,
   },
-  calendarSection: {
-    gap: Spacing.two,
-  },
   confirmActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1076,15 +967,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
-  },
-  dayEntryLink: {
-    minHeight: 48,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.four,
-    marginTop: Spacing.two,
   },
   avatarLink: {
     flexDirection: 'row',
@@ -1101,41 +983,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
-  },
-  selectedSection: {
-    gap: Spacing.two,
-  },
-  selectedDate: {
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: '600',
-  },
-  monthBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  monthHeading: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
-    flexShrink: 1,
-    textAlign: 'center',
-  },
-  monthButton: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Spacing.two,
-  },
-  monthButtonDisabled: {
-    opacity: 0.3,
-  },
-  monthButtonLabel: {
-    fontSize: 24,
-    lineHeight: 28,
   },
   pressed: {
     opacity: 0.6,
