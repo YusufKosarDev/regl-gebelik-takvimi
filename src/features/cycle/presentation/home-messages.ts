@@ -1,5 +1,8 @@
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
+import type { CycleDashboard } from '../application/get-cycle-dashboard';
 import { getCyclePhaseLabel, getFertilityLevelLabel } from './cycle-labels';
+
+import { formatDisplayDate } from '@/utils/format-date';
 
 /**
  * What the home screen says about a cycle, in Turkish.
@@ -34,5 +37,40 @@ export function selectedDayRows(day: CycleCalendarDay): { label: string; value: 
     },
     { label: 'Döngü evresi', value: getCyclePhaseLabel(day.phase) },
     { label: 'Doğurganlık tahmini', value: getFertilityLevelLabel(day.fertilityLevel) },
+  ];
+}
+
+/**
+ * The four facts at the top of the home screen, read off today's summary.
+ *
+ * The same shape as {@link selectedDayRows} and built the same way, with one
+ * addition: the fertility row carries the note that says the estimate is not a
+ * method of contraception. It travels with the row rather than being placed
+ * near it, so the number and the warning about it cannot be separated.
+ */
+export function summaryRows(
+  dashboard: CycleDashboard
+): { label: string; value: string; note?: string }[] {
+  return [
+    {
+      label: 'Döngü günü',
+      value: dashboard.cycleDay === null ? 'Henüz başlamadı' : `${dashboard.cycleDay}. gün`,
+    },
+    {
+      label: 'Döngü evresi',
+      value: getCyclePhaseLabel(dashboard.phase),
+    },
+    {
+      label: 'Doğurganlık tahmini',
+      value: getFertilityLevelLabel(dashboard.fertilityLevel),
+      note: FERTILITY_DISCLAIMER,
+    },
+    {
+      label: 'Sonraki regl tahmini',
+      value:
+        dashboard.nextPeriodStart === null
+          ? 'Henüz hesaplanamıyor'
+          : formatDisplayDate(dashboard.nextPeriodStart),
+    },
   ];
 }

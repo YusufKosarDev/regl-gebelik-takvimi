@@ -22,13 +22,10 @@ import { endCurrentPeriod } from '@/features/cycle/application/end-current-perio
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
+import { CycleSummary } from '@/features/cycle/components/cycle-summary';
 import { HomeLinks } from '@/features/cycle/components/home-links';
 import { PeriodActionCard } from '@/features/cycle/components/period-action-card';
 import { DailySupportSection } from '@/features/cycle/components/daily-support-section';
-import {
-  getCyclePhaseLabel,
-  getFertilityLevelLabel,
-} from '@/features/cycle/presentation/cycle-labels';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
 import {
   getPregnancyDashboard,
@@ -55,8 +52,8 @@ import { PregnancySection } from '@/features/pregnancy/components/pregnancy-sect
 import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
 import {
   EMPTY_MESSAGE,
-  FERTILITY_DISCLAIMER,
   LOAD_ERROR_MESSAGE,
+  summaryRows,
 } from '@/features/cycle/presentation/home-messages';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -474,28 +471,7 @@ export default function HomeScreen() {
     }
   };
 
-  const rows: { label: string; value: string; note?: string }[] = [
-    {
-      label: 'Döngü günü',
-      value: dashboard.cycleDay === null ? 'Henüz başlamadı' : `${dashboard.cycleDay}. gün`,
-    },
-    {
-      label: 'Döngü evresi',
-      value: getCyclePhaseLabel(dashboard.phase),
-    },
-    {
-      label: 'Doğurganlık tahmini',
-      value: getFertilityLevelLabel(dashboard.fertilityLevel),
-      note: FERTILITY_DISCLAIMER,
-    },
-    {
-      label: 'Sonraki regl tahmini',
-      value:
-        dashboard.nextPeriodStart === null
-          ? 'Henüz hesaplanamıyor'
-          : formatDisplayDate(dashboard.nextPeriodStart),
-    },
-  ];
+  const rows = summaryRows(dashboard);
 
   return (
     <ThemedView style={styles.screen}>
@@ -556,25 +532,7 @@ export default function HomeScreen() {
 
             {isPregnancyView ? null : (
               <>
-            <View style={styles.summary}>
-              {rows.map((row) => (
-                <View
-                  key={row.label}
-                  accessible
-                  accessibilityLabel={`${row.label}: ${row.value}`}
-                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {row.label}
-                  </ThemedText>
-                  <ThemedText style={styles.rowValue}>{row.value}</ThemedText>
-                  {row.note !== undefined && (
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                      {row.note}
-                    </ThemedText>
-                  )}
-                </View>
-              ))}
-            </View>
+            <CycleSummary rows={rows} />
 
             {/* Today, above the general content and below the four facts
                 about it. Recording is a thing to do; everything under it is
@@ -691,23 +649,6 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 30,
     lineHeight: 38,
-  },
-  summary: {
-    gap: Spacing.two,
-  },
-  row: {
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
-  },
-  rowValue: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
-  },
-  rowNote: {
-    marginTop: Spacing.one,
   },
   weekBar: {
     flexDirection: 'row',
