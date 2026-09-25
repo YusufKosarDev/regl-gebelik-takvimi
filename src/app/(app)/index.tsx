@@ -23,6 +23,7 @@ import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
 import { HomeLinks } from '@/features/cycle/components/home-links';
+import { PeriodActionCard } from '@/features/cycle/components/period-action-card';
 import { DailySupportSection } from '@/features/cycle/components/daily-support-section';
 import {
   getCyclePhaseLabel,
@@ -54,10 +55,8 @@ import { PregnancySection } from '@/features/pregnancy/components/pregnancy-sect
 import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
 import {
   EMPTY_MESSAGE,
-  END_SAVE_ERROR_MESSAGE,
   FERTILITY_DISCLAIMER,
   LOAD_ERROR_MESSAGE,
-  SAVE_ERROR_MESSAGE,
 } from '@/features/cycle/presentation/home-messages';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -603,80 +602,17 @@ export default function HomeScreen() {
               />
             )}
 
-            {periodAction === 'none' ? null : isConfirming ? (
-              <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {isEnding
-                    ? 'Bugünü regl bitişi olarak kaydetmek istiyor musun?'
-                    : 'Bugünü regl başlangıcı olarak kaydetmek istiyor musun?'}
-                </ThemedText>
-
-                <ThemedText style={styles.rowValue}>
-                  {formatDisplayDate(dashboard.today)}
-                </ThemedText>
-
-                {hasSaveError && (
-                  <ThemedText
-                    accessibilityRole="alert"
-                    type="small"
-                    themeColor="textSecondary"
-                    style={styles.rowNote}>
-                    {isEnding ? END_SAVE_ERROR_MESSAGE : SAVE_ERROR_MESSAGE}
-                  </ThemedText>
-                )}
-
-                <View style={styles.confirmActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Vazgeç"
-                    accessibilityState={{ disabled: isSaving }}
-                    disabled={isSaving}
-                    onPress={() => {
-                      setIsConfirming(false);
-                      setHasSaveError(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      isSaving && styles.disabled,
-                      pressed && !isSaving && styles.pressed,
-                    ]}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Vazgeç
-                    </ThemedText>
-                  </Pressable>
-
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Kaydet"
-                    accessibilityState={{ disabled: isSaving }}
-                    disabled={isSaving}
-                    onPress={handleSavePeriod}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      { backgroundColor: theme.primary },
-                      isSaving && styles.disabled,
-                      pressed && !isSaving && styles.pressed,
-                    ]}>
-                    <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                      {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={isEnding ? 'Regl bitişini kaydet' : 'Regl başlangıcını kaydet'}
-                onPress={() => setIsConfirming(true)}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  { backgroundColor: theme.primary },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                  {isEnding ? 'Regl bitti' : 'Regl başladı'}
-                </ThemedText>
-              </Pressable>
+            {periodAction === 'none' ? null : (
+              <PeriodActionCard
+                today={dashboard.today}
+                isEnding={isEnding}
+                isConfirming={isConfirming}
+                setIsConfirming={setIsConfirming}
+                isSaving={isSaving}
+                hasSaveError={hasSaveError}
+                setHasSaveError={setHasSaveError}
+                handleSavePeriod={handleSavePeriod}
+              />
             )}
 
             <CycleCalendarSection
@@ -811,26 +747,6 @@ const styles = StyleSheet.create({
   },
   pregnancySection: {
     gap: Spacing.two,
-  },
-  confirmActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  primaryButton: {
-    minHeight: 48,
-    borderRadius: Spacing.three,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  secondaryButton: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
   },
   disabled: {
     opacity: 0.5,
