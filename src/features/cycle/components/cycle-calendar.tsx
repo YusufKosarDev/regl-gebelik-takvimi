@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CalendarGridCell, CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
+import { CALENDAR_TODAY_LABEL } from '../presentation/home-messages';
 import { getCalendarDayAccessibilityLabel } from '../presentation/cycle-labels';
 
 import { ThemedText } from '@/components/themed-text';
@@ -12,8 +13,6 @@ import { getDayOfMonth } from '@/utils/date';
 
 /** 100 / 7, wide enough that seven columns still fit on one row. */
 const COLUMN_WIDTH = '14.2857%';
-
-const TODAY_LABEL = 'Bugün';
 
 type CycleCalendarProps = {
   readonly grid: CycleCalendarGrid;
@@ -188,7 +187,7 @@ function DayCell({
 
       {isToday && (
         <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
-          {TODAY_LABEL}
+          {CALENDAR_TODAY_LABEL}
         </ThemedText>
       )}
     </View>

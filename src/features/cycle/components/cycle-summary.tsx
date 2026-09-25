@@ -1,5 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
+import { labelledValue } from '../presentation/home-messages';
+
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -28,7 +30,7 @@ export function CycleSummary({
         <View
           key={row.label}
           accessible
-          accessibilityLabel={`${row.label}: ${row.value}`}
+          accessibilityLabel={labelledValue(row.label, row.value)}
           style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText type="small" themeColor="textSecondary">
             {row.label}

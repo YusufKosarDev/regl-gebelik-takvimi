@@ -1,6 +1,17 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
+import {
+  AVATAR_CREATE_LABEL,
+  AVATAR_EDIT_LABEL,
+  AVATAR_LINK_TEXT,
+  HISTORY_LINK_LABEL,
+  HISTORY_LINK_TEXT,
+  PREGNANCY_START_LINK_LABEL,
+  SETTINGS_LINK_LABEL,
+  SETTINGS_LINK_TEXT,
+} from '../presentation/home-messages';
+
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
@@ -31,11 +42,11 @@ export function HomeLinks({
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Geçmiş regl kayıtlarını görüntüle"
+        accessibilityLabel={HISTORY_LINK_LABEL}
         onPress={() => router.push('/(app)/history')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
         <ThemedText type="small" themeColor="textSecondary">
-          Geçmiş kayıtlar
+          {HISTORY_LINK_TEXT}
         </ThemedText>
       </Pressable>
 
@@ -43,7 +54,7 @@ export function HomeLinks({
           says which of the two errands the link is on. */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={avatar === null ? 'Avatar oluştur' : 'Avatarı düzenle'}
+        accessibilityLabel={avatar === null ? AVATAR_CREATE_LABEL : AVATAR_EDIT_LABEL}
         onPress={() => router.push('/(app)/avatar')}
         style={({ pressed }) => [styles.avatarLink, pressed && styles.pressed]}>
         {avatar !== null && (
@@ -51,17 +62,17 @@ export function HomeLinks({
         )}
 
         <ThemedText type="small" themeColor="textSecondary">
-          {avatar === null ? 'Avatarım' : 'Avatarı düzenle'}
+          {avatar === null ? AVATAR_LINK_TEXT : AVATAR_EDIT_LABEL}
         </ThemedText>
       </Pressable>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Döngü ayarlarını düzenle"
+        accessibilityLabel={SETTINGS_LINK_LABEL}
         onPress={() => router.push('/(app)/settings')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
         <ThemedText type="small" themeColor="textSecondary">
-          Ayarlar
+          {SETTINGS_LINK_TEXT}
         </ThemedText>
       </Pressable>
 
@@ -70,14 +81,14 @@ export function HomeLinks({
       {pregnancy === null && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Gebelik takibini başlat"
+          accessibilityLabel={PREGNANCY_START_LINK_LABEL}
           onPress={() => router.push('/(app)/pregnancy-start')}
           style={({ pressed }) => [
             styles.secondaryButton,
             pressed && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            Gebelik takibini başlat
+            {PREGNANCY_START_LINK_LABEL}
           </ThemedText>
         </Pressable>
       )}

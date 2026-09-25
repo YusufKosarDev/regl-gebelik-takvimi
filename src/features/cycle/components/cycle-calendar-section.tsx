@@ -3,7 +3,17 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
-import { selectedDayRows } from '../presentation/home-messages';
+import {
+  CALENDAR_NEXT_MONTH_LABEL,
+  CALENDAR_PREVIOUS_MONTH_LABEL,
+  CALENDAR_SECTION_TITLE,
+  PREDICTED_PERIOD_START_NOTE,
+  SELECTED_DAY_EMPTY_MESSAGE,
+  SELECTED_DAY_TITLE,
+  labelledValue,
+  calendarMonthLabel,
+  selectedDayRows,
+} from '../presentation/home-messages';
 import { CycleCalendar } from './cycle-calendar';
 import { CycleCalendarLegend } from './cycle-calendar-legend';
 
@@ -62,13 +72,13 @@ export function CycleCalendarSection({
         accessibilityRole="header"
         type="small"
         themeColor="textSecondary">
-        Takvim
+        {CALENDAR_SECTION_TITLE}
       </ThemedText>
 
       <View style={styles.monthBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Önceki ay"
+          accessibilityLabel={CALENDAR_PREVIOUS_MONTH_LABEL}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => setMonthOffset((current) => current - 1)}
@@ -81,14 +91,14 @@ export function CycleCalendarSection({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={`${monthHeading} takvimi`}
+          accessibilityLabel={calendarMonthLabel(monthHeading)}
           style={styles.monthHeading}>
           {monthHeading}
         </ThemedText>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Sonraki ay"
+          accessibilityLabel={CALENDAR_NEXT_MONTH_LABEL}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => setMonthOffset((current) => current + 1)}
@@ -110,11 +120,11 @@ export function CycleCalendarSection({
 
       <View style={styles.selectedSection}>
         <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-          Seçilen gün
+          {SELECTED_DAY_TITLE}
         </ThemedText>
 
         {selectedDay === null ? (
-          <ThemedText themeColor="textSecondary">Bir gün seç.</ThemedText>
+          <ThemedText themeColor="textSecondary">{SELECTED_DAY_EMPTY_MESSAGE}</ThemedText>
         ) : (
           <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
@@ -125,13 +135,13 @@ export function CycleCalendarSection({
                 needs no separate accessibility label. */}
             {selectedDayRows(selectedDay).map((row) => (
               <ThemedText key={row.label} type="small">
-                {row.label}: {row.value}
+                {labelledValue(row.label, row.value)}
               </ThemedText>
             ))}
 
             {selectedDay.isPredictedPeriodStart && (
               <ThemedText type="small" themeColor="textSecondary">
-                Sonraki regl başlangıcı tahmini
+                {PREDICTED_PERIOD_START_NOTE}
               </ThemedText>
             )}
 

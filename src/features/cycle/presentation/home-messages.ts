@@ -74,3 +74,116 @@ export function summaryRows(
     },
   ];
 }
+
+/* --------------------------------------------------- the mode switch -- */
+
+export const CYCLE_TAB_LABEL = 'Döngü';
+export const PREGNANCY_TAB_LABEL = 'Gebelik';
+
+/* ------------------------------------------------ the support section -- */
+
+export const SUPPORT_MOOD_TITLE = 'Olası ruh hali';
+export const SUPPORT_MESSAGE_TITLE = 'Bugünün mesajı';
+export const SUPPORT_SOURCES_TITLE = 'Kaynaklar';
+
+/** A source, as something to open. */
+export function openSourceLabel(name: string): string {
+  return `${name} kaynağını aç`;
+}
+
+/* ---------------------------------------------------- the period card -- */
+
+export const PERIOD_END_QUESTION = 'Bugünü regl bitişi olarak kaydetmek istiyor musun?';
+export const PERIOD_START_QUESTION = 'Bugünü regl başlangıcı olarak kaydetmek istiyor musun?';
+
+export const PERIOD_CANCEL_LABEL = 'Vazgeç';
+export const PERIOD_SAVE_LABEL = 'Kaydet';
+export const PERIOD_SAVING_LABEL = 'Kaydediliyor...';
+
+export const PERIOD_END_BUTTON_LABEL = 'Regl bitişini kaydet';
+export const PERIOD_START_BUTTON_LABEL = 'Regl başlangıcını kaydet';
+export const PERIOD_END_BUTTON_TEXT = 'Regl bitti';
+export const PERIOD_START_BUTTON_TEXT = 'Regl başladı';
+
+/* ------------------------------------------------------- the calendar -- */
+
+export const CALENDAR_SECTION_TITLE = 'Takvim';
+export const CALENDAR_PREVIOUS_MONTH_LABEL = 'Önceki ay';
+export const CALENDAR_NEXT_MONTH_LABEL = 'Sonraki ay';
+export const CALENDAR_TODAY_LABEL = 'Bugün';
+
+export const SELECTED_DAY_TITLE = 'Seçilen gün';
+export const SELECTED_DAY_EMPTY_MESSAGE = 'Bir gün seç.';
+export const PREDICTED_PERIOD_START_NOTE = 'Sonraki regl başlangıcı tahmini';
+
+/** The month on screen, as something to read aloud. */
+export function calendarMonthLabel(monthHeading: string): string {
+  return `${monthHeading} takvimi`;
+}
+
+/* ------------------------------------------------------ the four links -- */
+
+export const HISTORY_LINK_LABEL = 'Geçmiş regl kayıtlarını görüntüle';
+export const HISTORY_LINK_TEXT = 'Geçmiş kayıtlar';
+
+export const AVATAR_CREATE_LABEL = 'Avatar oluştur';
+export const AVATAR_EDIT_LABEL = 'Avatarı düzenle';
+export const AVATAR_LINK_TEXT = 'Avatarım';
+
+export const SETTINGS_LINK_LABEL = 'Döngü ayarlarını düzenle';
+export const SETTINGS_LINK_TEXT = 'Ayarlar';
+
+export const PREGNANCY_START_LINK_LABEL = 'Gebelik takibini başlat';
+
+/* ---------------------------------------------------- the legend -- */
+
+export const CALENDAR_ESTIMATE_NOTICE =
+  'Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.';
+
+/**
+ * `style` names the treatment the calendar gives the same day, so the swatch
+ * beside it can look like the square it explains. `spokenMarker` exists because
+ * "○" read aloud is either nothing or noise.
+ */
+export type LegendItem = {
+  readonly marker: string;
+  readonly spokenMarker: string;
+  readonly label: string;
+  readonly style: 'filled' | 'outlined' | 'soft' | 'plain';
+};
+
+/**
+ * Only the marks a person can actually find on the calendar.
+ *
+ * The peak mark is left out on purpose. The peak day is by definition the
+ * estimated ovulation day, and the calendar gives that day one treatment, so a
+ * filled circle never appears in a month. Explaining a symbol that is not there
+ * would send people looking for it.
+ */
+export const LEGEND_ITEMS: readonly LegendItem[] = [
+  { marker: 'R', spokenMarker: 'R', label: 'Regl günü', style: 'filled' },
+  { marker: 'Y', spokenMarker: 'Y', label: 'Tahmini yumurtlama günü', style: 'outlined' },
+  {
+    marker: '○',
+    spokenMarker: 'Daire',
+    label: 'Doğurganlığın yüksek olduğu tahmini gün',
+    style: 'soft',
+  },
+  {
+    marker: '≈',
+    spokenMarker: 'Yaklaşık işareti',
+    label: 'Sonraki regl başlangıcı tahmini',
+    style: 'plain',
+  },
+];
+
+/** One legend row, read as one thing. */
+export function legendItemLabel(item: LegendItem): string {
+  return `${item.spokenMarker}: ${item.label}`;
+}
+
+/** A label and its value, as one line. Printed under the calendar, spoken in
+ * the summary - the same words either way, so they are written once. */
+export function labelledValue(label: string, value: string): string {
+  return `${label}: ${value}`;
+}

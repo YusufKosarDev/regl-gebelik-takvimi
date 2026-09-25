@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CYCLE_TAB_LABEL, PREGNANCY_TAB_LABEL } from '../presentation/home-messages';
+
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
@@ -32,7 +34,7 @@ export function HomeModeSwitch({
     <View accessibilityRole="tablist" style={styles.modeSwitch}>
       <Pressable
         accessibilityRole="tab"
-        accessibilityLabel="Döngü"
+        accessibilityLabel={CYCLE_TAB_LABEL}
         accessibilityState={{ selected: !isPregnancyView }}
         onPress={() => chooseMode('cycle')}
         style={({ pressed }) => [
@@ -43,13 +45,13 @@ export function HomeModeSwitch({
         <ThemedText
           type={isPregnancyView ? 'small' : 'smallBold'}
           themeColor={isPregnancyView ? 'text' : 'onPrimary'}>
-          Döngü
+          {CYCLE_TAB_LABEL}
         </ThemedText>
       </Pressable>
 
       <Pressable
         accessibilityRole="tab"
-        accessibilityLabel="Gebelik"
+        accessibilityLabel={PREGNANCY_TAB_LABEL}
         accessibilityState={{ selected: isPregnancyView, disabled: pregnancy === null }}
         disabled={pregnancy === null}
         onPress={() => chooseMode('pregnancy')}
@@ -62,7 +64,7 @@ export function HomeModeSwitch({
         <ThemedText
           type={isPregnancyView ? 'smallBold' : 'small'}
           themeColor={isPregnancyView ? 'onPrimary' : 'text'}>
-          Gebelik
+          {PREGNANCY_TAB_LABEL}
         </ThemedText>
       </Pressable>
     </View>

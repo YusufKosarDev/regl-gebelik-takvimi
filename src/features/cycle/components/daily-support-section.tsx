@@ -1,7 +1,14 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleDailySupport } from '../domain/daily-support';
-import { SOURCE_ERROR_MESSAGE, SUPPORT_DISCLAIMER } from '../presentation/home-messages';
+import {
+  SOURCE_ERROR_MESSAGE,
+  SUPPORT_DISCLAIMER,
+  SUPPORT_MESSAGE_TITLE,
+  SUPPORT_MOOD_TITLE,
+  SUPPORT_SOURCES_TITLE,
+  openSourceLabel,
+} from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -39,7 +46,7 @@ export function DailySupportSection({
       {dailySupport.moodLabels !== undefined && (
         <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-            Olası ruh hali
+            {SUPPORT_MOOD_TITLE}
           </ThemedText>
 
           {dailySupport.moodLabels.map((mood) => (
@@ -52,7 +59,7 @@ export function DailySupportSection({
 
       <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-          Bugünün mesajı
+          {SUPPORT_MESSAGE_TITLE}
         </ThemedText>
 
         <ThemedText style={styles.weeklySummary}>
@@ -70,7 +77,7 @@ export function DailySupportSection({
       {dailySupport.sources.length > 0 && (
         <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-            Kaynaklar
+            {SUPPORT_SOURCES_TITLE}
           </ThemedText>
 
           {hasSourceError && (
@@ -87,7 +94,7 @@ export function DailySupportSection({
             <Pressable
               key={source.url}
               accessibilityRole="link"
-              accessibilityLabel={`${source.name} kaynağını aç`}
+              accessibilityLabel={openSourceLabel(source.name)}
               onPress={() => openSource(source.url)}
               style={({ pressed }) => [styles.sourceLink, pressed && styles.pressed]}>
               <ThemedText type="small">{source.name}</ThemedText>

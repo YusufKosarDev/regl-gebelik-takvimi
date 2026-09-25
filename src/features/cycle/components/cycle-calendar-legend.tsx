@@ -1,47 +1,14 @@
 import { StyleSheet, View } from 'react-native';
 
+import {
+  CALENDAR_ESTIMATE_NOTICE,
+  LEGEND_ITEMS,
+  legendItemLabel,
+} from '../presentation/home-messages';
+
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-
-const ESTIMATE_NOTICE = 'Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.';
-
-/**
- * `style` names the treatment the calendar gives the same day, so the swatch
- * here looks like the square it explains. `spokenMarker` exists because "○" read
- * aloud is either nothing or noise.
- */
-type LegendItem = {
-  readonly marker: string;
-  readonly spokenMarker: string;
-  readonly label: string;
-  readonly style: 'filled' | 'outlined' | 'soft' | 'plain';
-};
-
-/**
- * Only the marks a person can actually find on the calendar.
- *
- * The peak mark is left out on purpose. The peak day is by definition the
- * estimated ovulation day, and the calendar gives that day one treatment, so a
- * filled circle never appears in a month. Explaining a symbol that is not there
- * would send people looking for it.
- */
-const LEGEND_ITEMS: readonly LegendItem[] = [
-  { marker: 'R', spokenMarker: 'R', label: 'Regl günü', style: 'filled' },
-  { marker: 'Y', spokenMarker: 'Y', label: 'Tahmini yumurtlama günü', style: 'outlined' },
-  {
-    marker: '○',
-    spokenMarker: 'Daire',
-    label: 'Doğurganlığın yüksek olduğu tahmini gün',
-    style: 'soft',
-  },
-  {
-    marker: '≈',
-    spokenMarker: 'Yaklaşık işareti',
-    label: 'Sonraki regl başlangıcı tahmini',
-    style: 'plain',
-  },
-];
 
 /** Explains the calendar's marks. Reads nothing and computes nothing. */
 export function CycleCalendarLegend() {
@@ -53,7 +20,7 @@ export function CycleCalendarLegend() {
         <View
           key={item.marker}
           accessible
-          accessibilityLabel={`${item.spokenMarker}: ${item.label}`}
+          accessibilityLabel={legendItemLabel(item)}
           style={styles.item}>
           <View
             style={[
@@ -74,7 +41,7 @@ export function CycleCalendarLegend() {
       ))}
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.notice}>
-        {ESTIMATE_NOTICE}
+        {CALENDAR_ESTIMATE_NOTICE}
       </ThemedText>
     </View>
   );
