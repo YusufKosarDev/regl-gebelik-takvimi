@@ -1079,7 +1079,9 @@ describe('AccountScreen cloud backup, signed in', () => {
   it('says what a backup carries and that nothing else is sent', async () => {
     const screen = await renderSignedIn();
 
-    expect(screen.getByText(/regl kayıtların, gebelik bilgin, avatarın/)).toBeTruthy();
+    expect(
+      screen.getByText(/regl kayıtların, gebelik bilgin, günlük kayıtların, avatarın/)
+    ).toBeTruthy();
     // Two buttons send now rather than one, and the sentence says so. The
     // promise it keeps is the same: nothing leaves without a press.
     expect(screen.getByText(/sen bir düğmeye basmadan hiçbir gönderim olmaz/)).toBeTruthy();

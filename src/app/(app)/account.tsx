@@ -831,8 +831,9 @@ export default function AccountScreen() {
 
                   <ThemedText type="small" themeColor="textSecondary">
                     Yedek oluşturduğunda ya da senkronize ettiğinde regl kayıtların, gebelik
-                    bilgin, avatarın ve hatırlatıcı tercihlerin hesabına kopyalanır. Başka
-                    hiçbir şey gönderilmez ve sen bir düğmeye basmadan hiçbir gönderim olmaz.
+                    bilgin, günlük kayıtların, avatarın ve hatırlatıcı tercihlerin hesabına
+                    kopyalanır. Başka hiçbir şey gönderilmez ve sen bir düğmeye basmadan
+                    hiçbir gönderim olmaz.
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
