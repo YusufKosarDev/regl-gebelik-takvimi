@@ -102,3 +102,16 @@ export const PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION =
 export const PREGNANCY_WEEKLY_REMINDER_TITLE = 'Gebelik takibi';
 export const PREGNANCY_WEEKLY_REMINDER_BODY =
   'Bu haftaki gebelik gelişim bilgilerine göz atabilirsin.';
+
+/* -------------------------------------------- the rows in settings -- */
+
+/**
+ * What each reminder is called where it is switched on and off.
+ *
+ * "Regl hatırlatıcısı" is also what the notification itself is titled, above.
+ * They are two strings that happen to match: one names a row in settings, the
+ * other is the heading on a notification, and a change to one is not a change
+ * to the other.
+ */
+export const PERIOD_REMINDER_TOGGLE_LABEL = 'Regl hatırlatıcısı';
+export const PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL = 'Haftalık gebelik hatırlatıcısı';

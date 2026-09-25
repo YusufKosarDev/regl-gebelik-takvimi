@@ -23,6 +23,28 @@ import {
   MIN_PERIOD_LENGTH_DAYS,
 } from '@/features/cycle/domain/limits';
 import type { CycleSettings } from '@/features/cycle/domain/types';
+import {
+  ACCOUNT_OPEN_LABEL,
+  ACCOUNT_SECTION_DESCRIPTION,
+  ACCOUNT_SECTION_TITLE,
+  CYCLE_LENGTH_DECREASE_LABEL,
+  CYCLE_LENGTH_FIELD_LABEL,
+  CYCLE_LENGTH_FIELD_NOTE,
+  CYCLE_LENGTH_INCREASE_LABEL,
+  DAYS_UNIT,
+  NOTIFICATIONS_SECTION_TITLE,
+  PERIOD_LENGTH_DECREASE_LABEL,
+  PERIOD_LENGTH_FIELD_LABEL,
+  PERIOD_LENGTH_FIELD_NOTE,
+  PERIOD_LENGTH_INCREASE_LABEL,
+  SETTINGS_DESCRIPTION,
+  SETTINGS_EMPTY_MESSAGE,
+  SETTINGS_LOAD_FAILED_MESSAGE,
+  SETTINGS_SAVE_FAILED_MESSAGE,
+  SETTINGS_SAVE_LABEL,
+  SETTINGS_TITLE,
+  lengthValueLabel,
+} from '@/features/cycle/presentation/settings-messages';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { loadNotificationPreferences } from '@/features/notifications/data/notification-preferences-repository';
@@ -36,7 +58,9 @@ import {
   NOTIFICATIONS_BLOCKED_NOTICE,
   OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
   OPEN_SYSTEM_SETTINGS_LABEL,
+  PERIOD_REMINDER_TOGGLE_LABEL,
   PERMISSION_REFUSED_MESSAGE,
+  PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL,
   REMINDERS_INTRO,
   REMINDER_SAVE_FAILED_MESSAGE,
 } from '@/features/notifications/presentation/reminder-messages';
@@ -60,14 +84,16 @@ import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
+import {
+  BACK_LABEL,
+  LOADING_MESSAGE,
+  SAVE_LABEL,
+  SAVING_LABEL,
+} from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
 import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
-
-const LOAD_ERROR_MESSAGE = 'Ayarlar yüklenemedi.';
-const SAVE_ERROR_MESSAGE = 'Ayarlar kaydedilemedi.';
-const EMPTY_MESSAGE = 'Döngü bilgisi bulunamadı.';
 
 /**
  * The longest period length that makes sense alongside a given cycle length.
@@ -427,11 +453,11 @@ export default function SettingsScreen() {
   const backButton = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Geri"
+      accessibilityLabel={BACK_LABEL}
       onPress={() => router.back()}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
       <ThemedText type="small" themeColor="textSecondary">
-        Geri
+        {BACK_LABEL}
       </ThemedText>
     </Pressable>
   );
@@ -442,7 +468,7 @@ export default function SettingsScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="cycle-settings-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            Veriler yükleniyor
+            {LOADING_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -460,43 +486,43 @@ export default function SettingsScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                Döngü ayarları
+                {SETTINGS_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Döngü ve regl süresi tahminlerini buradan güncelleyebilirsin.
+                {SETTINGS_DESCRIPTION}
               </ThemedText>
             </View>
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {LOAD_ERROR_MESSAGE}
+                {SETTINGS_LOAD_FAILED_MESSAGE}
               </ThemedText>
             ) : settings === null ? (
-              <ThemedText themeColor="textSecondary">{EMPTY_MESSAGE}</ThemedText>
+              <ThemedText themeColor="textSecondary">{SETTINGS_EMPTY_MESSAGE}</ThemedText>
             ) : (
               <View style={styles.fields}>
                 <LengthStepper
-                  label="Ortalama döngü süresi"
-                  note="Bir regl döneminin ilk gününden, sonraki regl döneminin ilk gününe kadar geçen süre."
+                  label={CYCLE_LENGTH_FIELD_LABEL}
+                  note={CYCLE_LENGTH_FIELD_NOTE}
                   value={cycleLength}
                   min={MIN_CYCLE_LENGTH_DAYS}
                   max={MAX_CYCLE_LENGTH_DAYS}
-                  decreaseLabel="Ortalama döngü süresini azalt"
-                  increaseLabel="Ortalama döngü süresini artır"
+                  decreaseLabel={CYCLE_LENGTH_DECREASE_LABEL}
+                  increaseLabel={CYCLE_LENGTH_INCREASE_LABEL}
                   onChange={changeCycleLength}
                   disabled={isSaving}
                   theme={theme}
                 />
 
                 <LengthStepper
-                  label="Ortalama regl süresi"
-                  note="Kanamanın başladığı ilk günden tamamen bittiği güne kadar geçen ortalama süre."
+                  label={PERIOD_LENGTH_FIELD_LABEL}
+                  note={PERIOD_LENGTH_FIELD_NOTE}
                   value={periodLength}
                   min={MIN_PERIOD_LENGTH_DAYS}
                   max={maxPeriodLength}
-                  decreaseLabel="Ortalama regl süresini azalt"
-                  increaseLabel="Ortalama regl süresini artır"
+                  decreaseLabel={PERIOD_LENGTH_DECREASE_LABEL}
+                  increaseLabel={PERIOD_LENGTH_INCREASE_LABEL}
                   onChange={changePeriodLength}
                   disabled={isSaving}
                   theme={theme}
@@ -512,13 +538,13 @@ export default function SettingsScreen() {
 
                 {hasSaveError && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {SAVE_ERROR_MESSAGE}
+                    {SETTINGS_SAVE_FAILED_MESSAGE}
                   </ThemedText>
                 )}
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Döngü ayarlarını kaydet"
+                  accessibilityLabel={SETTINGS_SAVE_LABEL}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={handleSave}
@@ -529,7 +555,7 @@ export default function SettingsScreen() {
                     pressed && !isSaving && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                    {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                    {isSaving ? SAVING_LABEL : SAVE_LABEL}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -540,7 +566,7 @@ export default function SettingsScreen() {
             {hasError ? null : (
               <View style={styles.fields}>
                 <ThemedText accessibilityRole="header" type="smallBold">
-                  Bildirimler
+                  {NOTIFICATIONS_SECTION_TITLE}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
@@ -582,7 +608,7 @@ export default function SettingsScreen() {
                 )}
 
                 <ReminderToggle
-                  label="Regl hatırlatıcısı"
+                  label={PERIOD_REMINDER_TOGGLE_LABEL}
                   value={reminders.periodReminderEnabled}
                   busy={reminderField === 'periodReminderEnabled'}
                   disabled={reminderField !== null}
@@ -591,7 +617,7 @@ export default function SettingsScreen() {
                 />
 
                 <ReminderToggle
-                  label="Haftalık gebelik hatırlatıcısı"
+                  label={PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL}
                   value={reminders.pregnancyWeeklyReminderEnabled}
                   busy={reminderField === 'pregnancyWeeklyReminderEnabled'}
                   disabled={reminderField !== null}
@@ -611,23 +637,23 @@ export default function SettingsScreen() {
                 yet, and the rest of the app works the same without one. */}
             <View style={styles.fields}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                Hesap
+                {ACCOUNT_SECTION_TITLE}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
-                Hesap açmak isteğe bağlı. Verilerin telefonunda kalır.
+                {ACCOUNT_SECTION_DESCRIPTION}
               </ThemedText>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Hesabı aç"
+                accessibilityLabel={ACCOUNT_OPEN_LABEL}
                 onPress={() => router.push('/(app)/account')}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">Hesabı aç</ThemedText>
+                <ThemedText type="smallBold">{ACCOUNT_OPEN_LABEL}</ThemedText>
               </Pressable>
             </View>
 
@@ -848,12 +874,12 @@ function LengthStepper({
 
         <View
           accessible
-          accessibilityLabel={`${label}: ${value} gün`}
+          accessibilityLabel={lengthValueLabel(label, value)}
           accessibilityValue={{ min, max, now: value }}
           style={styles.valueBlock}>
           <ThemedText style={styles.value}>{value}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            gün
+            {DAYS_UNIT}
           </ThemedText>
         </View>
 
