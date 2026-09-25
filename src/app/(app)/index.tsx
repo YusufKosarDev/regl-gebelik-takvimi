@@ -425,6 +425,14 @@ export default function HomeScreen() {
   // what clears a stale selection on a month change, with no reset to forget.
   const selectedDay = findDay(pickedDate) ?? findDay(dashboard.today);
 
+  // What is recorded on the day the card is actually showing.
+  //
+  // Before anything is tapped that day is today, and today has already been
+  // read for the card above - so it is reused rather than read again. Reading
+  // only the tapped day left the card offering to add an entry to a day that
+  // already had one, until somebody tapped it.
+  const selectedEntry = pickedDate === null ? todayEntry : pickedEntry;
+
   const periodAction = resolvePeriodAction(profile);
   const isEnding = periodAction === 'end';
 
@@ -548,7 +556,7 @@ export default function HomeScreen() {
                 calendarGrid={calendarGrid}
                 selectedDay={selectedDay}
                 setPickedDate={setPickedDate}
-                pickedEntry={pickedEntry}
+                pickedEntry={selectedEntry}
               />
               </>
             )}

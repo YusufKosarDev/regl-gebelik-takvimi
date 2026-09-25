@@ -1223,6 +1223,53 @@ describe('HomeScreen selection leaves the rest alone', () => {
   });
 });
 
+describe('HomeScreen selected day entry link', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  // The card shows today until a square is tapped, so the link under it has to
+  // describe today. It used to offer to add an entry to a day that already had
+  // one, because only a tapped day was ever read.
+  it('offers to edit today when today already has an entry, before anything is tapped', async () => {
+    dailyLogRepository.loadDailyEntry.mockImplementation(async (_db: unknown, date: string) => ({
+      date,
+      flowId: 'heavy',
+      moodId: null,
+      symptomIds: [],
+    }));
+
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Bu günü düzenle')).toBeTruthy();
+  });
+
+  it('offers to add to today when today has nothing recorded', async () => {
+    const { getByLabelText } = await renderScreen();
+
+    expect(getByLabelText('Bu güne ekle')).toBeTruthy();
+  });
+
+  // Tapping a different day must still swap the link over to that day, which is
+  // what it did before and the reason the tapped day is read at all.
+  it('follows the tapped day away from today', async () => {
+    dailyLogRepository.loadDailyEntry.mockImplementation(async (_db: unknown, date: string) => ({
+      date,
+      flowId: date === '2026-09-17' ? 'heavy' : null,
+      moodId: null,
+      symptomIds: [],
+    }));
+
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Bu günü düzenle')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-03'));
+
+    expect(screen.getByLabelText('Bu güne ekle')).toBeTruthy();
+  });
+});
+
 describe('HomeScreen selected day absence', () => {
   it('shows no selected card while loading', async () => {
     db.openAppDatabase.mockReturnValue(new Promise(() => {}));
