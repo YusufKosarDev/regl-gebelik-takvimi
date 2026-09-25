@@ -12,11 +12,22 @@ import { useTheme } from '@/hooks/use-theme';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
+import {
+  PREGNANCY_START_DESCRIPTION,
+  PREGNANCY_START_FAILED_MESSAGE,
+  PREGNANCY_START_LMP_LABEL,
+  PREGNANCY_START_NEXT_DAY_LABEL,
+  PREGNANCY_START_PREVIOUS_DAY_LABEL,
+  PREGNANCY_START_STARTING_LABEL,
+  PREGNANCY_START_SUBMIT_LABEL,
+  PREGNANCY_START_SUBMIT_TEXT,
+  PREGNANCY_START_TITLE,
+  selectedLmpLabel,
+} from '@/features/pregnancy/presentation/pregnancy-labels';
+import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
-
-const SAVE_ERROR_MESSAGE = 'Gebelik takibi başlatılamadı.';
 
 /**
  * Starts tracking a pregnancy from the last menstrual period.
@@ -96,34 +107,33 @@ export default function PregnancyStartScreen() {
             {/* The stack hides its header, so back has to be offered here. */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri"
+              accessibilityLabel={BACK_LABEL}
               onPress={() => router.back()}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Geri
+                {BACK_LABEL}
               </ThemedText>
             </Pressable>
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                Gebelik takibini başlat
+                {PREGNANCY_START_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Son regl döneminin başladığı günü seç. Gebelik haftaları ve tahmini doğum
-                tarihi bu güne göre hesaplanır.
+                {PREGNANCY_START_DESCRIPTION}
               </ThemedText>
             </View>
 
             <View style={styles.field}>
               <ThemedText type="small" themeColor="textSecondary">
-                Son regl başlangıcı
+                {PREGNANCY_START_LMP_LABEL}
               </ThemedText>
 
               <View style={styles.dateBar}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Önceki gün"
+                  accessibilityLabel={PREGNANCY_START_PREVIOUS_DAY_LABEL}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={() => changeLmp(-1)}
@@ -137,7 +147,7 @@ export default function PregnancyStartScreen() {
                 </Pressable>
 
                 <ThemedText
-                  accessibilityLabel={`Seçilen son regl başlangıcı: ${formatDisplayDate(lmp)}`}
+                  accessibilityLabel={selectedLmpLabel(formatDisplayDate(lmp))}
                   type="smallBold"
                   style={styles.selectedDate}>
                   {formatDisplayDate(lmp)}
@@ -145,7 +155,7 @@ export default function PregnancyStartScreen() {
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Sonraki gün"
+                  accessibilityLabel={PREGNANCY_START_NEXT_DAY_LABEL}
                   accessibilityState={{ disabled: !canGoForward }}
                   disabled={!canGoForward}
                   onPress={() => changeLmp(1)}
@@ -162,13 +172,13 @@ export default function PregnancyStartScreen() {
 
             {hasSaveError && (
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                {SAVE_ERROR_MESSAGE}
+                {PREGNANCY_START_FAILED_MESSAGE}
               </ThemedText>
             )}
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Gebelik takibini başlat"
+              accessibilityLabel={PREGNANCY_START_SUBMIT_LABEL}
               accessibilityState={{ disabled: isSaving }}
               disabled={isSaving}
               onPress={handleStart}
@@ -179,7 +189,7 @@ export default function PregnancyStartScreen() {
                 pressed && !isSaving && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isSaving ? 'Başlatılıyor...' : 'Takibi başlat'}
+                {isSaving ? PREGNANCY_START_STARTING_LABEL : PREGNANCY_START_SUBMIT_TEXT}
               </ThemedText>
             </Pressable>
           </View>

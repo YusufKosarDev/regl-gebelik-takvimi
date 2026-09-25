@@ -43,3 +43,34 @@ export function weeklyHighlight(content: PregnancyWeeklyContent): string {
 export function dueDateSourceLabel(source: PregnancyDueDateSource): string {
   return source === 'adjusted' ? 'Düzeltilmiş tarih' : 'Son regl tarihine göre';
 }
+
+/* ------------------------------------------------ starting to track -- */
+
+/**
+ * The screen that begins a pregnancy, in Turkish.
+ *
+ * Moved out of `app/(app)/pregnancy-start.tsx` verbatim.
+ */
+
+export const PREGNANCY_START_TITLE = 'Gebelik takibini başlat';
+
+export const PREGNANCY_START_DESCRIPTION =
+  'Son regl döneminin başladığı günü seç. Gebelik haftaları ve tahmini doğum ' +
+  'tarihi bu güne göre hesaplanır.';
+
+export const PREGNANCY_START_LMP_LABEL = 'Son regl başlangıcı';
+
+export const PREGNANCY_START_PREVIOUS_DAY_LABEL = 'Önceki gün';
+export const PREGNANCY_START_NEXT_DAY_LABEL = 'Sonraki gün';
+
+/** The button says what it does; the label says what it is for. */
+export const PREGNANCY_START_SUBMIT_LABEL = 'Gebelik takibini başlat';
+export const PREGNANCY_START_SUBMIT_TEXT = 'Takibi başlat';
+export const PREGNANCY_START_STARTING_LABEL = 'Başlatılıyor...';
+
+export const PREGNANCY_START_FAILED_MESSAGE = 'Gebelik takibi başlatılamadı.';
+
+/** The chosen day, read as what it is rather than as a bare date. */
+export function selectedLmpLabel(readableDate: string): string {
+  return `Seçilen son regl başlangıcı: ${readableDate}`;
+}

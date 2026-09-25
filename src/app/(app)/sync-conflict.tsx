@@ -21,6 +21,7 @@ import {
   CONFLICT_CANCEL_LABEL,
   CONFLICT_COLUMN_LOCAL,
   CONFLICT_COLUMN_REMOTE,
+  comparisonRowLabel,
   CONFLICT_KEEP_LOCAL_CONFIRM,
   CONFLICT_KEEP_LOCAL_DONE,
   CONFLICT_KEEP_LOCAL_LABEL,
@@ -45,6 +46,7 @@ import {
   conflictRecordCountLabel,
 } from '@/features/sync/presentation/conflict-labels';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
@@ -255,11 +257,11 @@ export default function SyncConflictScreen() {
           <View style={styles.content}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri"
+              accessibilityLabel={BACK_LABEL}
               onPress={() => router.back()}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Geri
+                {BACK_LABEL}
               </ThemedText>
             </Pressable>
 
@@ -389,7 +391,7 @@ function ComparisonRow({
 }) {
   return (
     <View
-      accessibilityLabel={label === '' ? undefined : `${label}: ${CONFLICT_COLUMN_LOCAL} ${local}, ${CONFLICT_COLUMN_REMOTE} ${remote}`}
+      accessibilityLabel={label === '' ? undefined : comparisonRowLabel(label, local, remote)}
       style={styles.comparisonRow}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.comparisonLabel}>
         {label}

@@ -18,17 +18,28 @@ import { loadAvatarConfig, saveAvatarConfig } from '@/features/avatar/data/avata
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { AvatarOption } from '@/features/avatar/domain/avatar-option';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
+import {
+  AVATAR_ACCESSORY_SECTION_TITLE,
+  AVATAR_DESCRIPTION,
+  AVATAR_HAIR_COLOR_SECTION_TITLE,
+  AVATAR_HAIR_STYLE_SECTION_TITLE,
+  AVATAR_LOAD_FAILED_MESSAGE,
+  AVATAR_OUTFIT_SECTION_TITLE,
+  AVATAR_SAVE_BUTTON_LABEL,
+  AVATAR_SAVE_FAILED_MESSAGE,
+  AVATAR_SCREEN_TITLE,
+  AVATAR_SKIN_SECTION_TITLE,
+  NO_ACCESSORY_LABEL,
+  avatarChoiceLabel,
+} from '@/features/avatar/presentation/avatar-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
+import { BACK_LABEL, LOADING_MESSAGE } from '@/shared/presentation/app-messages';
 import { logEvent } from '@/shared/logging';
-
-const LOAD_ERROR_MESSAGE = 'Avatar yüklenemedi.';
-const SAVE_ERROR_MESSAGE = 'Avatar kaydedilemedi.';
-const NO_ACCESSORY_LABEL = 'Yok';
 
 /**
  * Where a new avatar starts.
@@ -226,11 +237,11 @@ export default function AvatarScreen() {
   const backButton = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Geri"
+      accessibilityLabel={BACK_LABEL}
       onPress={() => router.back()}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
       <ThemedText type="small" themeColor="textSecondary">
-        Geri
+        {BACK_LABEL}
       </ThemedText>
     </Pressable>
   );
@@ -241,7 +252,7 @@ export default function AvatarScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="avatar-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            Veriler yükleniyor
+            {LOADING_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -259,17 +270,17 @@ export default function AvatarScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                Avatarım
+                {AVATAR_SCREEN_TITLE}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                Seçtiklerin hemen önizlemede görünür. Kaydedene kadar hiçbir şey yazılmaz.
+                {AVATAR_DESCRIPTION}
               </ThemedText>
             </View>
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {LOAD_ERROR_MESSAGE}
+                {AVATAR_LOAD_FAILED_MESSAGE}
               </ThemedText>
             ) : (
               <>
@@ -277,7 +288,7 @@ export default function AvatarScreen() {
 
                 <View style={styles.sections}>
                   <OptionSection
-                    title="Ten tonu"
+                    title={AVATAR_SKIN_SECTION_TITLE}
                     options={AVATAR_SKIN_TONES}
                     selectedId={config.skinToneId}
                     onSelect={(id) => choose({ skinToneId: id ?? config.skinToneId })}
@@ -286,7 +297,7 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title="Saç stili"
+                    title={AVATAR_HAIR_STYLE_SECTION_TITLE}
                     options={AVATAR_HAIR_STYLES}
                     selectedId={config.hairStyleId}
                     onSelect={(id) => choose({ hairStyleId: id ?? config.hairStyleId })}
@@ -295,7 +306,7 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title="Saç rengi"
+                    title={AVATAR_HAIR_COLOR_SECTION_TITLE}
                     options={AVATAR_HAIR_COLORS}
                     selectedId={config.hairColorId}
                     onSelect={(id) => choose({ hairColorId: id ?? config.hairColorId })}
@@ -304,7 +315,7 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title="Kıyafet"
+                    title={AVATAR_OUTFIT_SECTION_TITLE}
                     options={AVATAR_OUTFITS}
                     selectedId={config.outfitId}
                     onSelect={(id) => choose({ outfitId: id ?? config.outfitId })}
@@ -315,7 +326,7 @@ export default function AvatarScreen() {
                   {/* "Yok" leads rather than trails: wearing nothing is a choice
                       people make, not a way of skipping the question. */}
                   <OptionSection
-                    title="Aksesuar"
+                    title={AVATAR_ACCESSORY_SECTION_TITLE}
                     options={AVATAR_ACCESSORIES}
                     selectedId={config.accessoryId ?? null}
                     onSelect={chooseAccessory}
@@ -335,13 +346,13 @@ export default function AvatarScreen() {
 
                 {hasSaveError && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {SAVE_ERROR_MESSAGE}
+                    {AVATAR_SAVE_FAILED_MESSAGE}
                   </ThemedText>
                 )}
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Avatarı kaydet"
+                  accessibilityLabel={AVATAR_SAVE_BUTTON_LABEL}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={handleSave}
@@ -407,7 +418,7 @@ function OptionSection({
             <Pressable
               key={choice.key}
               accessibilityRole="radio"
-              accessibilityLabel={`${title}: ${choice.label}`}
+              accessibilityLabel={avatarChoiceLabel(title, choice.label)}
               accessibilityState={{ selected: isSelected, disabled }}
               disabled={disabled}
               onPress={() => onSelect(choice.id)}

@@ -129,3 +129,13 @@ export function conflictLastChangeLabel(updatedAt: string | null): string {
 
   return `${dd}.${mo}.${when.getFullYear()} ${hh}:${mm}`;
 }
+
+/**
+ * One row of the comparison, read as one thing.
+ *
+ * The row prints its label and the two values in columns, which a screen reader
+ * would otherwise announce as three unrelated fragments.
+ */
+export function comparisonRowLabel(label: string, local: string, remote: string): string {
+  return `${label}: ${CONFLICT_COLUMN_LOCAL} ${local}, ${CONFLICT_COLUMN_REMOTE} ${remote}`;
+}

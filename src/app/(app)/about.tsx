@@ -24,11 +24,13 @@ import {
   ABOUT_TRANSFER_PARAGRAPH,
   ABOUT_TRANSFER_SECTION_TITLE,
   ABOUT_SUPPORT_SECTION_TITLE,
-  ABOUT_VERSION_LABEL,
+  aboutVersionLabel,
+  aboutVersionText,
   aboutSupportLabel,
   linkOpenFailedMessage,
   mailOpenFailedMessage,
 } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
 
@@ -102,11 +104,11 @@ export default function AboutScreen() {
           <View style={styles.content}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri"
+              accessibilityLabel={BACK_LABEL}
               onPress={() => router.back()}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Geri
+                {BACK_LABEL}
               </ThemedText>
             </Pressable>
 
@@ -120,10 +122,10 @@ export default function AboutScreen() {
               <ThemedText type="smallBold">{ABOUT_APP_NAME}</ThemedText>
 
               <ThemedText
-                accessibilityLabel={`${ABOUT_VERSION_LABEL}: ${version}`}
+                accessibilityLabel={aboutVersionLabel(version)}
                 type="small"
                 themeColor="textSecondary">
-                {`${ABOUT_VERSION_LABEL} ${version}`}
+                {aboutVersionText(version)}
               </ThemedText>
             </View>
 

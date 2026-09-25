@@ -29,6 +29,7 @@ import {
   MOOD_SECTION_TITLE,
   SYMPTOMS_SECTION_TITLE,
 } from '@/features/daily-log/presentation/daily-log-messages';
+import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
@@ -188,11 +189,11 @@ export default function DailyEntryScreen() {
           <View style={styles.content}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri"
+              accessibilityLabel={BACK_LABEL}
               onPress={() => router.back()}
               style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Geri
+                {BACK_LABEL}
               </ThemedText>
             </Pressable>
 

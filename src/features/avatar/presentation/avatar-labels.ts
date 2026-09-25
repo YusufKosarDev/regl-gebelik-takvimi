@@ -22,7 +22,7 @@ import { getAvatarOption } from '../domain/avatar-option';
  * where a person only sees their avatar drawn a little plainer.
  */
 
-const NO_ACCESSORY_LABEL = 'Yok';
+export const NO_ACCESSORY_LABEL = 'Yok';
 
 function labelOf(options: readonly AvatarOption[], id: string): string | null {
   return getAvatarOption(options, id)?.label ?? null;
@@ -63,4 +63,34 @@ export function describeAvatar(config: AvatarConfig): string {
   ].filter((part): part is string => part !== null);
 
   return parts.length === 0 ? 'Avatar' : `Avatar: ${parts.join(', ')}`;
+}
+
+/* ------------------------------------------------ the avatar screen -- */
+
+/**
+ * What the avatar screen says, in Turkish.
+ *
+ * Moved out of `app/(app)/avatar.tsx` verbatim. `NO_ACCESSORY_LABEL` above was
+ * written out a second time in the screen; it is one constant now.
+ */
+
+export const AVATAR_SCREEN_TITLE = 'Avatarım';
+
+export const AVATAR_DESCRIPTION =
+  'Seçtiklerin hemen önizlemede görünür. Kaydedene kadar hiçbir şey yazılmaz.';
+
+export const AVATAR_SKIN_SECTION_TITLE = 'Ten tonu';
+export const AVATAR_HAIR_STYLE_SECTION_TITLE = 'Saç stili';
+export const AVATAR_HAIR_COLOR_SECTION_TITLE = 'Saç rengi';
+export const AVATAR_OUTFIT_SECTION_TITLE = 'Kıyafet';
+export const AVATAR_ACCESSORY_SECTION_TITLE = 'Aksesuar';
+
+export const AVATAR_SAVE_BUTTON_LABEL = 'Avatarı kaydet';
+
+export const AVATAR_LOAD_FAILED_MESSAGE = 'Avatar yüklenemedi.';
+export const AVATAR_SAVE_FAILED_MESSAGE = 'Avatar kaydedilemedi.';
+
+/** One option inside its section, so a reader knows which question it answers. */
+export function avatarChoiceLabel(section: string, label: string): string {
+  return `${section}: ${label}`;
 }

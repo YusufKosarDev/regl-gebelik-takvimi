@@ -127,3 +127,13 @@ export function mailOpenFailedMessage(email: string): string {
  */
 export const CONTENT_DISCLAIMER_FOOTER =
   'Genel bilgilendirme amaçlıdır, tıbbi tavsiye değildir.';
+
+/** The version, spoken as a label and its value. */
+export function aboutVersionLabel(version: string): string {
+  return `${ABOUT_VERSION_LABEL}: ${version}`;
+}
+
+/** The version as it is printed, which reads as a phrase rather than a field. */
+export function aboutVersionText(version: string): string {
+  return `${ABOUT_VERSION_LABEL} ${version}`;
+}
