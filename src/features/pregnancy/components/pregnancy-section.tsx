@@ -5,8 +5,25 @@ import type { PregnancyDashboard } from '../application/get-pregnancy-dashboard'
 import type { PregnancyWeeklyContent } from '../domain/types';
 import { MAX_PREGNANCY_WEEK, MIN_PREGNANCY_WEEK } from '../domain/weekly-content';
 import {
+  PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL,
+  PREGNANCY_DEVELOPMENTS_TITLE,
+  PREGNANCY_DUE_DATE_LABEL,
+  PREGNANCY_NEXT_WEEK_LABEL,
+  PREGNANCY_PREVIOUS_WEEK_LABEL,
+  PREGNANCY_SECTION_TITLE,
+  PREGNANCY_SETTINGS_LINK_LABEL,
+  PREGNANCY_SETTINGS_LINK_TEXT,
+  PREGNANCY_SOURCES_TITLE,
+  PREGNANCY_THIS_WEEK_TITLE,
+  PREGNANCY_WEEK_LABEL,
+  developmentsLabel,
   dueDateSourceLabel,
+  pregnancyDueDateRowLabel,
   pregnancyProgressLabel,
+  pregnancySourceLabel,
+  pregnancyWeekRowLabel,
+  shownWeekLabel,
+  thisWeekLabel,
   weeklyHighlight,
 } from '../presentation/pregnancy-labels';
 
@@ -56,15 +73,15 @@ export function PregnancySection({
   return (
     <View style={styles.pregnancySection}>
       <ThemedText accessibilityRole="header" type="smallBold">
-        Gebelik takibi
+        {PREGNANCY_SECTION_TITLE}
       </ThemedText>
 
       <View
         accessible
-        accessibilityLabel={`Gebelik haftası: ${pregnancyProgressLabel(pregnancy)}`}
+        accessibilityLabel={pregnancyWeekRowLabel(pregnancyProgressLabel(pregnancy))}
         style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="small" themeColor="textSecondary">
-          Gebelik haftası
+          {PREGNANCY_WEEK_LABEL}
         </ThemedText>
         <ThemedText style={styles.rowValue}>
           {pregnancyProgressLabel(pregnancy)}
@@ -73,13 +90,13 @@ export function PregnancySection({
 
       <View
         accessible
-        accessibilityLabel={
-          `Tahmini doğum tarihi: ${formatDisplayDate(pregnancy.estimatedDueDate)}, ` +
+        accessibilityLabel={pregnancyDueDateRowLabel(
+          formatDisplayDate(pregnancy.estimatedDueDate),
           dueDateSourceLabel(pregnancy.dueDateSource)
-        }
+        )}
         style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="small" themeColor="textSecondary">
-          Tahmini doğum tarihi
+          {PREGNANCY_DUE_DATE_LABEL}
         </ThemedText>
         <ThemedText style={styles.rowValue}>
           {formatDisplayDate(pregnancy.estimatedDueDate)}
@@ -96,7 +113,7 @@ export function PregnancySection({
           <View style={styles.weekBar}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Önceki hafta"
+              accessibilityLabel={PREGNANCY_PREVIOUS_WEEK_LABEL}
               accessibilityState={{ disabled: shownWeek <= MIN_PREGNANCY_WEEK }}
               disabled={shownWeek <= MIN_PREGNANCY_WEEK}
               onPress={() => stepWeek(-1)}
@@ -109,7 +126,7 @@ export function PregnancySection({
             </Pressable>
 
             <ThemedText
-              accessibilityLabel={`Gösterilen hafta: ${shownWeek}. hafta`}
+              accessibilityLabel={shownWeekLabel(shownWeek)}
               type="smallBold"
               style={styles.selectedWeek}>
               {shownWeek}. hafta
@@ -117,7 +134,7 @@ export function PregnancySection({
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Sonraki hafta"
+              accessibilityLabel={PREGNANCY_NEXT_WEEK_LABEL}
               accessibilityState={{ disabled: shownWeek >= MAX_PREGNANCY_WEEK }}
               disabled={shownWeek >= MAX_PREGNANCY_WEEK}
               onPress={() => stepWeek(1)}
@@ -135,7 +152,7 @@ export function PregnancySection({
           {shownWeek !== currentWeek && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Bugünkü haftaya dön"
+              accessibilityLabel={PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL}
               onPress={() => {
                 setPreviewWeek(null);
                 setHasSourceError(false);
@@ -145,17 +162,17 @@ export function PregnancySection({
                 pressed && styles.pressed,
               ]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Bugünkü haftaya dön
+                {PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL}
               </ThemedText>
             </Pressable>
           )}
 
           <View
             accessible
-            accessibilityLabel={`Bu hafta: ${weeklyHighlight(shownContent)}`}
+            accessibilityLabel={thisWeekLabel(weeklyHighlight(shownContent))}
             style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Bu hafta
+              {PREGNANCY_THIS_WEEK_TITLE}
             </ThemedText>
 
             {/* Only the weeks that have a size show one. */}
@@ -173,10 +190,10 @@ export function PregnancySection({
 
           <View
             accessible
-            accessibilityLabel={`Bu hafta gelişenler: ${shownContent.developingFeatures.join(', ')}`}
+            accessibilityLabel={developmentsLabel(shownContent.developingFeatures)}
             style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Bu hafta gelişenler
+              {PREGNANCY_DEVELOPMENTS_TITLE}
             </ThemedText>
 
             {shownContent.developingFeatures.map((feature) => (
@@ -192,7 +209,7 @@ export function PregnancySection({
           {shownContent.sources.length > 0 && (
             <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                Kaynaklar
+                {PREGNANCY_SOURCES_TITLE}
               </ThemedText>
 
               {hasSourceError && (
@@ -209,7 +226,7 @@ export function PregnancySection({
                 <Pressable
                   key={source.url}
                   accessibilityRole="link"
-                  accessibilityLabel={`${source.name} kaynağını aç`}
+                  accessibilityLabel={pregnancySourceLabel(source.name)}
                   onPress={() => openSource(source.url)}
                   style={({ pressed }) => [
                     styles.sourceLink,
@@ -232,11 +249,11 @@ export function PregnancySection({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Gebelik ayarlarını düzenle"
+        accessibilityLabel={PREGNANCY_SETTINGS_LINK_LABEL}
         onPress={() => router.push('/(app)/pregnancy-settings')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
         <ThemedText type="small" themeColor="textSecondary">
-          Gebelik ayarları
+          {PREGNANCY_SETTINGS_LINK_TEXT}
         </ThemedText>
       </Pressable>
     </View>

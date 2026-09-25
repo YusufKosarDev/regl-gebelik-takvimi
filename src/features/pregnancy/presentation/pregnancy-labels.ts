@@ -74,3 +74,62 @@ export const PREGNANCY_START_FAILED_MESSAGE = 'Gebelik takibi başlatılamadı.'
 export function selectedLmpLabel(readableDate: string): string {
   return `Seçilen son regl başlangıcı: ${readableDate}`;
 }
+
+/* --------------------------------------------- the section on home -- */
+
+/**
+ * What the pregnancy half of the home screen says, in Turkish.
+ *
+ * Moved out of `pregnancy/components/pregnancy-section.tsx` verbatim.
+ */
+
+export const PREGNANCY_SECTION_TITLE = 'Gebelik takibi';
+
+export const PREGNANCY_WEEK_LABEL = 'Gebelik haftası';
+export const PREGNANCY_DUE_DATE_LABEL = 'Tahmini doğum tarihi';
+
+export const PREGNANCY_PREVIOUS_WEEK_LABEL = 'Önceki hafta';
+export const PREGNANCY_NEXT_WEEK_LABEL = 'Sonraki hafta';
+export const PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL = 'Bugünkü haftaya dön';
+
+export const PREGNANCY_THIS_WEEK_TITLE = 'Bu hafta';
+export const PREGNANCY_DEVELOPMENTS_TITLE = 'Bu hafta gelişenler';
+export const PREGNANCY_SOURCES_TITLE = 'Kaynaklar';
+
+export const PREGNANCY_SETTINGS_LINK_LABEL = 'Gebelik ayarlarını düzenle';
+export const PREGNANCY_SETTINGS_LINK_TEXT = 'Gebelik ayarları';
+
+/** The week, spoken as a label and its value. */
+export function pregnancyWeekRowLabel(progress: string): string {
+  return `Gebelik haftası: ${progress}`;
+}
+
+/**
+ * The due date with where it came from.
+ *
+ * The trailing space belongs to the label: the source is appended to it, so
+ * "tarihi: 23 Nisan 2027, Son regl tarihine göre" reads as one sentence.
+ */
+export function pregnancyDueDateRowLabel(readableDate: string, source: string): string {
+  return `Tahmini doğum tarihi: ${readableDate}, ` + source;
+}
+
+/** Which week is on screen, for the stepper. */
+export function shownWeekLabel(week: number): string {
+  return `Gösterilen hafta: ${week}. hafta`;
+}
+
+/** The week's content in one line, so a reader hears it without the layout. */
+export function thisWeekLabel(highlight: string): string {
+  return `Bu hafta: ${highlight}`;
+}
+
+/** The bullets, joined, so they are heard as one list rather than five items. */
+export function developmentsLabel(features: readonly string[]): string {
+  return `Bu hafta gelişenler: ${features.join(', ')}`;
+}
+
+/** A source, as something to open. */
+export function pregnancySourceLabel(name: string): string {
+  return `${name} kaynağını aç`;
+}

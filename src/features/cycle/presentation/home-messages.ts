@@ -187,3 +187,6 @@ export function legendItemLabel(item: LegendItem): string {
 export function labelledValue(label: string, value: string): string {
   return `${label}: ${value}`;
 }
+
+/** The heading over today's date, at the top of the screen. */
+export const TODAY_HEADING = 'Bugün';

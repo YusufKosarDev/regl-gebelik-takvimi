@@ -45,6 +45,7 @@ import { emptyDailyEntry } from '@/features/daily-log/domain/catalogues';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/app-store';
+import { LOADING_MESSAGE } from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
@@ -53,6 +54,7 @@ import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
 import {
   EMPTY_MESSAGE,
   LOAD_ERROR_MESSAGE,
+  TODAY_HEADING,
   summaryRows,
 } from '@/features/cycle/presentation/home-messages';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
@@ -362,7 +364,7 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="cycle-dashboard-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            Veriler yükleniyor
+            {LOADING_MESSAGE}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -496,7 +498,7 @@ export default function HomeScreen() {
 
             <View style={styles.header}>
               <ThemedText type="small" themeColor="textSecondary">
-                Bugün
+                {TODAY_HEADING}
               </ThemedText>
 
               <ThemedText type="subtitle" style={styles.date}>
