@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -22,6 +21,7 @@ import { endCurrentPeriod } from '@/features/cycle/application/end-current-perio
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
+import { HomeModeSwitch } from '@/features/cycle/components/home-mode-switch';
 import { CycleSummary } from '@/features/cycle/components/cycle-summary';
 import { HomeLinks } from '@/features/cycle/components/home-links';
 import { PeriodActionCard } from '@/features/cycle/components/period-action-card';
@@ -480,45 +480,11 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            {/* Two views over the same day. Gebelik is unreachable until there
-                is a pregnancy to show, which is what the disabled state says. */}
-            <View accessibilityRole="tablist" style={styles.modeSwitch}>
-              <Pressable
-                accessibilityRole="tab"
-                accessibilityLabel="Döngü"
-                accessibilityState={{ selected: !isPregnancyView }}
-                onPress={() => chooseMode('cycle')}
-                style={({ pressed }) => [
-                  styles.modeOption,
-                  !isPregnancyView && { backgroundColor: theme.primary },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText
-                  type={isPregnancyView ? 'small' : 'smallBold'}
-                  themeColor={isPregnancyView ? 'text' : 'onPrimary'}>
-                  Döngü
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="tab"
-                accessibilityLabel="Gebelik"
-                accessibilityState={{ selected: isPregnancyView, disabled: pregnancy === null }}
-                disabled={pregnancy === null}
-                onPress={() => chooseMode('pregnancy')}
-                style={({ pressed }) => [
-                  styles.modeOption,
-                  isPregnancyView && { backgroundColor: theme.primary },
-                  pregnancy === null && styles.disabled,
-                  pressed && pregnancy !== null && styles.pressed,
-                ]}>
-                <ThemedText
-                  type={isPregnancyView ? 'smallBold' : 'small'}
-                  themeColor={isPregnancyView ? 'onPrimary' : 'text'}>
-                  Gebelik
-                </ThemedText>
-              </Pressable>
-            </View>
+            <HomeModeSwitch
+              isPregnancyView={isPregnancyView}
+              pregnancy={pregnancy}
+              chooseMode={chooseMode}
+            />
 
             <View style={styles.header}>
               <ThemedText type="small" themeColor="textSecondary">
@@ -673,26 +639,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     textAlign: 'center',
   },
-  modeSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  modeOption: {
-    flex: 1,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-  },
   pregnancySection: {
     gap: Spacing.two,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.6,
   },
 });
