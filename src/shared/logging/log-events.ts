@@ -12,6 +12,7 @@ export const LOG_EVENTS = [
   'app lock load failed',
   'app lock recovery failed',
   'app lock save failed',
+  'app lock screen privacy failed',
   'app mode change failed',
   'app state load failed',
   'automatic sync failed',

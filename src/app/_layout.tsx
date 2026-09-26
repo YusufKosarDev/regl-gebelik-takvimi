@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { useAppLock } from '@/features/app-lock/application/use-app-lock';
+import { applyScreenPrivacy } from '@/features/app-lock/infrastructure/screen-privacy';
 import { registerForegroundNotificationHandler } from '@/features/notifications/infrastructure/foreground-notification-handler';
 import { useAutomaticSync } from '@/features/sync/application/use-automatic-sync';
 import { logEvent } from '@/shared/logging';
@@ -26,6 +27,7 @@ export default function RootLayout() {
   const hydrateLock = useAppLockStore((state) => state.hydrate);
   const lockHydrated = useAppLockStore((state) => state.hydrated);
   const locked = useAppLockStore((state) => state.locked);
+  const appLockEnabled = useAppLockStore((state) => state.enabled);
 
   const [hasHydrationError, setHasHydrationError] = useState(false);
 
@@ -58,6 +60,20 @@ export default function RootLayout() {
   useEffect(() => {
     void hydrateLock();
   }, [hydrateLock]);
+
+  /**
+   * Keeps the app's own screen out of the task switcher.
+   *
+   * Re-applied whenever the lock is set or removed rather than only at start,
+   * because below Android 13 the protection is a window flag that has to be
+   * held while the lock is on and dropped when it is not.
+   *
+   * At the root so it covers every screen. A build without the native module
+   * gets nothing and still runs.
+   */
+  useEffect(() => {
+    void applyScreenPrivacy(appLockEnabled);
+  }, [appLockEnabled]);
 
   // Without this the screen would spin forever when the read fails. What went
   // wrong is not shown: the thrown text is written by whatever failed, and a

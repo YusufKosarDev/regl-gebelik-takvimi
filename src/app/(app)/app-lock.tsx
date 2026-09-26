@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -12,6 +12,7 @@ import { PinDots } from '@/features/app-lock/components/pin-dots';
 import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import { canUseBiometrics } from '@/features/app-lock/infrastructure/biometrics';
+import { blocksScreenshots } from '@/features/app-lock/infrastructure/screen-privacy';
 import {
   BIOMETRIC_TOGGLE_LABEL,
   BIOMETRIC_TOGGLE_NOTE,
@@ -62,7 +63,8 @@ import { useAppLockStore } from '@/store/app-lock-store';
 type Step = 'warning' | 'choose' | 'confirm' | 'remove';
 
 /** Blanking the task switcher costs screenshots below Android 13. */
-const BLOCKS_SCREENSHOTS = Platform.OS === 'android' && Number(Platform.Version) < 33;
+/** Asked of the native side rather than inferred from Platform.Version. */
+const BLOCKS_SCREENSHOTS = blocksScreenshots();
 
 export default function AppLockScreen() {
   const router = useRouter();
