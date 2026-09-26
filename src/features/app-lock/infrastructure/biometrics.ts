@@ -52,19 +52,34 @@ export async function canUseBiometrics(): Promise<boolean> {
 export type BiometricOutcome = 'success' | 'cancelled' | 'failed' | 'unavailable';
 
 /**
- * The reasons expo-local-authentication gives for a prompt somebody dismissed.
+ * The reasons expo-local-authentication gives when nobody was judged.
  *
- * `user_cancel` is the negative button, which with the system fallback off is
- * "PIN'i kullan". `user_fallback` is the same button on the platforms that
- * report it that way. `system_cancel` and `app_cancel` are the prompt being
- * taken away — a call arriving, the app being backgrounded — which is also not
- * somebody failing to be recognised.
+ * Taken from the library's own Android mapping rather than from the documented
+ * list, because the two do not agree:
+ *
+ *   - `user_cancel` covers `ERROR_NEGATIVE_BUTTON` — which with the system
+ *     fallback off is our "PIN'i kullan" — as well as `ERROR_CANCELED` and
+ *     `ERROR_USER_CANCELED`. This is the case this whole distinction exists
+ *     for.
+ *   - `app_cancel` is the app taking its own prompt down.
+ *   - `timeout` is `ERROR_TIMEOUT`: the sensor waited and nothing happened.
+ *     Somebody who walked away has not been rejected either, and telling them
+ *     they were not recognised would be the same false report.
+ *   - `user_fallback` and `system_cancel` are never produced on Android. They
+ *     are listed because they are the iOS spellings of the first two, and this
+ *     file would otherwise start misreporting the day this app has an iOS
+ *     build.
+ *
+ * Everything else — `lockout`, `unable_to_process`, `not_available`,
+ * `no_space`, `unknown` — is something going wrong rather than somebody
+ * choosing, and says so.
  */
 const CANCELLED_REASONS: readonly string[] = [
   'user_cancel',
+  'app_cancel',
+  'timeout',
   'user_fallback',
   'system_cancel',
-  'app_cancel',
 ];
 
 /**

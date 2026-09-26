@@ -120,7 +120,7 @@ describe('when biometrics are on', () => {
   });
 
   it('falls back rather than opening when the print is not recognised', async () => {
-    biometrics.authenticateAsync.mockResolvedValue({ success: false, error: 'authentication_failed' });
+    biometrics.authenticateAsync.mockResolvedValue({ success: false, error: 'unknown' });
 
     expect(await unlockWithBiometrics(NOW)).toEqual({ kind: 'failed' });
   });
@@ -136,10 +136,15 @@ describe('when biometrics are on', () => {
    * Both end at the same pad. Only one of them is worth explaining.
    */
   it.each([
+    // What Android actually sends. `user_cancel` is the library's answer for
+    // ERROR_NEGATIVE_BUTTON, which is the "PIN'i kullan" button.
     ['the negative button', 'user_cancel'],
+    ['the app taking its own prompt down', 'app_cancel'],
+    ['the sensor waiting and nothing happening', 'timeout'],
+    // iOS spellings of the first two, listed so an iOS build does not start
+    // misreporting on the day it exists.
     ['the fallback button, where the platform calls it that', 'user_fallback'],
     ['the system taking the prompt away', 'system_cancel'],
-    ['the app being backgrounded', 'app_cancel'],
   ])('reports a dismissal as cancelled: %s', async (_name, reason) => {
     biometrics.authenticateAsync.mockResolvedValue({ success: false, error: reason });
 
@@ -147,10 +152,13 @@ describe('when biometrics are on', () => {
   });
 
   it('still reports a rejected print as a failure', async () => {
-    // The distinction is between "you chose the pad" and "the sensor said no",
+    // The distinction is between "nobody was judged" and "the sensor said no",
     // not between one kind of sensor problem and another. A lockout, a wet
     // thumb and an unreadable sensor stay one answer.
-    for (const reason of ['authentication_failed', 'lockout', 'unknown']) {
+    //
+    // These are the library's own strings for the rest of the Android error
+    // codes, so the two lists together cover everything it can send.
+    for (const reason of ['lockout', 'unable_to_process', 'not_available', 'no_space', 'unknown']) {
       biometrics.authenticateAsync.mockResolvedValue({ success: false, error: reason });
 
       expect(await unlockWithBiometrics(NOW)).toEqual({ kind: 'failed' });
