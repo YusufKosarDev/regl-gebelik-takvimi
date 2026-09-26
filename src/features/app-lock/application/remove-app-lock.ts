@@ -64,3 +64,16 @@ export async function remainingLockWaitMs(now: number = Date.now()): Promise<num
 
   return read.kind === 'record' ? remainingWaitMs(read.record.attempts, now) : 0;
 }
+
+/**
+ * Whether the lock on this phone is bound to this account.
+ *
+ * Asked by the account screen before offering to delete the account: doing so
+ * makes such a lock unrecoverable, because the uid it was bound to stops
+ * existing and signing in as it stops being possible.
+ */
+export async function isAppLockBoundTo(uid: string): Promise<boolean> {
+  const read = await readLockRecord();
+
+  return read.kind === 'record' && read.record.boundUid === uid;
+}

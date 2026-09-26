@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { removeAppLock } from '@/features/app-lock/application/remove-app-lock';
 import { getCurrentAuthUser, signOut } from '@/features/auth/data/auth-repository';
 import { PERIOD_REMINDER_TYPE } from '@/features/notifications/domain/period-reminder';
 import { PREGNANCY_WEEKLY_REMINDER_TYPE } from '@/features/notifications/domain/pregnancy-weekly-reminder';
@@ -28,7 +29,8 @@ import { clearPendingAccountDeletion } from '../infrastructure/pending-account-d
  *   1. the tables, in one transaction — all or nothing
  *   2. the reminders that would otherwise fire about records that no longer exist
  *   3. the widget, which is a copy of those records sitting on the home screen
- *   4. the small keys: sync preferences, device id, a half-finished deletion
+ *   4. the small keys: sync preferences, device id, a half-finished deletion,
+ *      and the app lock, which was guarding what is now gone
  *   5. the session, if there is one
  *   6. the onboarding flag, last
  *
@@ -146,6 +148,11 @@ async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   complete =
     (await bestEffort(clearUnresolvedConflict, 'local data wipe failed')) && complete;
   complete = (await bestEffort(clearDeviceId, 'local data wipe failed')) && complete;
+
+  // The app lock goes with everything else it was guarding. Leaving it would
+  // put a PIN in front of a fresh onboarding, which is a lock on an empty room
+  // that somebody may no longer have the PIN for.
+  complete = (await bestEffort(removeAppLock, 'local data wipe failed')) && complete;
   complete =
     (await bestEffort(clearPendingAccountDeletion, 'local data wipe failed')) && complete;
 

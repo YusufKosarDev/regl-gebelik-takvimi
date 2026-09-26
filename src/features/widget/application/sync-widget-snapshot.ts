@@ -2,12 +2,14 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { WidgetSnapshotV1 } from '../domain/widget-snapshot-v1';
 import {
+  clearWidgetSnapshot,
   isWidgetSnapshotBridgeAvailable,
   saveWidgetSnapshot,
 } from '../infrastructure/widget-snapshot-bridge';
 
 import { buildWidgetSnapshotV1 } from './build-widget-snapshot-v1';
 
+import { isAppLockEnabled } from '@/features/app-lock/application/remove-app-lock';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import type { ISODate } from '@/types/iso-date';
@@ -29,11 +31,29 @@ import { logEvent } from '@/shared/logging';
  * It throws, and deliberately: a build without the native bridge says so, and a
  * failed write says so. Callers that must not fail because of it use
  * `syncWidgetSnapshotQuietly` and say in one line why.
+ *
+ * ## The app lock takes the widget with it
+ *
+ * A widget showing "27. gün · Luteal" sits on the home screen where anybody who
+ * picks up the phone reads it — which is exactly the person the lock exists to
+ * stop. A lock with a live widget beside it is decoration, so while the lock is
+ * on the snapshot is cleared rather than written and the widget falls back to
+ * its own empty state.
+ *
+ * Stated at setup as a consequence rather than discovered later
+ * (`SETUP_WIDGET_NOTE`), and unconditional: a second switch would be one more
+ * thing to explain and one more way to end up with a lock that does not lock.
  */
 export async function syncWidgetSnapshot(
   db: SQLiteDatabase,
   today: ISODate
-): Promise<WidgetSnapshotV1> {
+): Promise<WidgetSnapshotV1 | null> {
+  if (await isAppLockEnabled()) {
+    await clearWidgetSnapshot();
+
+    return null;
+  }
+
   const [home, avatar] = await Promise.all([getCycleHomeData(db, today), loadAvatarConfig(db)]);
 
   const snapshot = buildWidgetSnapshotV1({

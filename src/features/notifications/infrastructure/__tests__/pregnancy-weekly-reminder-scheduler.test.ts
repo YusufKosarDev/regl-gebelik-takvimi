@@ -17,6 +17,8 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(),
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+  // The channels are created hidden from the lock screen.
+  AndroidNotificationVisibility: { UNKNOWN: 0, PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date', WEEKLY: 'weekly' },
 }));
 
@@ -64,7 +66,20 @@ describe('ensurePregnancyWeeklyReminderChannel', () => {
         name: 'Gebelik hatırlatıcıları',
         description: PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
         importance: notifications.AndroidImportance.DEFAULT,
+        lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
       }
+    );
+  });
+
+  /** Hidden from the lock screen, as the period channel is. */
+  it('hides the notification from the lock screen', async () => {
+    await ensurePregnancyWeeklyReminderChannel();
+
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'pregnancy-reminders',
+      expect.objectContaining({
+        lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
+      })
     );
   });
 

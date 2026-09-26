@@ -164,3 +164,21 @@ export const REMOVE_LOCK_DONE_MESSAGE = 'Uygulama kilidi kaldırıldı.';
  */
 export const LOCK_UNREADABLE_MESSAGE =
   'Kilit ayarın okunamadı ve kapatıldı. Kayıtların yerinde; istersen yeniden kurabilirsin.';
+
+/* --------------------------------------- when the bound account is deleted -- */
+
+/**
+ * Shown in the account-deletion panel when a lock is bound to that account.
+ *
+ * Deleting the account makes the lock unrecoverable: the uid it was bound to
+ * stops existing, and signing in as it stops being possible. Somebody who then
+ * forgets the PIN has no way back at all.
+ *
+ * Said where the decision is made, with the way out beside it, rather than
+ * discovered weeks later by somebody standing at a lock screen.
+ */
+export const LOCK_BOUND_TO_ACCOUNT_WARNING =
+  'Uygulama kilidin bu hesaba bağlı. Hesabı silersen PIN\'ini unuttuğunda geri ' +
+  'almanın yolu kalmaz. Önce kilidi kaldırman önerilir.';
+
+export const REMOVE_LOCK_FIRST_LABEL = 'Önce kilidi kaldır';

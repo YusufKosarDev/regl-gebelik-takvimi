@@ -17,6 +17,8 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(),
   AndroidImportance: { DEFAULT: 3, HIGH: 4, LOW: 2 },
+  // The channels are created hidden from the lock screen.
+  AndroidNotificationVisibility: { UNKNOWN: 0, PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
@@ -72,7 +74,27 @@ describe('ensurePeriodReminderChannel', () => {
       name: 'Regl hatırlatıcıları',
       description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
       importance: notifications.AndroidImportance.DEFAULT,
+      lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
     });
+  });
+
+  /**
+   * Hidden from the lock screen, with or without an app lock.
+   *
+   * PRIVATE would show "Regl & Gebelik Takvimi - content hidden", which
+   * announces that this person uses a period tracker to anybody who glances at
+   * the phone. Android will not let a channel's visibility change after it is
+   * created, so this has to be right before the app is released.
+   */
+  it('hides the notification from the lock screen', async () => {
+    await ensurePeriodReminderChannel();
+
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'period-reminders',
+      expect.objectContaining({
+        lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
+      })
+    );
   });
 
   it('describes what arrives and when, in Turkish', async () => {

@@ -41,6 +41,11 @@ import {
 } from '@/features/deletion/presentation/deletion-messages';
 import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
 import { useAppStore } from '@/store/app-store';
+import { isAppLockBoundTo } from '@/features/app-lock/application/remove-app-lock';
+import {
+  LOCK_BOUND_TO_ACCOUNT_WARNING,
+  REMOVE_LOCK_FIRST_LABEL,
+} from '@/features/app-lock/presentation/app-lock-messages';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { isPasswordLongEnough } from '@/features/auth/domain/password-policy';
 import {
@@ -219,6 +224,15 @@ export default function AccountScreen() {
   // sign-in form, which is not on screen while somebody is signed in.
   const resetAppState = useAppStore((state) => state.resetAppState);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  /**
+   * Whether an app lock is bound to the signed-in account.
+   *
+   * Read rather than assumed: a lock set before signing in is bound to nothing
+   * and deleting the account costs it nothing, so warning about it would be
+   * telling somebody about a consequence they do not have.
+   */
+  const [lockBoundToThisAccount, setLockBoundToThisAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [wipeLocalToo, setWipeLocalToo] = useState(false);
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
@@ -231,6 +245,33 @@ export default function AccountScreen() {
    * the switch off and says so, rather than leaving someone looking at a switch
    * whose position means nothing.
    */
+  /**
+   * Whether the lock on this phone would be orphaned by deleting this account.
+   *
+   * Re-read when the session changes, because the answer is about the uid that
+   * is signed in now, not the one that was when the screen mounted.
+   */
+  useEffect(() => {
+    const uid = auth.status === 'signed-in' ? auth.user.uid : null;
+
+    let isActive = true;
+
+    // One async closure for both branches rather than an early return that
+    // sets state synchronously: the React Compiler forbids the latter, and no
+    // session is an answer like any other.
+    void (async () => {
+      const bound = uid === null ? false : await isAppLockBoundTo(uid);
+
+      if (isActive) {
+        setLockBoundToThisAccount(bound);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [auth]);
+
   useEffect(() => {
     let isActive = true;
 
@@ -1147,6 +1188,33 @@ export default function AccountScreen() {
                       <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
                         {ACCOUNT_DELETE_PANEL_BODY}
                       </ThemedText>
+
+                      {/* Deleting the account makes the lock unrecoverable: the
+                          uid it is bound to stops existing, so signing in as it
+                          stops being possible. Said here, where the decision is
+                          made, rather than found weeks later at a lock screen. */}
+                      {lockBoundToThisAccount && (
+                        <View style={styles.fields}>
+                          <ThemedText
+                            accessibilityRole="alert"
+                            type="small"
+                            themeColor="textSecondary">
+                            {LOCK_BOUND_TO_ACCOUNT_WARNING}
+                          </ThemedText>
+
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={REMOVE_LOCK_FIRST_LABEL}
+                            onPress={() => router.push('/(app)/app-lock')}
+                            style={({ pressed }) => [
+                              styles.secondaryButton,
+                              { borderColor: theme.backgroundSelected },
+                              pressed && styles.pressed,
+                            ]}>
+                            <ThemedText type="smallBold">{REMOVE_LOCK_FIRST_LABEL}</ThemedText>
+                          </Pressable>
+                        </View>
+                      )}
 
                       <View style={styles.field}>
                         <ThemedText type="small" themeColor="textSecondary">

@@ -50,6 +50,18 @@ export async function ensurePeriodReminderChannel(): Promise<void> {
     name: PERIOD_REMINDER_CHANNEL_NAME,
     description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
     importance: Notifications.AndroidImportance.DEFAULT,
+    // Hidden from the lock screen, always, with or without an app lock.
+    //
+    // PRIVATE would show "Regl & Gebelik Takvimi - content hidden", which
+    // announces that this person uses a period tracker to anybody who glances
+    // at the phone. SECRET shows nothing there and the notification still
+    // appears in the shade after unlocking.
+    //
+    // Set at creation because Android will not let a channel's visibility
+    // change afterwards: altering it later means deleting and recreating the
+    // channel and losing whatever the person customised. This app is not
+    // released yet, so it is free now and would not be later.
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.SECRET,
   });
 }
 
