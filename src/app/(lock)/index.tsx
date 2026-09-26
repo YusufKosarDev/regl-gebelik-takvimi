@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { unlockWithBiometrics } from '@/features/app-lock/application/unlock-with-biometrics';
 import { unlockWithPin } from '@/features/app-lock/application/unlock-with-pin';
 import { PinDots } from '@/features/app-lock/components/pin-dots';
 import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { attemptsBeforeWait } from '@/features/app-lock/domain/attempt-policy';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import {
+  BIOMETRIC_FAILED_MESSAGE,
+  LOCK_BIOMETRIC_RETRY_LABEL,
   LOCK_PROMPT,
   LOCK_WRONG_PIN_MESSAGE,
   remainingAttemptsMessage,
@@ -31,12 +35,14 @@ import { useAppLockStore } from '@/store/app-lock-store';
  * anything but `unlockWithPin`.
  */
 export default function LockScreen() {
+  const theme = useTheme();
   const unlock = useAppLockStore((state) => state.unlock);
 
   const [entered, setEntered] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [remainingWaitMs, setRemainingWaitMs] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
+  const [canRetryBiometrics, setCanRetryBiometrics] = useState(false);
 
   // Guards the window between the sixth digit and the answer coming back, so a
   // fast tap cannot start a second check against the same counters.
@@ -134,6 +140,82 @@ export default function LockScreen() {
     [unlock]
   );
 
+  /**
+   * Tries a fingerprint.
+   *
+   * `unlockWithBiometrics` owns the guard that stops the prompt's own
+   * background transition re-locking the screen underneath it.
+   */
+  const tryBiometrics = useCallback(async () => {
+    const outcome = await unlockWithBiometrics();
+
+    if (outcome.kind === 'unlocked') {
+      unlock();
+
+      return;
+    }
+
+    if (outcome.kind === 'waiting') {
+      setRemainingWaitMs(outcome.remainingMs);
+      setMessage(waitMessage(outcome.remainingMs));
+
+      return;
+    }
+
+    if (outcome.kind === 'failed') {
+      // A wet thumb is not a wrong PIN and does not cost an attempt. The
+      // button stays so somebody can try again without leaving the screen.
+      setCanRetryBiometrics(true);
+      setMessage(BIOMETRIC_FAILED_MESSAGE);
+    }
+  }, [unlock]);
+
+  /**
+   * Once, on arrival.
+   *
+   * Somebody who dismisses it gets the pad and a button; the prompt is not
+   * reopened on its own, which would be a sheet that will not go away.
+   *
+   * The work is an async closure rather than a call in the effect body, which
+   * is the shape the rest of this app already uses for an effect that reaches
+   * a platform and then reports back: nothing is set synchronously, and a
+   * screen that has gone away by the time the sheet is answered sets nothing
+   * at all.
+   */
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      const outcome = await unlockWithBiometrics();
+
+      if (!active) {
+        return;
+      }
+
+      if (outcome.kind === 'unlocked') {
+        unlock();
+
+        return;
+      }
+
+      if (outcome.kind === 'waiting') {
+        setRemainingWaitMs(outcome.remainingMs);
+        setMessage(waitMessage(outcome.remainingMs));
+
+        return;
+      }
+
+      if (outcome.kind === 'failed') {
+        setCanRetryBiometrics(true);
+        setMessage(BIOMETRIC_FAILED_MESSAGE);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [unlock]);
+
   const handleDigit = useCallback(
     (digit: string) => {
       setMessage(null);
@@ -182,11 +264,27 @@ export default function LockScreen() {
             )}
           </View>
 
-          <PinPad
-            onDigit={handleDigit}
-            onDelete={handleDelete}
-            disabled={isWaiting || isChecking}
-          />
+          <View style={styles.bottom}>
+            <PinPad
+              onDigit={handleDigit}
+              onDelete={handleDelete}
+              disabled={isWaiting || isChecking}
+            />
+
+            {canRetryBiometrics && !isWaiting && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={LOCK_BIOMETRIC_RETRY_LABEL}
+                onPress={() => {
+                  void tryBiometrics();
+                }}
+                style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" style={{ color: theme.primary }}>
+                  {LOCK_BIOMETRIC_RETRY_LABEL}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -220,5 +318,16 @@ const styles = StyleSheet.create({
   },
   message: {
     textAlign: 'center',
+  },
+  bottom: {
+    gap: Spacing.four,
+  },
+  retryButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

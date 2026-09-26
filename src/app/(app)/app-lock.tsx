@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +11,11 @@ import { setAppLock } from '@/features/app-lock/application/set-app-lock';
 import { PinDots } from '@/features/app-lock/components/pin-dots';
 import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
+import { canUseBiometrics } from '@/features/app-lock/infrastructure/biometrics';
 import {
+  BIOMETRIC_TOGGLE_LABEL,
+  BIOMETRIC_TOGGLE_NOTE,
+  BIOMETRIC_UNAVAILABLE_NOTE,
   CHANGE_PIN_LABEL,
   NO_ACCOUNT_BODY,
   NO_ACCOUNT_CONTINUE_LABEL,
@@ -86,12 +90,45 @@ export default function AppLockScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  /**
+   * Whether this phone has a fingerprint or face enrolled.
+   *
+   * `null` while it is still being asked, so the row is not drawn as
+   * unavailable for the moment before the answer lands and then flipped.
+   */
+  const [biometricsAvailable, setBiometricsAvailable] = useState<boolean | null>(null);
+
+  /**
+   * Defaulted on, because that is what somebody setting a lock on a phone with
+   * a fingerprint expects - and it is a switch they can see, not a decision
+   * made behind their back. The PIN always works regardless.
+   */
+  const [useBiometrics, setUseBiometrics] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    void canUseBiometrics().then((available) => {
+      if (active) {
+        setBiometricsAvailable(available);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const finish = useCallback(
     async (pin: string) => {
       setIsSaving(true);
 
       try {
-        await setAppLock({ pin, boundUid: uid, biometricsEnabled: false });
+        await setAppLock({
+          pin,
+          boundUid: uid,
+          biometricsEnabled: biometricsAvailable === true && useBiometrics,
+        });
 
         markEnabled();
         router.back();
@@ -106,7 +143,7 @@ export default function AppLockScreen() {
         setIsSaving(false);
       }
     },
-    [markEnabled, router, uid]
+    [biometricsAvailable, markEnabled, router, uid, useBiometrics]
   );
 
   const handleDigit = useCallback(
@@ -267,6 +304,38 @@ export default function AppLockScreen() {
                   {SETUP_DIFFERENT_PIN_HINT}
                 </ThemedText>
 
+                {/* Shown only once the answer is in, so the row does not
+                    appear as unavailable and then flip. */}
+                {biometricsAvailable === true && (
+                  <View style={styles.toggleBlock}>
+                    <View style={[styles.toggleRow, { backgroundColor: theme.backgroundElement }]}>
+                      <ThemedText style={styles.toggleLabel}>{BIOMETRIC_TOGGLE_LABEL}</ThemedText>
+
+                      <Switch
+                        trackColor={{
+                          false: theme.backgroundSelected,
+                          true: theme.switchTrackOn,
+                        }}
+                        thumbColor={useBiometrics ? theme.switchThumbOn : undefined}
+                        accessibilityLabel={BIOMETRIC_TOGGLE_LABEL}
+                        accessibilityState={{ checked: useBiometrics }}
+                        value={useBiometrics}
+                        onValueChange={setUseBiometrics}
+                      />
+                    </View>
+
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {BIOMETRIC_TOGGLE_NOTE}
+                    </ThemedText>
+                  </View>
+                )}
+
+                {biometricsAvailable === false && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {BIOMETRIC_UNAVAILABLE_NOTE}
+                  </ThemedText>
+                )}
+
                 <ThemedText accessibilityRole="header" type="smallBold" style={styles.stepTitle}>
                   {step === 'choose' ? SETUP_CHOOSE_PIN : SETUP_CONFIRM_PIN}
                 </ThemedText>
@@ -373,6 +442,22 @@ const styles = StyleSheet.create({
   },
   note: {
     lineHeight: 20,
+  },
+  toggleBlock: {
+    gap: Spacing.two,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    minHeight: 56,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+  },
+  toggleLabel: {
+    flexShrink: 1,
   },
   stepTitle: {
     textAlign: 'center',
