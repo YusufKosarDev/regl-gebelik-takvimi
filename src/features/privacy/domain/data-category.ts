@@ -52,6 +52,7 @@ export const EXCLUDED_FROM_CLOUD_SYNC = [
   'pending-account-deletion',
   'sync-last-synced-at',
   'sync-unresolved-conflict',
+  'app-lock',
 ] as const;
 
 export type ExcludedFromCloudSync = (typeof EXCLUDED_FROM_CLOUD_SYNC)[number];
@@ -213,6 +214,14 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
       'Çözülmemiş bir çakışmanın hangi hesaba ait olduğu. Yalnızca hesap kimliği; ' +
       'çakışan verinin kendisi burada tutulmaz ve çakışma çözülünce kaldırılır. ' +
       'Çözülene kadar otomatik senkronizasyonu durdurmak için var.',
+  },
+  {
+    id: 'app-lock',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      "Uygulama kilidinin açık olup olmadığı, PIN'in tuzu ve karması. Cihaz " +
+      "kararı; hesapla taşınmaz. PIN'in kendisi hiçbir yerde saklanmaz.",
   },
 ];
 

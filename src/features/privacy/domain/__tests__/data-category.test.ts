@@ -51,6 +51,10 @@ describe('what stays on the device', () => {
       'pending-account-deletion',
       'sync-last-synced-at',
       'sync-unresolved-conflict',
+      // The app lock. A device decision like the theme and the sync switch: a
+      // PIN set on one phone has no meaning on another, and a password hash
+      // has no business in a document that is otherwise health data.
+      'app-lock',
     ]);
   });
 
@@ -217,5 +221,36 @@ describe('the inventory and the document say the same thing', () => {
     ]) {
       expect(DOC).toContain(key);
     }
+  });
+});
+
+/**
+ * The lock is a device decision, like the theme and the sync switch.
+ *
+ * Three reasons, and the second is the one that would be hardest to undo: a
+ * PIN set on one phone has no meaning on another; a password hash has no
+ * business in a document that is otherwise health data, because it changes what
+ * a rules mistake would cost; and a synced lock would silently close a second
+ * device somebody never set one on.
+ */
+describe('the app lock never syncs', () => {
+  it('is not something a sync may carry', () => {
+    expect([...DATA_CATEGORIES]).not.toContain('app-lock');
+    expect(isCloudSyncCandidate('app-lock')).toBe(false);
+  });
+
+  it('is in the list of what this device keeps to itself', () => {
+    expect(isExcludedFromCloudSync('app-lock')).toBe(true);
+  });
+
+  // The inventory is what the published privacy policy points at. A row that
+  // said the PIN is stored would be saying something untrue.
+  it('says the PIN itself is not stored anywhere', () => {
+    const entry = DATA_INVENTORY.find((row) => row.id === 'app-lock');
+
+    expect(entry).toBeDefined();
+    expect(entry?.cloudSyncCandidate).toBe(false);
+    expect(entry?.reason).toContain('saklanmaz');
+    expect(entry?.reason).toContain('hesapla taşınmaz');
   });
 });

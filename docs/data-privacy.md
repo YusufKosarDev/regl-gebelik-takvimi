@@ -150,6 +150,7 @@ olmadığı gösterilir.
 | `pending-account-deletion` | evet | **hayır** | Yarım kalmış bir hesap silme işleminin hangi hesaba ait olduğu. Yalnızca hesap kimliği; sağlık verisi içermez ve silme tamamlanınca ya da vazgeçilince kaldırılır. Silinmiş bir yedeğin yeniden oluşturulmasını engellemek için var. |
 | `sync-last-synced-at` | evet | **hayır** | Bu telefonun hesapla en son ne zaman senkronize olduğu. Yalnızca bir zaman damgası; hangi verinin taşındığını içermez ve bir cihazın kendi durumudur. |
 | `sync-unresolved-conflict` | evet | **hayır** | Çözülmemiş bir çakışmanın hangi hesaba ait olduğu. Yalnızca hesap kimliği; çakışan verinin kendisi burada tutulmaz ve çakışma çözülünce kaldırılır. Çözülene kadar otomatik senkronizasyonu durdurmak için var. |
+| `app-lock` | evet | **hayır** | Uygulama kilidinin açık olup olmadığı, PIN'in tuzu ve karması. Cihaz kararı; hesapla taşınmaz. PIN'in kendisi hiçbir yerde saklanmaz. |
 
 Bu tablo `src/features/privacy/domain/data-category.ts` içindeki `DATA_INVENTORY`
 ile aynı. Bir test ikisini birbirine bağlıyor: kodda olup burada olmayan (ya da
