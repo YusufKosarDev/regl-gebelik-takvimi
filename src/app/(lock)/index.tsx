@@ -178,6 +178,15 @@ export default function LockScreen() {
       return;
     }
 
+    // Tapping "PIN'i kullan" is a decision, not a failure. The retry button
+    // comes back, and nothing is said: "Tanınamadı" after somebody chose the
+    // pad would be the app reporting an event that did not happen.
+    if (outcome.kind === 'cancelled') {
+      setCanRetryBiometrics(true);
+
+      return;
+    }
+
     if (outcome.kind === 'failed') {
       // A wet thumb is not a wrong PIN and does not cost an attempt. The
       // button stays so somebody can try again without leaving the screen.
@@ -241,6 +250,14 @@ export default function LockScreen() {
       if (outcome.kind === 'waiting') {
         setRemainingWaitMs(outcome.remainingMs);
         setMessage(waitMessage(outcome.remainingMs));
+
+        return;
+      }
+
+      // Same as above: dismissing the sheet on arrival is how somebody says
+      // they would rather type it. That deserves the button back and no words.
+      if (outcome.kind === 'cancelled') {
+        setCanRetryBiometrics(true);
 
         return;
       }

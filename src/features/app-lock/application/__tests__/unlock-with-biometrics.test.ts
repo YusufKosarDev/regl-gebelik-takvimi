@@ -120,9 +120,69 @@ describe('when biometrics are on', () => {
   });
 
   it('falls back rather than opening when the print is not recognised', async () => {
+    biometrics.authenticateAsync.mockResolvedValue({ success: false, error: 'authentication_failed' });
+
+    expect(await unlockWithBiometrics(NOW)).toEqual({ kind: 'failed' });
+  });
+
+  /**
+   * ## Tapping "PIN'i kullan" is not a failure
+   *
+   * Every non-success used to come back as `failed`, and the screen answered
+   * all of them with "Tanınamadı." — "not recognised". Somebody who had just
+   * chosen to type their PIN was told the sensor had rejected them, which is a
+   * report of an event that did not happen.
+   *
+   * Both end at the same pad. Only one of them is worth explaining.
+   */
+  it.each([
+    ['the negative button', 'user_cancel'],
+    ['the fallback button, where the platform calls it that', 'user_fallback'],
+    ['the system taking the prompt away', 'system_cancel'],
+    ['the app being backgrounded', 'app_cancel'],
+  ])('reports a dismissal as cancelled: %s', async (_name, reason) => {
+    biometrics.authenticateAsync.mockResolvedValue({ success: false, error: reason });
+
+    expect(await unlockWithBiometrics(NOW)).toEqual({ kind: 'cancelled' });
+  });
+
+  it('still reports a rejected print as a failure', async () => {
+    // The distinction is between "you chose the pad" and "the sensor said no",
+    // not between one kind of sensor problem and another. A lockout, a wet
+    // thumb and an unreadable sensor stay one answer.
+    for (const reason of ['authentication_failed', 'lockout', 'unknown']) {
+      biometrics.authenticateAsync.mockResolvedValue({ success: false, error: reason });
+
+      expect(await unlockWithBiometrics(NOW)).toEqual({ kind: 'failed' });
+    }
+  });
+
+  it('treats a refusal with no reason as a failure rather than a cancel', async () => {
+    // Saying nothing is not saying "they chose the pad". The safe reading is
+    // the one that explains itself.
     biometrics.authenticateAsync.mockResolvedValue({ success: false });
 
     expect(await unlockWithBiometrics(NOW)).toEqual({ kind: 'failed' });
+  });
+
+  it('costs no PIN attempt when it is cancelled either', async () => {
+    biometrics.authenticateAsync.mockResolvedValue({ success: false, error: 'user_cancel' });
+
+    await unlockWithBiometrics(NOW);
+    await unlockWithBiometrics(NOW);
+    await unlockWithBiometrics(NOW);
+
+    expect(await unlockWithPin(PIN, NOW)).toEqual({ kind: 'unlocked' });
+  });
+
+  it('clears the guard on a cancel, so coming back still locks', async () => {
+    // A flag left set would be worse than the loop it prevents: returning from
+    // the background would stop locking at all.
+    biometrics.authenticateAsync.mockResolvedValue({ success: false, error: 'user_cancel' });
+
+    await unlockWithBiometrics(NOW);
+
+    expect(guardTimeline).toEqual([true, false]);
   });
 
   // A wet thumb is not a wrong PIN. The platform runs its own lockout, and

@@ -35,6 +35,7 @@ import { logEvent } from '@/shared/logging';
 
 export type BiometricUnlockOutcome =
   | { readonly kind: 'unlocked' }
+  | { readonly kind: 'cancelled' }
   | { readonly kind: 'failed' }
   | { readonly kind: 'unavailable' }
   | { readonly kind: 'waiting'; readonly remainingMs: number };
@@ -69,6 +70,13 @@ export async function unlockWithBiometrics(
 
   if (outcome === 'unavailable') {
     return { kind: 'unavailable' };
+  }
+
+  // Passed up rather than folded into `failed`. Both end at the same pad, but
+  // only one of them is something to explain: somebody who tapped "PIN'i
+  // kullan" already knows why the sheet went away.
+  if (outcome === 'cancelled') {
+    return { kind: 'cancelled' };
   }
 
   if (outcome === 'failed') {

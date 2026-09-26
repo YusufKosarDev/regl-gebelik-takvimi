@@ -36,8 +36,36 @@ export async function canUseBiometrics(): Promise<boolean> {
   }
 }
 
-/** How a prompt ended. `failed` covers every reason it did not succeed. */
-export type BiometricOutcome = 'success' | 'failed' | 'unavailable';
+/**
+ * How a prompt ended.
+ *
+ * `cancelled` is separated from `failed` because the two mean opposite things
+ * to the person in front of the screen. A failure is the sensor not recognising
+ * them, which is worth a line of explanation. A cancel is them tapping "PIN'i
+ * kullan" — a decision, not a problem — and telling somebody "Tanınamadı" after
+ * they chose the PIN is the app misreporting what just happened.
+ *
+ * Nothing above this needs to know *why* it failed beyond that. A mismatch, a
+ * platform lockout and a sensor that is busy all get the same answer: the pad
+ * is already on the screen behind the sheet.
+ */
+export type BiometricOutcome = 'success' | 'cancelled' | 'failed' | 'unavailable';
+
+/**
+ * The reasons expo-local-authentication gives for a prompt somebody dismissed.
+ *
+ * `user_cancel` is the negative button, which with the system fallback off is
+ * "PIN'i kullan". `user_fallback` is the same button on the platforms that
+ * report it that way. `system_cancel` and `app_cancel` are the prompt being
+ * taken away — a call arriving, the app being backgrounded — which is also not
+ * somebody failing to be recognised.
+ */
+const CANCELLED_REASONS: readonly string[] = [
+  'user_cancel',
+  'user_fallback',
+  'system_cancel',
+  'app_cancel',
+];
 
 /**
  * Asks for a fingerprint or a face.
@@ -62,8 +90,11 @@ export type BiometricOutcome = 'success' | 'failed' | 'unavailable';
  * So the system fallback is off and ours is the only one. Our PIN is on the
  * screen behind this sheet already.
  *
- * Never throws, and never reports *why* it failed. A cancel, a mismatch and a
- * platform lockout are all the same answer to this app: ask for the PIN.
+ * Never throws. What it does with the reason is narrow on purpose: it tells a
+ * dismissal apart from a rejection, and nothing finer. A mismatch, a platform
+ * lockout and a busy sensor are all the same answer to this app — ask for the
+ * PIN — and an app that reported each of them separately would be narrating
+ * somebody's failed fingerprints back at them.
  */
 export async function promptForBiometrics(promptMessage: string, cancelLabel: string): Promise<BiometricOutcome> {
   try {
@@ -79,7 +110,11 @@ export async function promptForBiometrics(promptMessage: string, cancelLabel: st
       disableDeviceFallback: true,
     });
 
-    return result.success ? 'success' : 'failed';
+    if (result.success) {
+      return 'success';
+    }
+
+    return CANCELLED_REASONS.includes(result.error) ? 'cancelled' : 'failed';
   } catch (error: unknown) {
     logEvent('app lock biometrics failed', error);
 
