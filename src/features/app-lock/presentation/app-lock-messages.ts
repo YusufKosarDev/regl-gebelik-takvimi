@@ -101,6 +101,24 @@ export const SETUP_WIDGET_NOTE =
 export const SETUP_SCREENSHOT_NOTE =
   'Bu Android sürümünde kilit açıkken uygulamanın ekran görüntüsü alınamaz.';
 
+/**
+ * Said because the lock changes a second setting, and the person did not ask
+ * for that one.
+ *
+ * Somebody setting a lock has said what they want: the phone can be picked up
+ * by somebody else. A reminder printing "regl dönemin yaklaşıyor" on the lock
+ * screen defeats it entirely, and Android does not let the app hide that — only
+ * reword it. So the lock switches the wording over.
+ *
+ * Doing it silently would be the app deciding something on their behalf, which
+ * is what the rest of this feature refuses to do. It says so instead, and says
+ * where to undo it.
+ */
+export const SETUP_DISCREET_NOTIFICATIONS_NOTE =
+  'Kilit açıldığında hatırlatıcı bildirimleri de sadeleşir: kilit ekranında ' +
+  'regl ya da gebelikten söz etmez, yalnızca uygulamayı açmanı söyler. Bunu ' +
+  'Ayarlar > Bildirimler altından geri alabilirsin.';
+
 /* ------------------------------------------------- the account-less warning -- */
 
 export const NO_ACCOUNT_TITLE = 'Hesabın yok';

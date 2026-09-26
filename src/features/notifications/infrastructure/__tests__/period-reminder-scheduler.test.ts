@@ -1,6 +1,10 @@
 import { Platform } from 'react-native';
 
-import { PERIOD_REMINDER_CHANNEL_DESCRIPTION } from '../../presentation/reminder-messages';
+import {
+  DISCREET_REMINDER_BODY,
+  DISCREET_REMINDER_TITLE,
+  PERIOD_REMINDER_CHANNEL_DESCRIPTION,
+} from '../../presentation/reminder-messages';
 
 import {
   cancelPeriodReminders,
@@ -17,7 +21,9 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(),
   AndroidImportance: { DEFAULT: 3, HIGH: 4, LOW: 2 },
-  // The channels are created hidden from the lock screen.
+  // Still here, and deliberately unused. The enum exists in the real library,
+  // and a mock without it would make re-adding the visibility option fail as a
+  // missing export rather than as the thing it is: an option Android discards.
   AndroidNotificationVisibility: { UNKNOWN: 0, PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
@@ -74,27 +80,38 @@ describe('ensurePeriodReminderChannel', () => {
       name: 'Regl hatırlatıcıları',
       description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
       importance: notifications.AndroidImportance.DEFAULT,
-      lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
     });
   });
 
   /**
-   * Hidden from the lock screen, with or without an app lock.
+   * ## This test is here to stop `lockscreenVisibility` coming back
    *
-   * PRIVATE would show "Regl & Gebelik Takvimi - content hidden", which
-   * announces that this person uses a period tracker to anybody who glances at
-   * the phone. Android will not let a channel's visibility change after it is
-   * created, so this has to be right before the app is released.
+   * It used to be called "hides the notification from the lock screen" and it
+   * asserted that `setNotificationChannelAsync` was called with
+   * `lockscreenVisibility: SECRET`. It passed for as long as it existed, and
+   * the notification was printed in full on the lock screen the whole time.
+   *
+   * Android does not let an app choose a channel's lock screen visibility.
+   * When the owning app creates the channel, the platform replaces whatever was
+   * asked for with the *package's* visibility — the person's setting, which
+   * defaults to "not set". Measured on a clean install with a device PIN set:
+   * `mLockscreenVisibility=-1000`, while the name, description and importance
+   * from the same call all landed.
+   *
+   * The lesson is the reason this is worded the way it is. A test that asserts
+   * what we asked a platform for proves we asked. It says nothing about whether
+   * anything happened, and naming it after the effect turns that gap into a
+   * false guarantee that survives review.
+   *
+   * What replaced the option is `discreetNotifications`, which changes the
+   * words rather than trying to hide them — see `set-discreet-notifications.ts`.
    */
-  it('hides the notification from the lock screen', async () => {
+  it('asks for no lock screen visibility, because Android discards it', async () => {
     await ensurePeriodReminderChannel();
 
-    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
-      'period-reminders',
-      expect.objectContaining({
-        lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
-      })
-    );
+    const [, options] = notifications.setNotificationChannelAsync.mock.calls[0];
+
+    expect(options).not.toHaveProperty('lockscreenVisibility');
   });
 
   it('describes what arrives and when, in Turkish', async () => {
@@ -311,5 +328,61 @@ describe('what a queued period reminder carries', () => {
     const request = await queuedRequest();
 
     expect(request.content.body).not.toMatch(/bugün başlayacak|kesin|hamile|gebe/i);
+  });
+});
+
+describe('schedulePeriodReminder and the discreet wording', () => {
+  it('says nothing about a period when the phone has asked for that', async () => {
+    await schedulePeriodReminder(date('2026-10-14'), true);
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe(DISCREET_REMINDER_TITLE);
+    expect(content.body).toBe(DISCREET_REMINDER_BODY);
+  });
+
+  /**
+   * The lock screen prints whatever is here, so this is the assertion that
+   * matters: not that the neutral strings were used, but that nothing about a
+   * cycle survives into them.
+   */
+  it('carries none of the words the full version does', async () => {
+    await schedulePeriodReminder(date('2026-10-14'), true);
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+    const shown = `${content.title} ${content.body}`.toLocaleLowerCase('tr-TR');
+
+    for (const word of ['regl', 'döngü', 'gebelik', 'adet', 'period']) {
+      expect(shown).not.toContain(word);
+    }
+  });
+
+  it('says the full sentence when it has not', async () => {
+    await schedulePeriodReminder(date('2026-10-14'), false);
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe('Regl hatırlatıcısı');
+    expect(content.body).toBe('Tahminine göre regl dönemin yaklaşıyor.');
+  });
+
+  /**
+   * The loud version is the default, so a caller that has not thought about it
+   * cannot make everybody's reminders vaguer by omission. The quiet one has to
+   * be asked for.
+   */
+  it('says the full sentence when nobody says otherwise', async () => {
+    await schedulePeriodReminder(date('2026-10-14'));
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe('Regl hatırlatıcısı');
+  });
+
+  it('changes nothing else about the reminder', async () => {
+    // Same type, same channel, same moment: this is a rewording, and anything
+    // that found the reminder by its payload must still find it.
+    await schedulePeriodReminder(date('2026-10-14'), true);
+    const { content, trigger } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.data).toEqual({ type: 'period-reminder-v1' });
+    expect(trigger.channelId).toBe('period-reminders');
+    expect(new Date(trigger.date).getHours()).toBe(9);
   });
 });

@@ -1,6 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { loadNotificationPreferences } from '../data/notification-preferences-repository';
+import {
+  loadDiscreetNotifications,
+  loadNotificationPreferences,
+} from '../data/notification-preferences-repository';
 import { getNotificationPermissionStatus } from '../infrastructure/notification-permission';
 import {
   cancelPregnancyWeeklyReminders,
@@ -65,7 +68,13 @@ export async function syncPregnancyWeeklyReminder(
     return { scheduled: false, cancelled };
   }
 
-  await schedulePregnancyWeeklyReminder();
+  // The wording travels with the schedule: a repeating trigger holds one set of
+  // words for every Monday it will ever fire, so this is the only moment the
+  // setting can reach them.
+  //
+  // Read separately from the preferences above, because it is not one of them:
+  // it is this device's answer and cloud sync does not carry it.
+  await schedulePregnancyWeeklyReminder(await loadDiscreetNotifications(db));
 
   return { scheduled: true, cancelled };
 }

@@ -55,6 +55,10 @@ describe('what stays on the device', () => {
       // PIN set on one phone has no meaning on another, and a password hash
       // has no business in a document that is otherwise health data.
       'app-lock',
+      // Whether the reminders may name a period on the lock screen. Beside the
+      // lock for the same reason it is turned on by the lock: who reads a lock
+      // screen is a fact about the phone in somebody's hand, not about them.
+      'discreet-notifications',
     ]);
   });
 

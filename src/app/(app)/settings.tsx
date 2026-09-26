@@ -47,7 +47,12 @@ import {
 } from '@/features/cycle/presentation/settings-messages';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
-import { loadNotificationPreferences } from '@/features/notifications/data/notification-preferences-repository';
+import { setDiscreetNotifications } from '@/features/notifications/application/set-discreet-notifications';
+import {
+  loadDiscreetNotifications,
+  loadNotificationPreferences,
+} from '@/features/notifications/data/notification-preferences-repository';
+import { DEFAULT_DISCREET_NOTIFICATIONS } from '@/features/notifications/domain/discreet-notifications';
 import type { NotificationPreferences } from '@/features/notifications/domain/notification-preferences';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domain/notification-preferences';
 import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
@@ -55,6 +60,8 @@ import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/app
 import type { NotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
 import { getNotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
 import {
+  DISCREET_NOTIFICATIONS_DESCRIPTION,
+  DISCREET_NOTIFICATIONS_TOGGLE_LABEL,
   NOTIFICATIONS_BLOCKED_NOTICE,
   OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
   OPEN_SYSTEM_SETTINGS_LABEL,
@@ -222,6 +229,18 @@ export default function SettingsScreen() {
   const [reminderField, setReminderField] = useState<keyof NotificationPreferences | null>(null);
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
 
+  /**
+   * Held apart from `reminders` because it is not one of them: it decides what
+   * a reminder says rather than whether one happens, and cloud sync carries the
+   * other two and not this.
+   *
+   * `discreetBusy` is its own flag rather than another value of `reminderField`
+   * for the same reason — and because switching it rebuilds both queues, which
+   * takes visibly longer than writing a preference.
+   */
+  const [discreet, setDiscreet] = useState(DEFAULT_DISCREET_NOTIFICATIONS);
+  const [discreetBusy, setDiscreetBusy] = useState(false);
+
   // What the system says about delivering anything at all. Held apart from the
   // switches: a reminder can be switched on and still never arrive, and that is
   // the case worth a standing notice rather than a message after a press.
@@ -241,15 +260,21 @@ export default function SettingsScreen() {
     // The permission is read here too, on every load and every refocus, so
     // coming back from system settings shows the new answer without anybody
     // having to press a switch to find out. It reads; it never prompts.
-    const [stored, storedReminders, permission] = await Promise.all([
+    const [stored, storedReminders, storedDiscreet, permission] = await Promise.all([
       getCycleSettings(db),
       loadNotificationPreferences(db),
+      loadDiscreetNotifications(db),
       getNotificationPermissionStatus().catch(
         (): NotificationPermissionStatus => 'undetermined'
       ),
     ]);
 
-    return { settings: stored, reminders: storedReminders, permission };
+    return {
+      settings: stored,
+      reminders: storedReminders,
+      discreet: storedDiscreet,
+      permission,
+    };
   }, []);
 
   /**
@@ -279,6 +304,7 @@ export default function SettingsScreen() {
 
           setSettings(data.settings);
           setReminders(data.reminders);
+          setDiscreet(data.discreet);
           setPermission(data.permission);
 
           if (data.settings !== null) {
@@ -390,6 +416,47 @@ export default function SettingsScreen() {
     } finally {
       reminderInFlight.current = false;
       setReminderField(null);
+    }
+  };
+
+  /**
+   * Switches how much a reminder says.
+   *
+   * Nothing is asked of the system and nothing can refuse it, so unlike the
+   * reminders there is no permission branch — only the write and the rebuild of
+   * anything already queued, which the use case does together.
+   *
+   * On a failure the switch goes back to what is stored rather than to what was
+   * tapped. This is the one setting where showing the optimistic answer would
+   * be worse than showing none: somebody who believes their lock screen is
+   * quiet behaves differently from somebody who knows it is not.
+   */
+  const handleDiscreet = async (enabled: boolean) => {
+    if (discreetBusy) {
+      return;
+    }
+
+    setDiscreetBusy(true);
+    setReminderNotice(null);
+
+    try {
+      const db = await openAppDatabase();
+
+      setDiscreet(await setDiscreetNotifications(db, enabled, getTodayLocalISODate()));
+    } catch (error) {
+      logEvent('notification preference change failed', error);
+
+      setReminderNotice(REMINDER_SAVE_FAILED_MESSAGE);
+
+      try {
+        setDiscreet(await loadDiscreetNotifications(await openAppDatabase()));
+      } catch {
+        // The stored answer could not be read either. Leaving the switch where
+        // it is beats guessing: the notice above already says the change did
+        // not happen.
+      }
+    } finally {
+      setDiscreetBusy(false);
     }
   };
 
@@ -634,6 +701,24 @@ export default function SettingsScreen() {
                   onChange={(next) => handleReminder('pregnancyWeeklyReminderEnabled', next)}
                   theme={theme}
                 />
+
+                {/* Below the two reminders, because it is about what they say
+                    and reads as nonsense above them. Its description sits
+                    under the switch rather than above: the label is the thing
+                    being decided, and the reason it exists is what somebody
+                    reads next. */}
+                <ReminderToggle
+                  label={DISCREET_NOTIFICATIONS_TOGGLE_LABEL}
+                  value={discreet}
+                  busy={discreetBusy}
+                  disabled={discreetBusy}
+                  onChange={(next) => handleDiscreet(next)}
+                  theme={theme}
+                />
+
+                <ThemedText type="small" themeColor="textSecondary">
+                  {DISCREET_NOTIFICATIONS_DESCRIPTION}
+                </ThemedText>
 
                 {reminderNotice !== null && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">

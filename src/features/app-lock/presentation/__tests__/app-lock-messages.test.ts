@@ -6,6 +6,7 @@ import {
   NO_ACCOUNT_BODY,
   NO_ACCOUNT_CREATE_LABEL,
   SETUP_DESCRIPTION,
+  SETUP_DISCREET_NOTIFICATIONS_NOTE,
   SETUP_HONESTY_NOTE,
   SETUP_WRITE_IT_DOWN_NOTE,
   enteredDigitsLabel,
@@ -118,5 +119,46 @@ describe('no message can carry a PIN', () => {
 
     expect(withoutComments).not.toMatch(/'[0-9]{6}'/);
     expect(withoutComments).not.toMatch(/"[0-9]{6}"/);
+  });
+});
+
+/**
+ * Setting a lock changes a setting nobody asked about on this screen.
+ *
+ * Doing it silently would be the app deciding something on somebody's behalf,
+ * which is what the rest of this feature exists to refuse. The note is the
+ * reason the coupling is allowed to exist, so it is held to saying all three
+ * things: what changes, what the reminders will say instead, and where to undo
+ * it.
+ */
+describe('SETUP_DISCREET_NOTIFICATIONS_NOTE', () => {
+  it('says the notifications change too', () => {
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).toContain('bildirim');
+  });
+
+  it('says what they will no longer mention', () => {
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).toContain('regl');
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).toContain('gebelik');
+  });
+
+  it('names the lock screen, which is where it matters', () => {
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).toContain('kilit ekranında');
+  });
+
+  it('says where to undo it', () => {
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).toContain('Ayarlar');
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).toContain('geri alabilirsin');
+  });
+
+  /**
+   * It must not claim the notification is hidden.
+   *
+   * Android prints the text on the lock screen whatever the app would prefer,
+   * and this changes the words rather than removing them. Promising otherwise
+   * here would undo the honesty the rest of this file is built on.
+   */
+  it('does not promise the notification is hidden', () => {
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).not.toContain('gizlen');
+    expect(SETUP_DISCREET_NOTIFICATIONS_NOTE).not.toContain('görünmez');
   });
 });

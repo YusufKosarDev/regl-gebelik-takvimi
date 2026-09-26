@@ -103,6 +103,33 @@ export const PREGNANCY_WEEKLY_REMINDER_TITLE = 'Gebelik takibi';
 export const PREGNANCY_WEEKLY_REMINDER_BODY =
   'Bu haftaki gebelik gelişim bilgilerine göz atabilirsin.';
 
+/* ------------------------------------------- what a discreet reminder says -- */
+
+/**
+ * The wording both reminders use when the discreet switch is on.
+ *
+ * ## Why there is only one of these
+ *
+ * Two different neutral texts would be a code. Somebody reading the lock screen
+ * over a shoulder would learn from "haftalık" that this is the pregnancy one,
+ * which is most of what the original sentence told them anyway. One text for
+ * both reminders is the only version that gives nothing away, and two identical
+ * notifications stacking is a fair price.
+ *
+ * It says a reminder exists and where to read it. Not "yeni bir şey var", which
+ * would be a claim about content the app has not checked, and not a question,
+ * which invites a tap on a lock screen somebody else is holding.
+ *
+ * ## What this does not hide
+ *
+ * The app's icon is on the notification, and the icon is a moon. Somebody who
+ * already knows what this app is will know what the reminder is for. This
+ * removes the sentence, not the app from the phone, and the setting's own
+ * description does not claim otherwise.
+ */
+export const DISCREET_REMINDER_TITLE = 'Hatırlatıcı';
+export const DISCREET_REMINDER_BODY = 'Uygulamayı açtığında hatırlatmanı görebilirsin.';
+
 /* -------------------------------------------- the rows in settings -- */
 
 /**
@@ -115,3 +142,30 @@ export const PREGNANCY_WEEKLY_REMINDER_BODY =
  */
 export const PERIOD_REMINDER_TOGGLE_LABEL = 'Regl hatırlatıcısı';
 export const PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL = 'Haftalık gebelik hatırlatıcısı';
+
+/**
+ * The switch that decides how much a reminder says.
+ *
+ * ## The label
+ *
+ * "Gösterme" is the negative imperative here — *do not show* — which is how the
+ * rest of this app talks to somebody ("PIN'ini gir", "kayıtların"). Turkish
+ * lets the same six letters be read as a verbal noun, "the showing of", which
+ * would point the switch the other way, so the description underneath opens by
+ * saying what happens when it is on rather than leaving the label to carry it
+ * alone.
+ *
+ * ## The description
+ *
+ * It names the constraint rather than the feature. Somebody deciding this needs
+ * to know one thing first: the lock screen shows the words whatever this app
+ * would prefer, and this switch is the only part of that the app can change.
+ * Saying "gizleyemez" out loud is the same honesty the app lock's own note is
+ * built on — a promise not made is a promise not broken.
+ */
+export const DISCREET_NOTIFICATIONS_TOGGLE_LABEL = 'Bildirimlerde ayrıntı gösterme';
+
+export const DISCREET_NOTIFICATIONS_DESCRIPTION =
+  'Açıkken hatırlatıcılar regl ya da gebelikten söz etmez, yalnızca uygulamayı ' +
+  'açmanı söyler. Android bildirim metnini kilit ekranında gösterir ve uygulama ' +
+  'bunu gizleyemez; değiştirebildiği tek şey metnin kendisidir.';

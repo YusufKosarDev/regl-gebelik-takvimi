@@ -59,7 +59,8 @@ tek biçim `CloudSyncPayloadV1`:
 2. `period-records` — regl kayıtları
 3. `pregnancy-profile` — son regl tarihi, tahmini doğum tarihi ve kaynağı
 4. `avatar-config` — avatar seçimleri
-5. `notification-preferences` — iki hatırlatıcı anahtarı
+5. `notification-preferences` — iki hatırlatıcı anahtarı (bildirim metninin
+   sadeleştirilip sadeleştirilmeyeceği buna dahil **değildir**; o cihazda kalır)
 6. `daily-entries` — günlük kayıtlar: akış yoğunluğu, belirtiler, ruh hali
 
 Bunlara ek olarak dokümanda yalnızca bir sürüm numarası ve sunucunun yazdığı
@@ -71,6 +72,32 @@ Geri yükleme (restore), elle başlatılan senkronizasyon, kendiliğinden çalı
 senkronizasyon ve çakışmaları çözme ekranı var. Bir çakışma bulunduğunda
 senkronizasyon durur ve iki taraftaki veriler olduğu gibi bırakılır; ne
 yapılacağını kişi "Çakışmayı çöz" ekranında seçer.
+
+## Kilit ekranındaki bildirim metni
+
+Android, bir bildirimin başlığını ve gövdesini kilit ekranında gösterir ve bir
+uygulamanın bunu kapatmasına **izin vermez**. Tam olarak bunu yapıyor görünen
+seçenek (`NotificationChannel.lockscreenVisibility`) kabul edilir ve sessizce
+atılır: kanalı oluşturan uygulamanın kendisi olduğunda platform, istenen değeri
+paketin görünürlük ayarıyla değiştirir — o ayar kişinin kendisine aittir ve
+varsayılanı "belirtilmemiş"tir.
+
+Temiz bir kurulumda, cihaz PIN'i kurulu ve Android'in kilit ekranı ayarları
+varsayılanken ölçüldü: kanal `mLockscreenVisibility=-1000` ile oluştu (yani
+belirtilmemiş), aynı çağrıdaki ad, açıklama ve önem değerleri ise yerine
+oturdu. Hatırlatıcı, kilitli ekrana başlığı ve gövdesiyle birlikte düştü.
+
+Geriye kalan tek şey metnin kendisidir; `discreet-notifications` bunu seçer.
+Açıkken iki hatırlatıcı da aynı nötr metni taşır ("Hatırlatıcı — Uygulamayı
+açtığında hatırlatmanı görebilirsin."), regl, döngü ya da gebelikten söz etmez.
+Kapalıyken bugünkü metinler aynen kalır. Uygulama kilidi kurulduğunda açılır,
+kilit kaldırıldığında açık kalır. Bildirimin üzerindeki uygulama simgesi
+değişmez: bu ayar cümleyi kaldırır, uygulamayı gizlemez.
+
+Buna karşılık gelen kod ve testler
+`src/features/notifications/infrastructure/period-reminder-scheduler.ts`
+içindedir; ölçüm oraya da yazıldı, böylece seçeneği geri ekleyen biri neden
+çalışmadığını orada görür.
 
 ## Silme
 
@@ -151,6 +178,7 @@ olmadığı gösterilir.
 | `sync-last-synced-at` | evet | **hayır** | Bu telefonun hesapla en son ne zaman senkronize olduğu. Yalnızca bir zaman damgası; hangi verinin taşındığını içermez ve bir cihazın kendi durumudur. |
 | `sync-unresolved-conflict` | evet | **hayır** | Çözülmemiş bir çakışmanın hangi hesaba ait olduğu. Yalnızca hesap kimliği; çakışan verinin kendisi burada tutulmaz ve çakışma çözülünce kaldırılır. Çözülene kadar otomatik senkronizasyonu durdurmak için var. |
 | `app-lock` | evet | **hayır** | Uygulama kilidinin açık olup olmadığı, PIN'in tuzu ve karması. Cihaz kararı; hesapla taşınmaz. PIN'in kendisi hiçbir yerde saklanmaz. |
+| `discreet-notifications` | evet | **hayır** | Hatırlatıcı bildirimlerinin kilit ekranında ayrıntı gösterip göstermeyeceği. Uygulama kilidiyle aynı nedenle cihazda kalır: kilit ekranını kimin gördüğü elindeki telefona ve çevresindeki kişilere bağlıdır, hesaba değil. Sağlık verisi içermez. |
 
 Bu tablo `src/features/privacy/domain/data-category.ts` içindeki `DATA_INVENTORY`
 ile aynı. Bir test ikisini birbirine bağlıyor: kodda olup burada olmayan (ya da

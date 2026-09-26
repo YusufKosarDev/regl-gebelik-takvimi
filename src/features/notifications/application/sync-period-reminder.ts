@@ -1,6 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { loadNotificationPreferences } from '../data/notification-preferences-repository';
+import {
+  loadDiscreetNotifications,
+  loadNotificationPreferences,
+} from '../data/notification-preferences-repository';
 import { periodReminderDate } from '../domain/period-reminder';
 import { getNotificationPermissionStatus } from '../infrastructure/notification-permission';
 import {
@@ -69,9 +72,17 @@ export async function syncPeriodReminder(
     return { scheduled: null, cancelled };
   }
 
+  // The wording travels with the schedule. A queued notification carries the
+  // words it was created with, so this call is the only moment the discreet
+  // setting can reach the reminder that will actually arrive.
+  //
+  // Read here rather than beside the preferences above, because it is not one
+  // of them: it is this device's answer and cloud sync does not carry it.
+  const discreet = await loadDiscreetNotifications(db);
+
   // `null` back means the moment has already gone. Nothing is scheduled and no
   // hour is invented to replace it; the next cycle change looks again.
-  const identifier = await schedulePeriodReminder(reminderDate);
+  const identifier = await schedulePeriodReminder(reminderDate, discreet);
 
   return { scheduled: identifier === null ? null : reminderDate, cancelled };
 }

@@ -8,6 +8,8 @@ import {
   periodReminderData,
 } from '../domain/period-reminder';
 import {
+  DISCREET_REMINDER_BODY,
+  DISCREET_REMINDER_TITLE,
   PERIOD_REMINDER_BODY,
   PERIOD_REMINDER_CHANNEL_DESCRIPTION,
   PERIOD_REMINDER_CHANNEL_NAME,
@@ -50,20 +52,42 @@ export async function ensurePeriodReminderChannel(): Promise<void> {
     name: PERIOD_REMINDER_CHANNEL_NAME,
     description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
     importance: Notifications.AndroidImportance.DEFAULT,
-    // Hidden from the lock screen, always, with or without an app lock.
-    //
-    // PRIVATE would show "Regl & Gebelik Takvimi - content hidden", which
-    // announces that this person uses a period tracker to anybody who glances
-    // at the phone. SECRET shows nothing there and the notification still
-    // appears in the shade after unlocking.
-    //
-    // Set at creation because Android will not let a channel's visibility
-    // change afterwards: altering it later means deleting and recreating the
-    // channel and losing whatever the person customised. This app is not
-    // released yet, so it is free now and would not be later.
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.SECRET,
   });
 }
+
+/**
+ * ## Do not add `lockscreenVisibility` back. Android throws it away.
+ *
+ * This channel used to be created with
+ * `lockscreenVisibility: AndroidNotificationVisibility.SECRET`, so that a
+ * reminder would not print "regl dönemin yaklaşıyor" on the lock screen of a
+ * phone lying on a table. The call was accepted, no error was raised, and
+ * nothing happened.
+ *
+ * Measured on a clean install — uninstall, reinstall, onboard, switch the
+ * reminder on — with a device PIN set and Android's lock screen settings at
+ * their defaults:
+ *
+ *     NotificationChannel{mId='period-reminders', mImportance=3,
+ *                         mLockscreenVisibility=-1000, ...}
+ *
+ * `-1000` is `VISIBILITY_NO_OVERRIDE`: not set. The name, the description and
+ * the importance from the same call all landed; only this one was dropped. The
+ * reminder then arrived on the locked screen with its full title and body.
+ *
+ * The reason is that a channel's lock screen visibility is not the app's to
+ * choose. When a channel is created by the app that owns it, the platform
+ * replaces whatever visibility was asked for with the *package's* visibility —
+ * a setting that belongs to the person, in Android's own settings, and which
+ * defaults to "not set". Every expo-notifications channel on the device reads
+ * `-1000`, including the ones the library creates for itself.
+ *
+ * So the option is gone and nothing replaces it, because nothing can. What is
+ * left is the wording, and that is what `discreetNotifications` decides.
+ *
+ * The test that used to cover this asserted the argument rather than the
+ * outcome, which is why the suite was green the whole time.
+ */
 
 /**
  * Removes every period reminder already in the queue, and nothing else.
@@ -102,8 +126,16 @@ export function periodReminderMoment(date: ISODate): number {
  *
  * The queue is left with at most one of these: existing ones are cancelled
  * first, so a second call cannot leave two.
+ *
+ * `discreet` picks the wording. It defaults to the sentence the app has always
+ * sent, so a caller that has not thought about it cannot accidentally make
+ * everybody's reminders vaguer — the quiet version is the one that has to be
+ * asked for.
  */
-export async function schedulePeriodReminder(date: ISODate): Promise<string | null> {
+export async function schedulePeriodReminder(
+  date: ISODate,
+  discreet: boolean = false
+): Promise<string | null> {
   const moment = periodReminderMoment(date);
 
   if (moment <= Date.now()) {
@@ -114,8 +146,11 @@ export async function schedulePeriodReminder(date: ISODate): Promise<string | nu
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: PERIOD_REMINDER_TITLE,
-      body: PERIOD_REMINDER_BODY,
+      // Chosen here and fixed here. A queued notification carries the words it
+      // was scheduled with, so changing the switch has to rebuild the queue
+      // rather than expecting the pending reminder to read it later.
+      title: discreet ? DISCREET_REMINDER_TITLE : PERIOD_REMINDER_TITLE,
+      body: discreet ? DISCREET_REMINDER_BODY : PERIOD_REMINDER_BODY,
       data: periodReminderData(),
     },
     trigger: {

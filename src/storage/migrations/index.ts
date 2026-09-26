@@ -8,7 +8,7 @@ import { describeValue } from '@/shared/logging';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 7;
+export const LATEST_SCHEMA_VERSION = 8;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -323,6 +323,42 @@ async function migrateToVersion7(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 8: how much a reminder is allowed to say.
+ *
+ * Android prints a notification's title and body on the lock screen and does
+ * not let an app opt out, so the only thing left to decide is the wording. This
+ * column is that decision.
+ *
+ * It sits with the reminder switches rather than in a table of its own because
+ * it is the same kind of thing — one person's answer about notifications — and
+ * a second single-row table would need the same pinned id and the same care for
+ * no gain.
+ *
+ * Defaults to 0, which is the wording the app already had. An upgrade must not
+ * quietly change what somebody's existing reminders say; the app lock turns
+ * this on when it is set up, and otherwise it is the person's to turn on.
+ */
+const MIGRATION_V8 = `
+  ALTER TABLE notification_preferences
+  ADD COLUMN discreet_notifications INTEGER NOT NULL DEFAULT 0
+    CHECK (discreet_notifications IN (0, 1));
+`;
+
+/**
+ * Adds the discreet-wording column.
+ *
+ * Same bargain as every step before it: the column and the version bump share
+ * one transaction, so a failure leaves the database still reporting version 7
+ * rather than claiming a column it does not have.
+ */
+async function migrateToVersion8(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V8);
+    await db.execAsync('PRAGMA user_version = 8');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -380,5 +416,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 7) {
     await migrateToVersion7(db);
+  }
+
+  if (currentVersion < 8) {
+    await migrateToVersion8(db);
   }
 }

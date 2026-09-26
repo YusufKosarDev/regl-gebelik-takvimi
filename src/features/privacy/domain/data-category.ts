@@ -53,6 +53,7 @@ export const EXCLUDED_FROM_CLOUD_SYNC = [
   'sync-last-synced-at',
   'sync-unresolved-conflict',
   'app-lock',
+  'discreet-notifications',
 ] as const;
 
 export type ExcludedFromCloudSync = (typeof EXCLUDED_FROM_CLOUD_SYNC)[number];
@@ -222,6 +223,16 @@ export const DATA_INVENTORY: readonly DataInventoryEntry[] = [
     reason:
       "Uygulama kilidinin açık olup olmadığı, PIN'in tuzu ve karması. Cihaz " +
       "kararı; hesapla taşınmaz. PIN'in kendisi hiçbir yerde saklanmaz.",
+  },
+  {
+    id: 'discreet-notifications',
+    storedOnDevice: true,
+    cloudSyncCandidate: false,
+    reason:
+      'Hatırlatıcı bildirimlerinin kilit ekranında ayrıntı gösterip ' +
+      'göstermeyeceği. Uygulama kilidiyle aynı nedenle cihazda kalır: kilit ' +
+      'ekranını kimin gördüğü elindeki telefona ve çevresindeki kişilere ' +
+      'bağlıdır, hesaba değil. Sağlık verisi içermez.',
   },
 ];
 

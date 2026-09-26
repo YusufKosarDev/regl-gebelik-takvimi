@@ -10,6 +10,8 @@ import {
   pregnancyWeeklyReminderData,
 } from '../domain/pregnancy-weekly-reminder';
 import {
+  DISCREET_REMINDER_BODY,
+  DISCREET_REMINDER_TITLE,
   PREGNANCY_WEEKLY_REMINDER_BODY,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
@@ -49,20 +51,19 @@ export async function ensurePregnancyWeeklyReminderChannel(): Promise<void> {
     name: PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
     description: PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
     importance: Notifications.AndroidImportance.DEFAULT,
-    // Hidden from the lock screen, always, with or without an app lock.
-    //
-    // PRIVATE would show "Regl & Gebelik Takvimi - content hidden", which
-    // announces that this person uses a period tracker to anybody who glances
-    // at the phone. SECRET shows nothing there and the notification still
-    // appears in the shade after unlocking.
-    //
-    // Set at creation because Android will not let a channel's visibility
-    // change afterwards: altering it later means deleting and recreating the
-    // channel and losing whatever the person customised. This app is not
-    // released yet, so it is free now and would not be later.
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.SECRET,
   });
 }
+
+/**
+ * ## Do not add `lockscreenVisibility` back. Android throws it away.
+ *
+ * This channel carried `SECRET` too, and lost it the same way. The measurement,
+ * the dumpsys output and the reason are written out once in
+ * `period-reminder-scheduler.ts`; there is no version of this that works for
+ * one channel and not the other.
+ *
+ * The wording is the part the app still controls. See `discreetNotifications`.
+ */
 
 /**
  * Removes every weekly pregnancy reminder already queued, and nothing else.
@@ -80,14 +81,20 @@ export async function cancelPregnancyWeeklyReminders(): Promise<number> {
  * One repeating trigger rather than a queue of dated ones: the system keeps it
  * firing, which is the whole point of a weekly trigger, and means nothing has to
  * top it up while the app is closed.
+ *
+ * That is also why `discreet` has to rebuild rather than adjust: a repeating
+ * trigger holds one set of words for every Monday it will ever fire, so the
+ * switch only reaches next week's reminder by replacing this one.
  */
-export async function schedulePregnancyWeeklyReminder(): Promise<string> {
+export async function schedulePregnancyWeeklyReminder(
+  discreet: boolean = false
+): Promise<string> {
   await ensurePregnancyWeeklyReminderChannel();
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: PREGNANCY_WEEKLY_REMINDER_TITLE,
-      body: PREGNANCY_WEEKLY_REMINDER_BODY,
+      title: discreet ? DISCREET_REMINDER_TITLE : PREGNANCY_WEEKLY_REMINDER_TITLE,
+      body: discreet ? DISCREET_REMINDER_BODY : PREGNANCY_WEEKLY_REMINDER_BODY,
       data: pregnancyWeeklyReminderData(),
     },
     trigger: {

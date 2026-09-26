@@ -6,6 +6,8 @@ import SettingsScreen from '@/app/(app)/settings';
 import { LOCAL_WIPE_OPEN_LABEL } from '@/features/deletion/presentation/deletion-messages';
 import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import {
+  DISCREET_NOTIFICATIONS_DESCRIPTION,
+  DISCREET_NOTIFICATIONS_TOGGLE_LABEL,
   NOTIFICATIONS_BLOCKED_NOTICE,
   OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
   OPEN_SYSTEM_SETTINGS_LABEL,
@@ -63,6 +65,15 @@ jest.mock('expo-router', () => require('../../../../jest/expo-router-mock'));
 jest.mock('@/features/notifications/data/notification-preferences-repository', () => ({
   loadNotificationPreferences: jest.fn(),
   saveNotificationPreferences: jest.fn(),
+  loadDiscreetNotifications: jest.fn(),
+  saveDiscreetNotifications: jest.fn(),
+}));
+
+// The third switch decides what a reminder says rather than whether one
+// happens, and turning it rebuilds both queues. Faked so this file stays about
+// the cycle settings; it has its own describe block below.
+jest.mock('@/features/notifications/application/set-discreet-notifications', () => ({
+  setDiscreetNotifications: jest.fn(),
 }));
 
 // Read on every load, never prompting. Faked so each test can say what the
@@ -108,6 +119,9 @@ const reminderRepository = jest.requireMock(
   '@/features/notifications/data/notification-preferences-repository'
 );
 const reminders = jest.requireMock('@/features/notifications/application/set-reminder-enabled');
+const discreet = jest.requireMock(
+  '@/features/notifications/application/set-discreet-notifications'
+);
 const permissionModule = jest.requireMock(
   '@/features/notifications/infrastructure/notification-permission'
 );
@@ -153,6 +167,15 @@ beforeEach(() => {
     pregnancyWeeklyReminderEnabled: false,
   });
   reminderRepository.saveNotificationPreferences.mockReset();
+  reminderRepository.loadDiscreetNotifications.mockReset();
+  reminderRepository.loadDiscreetNotifications.mockResolvedValue(false);
+  reminderRepository.saveDiscreetNotifications.mockReset();
+  discreet.setDiscreetNotifications.mockReset();
+  // The real one returns what is stored afterwards, which is what the screen
+  // puts the switch back to.
+  discreet.setDiscreetNotifications.mockImplementation(
+    async (_db: unknown, enabled: boolean) => enabled
+  );
   permissionModule.getNotificationPermissionStatus.mockReset();
   permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
   permissionModule.ensureNotificationPermission.mockReset();
@@ -1453,5 +1476,110 @@ describe('the about row', () => {
     expect(aboutIndex).toBeGreaterThanOrEqual(0);
     expect(wipeIndex).toBeGreaterThanOrEqual(0);
     expect(aboutIndex).toBeLessThan(wipeIndex);
+  });
+});
+
+describe('SettingsScreen discreet notifications', () => {
+  it('offers the switch under the two reminders', async () => {
+    const screen = await renderLoaded();
+
+    expect(screen.getByLabelText(DISCREET_NOTIFICATIONS_TOGGLE_LABEL)).toBeTruthy();
+  });
+
+  it('says why it exists, including that Android will not hide the text', async () => {
+    // Somebody deciding this needs the constraint before the feature: the lock
+    // screen shows the words whatever the app would prefer.
+    const screen = await renderLoaded();
+
+    expect(screen.getByText(DISCREET_NOTIFICATIONS_DESCRIPTION)).toBeTruthy();
+    expect(DISCREET_NOTIFICATIONS_DESCRIPTION).toContain('kilit ekranında');
+    expect(DISCREET_NOTIFICATIONS_DESCRIPTION).toContain('gizleyemez');
+  });
+
+  it('comes up off when nothing has been chosen', async () => {
+    const screen = await renderLoaded();
+
+    expect(isOn(screen, DISCREET_NOTIFICATIONS_TOGGLE_LABEL)).toBe(false);
+  });
+
+  it('comes up on when this phone has asked for it', async () => {
+    reminderRepository.loadDiscreetNotifications.mockResolvedValue(true);
+
+    const screen = await renderLoaded();
+
+    expect(isOn(screen, DISCREET_NOTIFICATIONS_TOGGLE_LABEL)).toBe(true);
+  });
+
+  it('reads it from the device rather than from the synced preferences', async () => {
+    await renderLoaded();
+
+    expect(reminderRepository.loadDiscreetNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the change to its own use case, not to the reminder one', async () => {
+    // The reminder use case asks Android for a notification permission before
+    // it writes. Nothing here needs one.
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText(DISCREET_NOTIFICATIONS_TOGGLE_LABEL), 'valueChange', true);
+    });
+
+    expect(discreet.setDiscreetNotifications).toHaveBeenCalledTimes(1);
+    expect(discreet.setDiscreetNotifications.mock.calls[0][1]).toBe(true);
+    expect(reminders.setReminderEnabled).not.toHaveBeenCalled();
+  });
+
+  it('turns the switch on', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText(DISCREET_NOTIFICATIONS_TOGGLE_LABEL), 'valueChange', true);
+    });
+
+    expect(isOn(screen, DISCREET_NOTIFICATIONS_TOGGLE_LABEL)).toBe(true);
+  });
+
+  it('turns it back off again', async () => {
+    reminderRepository.loadDiscreetNotifications.mockResolvedValue(true);
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText(DISCREET_NOTIFICATIONS_TOGGLE_LABEL), 'valueChange', false);
+    });
+
+    expect(discreet.setDiscreetNotifications.mock.calls[0][1]).toBe(false);
+    expect(isOn(screen, DISCREET_NOTIFICATIONS_TOGGLE_LABEL)).toBe(false);
+  });
+
+  /**
+   * The one switch where an optimistic answer would be worse than none.
+   *
+   * Somebody who believes their lock screen is quiet behaves differently from
+   * somebody who knows it is not, so a failed write has to leave the switch
+   * showing what is actually stored.
+   */
+  it('does not show itself on when the change failed', async () => {
+    discreet.setDiscreetNotifications.mockRejectedValue(new Error('disk is full'));
+
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText(DISCREET_NOTIFICATIONS_TOGGLE_LABEL), 'valueChange', true);
+    });
+
+    expect(isOn(screen, DISCREET_NOTIFICATIONS_TOGGLE_LABEL)).toBe(false);
+    expect(screen.getByText('Hatırlatıcı ayarı kaydedilemedi.')).toBeTruthy();
+  });
+
+  it('asks for no notification permission', async () => {
+    const screen = await renderLoaded();
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText(DISCREET_NOTIFICATIONS_TOGGLE_LABEL), 'valueChange', true);
+    });
+
+    expect(permissionModule.ensureNotificationPermission).not.toHaveBeenCalled();
   });
 });

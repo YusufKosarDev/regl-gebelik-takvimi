@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 
 import {
+  DISCREET_REMINDER_BODY,
+  DISCREET_REMINDER_TITLE,
   PERIOD_REMINDER_CHANNEL_DESCRIPTION,
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
 } from '../../presentation/reminder-messages';
@@ -17,7 +19,9 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(),
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
-  // The channels are created hidden from the lock screen.
+  // Still here, and deliberately unused. The enum exists in the real library,
+  // and a mock without it would make re-adding the visibility option fail as a
+  // missing export rather than as the thing it is: an option Android discards.
   AndroidNotificationVisibility: { UNKNOWN: 0, PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
   SchedulableTriggerInputTypes: { DATE: 'date', WEEKLY: 'weekly' },
 }));
@@ -66,21 +70,30 @@ describe('ensurePregnancyWeeklyReminderChannel', () => {
         name: 'Gebelik hatırlatıcıları',
         description: PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
         importance: notifications.AndroidImportance.DEFAULT,
-        lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
       }
     );
   });
 
-  /** Hidden from the lock screen, as the period channel is. */
-  it('hides the notification from the lock screen', async () => {
+  /**
+   * ## This test is here to stop `lockscreenVisibility` coming back
+   *
+   * It used to be called "hides the notification from the lock screen" and it
+   * asserted the argument rather than the effect. Android replaces a channel's
+   * lock screen visibility with the person's own package-level setting when the
+   * owning app creates the channel, so the option was accepted and discarded,
+   * and the test stayed green while the reminder printed itself in full on a
+   * locked screen.
+   *
+   * The measurement is written out once, in
+   * `period-reminder-scheduler.test.ts` and in the scheduler beside it. There
+   * is no version of this that works for one channel and not the other.
+   */
+  it('asks for no lock screen visibility, because Android discards it', async () => {
     await ensurePregnancyWeeklyReminderChannel();
 
-    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
-      'pregnancy-reminders',
-      expect.objectContaining({
-        lockscreenVisibility: notifications.AndroidNotificationVisibility.SECRET,
-      })
-    );
+    const [, options] = notifications.setNotificationChannelAsync.mock.calls[0];
+
+    expect(options).not.toHaveProperty('lockscreenVisibility');
   });
 
   it('describes what arrives and when, in Turkish', async () => {
@@ -242,5 +255,56 @@ describe('what a queued pregnancy reminder carries', () => {
     expect(Object.keys(request).sort()).toEqual(['content', 'trigger']);
     expect(Object.keys(request.content).sort()).toEqual(['body', 'data', 'title']);
     expect(request.content.data).toEqual({ type: 'pregnancy-weekly-reminder-v1' });
+  });
+});
+
+describe('schedulePregnancyWeeklyReminder and the discreet wording', () => {
+  it('says nothing about a pregnancy when the phone has asked for that', async () => {
+    await schedulePregnancyWeeklyReminder(true);
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe(DISCREET_REMINDER_TITLE);
+    expect(content.body).toBe(DISCREET_REMINDER_BODY);
+  });
+
+  it('carries none of the words the full version does', async () => {
+    await schedulePregnancyWeeklyReminder(true);
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+    const shown = `${content.title} ${content.body}`.toLocaleLowerCase('tr-TR');
+
+    for (const word of ['gebelik', 'hafta', 'regl', 'döngü', 'bebek']) {
+      expect(shown).not.toContain(word);
+    }
+  });
+
+  /**
+   * The same words as the period reminder, on purpose.
+   *
+   * Two different neutral texts would be a code: "haftalık" would tell anybody
+   * reading the lock screen which one this is, which is most of what the full
+   * sentence told them. Two identical notifications stacking is the price.
+   */
+  it('is worded identically to the period reminder', async () => {
+    await schedulePregnancyWeeklyReminder(true);
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe(DISCREET_REMINDER_TITLE);
+    expect(content.body).toBe(DISCREET_REMINDER_BODY);
+  });
+
+  it('says the full sentence when nobody says otherwise', async () => {
+    await schedulePregnancyWeeklyReminder();
+    const { content } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.title).toBe('Gebelik takibi');
+  });
+
+  it('changes nothing else about the reminder', async () => {
+    await schedulePregnancyWeeklyReminder(true);
+    const { content, trigger } = notifications.scheduleNotificationAsync.mock.calls[0][0];
+
+    expect(content.data).toEqual({ type: 'pregnancy-weekly-reminder-v1' });
+    expect(trigger.channelId).toBe('pregnancy-reminders');
+    expect(trigger.type).toBe('weekly');
   });
 });

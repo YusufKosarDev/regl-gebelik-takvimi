@@ -18,6 +18,8 @@ jest.mock('@/features/pregnancy/data/pregnancy-repository', () => ({
 jest.mock('@/features/notifications/data/notification-preferences-repository', () => ({
   loadNotificationPreferences: jest.fn(),
   saveNotificationPreferences: jest.fn(),
+  loadDiscreetNotifications: jest.fn(),
+  saveDiscreetNotifications: jest.fn(),
 }));
 
 jest.mock('@/features/notifications/infrastructure/notification-permission', () => ({
@@ -78,6 +80,12 @@ beforeEach(() => {
   });
   preferences.saveNotificationPreferences.mockReset();
 
+  // Off is the app's default wording, so it is the baseline these tests read
+  // against; the cases about the quiet wording set it themselves.
+  preferences.loadDiscreetNotifications.mockReset();
+  preferences.loadDiscreetNotifications.mockResolvedValue(false);
+  preferences.saveDiscreetNotifications.mockReset();
+
   permission.getNotificationPermissionStatus.mockReset();
   permission.getNotificationPermissionStatus.mockResolvedValue('granted');
 
@@ -128,10 +136,41 @@ describe('syncPregnancyWeeklyReminder when the reminder is on', () => {
     expect(result.scheduled).toBe(true);
   });
 
-  it('schedules it with no arguments, because the day and time are fixed', async () => {
+  /**
+   * The day and the time are still fixed; only the wording is passed.
+   *
+   * This used to assert no arguments at all, which was a true statement about a
+   * function that took none. It now carries the one thing that cannot be worked
+   * out at delivery time, because a repeating trigger holds one set of words for
+   * every Monday it will ever fire.
+   */
+  it('passes only the wording, because the day and time are fixed', async () => {
     await syncPregnancyWeeklyReminder(db);
 
-    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith();
+    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith(false);
+  });
+
+  it('carries the quiet wording when this phone has asked for it', async () => {
+    preferences.loadDiscreetNotifications.mockResolvedValue(true);
+
+    await syncPregnancyWeeklyReminder(db);
+
+    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith(true);
+  });
+
+  /**
+   * The wording is this device's answer, not the account's.
+   *
+   * `loadNotificationPreferences` is what cloud sync carries. Reading the
+   * wording from there would mean a second phone, signed into the same account,
+   * inheriting a decision made about somebody else's lock screen.
+   */
+  it('reads the wording from the device, not from the synced preferences', async () => {
+    preferences.loadDiscreetNotifications.mockResolvedValue(true);
+
+    await syncPregnancyWeeklyReminder(db);
+
+    expect(preferences.loadDiscreetNotifications).toHaveBeenCalledTimes(1);
   });
 
   it('takes the old one out before putting a new one in', async () => {

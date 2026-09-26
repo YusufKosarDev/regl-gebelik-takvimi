@@ -31,6 +31,7 @@ import {
   SETUP_CONFIRM_PIN,
   SETUP_DESCRIPTION,
   SETUP_DIFFERENT_PIN_HINT,
+  SETUP_DISCREET_NOTIFICATIONS_NOTE,
   SETUP_HONESTY_NOTE,
   SETUP_MISMATCH_MESSAGE,
   SETUP_SAVE_FAILED_MESSAGE,
@@ -39,7 +40,10 @@ import {
   SETUP_WIDGET_NOTE,
   SETUP_WRITE_IT_DOWN_NOTE,
 } from '@/features/app-lock/presentation/app-lock-messages';
+import { setDiscreetNotifications } from '@/features/notifications/application/set-discreet-notifications';
 import { currentUidOrNull } from '@/features/sync/application/use-automatic-sync';
+import { openAppDatabase } from '@/storage/db';
+import { getTodayLocalISODate } from '@/utils/today';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
 import { BACK_LABEL } from '@/shared/presentation/app-messages';
@@ -131,6 +135,28 @@ export default function AppLockScreen() {
           boundUid: uid,
           biometricsEnabled: biometricsAvailable === true && useBiometrics,
         });
+
+        // Setting a lock is the same statement this makes: the phone can end up
+        // in somebody else's hands. A reminder that then prints "regl dönemin
+        // yaklaşıyor" on the lock screen would walk straight past the lock, and
+        // Android does not let an app hide it — only reword it. Announced above
+        // by SETUP_DISCREET_NOTIFICATIONS_NOTE rather than done quietly.
+        //
+        // After the lock is saved, and quietly: the lock is what the person
+        // asked for and it is already stored. Failing the setup because a
+        // reminder queue could not be rebuilt would undo the thing that worked
+        // over the thing that did not.
+        //
+        // Deliberately one-way. Removing the lock leaves this on, because
+        // turning it back off would be the app deciding that somebody who
+        // stopped using a PIN also stopped caring who reads their lock screen.
+        try {
+          const db = await openAppDatabase();
+
+          await setDiscreetNotifications(db, true, getTodayLocalISODate());
+        } catch (error: unknown) {
+          logEvent('notification preference change failed', error);
+        }
 
         markEnabled();
         router.back();
@@ -288,6 +314,14 @@ export default function AppLockScreen() {
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                   {SETUP_WIDGET_NOTE}
+                </ThemedText>
+
+                {/* Beside the widget note, because it is the same kind of
+                    thing: something outside this screen that the lock changes,
+                    said before the PIN is chosen rather than discovered
+                    afterwards. */}
+                <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                  {SETUP_DISCREET_NOTIFICATIONS_NOTE}
                 </ThemedText>
 
                 {BLOCKS_SCREENSHOTS && (

@@ -19,6 +19,8 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
 jest.mock('@/features/notifications/data/notification-preferences-repository', () => ({
   loadNotificationPreferences: jest.fn(),
   saveNotificationPreferences: jest.fn(),
+  loadDiscreetNotifications: jest.fn(),
+  saveDiscreetNotifications: jest.fn(),
 }));
 
 jest.mock('@/features/notifications/infrastructure/notification-permission', () => ({
@@ -71,6 +73,12 @@ beforeEach(() => {
   });
   preferences.saveNotificationPreferences.mockReset();
 
+  // Off is the app's default wording, so it is the baseline these tests read
+  // against; the cases about the quiet wording set it themselves.
+  preferences.loadDiscreetNotifications.mockReset();
+  preferences.loadDiscreetNotifications.mockResolvedValue(false);
+  preferences.saveDiscreetNotifications.mockReset();
+
   permission.getNotificationPermissionStatus.mockReset();
   permission.getNotificationPermissionStatus.mockResolvedValue('granted');
 
@@ -121,8 +129,33 @@ describe('syncPeriodReminder when the reminder is on', () => {
   it('schedules one a day before the predicted start', async () => {
     const result = await syncPeriodReminder(db, date('2026-09-18'));
 
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28');
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', false);
     expect(result.scheduled).toBe('2026-09-28');
+  });
+
+  it('carries the quiet wording when this phone has asked for it', async () => {
+    // The words are fixed when the notification is queued, so this argument is
+    // the only moment the setting can reach the reminder that arrives.
+    preferences.loadDiscreetNotifications.mockResolvedValue(true);
+
+    await syncPeriodReminder(db, date('2026-09-18'));
+
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', true);
+  });
+
+  /**
+   * The wording is this device's answer, not the account's.
+   *
+   * `loadNotificationPreferences` is what cloud sync carries. Reading the
+   * wording from there would mean a second phone, signed into the same account,
+   * inheriting a decision made about somebody else's lock screen.
+   */
+  it('reads the wording from the device, not from the synced preferences', async () => {
+    preferences.loadDiscreetNotifications.mockResolvedValue(true);
+
+    await syncPeriodReminder(db, date('2026-09-18'));
+
+    expect(preferences.loadDiscreetNotifications).toHaveBeenCalledTimes(1);
   });
 
   it('takes the old one out before putting a new one in', async () => {
@@ -149,7 +182,7 @@ describe('syncPeriodReminder when the reminder is on', () => {
     await syncPeriodReminder(db, date('2026-09-18'));
 
     // 2026-09-10 plus 28 days is 2026-10-08; the reminder is the day before.
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-10-07');
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-10-07', false);
   });
 
   it('reads the prediction rather than working one out', async () => {
