@@ -78,6 +78,14 @@ import {
   LOCAL_WIPE_SIGNED_IN_NOTE,
   localWipeMessage,
 } from '@/features/deletion/presentation/deletion-messages';
+import {
+  APP_LOCK_MANAGE_LABEL,
+  APP_LOCK_SECTION_DESCRIPTION,
+  APP_LOCK_SECTION_TITLE,
+  APP_LOCK_SET_LABEL,
+  APP_LOCK_STATUS_OFF,
+  APP_LOCK_STATUS_ON,
+} from '@/features/app-lock/presentation/app-lock-messages';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
 import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
@@ -91,6 +99,7 @@ import {
   SAVING_LABEL,
 } from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
+import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -158,6 +167,7 @@ export default function SettingsScreen() {
   // dialog, the same way restoring a backup is: the warning needs more than one
   // line, and the cloud disclaimer has to be readable before the button is.
   const auth = useAuthState();
+  const appLockEnabled = useAppLockStore((state) => state.enabled);
   const resetAppState = useAppStore((state) => state.resetAppState);
 
   const [isConfirmingWipe, setIsConfirmingWipe] = useState(false);
@@ -655,6 +665,38 @@ export default function SettingsScreen() {
                 ]}>
                 <ThemedText type="smallBold">{ACCOUNT_OPEN_LABEL}</ThemedText>
               </Pressable>
+            </View>
+
+            {/* After the account, because whether there is one decides whether a
+                forgotten PIN can be recovered at all - and somebody who has
+                just read "Hesap açmak isteğe bağlı" is in the right frame of
+                mind for that warning. */}
+            <View style={styles.fields}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                {APP_LOCK_SECTION_TITLE}
+              </ThemedText>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                {APP_LOCK_SECTION_DESCRIPTION}
+              </ThemedText>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={appLockEnabled ? APP_LOCK_MANAGE_LABEL : APP_LOCK_SET_LABEL}
+                onPress={() => router.push('/(app)/app-lock')}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">
+                  {appLockEnabled ? APP_LOCK_MANAGE_LABEL : APP_LOCK_SET_LABEL}
+                </ThemedText>
+              </Pressable>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                {appLockEnabled ? APP_LOCK_STATUS_ON : APP_LOCK_STATUS_OFF}
+              </ThemedText>
             </View>
 
             {/* Above the destructive section, because somebody looking for what

@@ -8,6 +8,10 @@
  */
 export const LOG_EVENTS = [
   'account delete failed',
+  'app lock biometrics failed',
+  'app lock load failed',
+  'app lock recovery failed',
+  'app lock save failed',
   'app mode change failed',
   'app state load failed',
   'automatic sync failed',

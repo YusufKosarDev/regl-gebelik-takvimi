@@ -643,7 +643,7 @@ describe('SettingsScreen back', () => {
 });
 
 describe('SettingsScreen scope', () => {
-  it('offers back, both steppers, save and the account link, and nothing else', async () => {
+  it('offers back, both steppers, save, the account and lock links, and nothing else', async () => {
     const { queryAllByRole } = await renderLoaded(28, 5);
 
     expect(
@@ -656,6 +656,9 @@ describe('SettingsScreen scope', () => {
       'Ortalama regl süresini artır',
       'Döngü ayarlarını kaydet',
       'Hesabı aç',
+      // After the account, because whether there is one decides whether a
+      // forgotten PIN can be recovered at all. Opens a screen; sets nothing.
+      'Uygulama kilidini kur',
       'Hakkında',
       // Opens the confirmation panel; it deletes nothing on its own.
       'Tüm verilerimi sil',

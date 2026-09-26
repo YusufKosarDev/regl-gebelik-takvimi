@@ -53,6 +53,12 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#7160AB"
         }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
       ]
     ],
     "experiments": {

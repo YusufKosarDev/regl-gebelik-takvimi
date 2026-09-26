@@ -2,9 +2,11 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { useAppLock } from '@/features/app-lock/application/use-app-lock';
 import { registerForegroundNotificationHandler } from '@/features/notifications/infrastructure/foreground-notification-handler';
 import { useAutomaticSync } from '@/features/sync/application/use-automatic-sync';
 import { logEvent } from '@/shared/logging';
+import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 
 /**
@@ -21,11 +23,19 @@ export default function RootLayout() {
   const hydrated = useAppStore((state) => state.hydrated);
   const onboardingCompleted = useAppStore((state) => state.onboardingCompleted);
 
+  const hydrateLock = useAppLockStore((state) => state.hydrate);
+  const lockHydrated = useAppLockStore((state) => state.hydrated);
+  const locked = useAppLockStore((state) => state.locked);
+
   const [hasHydrationError, setHasHydrationError] = useState(false);
 
   // Mounted here rather than on a screen: an edit made anywhere should still
   // reach the account after the person navigates away from where they made it.
   useAutomaticSync();
+
+  // Same reason: which screen happens to be open is not what decides whether
+  // coming back to the app should ask for the PIN again.
+  useAppLock();
 
   // Before anything can be rendered, and outside an effect: a reminder can fire
   // while the very first frame is still being drawn, and a handler installed
@@ -42,6 +52,13 @@ export default function RootLayout() {
     });
   }, [hydrate]);
 
+  // Its own read, and deliberately not part of the one above: a lock that
+  // cannot be read must not fail the app launch. The store turns an unreadable
+  // record into "no lock" and says so on the screen it belongs on.
+  useEffect(() => {
+    void hydrateLock();
+  }, [hydrateLock]);
+
   // Without this the screen would spin forever when the read fails. What went
   // wrong is not shown: the thrown text is written by whatever failed, and a
   // screen is the one place a person cannot choose not to look at it.
@@ -53,7 +70,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!hydrated) {
+  if (!hydrated || !lockHydrated) {
     return (
       <View style={styles.center}>
         <ActivityIndicator testID="app-hydration-loading" />
@@ -64,11 +81,19 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
+        {/* First, and above both others: a locked app mounts nothing else, so
+            there is no screen behind the lock to draw, to leak into the task
+            switcher, or to be reached by a deep link that arrived while it
+            was closed. */}
+        <Stack.Protected guard={onboardingCompleted && locked}>
+          <Stack.Screen name="(lock)" />
+        </Stack.Protected>
+
         <Stack.Protected guard={!onboardingCompleted}>
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
 
-        <Stack.Protected guard={onboardingCompleted}>
+        <Stack.Protected guard={onboardingCompleted && !locked}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
