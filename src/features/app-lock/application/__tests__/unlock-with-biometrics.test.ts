@@ -100,6 +100,25 @@ describe('when biometrics are on', () => {
     );
   });
 
+  /**
+   * Measured on a device, not reasoned about.
+   *
+   * With the system fallback left on, Android puts "Use PIN" on the sheet and
+   * accepts the DEVICE passcode - and authenticateAsync returns success. An app
+   * lock set to one PIN opened to a completely different device passcode.
+   *
+   * That undoes the thing this feature is most for. The threat is not a
+   * stranger; it is somebody who lives with you and has watched you unlock your
+   * phone.
+   */
+  it('refuses the device passcode as a way in', async () => {
+    await unlockWithBiometrics(NOW);
+
+    expect(biometrics.authenticateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ disableDeviceFallback: true })
+    );
+  });
+
   it('falls back rather than opening when the print is not recognised', async () => {
     biometrics.authenticateAsync.mockResolvedValue({ success: false });
 

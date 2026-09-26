@@ -46,9 +46,21 @@ export type BiometricOutcome = 'success' | 'failed' | 'unavailable';
  * Class 2 includes face unlocks that a photograph defeats, which is not the bar
  * for a record of somebody's body.
  *
- * `disableDeviceFallback` is left at its default. Our own PIN is behind this
- * prompt already and is the better fallback; suppressing the system one would
- * change nothing except making the sheet less familiar.
+ * ## `disableDeviceFallback: true`, and it is not optional
+ *
+ * Left at its default, Android offers "Use PIN" on the sheet and accepts the
+ * **device** passcode — and `authenticateAsync` then returns success. Measured
+ * on a device: an app lock set to one PIN opened to a completely different
+ * device passcode.
+ *
+ * That silently undoes the thing this feature is most for. The threat here is
+ * not a stranger; it is somebody who lives with you and has watched you unlock
+ * your phone. An app lock that accepts the phone's own passcode is no lock at
+ * all against them, which is why the setup screen suggests choosing a different
+ * PIN in the first place.
+ *
+ * So the system fallback is off and ours is the only one. Our PIN is on the
+ * screen behind this sheet already.
  *
  * Never throws, and never reports *why* it failed. A cancel, a mismatch and a
  * platform lockout are all the same answer to this app: ask for the PIN.
@@ -63,6 +75,8 @@ export async function promptForBiometrics(promptMessage: string, cancelLabel: st
       promptMessage,
       cancelLabel,
       biometricsSecurityLevel: 'strong',
+      // See above: without this the device passcode opens the app.
+      disableDeviceFallback: true,
     });
 
     return result.success ? 'success' : 'failed';

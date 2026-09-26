@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +7,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import {
+  isAppLockRecoverable,
+  remainingLockWaitMs,
+} from '@/features/app-lock/application/remove-app-lock';
 import { unlockWithBiometrics } from '@/features/app-lock/application/unlock-with-biometrics';
 import { unlockWithPin } from '@/features/app-lock/application/unlock-with-pin';
 import { PinDots } from '@/features/app-lock/components/pin-dots';
@@ -15,6 +20,7 @@ import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import {
   BIOMETRIC_FAILED_MESSAGE,
   LOCK_BIOMETRIC_RETRY_LABEL,
+  LOCK_FORGOT_LABEL,
   LOCK_PROMPT,
   LOCK_WRONG_PIN_MESSAGE,
   remainingAttemptsMessage,
@@ -35,6 +41,7 @@ import { useAppLockStore } from '@/store/app-lock-store';
  * anything but `unlockWithPin`.
  */
 export default function LockScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const unlock = useAppLockStore((state) => state.unlock);
 
@@ -43,6 +50,15 @@ export default function LockScreen() {
   const [remainingWaitMs, setRemainingWaitMs] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
   const [canRetryBiometrics, setCanRetryBiometrics] = useState(false);
+
+  /**
+   * Whether this lock can be reset with an account password.
+   *
+   * `null` until the record has been read, so the link is not drawn and then
+   * withdrawn. It is never shown for a lock set without an account: offering a
+   * route and then refusing it is worse than not offering one.
+   */
+  const [recoverable, setRecoverable] = useState<boolean | null>(null);
 
   // Guards the window between the sixth digit and the answer coming back, so a
   // fast tap cannot start a second check against the same counters.
@@ -185,6 +201,30 @@ export default function LockScreen() {
   useEffect(() => {
     let active = true;
 
+    void isAppLockRecoverable().then((value) => {
+      if (active) {
+        setRecoverable(value);
+      }
+    });
+
+    // A wait that survived a restart is shown on arrival rather than after six
+    // digits. The counters were already refusing; this is so nobody has to
+    // spend a PIN to find that out.
+    void remainingLockWaitMs().then((remaining) => {
+      if (active && remaining > 0) {
+        setRemainingWaitMs(remaining);
+        setMessage(waitMessage(remaining));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
     void (async () => {
       const outcome = await unlockWithBiometrics();
 
@@ -281,6 +321,20 @@ export default function LockScreen() {
                 style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
                 <ThemedText type="smallBold" style={{ color: theme.primary }}>
                   {LOCK_BIOMETRIC_RETRY_LABEL}
+                </ThemedText>
+              </Pressable>
+            )}
+
+            {/* Available at every stage, including partway through a wait: a
+                delay must never trap somebody out of their own records. */}
+            {recoverable === true && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={LOCK_FORGOT_LABEL}
+                onPress={() => router.push('/(lock)/recover')}
+                style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {LOCK_FORGOT_LABEL}
                 </ThemedText>
               </Pressable>
             )}

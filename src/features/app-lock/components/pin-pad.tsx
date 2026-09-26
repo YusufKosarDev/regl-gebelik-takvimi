@@ -57,8 +57,14 @@ export function PinPad({
         key(digit, () => onDigit(digit), digitLabel(digit), `pin-key-${digit}`)
       )}
 
-      {/* The gap under 7 rather than a key nobody asked for. */}
-      <View style={styles.key} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+      {/* The gap under 7 rather than a key nobody asked for. It takes the
+          key's size so the row lines up, and none of its border: drawn, it
+          reads as a key that does nothing. */}
+      <View
+        style={styles.spacer}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
 
       {key('0', () => onDigit('0'), digitLabel('0'), 'pin-key-0')}
 
@@ -87,6 +93,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  spacer: {
+    width: 88,
+    minHeight: 64,
   },
   keyLabel: {
     fontSize: 24,
