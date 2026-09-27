@@ -234,6 +234,94 @@ adb shell bmgr backupnow com.yusufkosardev.regltakvimi
 
 `Backup is not allowed` is the answer to expect.
 
+## Why the database is not encrypted
+
+`regl-gebelik.db` is a plain SQLite file. That is a decision, taken on
+2026-09-27 after measuring the alternative, not something nobody got round to.
+
+What protects it today is Android itself: file-based encryption while the
+device is locked, app-private storage no other app can read, and the auto
+backup above turned off so no copy leaves the phone.
+
+The alternative considered was SQLCipher, which `expo-sqlite` supports through
+the `expo.sqlite.useSQLCipher` Gradle property. The investigation went far
+enough to build the module and take real measurements.
+
+### What it would have cost
+
+| | |
+| --- | --- |
+| A third-party OpenSSL | `io.github.ronickg:openssl:3.3.2-1`, an ndkports AAR on Maven Central. The POM names one developer, no organisation and no email. No dependency verification is configured in this project, so nothing would notice a substitution. |
+| Download size | `libcrypto.so` is 5,755,512 bytes for arm64-v8a (4,235,428 for armeabi-v7a, 4,662,888 for x86, 5,954,584 for x86_64) against a 57 MB arm64 native baseline. |
+| A SQLite downgrade | The vendored SQLCipher 4.7.0 sits on SQLite **3.49.1**; the plain build ships **3.50.3**. Encryption means tracking SQLCipher's rebase cadence rather than SQLite's. |
+| A build that does not work yet | Two separate problems, below. |
+| Packaging that is unproven | The OpenSSL AAR carries its `.so` files only under `prefab/`, which is for linking, with no `jni/` directory — and the dependency is `compileOnly`. `libcrypto.so` is very likely not packaged, and it is not an NDK public library, so the system copy cannot stand in. Nobody has run a build far enough to find out. |
+
+Two build problems, and only one of them is real:
+
+- **The NDK versions conflict.** `expo-sqlite` compiled from source pins NDK
+  27.0.12077973; React Native 0.86's own modules pin 27.1.12297006; `ndk.dir`
+  is a single global setting. The baseline never hits this because
+  `shouldUsePublication.groovy` makes `expo-sqlite` ship as a prebuilt AAR —
+  setting any of its build properties turns that off and the module compiles.
+- **The link errors were self-inflicted**, and this is recorded so the next
+  person does not repeat the diagnosis. Removing `ndk.dir` to let each module
+  resolve its own version made Gradle use a path containing a space, which is
+  the `CLANG_~1.EXE` problem documented under
+  [Building on Windows with a space in your user folder](#building-on-windows-with-a-space-in-your-user-folder).
+  A second directory junction pointing at 27.0.12077973 would probably clear
+  both. The build cost is smaller than it first appeared.
+
+### The reason that actually decided it
+
+Losing the key means losing everything, and the key can be lost without anybody
+doing anything wrong.
+
+The key would live in `expo-secure-store` — Android Keystore over
+SharedPreferences, the same place the app lock's hash lives. Read
+`SecureStoreModule.kt` and two of its failure paths return `null` **silently**:
+`KeyPermanentlyInvalidatedException` logs a warning and returns null, and
+`BadPaddingException` *deletes the stored entry* and returns null, with a
+comment saying this usually means the app was reinstalled.
+
+Today that is harmless, and `lock-record-store.ts` says why in as many words:
+failing open "disables a lock that was never encrypting anything — the database
+was plaintext either way." Encryption removes that escape. The same silent null
+would leave a database that is intact, unreadable, and unrecoverable.
+
+The way back would be the cloud backup — and **the account is optional and off
+by default**. So for most people the trade would be a rare but total loss
+against protection from someone obtaining a copy of the database file, which is
+rarer still.
+
+### And it would not have covered the likely threats anyway
+
+A rooted device defeats it: the app reads the key on every launch, so anything
+running as root can have it. Someone holding the unlocked phone with the app
+open is untouched by it — that is what the app lock is for. The home-screen
+widget snapshot in `shared_prefs/` stays plaintext either way, as do the auth
+session and app state in AsyncStorage.
+
+### What would change the decision
+
+Any one of these is worth reopening it for:
+
+- **A first-party encrypted storage option in Expo.** The dependency argument
+  and most of the build argument disappear together.
+- **A maintained, multi-party OpenSSL artifact**, or `expo-sqlite` vendoring
+  the crypto itself. One maintainer supplying the primitive that protects a
+  period history is the part that does not sit well.
+- **Making the account non-optional**, or shipping some other guaranteed
+  recovery path. That is what turns key loss from unrecoverable into annoying,
+  and it is the single change that matters most.
+- A threat this does cover becoming the realistic one — device seizure or
+  forensic extraction as a design case rather than a hypothetical.
+
+If it is reopened: the first thing to build is not the key handling. It is a
+build that links, loads and runs, with `libcrypto.so` proven to be in the APK,
+and cold-start timings measured against the baseline. Everything else is
+downstream of that.
+
 ## Two rules about stored data
 
 Both exist because this app keeps a period history, and the way to lose one
