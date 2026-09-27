@@ -6,7 +6,6 @@ import {
   emptyDailyEntry,
   entryById,
   hasAnything,
-  labelFor,
   offered,
 } from '../catalogues';
 
@@ -29,18 +28,12 @@ describe.each(CATALOGUES)('the %s catalogue', (_name, catalogue) => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('has no blank ids or labels', () => {
+  it('has no blank ids', () => {
+    // The label half of this moved to the presentation catalogue test, which is
+    // where the words now live.
     for (const entry of catalogue) {
       expect(entry.id.trim()).not.toBe('');
-      expect(entry.label.trim()).not.toBe('');
     }
-  });
-
-  it('has no two entries with the same label', () => {
-    // Two rows reading the same would be indistinguishable on screen.
-    const labels = catalogue.map((entry) => entry.label);
-
-    expect(new Set(labels).size).toBe(labels.length);
   });
 
   it('offers everything that is not hidden', () => {
@@ -52,11 +45,11 @@ describe.each(CATALOGUES)('the %s catalogue', (_name, catalogue) => {
     // it unreadable.
     const retired: readonly CatalogueEntry[] = [
       ...catalogue,
-      { id: 'retired-for-this-test', label: 'Artık sunulmuyor', hidden: true },
+      { id: 'retired-for-this-test', hidden: true },
     ];
 
     expect(offered(retired)).not.toContainEqual(retired[retired.length - 1]);
-    expect(labelFor(retired, 'retired-for-this-test')).toBe('Artık sunulmuyor');
+    expect(entryById(retired, 'retired-for-this-test')).not.toBeNull();
   });
 });
 
@@ -87,25 +80,26 @@ describe('the catalogues as shipped', () => {
     ]);
   });
 
-  it('never calls a mood normal', () => {
-    // What is normal for somebody is not this app's to say, and a scale with a
-    // normal on it turns a note into a verdict.
+  it('has no mood id calling itself normal', () => {
+    // What is normal for somebody is not this app's to say. The ids are checked
+    // here and the words each language uses are checked in the presentation
+    // catalogue test, which is where they live.
     for (const mood of MOODS) {
-      expect(mood.label.toLocaleLowerCase('tr')).not.toContain('normal');
+      expect(mood.id).not.toContain('normal');
     }
   });
 });
 
 describe('finding an entry by id', () => {
   it('returns it', () => {
-    expect(entryById(SYMPTOMS, 'cramps')?.label).toBe('Kramp');
+    expect(entryById(SYMPTOMS, 'cramps')?.id).toBe('cramps');
   });
 
   it('returns null for an id no catalogue has', () => {
     // A stored day can name something a later build retired or something a
-    // newer build knows and this one does not. Neither is a fault.
+    // newer build knows and this one does not. Neither is a fault. The label
+    // half of this is asserted in the presentation catalogue test.
     expect(entryById(SYMPTOMS, 'something-from-the-future')).toBeNull();
-    expect(labelFor(SYMPTOMS, 'something-from-the-future')).toBeNull();
   });
 });
 

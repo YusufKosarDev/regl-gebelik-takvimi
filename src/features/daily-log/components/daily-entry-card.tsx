@@ -3,15 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { DailyEntry } from '../domain/catalogues';
 import { hasAnything } from '../domain/catalogues';
 import { summariseDailyEntry } from '../domain/summarise-daily-entry';
-import {
-  DAILY_CARD_ADD_LABEL,
-  DAILY_CARD_EDIT_LABEL,
-  DAILY_CARD_EMPTY_HINT,
-  DAILY_CARD_EMPTY_TITLE,
-  DAILY_CARD_FILLED_TITLE,
-  DAILY_SUMMARY_SEPARATOR,
-  symptomCountLabel,
-} from '../presentation/daily-log-messages';
+import { dailyLogCatalogueLabels } from '../presentation/daily-log-catalogues';
+import { dailyLogMessages } from '../presentation/daily-log-messages';
+
+import { useMessages } from '@/i18n';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -39,25 +34,32 @@ export function DailyEntryCard({
   readonly onOpen: () => void;
 }) {
   const theme = useTheme();
+  const strings = useMessages(dailyLogMessages);
+  const labels = useMessages(dailyLogCatalogueLabels);
 
   const filled = hasAnything(entry);
-  const summary = summariseDailyEntry(entry, symptomCountLabel);
+  const summary = summariseDailyEntry(
+    entry,
+    strings.symptomCountLabel,
+    labels.flows,
+    labels.moods
+  );
 
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.text}>
         <ThemedText accessibilityRole="header" type="smallBold">
-          {filled ? DAILY_CARD_FILLED_TITLE : DAILY_CARD_EMPTY_TITLE}
+          {filled ? strings.cardFilledTitle : strings.cardEmptyTitle}
         </ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary">
-          {filled ? summary.join(DAILY_SUMMARY_SEPARATOR) : DAILY_CARD_EMPTY_HINT}
+          {filled ? summary.join(strings.summarySeparator) : strings.cardEmptyHint}
         </ThemedText>
       </View>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={filled ? DAILY_CARD_EDIT_LABEL : DAILY_CARD_ADD_LABEL}
+        accessibilityLabel={filled ? strings.cardEditLabel : strings.cardAddLabel}
         onPress={onOpen}
         style={({ pressed }) => [
           styles.action,
@@ -65,7 +67,7 @@ export function DailyEntryCard({
           pressed && styles.pressed,
         ]}>
         <ThemedText type="smallBold" themeColor="onPrimary">
-          {filled ? DAILY_CARD_EDIT_LABEL : DAILY_CARD_ADD_LABEL}
+          {filled ? strings.cardEditLabel : strings.cardAddLabel}
         </ThemedText>
       </Pressable>
     </View>

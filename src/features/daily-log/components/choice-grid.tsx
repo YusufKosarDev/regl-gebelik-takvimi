@@ -2,7 +2,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CatalogueEntry } from '../domain/catalogues';
 import { offered } from '../domain/catalogues';
-import { choiceAccessibilityLabel } from '../presentation/daily-log-messages';
+import { labelFor } from '../presentation/daily-log-catalogues';
+import { dailyLogMessages } from '../presentation/daily-log-messages';
+
+import { useMessages } from '@/i18n';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -25,10 +28,19 @@ import { useTheme } from '@/hooks/use-theme';
  *
  * Retired entries are not offered. They stay readable on days that hold them —
  * that is the catalogue rule — but nobody is given a new one.
+ *
+ * `labels` arrives beside the catalogue rather than being looked up in it. The
+ * catalogue knows which ids exist and in what order; what each one is called is
+ * a fact about the reader's language, and this component is handed both.
+ *
+ * An id with no word in this language is skipped rather than drawn as a blank
+ * chip or as its raw id. That can only happen for a retired entry a stored day
+ * still names, and those are not offered here anyway.
  */
 export function ChoiceGrid({
   section,
   catalogue,
+  labels,
   selectedIds,
   onToggle,
   multiple,
@@ -36,12 +48,14 @@ export function ChoiceGrid({
 }: {
   readonly section: string;
   readonly catalogue: readonly CatalogueEntry[];
+  readonly labels: Readonly<Record<string, string>>;
   readonly selectedIds: readonly string[];
   readonly onToggle: (id: string) => void;
   readonly multiple: boolean;
   readonly disabled?: boolean;
 }) {
   const theme = useTheme();
+  const strings = useMessages(dailyLogMessages);
 
   return (
     <View
@@ -49,13 +63,18 @@ export function ChoiceGrid({
       style={styles.grid}>
       {offered(catalogue).map((entry) => {
         const selected = selectedIds.includes(entry.id);
+        const label = labelFor(labels, entry.id);
+
+        if (label === null) {
+          return null;
+        }
 
         return (
           <Pressable
             key={entry.id}
             accessibilityRole={multiple ? 'checkbox' : 'radio'}
             accessibilityState={{ checked: selected, disabled }}
-            accessibilityLabel={choiceAccessibilityLabel(section, entry.label)}
+            accessibilityLabel={strings.choiceAccessibilityLabel(section, label)}
             disabled={disabled}
             onPress={() => onToggle(entry.id)}
             style={({ pressed }) => [
@@ -70,7 +89,7 @@ export function ChoiceGrid({
             <ThemedText
               type={selected ? 'smallBold' : 'small'}
               themeColor={selected ? 'onPrimary' : 'text'}>
-              {entry.label}
+              {label}
             </ThemedText>
           </Pressable>
         );

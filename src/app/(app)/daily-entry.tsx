@@ -16,19 +16,9 @@ import {
   emptyDailyEntry,
   hasAnything,
 } from '@/features/daily-log/domain/catalogues';
-import {
-  DAILY_CLEARED_MESSAGE,
-  DAILY_CLEAR_LABEL,
-  DAILY_EMPTY_SELECTION_MESSAGE,
-  DAILY_LOAD_FAILED_MESSAGE,
-  DAILY_SAVE_FAILED_MESSAGE,
-  DAILY_SAVE_LABEL,
-  DAILY_SAVING_LABEL,
-  DAILY_SCREEN_TITLE,
-  FLOW_SECTION_TITLE,
-  MOOD_SECTION_TITLE,
-  SYMPTOMS_SECTION_TITLE,
-} from '@/features/daily-log/presentation/daily-log-messages';
+import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
+import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-messages';
+import { useMessages } from '@/i18n';
 import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
@@ -56,6 +46,17 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function DailyEntryScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const strings = useMessages(dailyLogMessages);
+  const labels = useMessages(dailyLogCatalogueLabels);
+
+  /** Turns what happened into what to say about it, in the language showing now. */
+  const noticeText = (kind: 'load-failed' | 'empty-selection' | 'save-failed' | 'cleared') =>
+    ({
+      'load-failed': strings.loadFailedMessage,
+      'empty-selection': strings.emptySelectionMessage,
+      'save-failed': strings.saveFailedMessage,
+      cleared: strings.clearedMessage,
+    })[kind];
 
   const params = useLocalSearchParams<{ readonly date?: string }>();
 
@@ -75,7 +76,19 @@ export default function DailyEntryScreen() {
   const [entry, setEntry] = useState<DailyEntry>(() => emptyDailyEntry(date));
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+
+  /**
+   * What happened, not what to say about it.
+   *
+   * The state holds a kind and the render turns it into words. Storing the
+   * sentence instead would freeze it in whichever language was showing when it
+   * was set: change the language with a notice on screen and it would stay in
+   * the old one. It would also make the load effect depend on the catalogue,
+   * which would re-read the database every time the language changed.
+   */
+  const [notice, setNotice] = useState<'load-failed' | 'empty-selection' | 'save-failed' | 'cleared' | null>(
+    null
+  );
 
   /** Guards a second press while the first is still writing. */
   const inFlight = useRef(false);
@@ -95,7 +108,7 @@ export default function DailyEntryScreen() {
         logEvent('daily entry load failed', error);
 
         if (!cancelled) {
-          setNotice(DAILY_LOAD_FAILED_MESSAGE);
+          setNotice('load-failed');
         }
       } finally {
         if (!cancelled) {
@@ -133,7 +146,7 @@ export default function DailyEntryScreen() {
     }
 
     if (!hasAnything(entry)) {
-      setNotice(DAILY_EMPTY_SELECTION_MESSAGE);
+      setNotice('empty-selection');
 
       return;
     }
@@ -149,7 +162,7 @@ export default function DailyEntryScreen() {
       router.back();
     } catch (error) {
       logEvent('daily entry save failed', error);
-      setNotice(DAILY_SAVE_FAILED_MESSAGE);
+      setNotice('save-failed');
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -170,10 +183,10 @@ export default function DailyEntryScreen() {
       await clearDailyEntry(db, date);
 
       setEntry(emptyDailyEntry(date));
-      setNotice(DAILY_CLEARED_MESSAGE);
+      setNotice('cleared');
     } catch (error) {
       logEvent('daily entry clear failed', error);
-      setNotice(DAILY_SAVE_FAILED_MESSAGE);
+      setNotice('save-failed');
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -199,7 +212,7 @@ export default function DailyEntryScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle">
-                {DAILY_SCREEN_TITLE}
+                {strings.screenTitle}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
@@ -209,12 +222,13 @@ export default function DailyEntryScreen() {
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {FLOW_SECTION_TITLE}
+                {strings.flowSectionTitle}
               </ThemedText>
 
               <ChoiceGrid
-                section={FLOW_SECTION_TITLE}
+                section={strings.flowSectionTitle}
                 catalogue={FLOW_LEVELS}
+                labels={labels.flows}
                 selectedIds={entry.flowId === null ? [] : [entry.flowId]}
                 onToggle={(id) => chooseOne('flowId', id)}
                 multiple={false}
@@ -224,12 +238,13 @@ export default function DailyEntryScreen() {
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {SYMPTOMS_SECTION_TITLE}
+                {strings.symptomsSectionTitle}
               </ThemedText>
 
               <ChoiceGrid
-                section={SYMPTOMS_SECTION_TITLE}
+                section={strings.symptomsSectionTitle}
                 catalogue={SYMPTOMS}
+                labels={labels.symptoms}
                 selectedIds={entry.symptomIds}
                 onToggle={toggleSymptom}
                 multiple
@@ -239,12 +254,13 @@ export default function DailyEntryScreen() {
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {MOOD_SECTION_TITLE}
+                {strings.moodSectionTitle}
               </ThemedText>
 
               <ChoiceGrid
-                section={MOOD_SECTION_TITLE}
+                section={strings.moodSectionTitle}
                 catalogue={MOODS}
+                labels={labels.moods}
                 selectedIds={entry.moodId === null ? [] : [entry.moodId]}
                 onToggle={(id) => chooseOne('moodId', id)}
                 multiple={false}
@@ -254,13 +270,13 @@ export default function DailyEntryScreen() {
 
             {notice !== null && (
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                {notice}
+                {noticeText(notice)}
               </ThemedText>
             )}
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={DAILY_SAVE_LABEL}
+              accessibilityLabel={strings.saveLabel}
               accessibilityState={{ disabled: isLoading || isBusy }}
               disabled={isLoading || isBusy}
               onPress={() => {
@@ -273,7 +289,7 @@ export default function DailyEntryScreen() {
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" themeColor="onPrimary">
-                {isBusy ? DAILY_SAVING_LABEL : DAILY_SAVE_LABEL}
+                {isBusy ? strings.savingLabel : strings.saveLabel}
               </ThemedText>
             </Pressable>
 
@@ -282,7 +298,7 @@ export default function DailyEntryScreen() {
             {hasAnything(entry) && (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={DAILY_CLEAR_LABEL}
+                accessibilityLabel={strings.clearLabel}
                 accessibilityState={{ disabled: isLoading || isBusy }}
                 disabled={isLoading || isBusy}
                 onPress={() => {
@@ -294,7 +310,7 @@ export default function DailyEntryScreen() {
                   (isLoading || isBusy) && styles.disabled,
                   pressed && !isBusy && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{DAILY_CLEAR_LABEL}</ThemedText>
+                <ThemedText type="smallBold">{strings.clearLabel}</ThemedText>
               </Pressable>
             )}
           </View>

@@ -23,10 +23,22 @@ import type { ISODate } from '@/types/iso-date';
  * reads, not identity, and it can be reworded whenever the wording is wrong.
  */
 
-/** One choice, in any of the three catalogues. */
+/**
+ * One choice, in any of the three catalogues.
+ *
+ * An id and whether it is retired, and nothing a person reads. The words used
+ * to live here as a `label`, which made this file the one place in `domain/`
+ * that decided what was on screen — and made the catalogues untranslatable
+ * without rewriting the rules around them. They now live in
+ * `presentation/daily-log-catalogues.ts`, one map per language, keyed by these
+ * ids.
+ *
+ * What stays here is what is actually domain: which ids exist, what order they
+ * are in, and which are retired. Those are facts about stored days. A label is
+ * a fact about a reader.
+ */
 export type CatalogueEntry = {
   readonly id: string;
-  readonly label: string;
   /** Retired: never offered again, still readable on days that hold it. */
   readonly hidden?: true;
 };
@@ -41,12 +53,21 @@ export type CatalogueEntry = {
  *
  * Ordered lightest to heaviest, and screens rely on that order.
  */
-export const FLOW_LEVELS: readonly CatalogueEntry[] = [
-  { id: 'spotting', label: 'Leke' },
-  { id: 'light', label: 'Hafif' },
-  { id: 'medium', label: 'Orta' },
-  { id: 'heavy', label: 'Yoğun' },
-];
+export const FLOW_LEVELS = [
+  { id: 'spotting' },
+  { id: 'light' },
+  { id: 'medium' },
+  { id: 'heavy' },
+] as const satisfies readonly CatalogueEntry[];
+
+/**
+ * The ids a flow can have, derived rather than restated.
+ *
+ * This is what makes a label map exhaustive: `Record<FlowId, string>` in either
+ * language fails to compile the moment an id is added here without a word for
+ * it. The catalogue stays the single source of what exists.
+ */
+export type FlowId = (typeof FLOW_LEVELS)[number]['id'];
 
 /**
  * What a person noticed.
@@ -60,18 +81,20 @@ export const FLOW_LEVELS: readonly CatalogueEntry[] = [
  * Nothing here is a symptom *of* anything. The app records what was noticed and
  * says nothing back about what it might mean.
  */
-export const SYMPTOMS: readonly CatalogueEntry[] = [
-  { id: 'cramps', label: 'Kramp' },
-  { id: 'headache', label: 'Baş ağrısı' },
-  { id: 'bloating', label: 'Şişkinlik' },
-  { id: 'fatigue', label: 'Yorgunluk' },
-  { id: 'breast-tenderness', label: 'Göğüs hassasiyeti' },
-  { id: 'back-pain', label: 'Bel ağrısı' },
-  { id: 'nausea', label: 'Mide bulantısı' },
-  { id: 'acne', label: 'Akne' },
-  { id: 'appetite-change', label: 'İştah değişimi' },
-  { id: 'sleep-trouble', label: 'Uyku sorunu' },
-];
+export const SYMPTOMS = [
+  { id: 'cramps' },
+  { id: 'headache' },
+  { id: 'bloating' },
+  { id: 'fatigue' },
+  { id: 'breast-tenderness' },
+  { id: 'back-pain' },
+  { id: 'nausea' },
+  { id: 'acne' },
+  { id: 'appetite-change' },
+  { id: 'sleep-trouble' },
+] as const satisfies readonly CatalogueEntry[];
+
+export type SymptomId = (typeof SYMPTOMS)[number]['id'];
 
 /**
  * How the day felt, in the person's own reckoning.
@@ -82,13 +105,15 @@ export const SYMPTOMS: readonly CatalogueEntry[] = [
  *
  * Ordered best to worst, and screens rely on that order.
  */
-export const MOODS: readonly CatalogueEntry[] = [
-  { id: 'very-good', label: 'Çok iyi' },
-  { id: 'good', label: 'İyi' },
-  { id: 'okay', label: 'Orta' },
-  { id: 'bad', label: 'Kötü' },
-  { id: 'very-bad', label: 'Çok kötü' },
-];
+export const MOODS = [
+  { id: 'very-good' },
+  { id: 'good' },
+  { id: 'okay' },
+  { id: 'bad' },
+  { id: 'very-bad' },
+] as const satisfies readonly CatalogueEntry[];
+
+export type MoodId = (typeof MOODS)[number]['id'];
 
 /** What is offered to somebody choosing now. Retired entries are not. */
 export function offered(catalogue: readonly CatalogueEntry[]): readonly CatalogueEntry[] {
@@ -109,10 +134,12 @@ export function entryById(
   return catalogue.find((entry) => entry.id === id) ?? null;
 }
 
-/** The label for an id, or `null` when nothing in the catalogue has it. */
-export function labelFor(catalogue: readonly CatalogueEntry[], id: string): string | null {
-  return entryById(catalogue, id)?.label ?? null;
-}
+/**
+ * `labelFor` used to live here and now lives in
+ * `presentation/daily-log-catalogues.ts`, because a label is a word in a
+ * language and this file is not allowed to know one. It keeps its `null` for an
+ * unknown id, which is the part that was domain reasoning.
+ */
 
 /**
  * One day, as the person left it.
