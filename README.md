@@ -29,9 +29,13 @@ app is closed. It never resolves a conflict on its own — when two sides change
 the same thing, it stops for that account and waits for somebody to choose a
 side on the conflict screen.
 
-The user interface is entirely Turkish. Source comments and identifiers are in
-English. There is no i18n layer — interface strings are constants in the screen
-and presentation modules.
+The interface is Turkish and English. Turkish is the source language: every
+string exists in it first, and the English side is type-checked against it.
+Source comments and identifiers are in English throughout.
+
+The translation is **not finished** — see [Languages](#languages) for what has
+converted, what has not, and how the two rules in `eslint-rules/` keep a
+half-translated screen from looking finished.
 
 ## Tech stack
 
@@ -41,13 +45,13 @@ and presentation modules.
 | Language | TypeScript 6 (`strict: true`) |
 | Routing | `expo-router` (file-based, `typedRoutes` enabled) |
 | Rendering | New Architecture + Hermes, React Compiler enabled |
-| Local database | `expo-sqlite` — `regl-gebelik.db`, `user_version` migrations (schema v6) |
+| Local database | `expo-sqlite` — `regl-gebelik.db`, `user_version` migrations (schema v8) |
 | Local key-value | `@react-native-async-storage/async-storage` |
 | State | `zustand` (one small store: mode, onboarding flag, hydration) |
 | Accounts | Firebase Auth (email + password), persisted via AsyncStorage |
 | Cloud backup | Cloud Firestore — a single document at `users/{uid}/backups/current` |
 | Notifications | `expo-notifications`, local scheduled reminders only (no push, no FCM) |
-| Native module | `modules/widget-snapshot-bridge` — Kotlin, Android only |
+| Native modules | `modules/widget-snapshot-bridge` and `modules/screen-privacy` — Kotlin, Android only |
 
 There is no analytics, crash reporting, advertising or payment SDK, and the app
 makes no network calls of its own beyond the Firebase SDK.
@@ -88,12 +92,99 @@ are enforced by where things are allowed to import from:
 | `components/` | React components belonging to that feature | — |
 | `__tests__/` | tests, colocated per folder | — |
 
-The current features are `auth`, `avatar`, `backup`, `cycle`, `notifications`,
-`onboarding`, `pregnancy`, `privacy`, `sync` and `widget`.
+The current features are `app-lock`, `auth`, `avatar`, `backup`, `cycle`,
+`daily-log`, `deletion`, `disclaimer`, `notifications`, `onboarding`,
+`pregnancy`, `privacy`, `sync` and `widget`.
 
 Keeping `domain/` free of I/O is what makes the rules testable without a device:
 the cycle phase calculation, the sync decision table, the three-way merge and the
 rules deciding whether an automatic sync may run at all are plain functions.
+
+## Languages
+
+The app is Turkish and English. Turkish is the source language, and that is a
+technical fact rather than a preference: every string is written in Turkish
+first, the English catalogue is typed against the Turkish one, and a key that
+exists in one and not the other is a compile error where the pair is declared.
+
+### How a language is chosen
+
+`src/i18n/language.ts` decides, as a pure function of two things — what the
+person stored and what the phone says:
+
+- A stored `'tr'` or `'en'` wins over everything. Somebody who chose is not
+  asked again by a phone that disagrees.
+- `'system'` follows the phone: a device asking for Turkish gets Turkish, and
+  **anything else gets English**. Not Turkish — a Turkish speaker with an
+  English phone can find the setting, while somebody handed a language they
+  cannot read has no idea what they are looking for.
+- A device that will not answer gets **Turkish**, the source language. `null`
+  from `getLocales()` is not a device asking for English; it is a device that
+  did not answer.
+
+`src/i18n/device-locale.ts` is the only module that talks to
+`expo-localization`, and every one of its three reads can return `null`.
+
+### How a feature holds its strings
+
+One catalogue pair per feature, in its `presentation/` folder. The Turkish
+object is written without `as const` — that would give it string-literal types
+and the English half could not then differ — and its inferred type is the
+contract the English half is checked against:
+
+```ts
+const xMessagesTr = { title: 'Geçmiş kayıtlar' };
+
+export type XMessages = typeof xMessagesTr;
+
+const xMessagesEn: XMessages = { title: 'History' };
+
+export const xMessages: Messages<XMessages> = { tr: xMessagesTr, en: xMessagesEn };
+```
+
+A screen reads the pair with `useMessages(xMessages)`, which is a bare hook
+with no provider, mirroring `useTheme()`.
+
+`src/features/daily-log/` is the worked example. Its catalogue also re-exports
+every string under its original constant name; that block is a transitional
+crutch for the roughly two thousand existing assertions that name those
+constants, not part of the pattern.
+
+### Dates
+
+`src/utils/format-date.ts` holds a month table per language and takes the
+language as an argument. It does not use `Intl`: Hermes projects Android's own
+ICU, whose data varies by device, so `Intl` would fall back to English on some
+phones and not others.
+
+### The two rules that keep it honest
+
+Both live in `eslint-rules/` and are registered in `eslint.config.js`. Neither
+is style — they exist because the test suite **cannot** catch what they catch.
+`jest/expo-localization-mock.js` pins the suite to a Turkish device, so a
+screen that ignores the catalogue still renders correctly in every test.
+
+| Rule | Forbids |
+| --- | --- |
+| `no-turkish-outside-catalogues` | a string literal with a Turkish-specific letter outside a presentation catalogue |
+| `require-language-argument` | calling `formatDisplayDate` / `formatDisplayMonth` without a language |
+
+The second exists because the language argument is optional and defaults to
+Turkish. That default is what lets the assertions written before the second
+language existed keep calling with one argument and keep proving the Turkish
+output is unchanged; the rule is what stops it being reachable anywhere else.
+
+`no-turkish-outside-catalogues` carries an allow-list. Entries marked
+`TEMPORARY` are features that have not converted yet, and each comes off as its
+stage lands.
+
+### What has not converted yet
+
+Everything except `daily-log`, the dates, and the two rules above. The
+remaining features still hold Turkish-only constants, `useLanguage()` does not
+yet read a stored preference — it follows the phone — and there is no language
+picker in settings. An English phone therefore gets an English daily-entry
+screen and English dates, and Turkish everywhere else.
 
 ## Prerequisites
 
@@ -455,7 +546,7 @@ script is left over from the template.
 ```sh
 npm run typecheck  # tsc --noEmit, under strict mode
 npm run lint       # ESLint, via eslint-config-expo's flat config
-npm test           # Jest — 120 suites, 4733 tests
+npm test           # Jest — 176 suites, 5905 tests
 npm run test:watch # watch mode
 ```
 
@@ -465,7 +556,8 @@ purpose and an `import` would defeat it.
 
 ESLint is configured in `eslint.config.js`, which composes the base config from
 `eslint-config-expo/flat` and ignores everything generated — `android/`, `ios/`,
-`.expo/`, build output, and the Kotlin half of the native module.
+`.expo/`, build output, and the Kotlin half of the native modules. The two
+project-specific rules it adds are described under [Languages](#languages).
 
 Beyond ordinary unit tests there are a few contract tests worth knowing about:
 
@@ -476,10 +568,19 @@ Beyond ordinary unit tests there are a few contract tests worth knowing about:
   not the other fails the suite.
 - `src/features/widget/domain/__tests__/widget-snapshot-native-contract.test.ts`
   pins the JS ↔ Kotlin snapshot contract.
+- `src/utils/__tests__/format-date-tables.test.ts` holds the two month tables
+  against each other, so a table pasted from the other and left unedited fails
+  rather than shipping.
+- `src/i18n/__tests__/jest-environment-language.test.ts` pins the suite to a
+  Turkish device. Roughly 2,250 assertions depend on it, so it is a tripwire
+  rather than a test of the mock.
+- `src/app/__tests__/error-boundary.test.tsx` asserts that neither the thrown
+  message nor its stack reaches the screen.
 
-The Kotlin module has its own unit tests under
-`modules/widget-snapshot-bridge/android/src/test/`, which run through Gradle
-rather than Jest.
+Both Kotlin modules have their own unit tests, under
+`modules/widget-snapshot-bridge/android/src/test/` and
+`modules/screen-privacy/android/src/test/`. They run through Gradle rather than
+Jest, so `npm test` does not cover them and neither does CI.
 
 ### Continuous integration
 
