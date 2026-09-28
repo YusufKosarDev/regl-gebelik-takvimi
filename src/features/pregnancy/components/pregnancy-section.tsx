@@ -30,9 +30,9 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { SOURCE_ERROR_MESSAGE } from '@/features/cycle/presentation/home-messages';
-import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useMessages} from '@/i18n';
 import { formatDisplayDate } from '@/utils/format-date';
 
 /**
@@ -70,6 +70,7 @@ export function PregnancySection({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const disclaimer = useMessages(disclaimerMessages);
   const language = useLanguage();
 
   return (
@@ -244,7 +245,7 @@ export function PregnancySection({
           )}
 
           <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-            {CONTENT_DISCLAIMER_FOOTER}
+            {disclaimer.contentDisclaimerFooter}
           </ThemedText>
         </>
       )}

@@ -12,25 +12,10 @@ import {
   supportMailtoUrl,
 } from '@/features/disclaimer/domain/legal-links';
 import { getAppVersion } from '@/features/disclaimer/infrastructure/app-version';
-import {
-  ABOUT_APP_NAME,
-  ABOUT_IMPORTANT_PARAGRAPHS,
-  ABOUT_DELETION_LABEL,
-  ABOUT_IMPORTANT_SECTION_TITLE,
-  ABOUT_KVKK_LABEL,
-  ABOUT_LINKS_SECTION_TITLE,
-  ABOUT_PRIVACY_LABEL,
-  ABOUT_SCREEN_TITLE,
-  ABOUT_TRANSFER_PARAGRAPH,
-  ABOUT_TRANSFER_SECTION_TITLE,
-  ABOUT_SUPPORT_SECTION_TITLE,
-  aboutVersionLabel,
-  aboutVersionText,
-  aboutSupportLabel,
-  linkOpenFailedMessage,
-  mailOpenFailedMessage,
-} from '@/features/disclaimer/presentation/disclaimer-messages';
+import type { DisclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 import { logEvent } from '@/shared/logging';
 
 /**
@@ -54,14 +39,18 @@ type AboutLink = {
  * Derived rather than written out, so moving the site to another host is one
  * edit in `legal-links` and cannot leave a single row pointing at the old one.
  */
-const ABOUT_LINKS: readonly AboutLink[] = [
-  { label: ABOUT_PRIVACY_LABEL, url: legalPageUrl('privacy') },
-  { label: ABOUT_KVKK_LABEL, url: legalPageUrl('kvkk') },
-  { label: ABOUT_DELETION_LABEL, url: legalPageUrl('deletion') },
-];
+function aboutLinks(strings: DisclaimerMessages): readonly AboutLink[] {
+  return [
+    { label: strings.aboutPrivacyLabel, url: legalPageUrl('privacy') },
+    { label: strings.aboutKvkkLabel, url: legalPageUrl('kvkk') },
+    { label: strings.aboutDeletionLabel, url: legalPageUrl('deletion') },
+  ];
+}
 
 export default function AboutScreen() {
   const theme = useTheme();
+  const disclaimer = useMessages(disclaimerMessages);
+  const links = aboutLinks(disclaimer);
 
   const version = getAppVersion();
 
@@ -104,27 +93,27 @@ export default function AboutScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle">
-                {ABOUT_SCREEN_TITLE}
+                {disclaimer.aboutScreenTitle}
               </ThemedText>
             </View>
 
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="smallBold">{ABOUT_APP_NAME}</ThemedText>
+              <ThemedText type="smallBold">{disclaimer.aboutAppName}</ThemedText>
 
               <ThemedText
-                accessibilityLabel={aboutVersionLabel(version)}
+                accessibilityLabel={disclaimer.aboutVersionLabel(version)}
                 type="small"
                 themeColor="textSecondary">
-                {aboutVersionText(version)}
+                {disclaimer.aboutVersionText(version)}
               </ThemedText>
             </View>
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {ABOUT_IMPORTANT_SECTION_TITLE}
+                {disclaimer.aboutImportantSectionTitle}
               </ThemedText>
 
-              {ABOUT_IMPORTANT_PARAGRAPHS.map((paragraph) => (
+              {disclaimer.aboutImportantParagraphs.map((paragraph) => (
                 <ThemedText key={paragraph} type="small" themeColor="textSecondary">
                   {paragraph}
                 </ThemedText>
@@ -133,26 +122,26 @@ export default function AboutScreen() {
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {ABOUT_TRANSFER_SECTION_TITLE}
+                {disclaimer.aboutTransferSectionTitle}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
-                {ABOUT_TRANSFER_PARAGRAPH}
+                {disclaimer.aboutTransferParagraph}
               </ThemedText>
             </View>
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {ABOUT_LINKS_SECTION_TITLE}
+                {disclaimer.aboutLinksSectionTitle}
               </ThemedText>
 
-              {ABOUT_LINKS.map((link) => (
+              {links.map((link) => (
                 <Pressable
                   key={link.url}
                   accessibilityRole="link"
                   accessibilityLabel={link.label}
                   onPress={() => {
-                    void openLink(link.url, linkOpenFailedMessage);
+                    void openLink(link.url, disclaimer.linkOpenFailedMessage);
                   }}
                   style={({ pressed }) => [
                     styles.linkButton,
@@ -168,14 +157,14 @@ export default function AboutScreen() {
 
             <View style={styles.section}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {ABOUT_SUPPORT_SECTION_TITLE}
+                {disclaimer.aboutSupportSectionTitle}
               </ThemedText>
 
               <Pressable
                 accessibilityRole="link"
-                accessibilityLabel={aboutSupportLabel(SUPPORT_EMAIL)}
+                accessibilityLabel={disclaimer.aboutSupportLabel(SUPPORT_EMAIL)}
                 onPress={() => {
-                  void openLink(supportMailtoUrl(), mailOpenFailedMessage);
+                  void openLink(supportMailtoUrl(), disclaimer.mailOpenFailedMessage);
                 }}
                 style={({ pressed }) => [
                   styles.linkButton,
@@ -183,7 +172,7 @@ export default function AboutScreen() {
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText type="smallBold" themeColor="primary">
-                  {aboutSupportLabel(SUPPORT_EMAIL)}
+                  {disclaimer.aboutSupportLabel(SUPPORT_EMAIL)}
                 </ThemedText>
               </Pressable>
             </View>

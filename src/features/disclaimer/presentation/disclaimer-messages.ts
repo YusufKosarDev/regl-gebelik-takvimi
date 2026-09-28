@@ -1,3 +1,5 @@
+import type { Messages } from '@/i18n';
+
 /**
  * What the app says about its own limits.
  *
@@ -11,129 +13,235 @@
  * doctor and not contraception, and paraphrasing them to fit a layout is how a
  * disclaimer quietly stops disclaiming anything. A screen that cannot fit them
  * is a screen that needs changing.
- */
-
-/* ------------------------------------------------------- onboarding -- */
-
-export const DISCLAIMER_TITLE = 'Başlamadan önce';
-
-export const DISCLAIMER_INTRO =
-  'Bu uygulama regl döngünü ve gebeliğini takip etmene yardımcı olur. Gösterdiği ' +
-  'tarihler ve bilgiler, girdiğin kayıtlara dayanan tahminlerdir.';
-
-/**
- * The three that matter, in the order they matter.
  *
- * A list rather than a paragraph: these are the points somebody has to be able
- * to find again, and the middle one — that this is not contraception — is the
- * one a wall of text would swallow.
- */
-export const DISCLAIMER_POINTS: readonly string[] = [
-  'Tıbbi tavsiye, teşhis veya tedavi yerine geçmez.',
-  'Doğum kontrol yöntemi olarak ya da gebe kalmak için tek başına kullanılmamalıdır.',
-  'Sağlığınla ilgili bir endişen varsa bir sağlık profesyoneline danış. Acil bir durumda ' +
-    "112'yi ara.",
-];
-
-/* ---------------------------------------------------------- about -- */
-
-export const ABOUT_SCREEN_TITLE = 'Hakkında';
-
-/** The row in settings that leads here. */
-export const ABOUT_OPEN_LABEL = 'Hakkında';
-
-export const ABOUT_IMPORTANT_SECTION_TITLE = 'Önemli bilgi';
-
-/**
- * The long form, as paragraphs.
+ * ## The English is a translation, not a rewrite
  *
- * Kept as separate strings rather than one blob with newlines in it, so the
- * screen can space them as paragraphs and a test can point at the one it means.
+ * Same claims, same order, same three points, and the emergency number stays
+ * 112 - it is the number where this app is used, and localising it to a
+ * reader's assumed country would be inventing advice. The rule above applies
+ * to both halves: neither may be shortened to fit.
  */
-export const ABOUT_IMPORTANT_PARAGRAPHS: readonly string[] = [
-  'Regl & Gebelik Takvimi, girdiğin kayıtlara dayanarak döngü evreleri, doğurganlık ' +
-    'penceresi, ovülasyon günü ve tahmini doğum tarihi gibi tahminler gösterir. Herkesin ' +
-    'döngüsü farklıdır; bu tahminler kesin değildir.',
-  'Uygulamadaki içerikler genel bilgilendirme amaçlıdır. Tıbbi tavsiye, teşhis veya tedavi ' +
-    'yerine geçmez.',
-  'Uygulama bir doğum kontrol yöntemi değildir. Gebelikten korunmak ya da gebe kalmak için ' +
-    'tek başına kullanılmamalıdır.',
-  'Gebelik süresince düzenli doktor kontrollerini aksatma. Sağlığınla ilgili bir endişen ' +
-    "varsa bir sağlık profesyoneline danış. Acil bir durumda 112'yi ara.",
-];
 
-/** Shown beside the version, so the number has something to be the version of. */
-export const ABOUT_APP_NAME = 'Regl & Gebelik Takvimi';
+const disclaimerMessagesTr = {
+  /* ----------------------------------------------------- onboarding -- */
 
-export const ABOUT_VERSION_LABEL = 'Sürüm';
+  disclaimerTitle: 'Başlamadan önce',
 
-/** When the version cannot be read, which should not happen but is not fatal. */
-export const ABOUT_VERSION_UNKNOWN = 'Bilinmiyor';
+  disclaimerIntro:
+    'Bu uygulama regl döngünü ve gebeliğini takip etmene yardımcı olur. Gösterdiği ' +
+    'tarihler ve bilgiler, girdiğin kayıtlara dayanan tahminlerdir.',
 
-/* ------------------------------------------------- moving to a phone -- */
+  /**
+   * The three that matter, in the order they matter.
+   *
+   * A list rather than a paragraph: these are the points somebody has to be
+   * able to find again, and the middle one - that this is not contraception -
+   * is the one a wall of text would swallow.
+   */
+  disclaimerPoints: [
+    'Tıbbi tavsiye, teşhis veya tedavi yerine geçmez.',
+    'Doğum kontrol yöntemi olarak ya da gebe kalmak için tek başına kullanılmamalıdır.',
+    'Sağlığınla ilgili bir endişen varsa bir sağlık profesyoneline danış. Acil bir durumda ' +
+      "112'yi ara.",
+  ] as readonly string[],
 
-/**
- * What happens to the records when the phone changes.
- *
- * On this screen rather than only on the account screen, because the account
- * screen is behind signing in and the person who loses everything is exactly
- * the one who never made an account.
- */
-export const ABOUT_TRANSFER_SECTION_TITLE = 'Verilerin taşınması';
+  /* ---------------------------------------------------------- about -- */
 
-export const ABOUT_TRANSFER_PARAGRAPH =
-  "Kayıtların bu telefonda tutulur ve Android'in otomatik yedeklemesine dahil " +
-  'edilmez. Telefon değiştirirsen geçmişin kendiliğinden gelmez — taşımak için ' +
-  'Hesap ekranından yedek al.';
+  aboutScreenTitle: 'Hakkında',
 
-/* ------------------------------------------------ links and support -- */
+  /** The row in settings that leads here. */
+  aboutOpenLabel: 'Hakkında',
 
-export const ABOUT_LINKS_SECTION_TITLE = 'Belgeler';
+  aboutImportantSectionTitle: 'Önemli bilgi',
 
-export const ABOUT_PRIVACY_LABEL = 'Gizlilik politikası';
-export const ABOUT_KVKK_LABEL = 'KVKK aydınlatma metni';
-export const ABOUT_DELETION_LABEL = 'Veri silme';
+  /**
+   * The long form, as paragraphs.
+   *
+   * Kept as separate strings rather than one blob with newlines in it, so the
+   * screen can space them as paragraphs and a test can point at the one it
+   * means.
+   */
+  aboutImportantParagraphs: [
+    'Regl & Gebelik Takvimi, girdiğin kayıtlara dayanarak döngü evreleri, doğurganlık ' +
+      'penceresi, ovülasyon günü ve tahmini doğum tarihi gibi tahminler gösterir. Herkesin ' +
+      'döngüsü farklıdır; bu tahminler kesin değildir.',
+    'Uygulamadaki içerikler genel bilgilendirme amaçlıdır. Tıbbi tavsiye, teşhis veya tedavi ' +
+      'yerine geçmez.',
+    'Uygulama bir doğum kontrol yöntemi değildir. Gebelikten korunmak ya da gebe kalmak için ' +
+      'tek başına kullanılmamalıdır.',
+    'Gebelik süresince düzenli doktor kontrollerini aksatma. Sağlığınla ilgili bir endişen ' +
+      "varsa bir sağlık profesyoneline danış. Acil bir durumda 112'yi ara.",
+  ] as readonly string[],
 
-export const ABOUT_SUPPORT_SECTION_TITLE = 'Destek';
+  /** Shown beside the version, so the number has something to be the version of. */
+  aboutAppName: 'Regl & Gebelik Takvimi',
 
-/** Prefixed, so the address reads as something to write to rather than a link. */
-export function aboutSupportLabel(email: string): string {
-  return `Destek: ${email}`;
-}
+  aboutVersionLabelText: 'Sürüm',
 
-/**
- * Shown when the phone will not open a link or the mail app.
- *
- * It carries the address itself rather than only apologising: somebody who
- * cannot open the privacy policy still needs to be able to reach it, and an
- * address on screen can be typed into a browser or copied by hand.
- */
-export function linkOpenFailedMessage(target: string): string {
-  return `Açılamadı. Bu adresi tarayıcına yazabilirsin: ${target}`;
-}
+  /** When the version cannot be read, which should not happen but is not fatal. */
+  aboutVersionUnknown: 'Bilinmiyor',
 
-export function mailOpenFailedMessage(email: string): string {
-  return `E-posta uygulaması açılamadı. Bu adrese yazabilirsin: ${email}`;
-}
+  /* ----------------------------------------------- moving to a phone -- */
 
-/* -------------------------------------------------------- footers -- */
+  /**
+   * What happens to the records when the phone changes.
+   *
+   * On this screen rather than only on the account screen, because the account
+   * screen is behind signing in and the person who loses everything is exactly
+   * the one who never made an account.
+   */
+  aboutTransferSectionTitle: 'Verilerin taşınması',
 
-/**
- * Under every piece of health content the app shows.
- *
- * One line, secondary, and the same line everywhere: somebody who has seen it
- * under the daily note should recognise it under the pregnancy week rather than
- * read it again as something new.
- */
-export const CONTENT_DISCLAIMER_FOOTER =
-  'Genel bilgilendirme amaçlıdır, tıbbi tavsiye değildir.';
+  aboutTransferParagraph:
+    "Kayıtların bu telefonda tutulur ve Android'in otomatik yedeklemesine dahil " +
+    'edilmez. Telefon değiştirirsen geçmişin kendiliğinden gelmez — taşımak için ' +
+    'Hesap ekranından yedek al.',
 
-/** The version, spoken as a label and its value. */
-export function aboutVersionLabel(version: string): string {
-  return `${ABOUT_VERSION_LABEL}: ${version}`;
-}
+  /* ---------------------------------------------- links and support -- */
 
-/** The version as it is printed, which reads as a phrase rather than a field. */
-export function aboutVersionText(version: string): string {
-  return `${ABOUT_VERSION_LABEL} ${version}`;
-}
+  aboutLinksSectionTitle: 'Belgeler',
+
+  aboutPrivacyLabel: 'Gizlilik politikası',
+  aboutKvkkLabel: 'KVKK aydınlatma metni',
+  aboutDeletionLabel: 'Veri silme',
+
+  aboutSupportSectionTitle: 'Destek',
+
+  /** Prefixed, so the address reads as something to write to rather than a link. */
+  aboutSupportLabel: (email: string) => `Destek: ${email}`,
+
+  /**
+   * Shown when the phone will not open a link or the mail app.
+   *
+   * It carries the address itself rather than only apologising: somebody who
+   * cannot open the privacy policy still needs to be able to reach it, and an
+   * address on screen can be typed into a browser or copied by hand.
+   */
+  linkOpenFailedMessage: (target: string) =>
+    `Açılamadı. Bu adresi tarayıcına yazabilirsin: ${target}`,
+
+  mailOpenFailedMessage: (email: string) =>
+    `E-posta uygulaması açılamadı. Bu adrese yazabilirsin: ${email}`,
+
+  /* ------------------------------------------------------- footers -- */
+
+  /**
+   * Under every piece of health content the app shows.
+   *
+   * One line, secondary, and the same line everywhere: somebody who has seen it
+   * under the daily note should recognise it under the pregnancy week rather
+   * than read it again as something new.
+   */
+  contentDisclaimerFooter: 'Genel bilgilendirme amaçlıdır, tıbbi tavsiye değildir.',
+
+  /** The version, spoken as a label and its value. */
+  aboutVersionLabel: (version: string) => `Sürüm: ${version}`,
+
+  /** The version as it is printed, which reads as a phrase rather than a field. */
+  aboutVersionText: (version: string) => `Sürüm ${version}`,
+};
+
+export type DisclaimerMessages = typeof disclaimerMessagesTr;
+
+const disclaimerMessagesEn: DisclaimerMessages = {
+  disclaimerTitle: 'Before you start',
+
+  disclaimerIntro:
+    'This app helps you keep track of your cycle and your pregnancy. The dates and ' +
+    'information it shows are estimates based on the records you enter.',
+
+  disclaimerPoints: [
+    'It is not a substitute for medical advice, diagnosis or treatment.',
+    'It must not be used on its own as a method of contraception or to conceive.',
+    'If you have any concern about your health, speak to a healthcare professional. ' +
+      'In an emergency, call 112.',
+  ],
+
+  aboutScreenTitle: 'About',
+
+  aboutOpenLabel: 'About',
+
+  aboutImportantSectionTitle: 'Important information',
+
+  aboutImportantParagraphs: [
+    'Regl & Gebelik Takvimi shows estimates - cycle phases, the fertile window, the day ' +
+      'of ovulation and an estimated due date - based on the records you enter. Every ' +
+      'cycle is different, and these estimates are not certainties.',
+    'The content in this app is for general information. It is not a substitute for ' +
+      'medical advice, diagnosis or treatment.',
+    'This app is not a method of contraception. It must not be used on its own to avoid ' +
+      'pregnancy or to conceive.',
+    'Keep up with your regular check-ups throughout a pregnancy. If you have any concern ' +
+      'about your health, speak to a healthcare professional. In an emergency, call 112.',
+  ],
+
+  aboutAppName: 'Regl & Gebelik Takvimi',
+
+  aboutVersionLabelText: 'Version',
+
+  aboutVersionUnknown: 'Unknown',
+
+  aboutTransferSectionTitle: 'Moving your records',
+
+  aboutTransferParagraph:
+    'Your records are kept on this phone and are left out of Android’s automatic ' +
+    'backup. If you change phones your history will not follow by itself — take a backup ' +
+    'from the Account screen to move it.',
+
+  aboutLinksSectionTitle: 'Documents',
+
+  aboutPrivacyLabel: 'Privacy policy',
+  aboutKvkkLabel: 'KVKK information notice',
+  aboutDeletionLabel: 'Deleting your data',
+
+  aboutSupportSectionTitle: 'Support',
+
+  aboutSupportLabel: (email: string) => `Support: ${email}`,
+
+  linkOpenFailedMessage: (target: string) =>
+    `That would not open. You can type this address into your browser: ${target}`,
+
+  mailOpenFailedMessage: (email: string) =>
+    `Your mail app would not open. You can write to this address: ${email}`,
+
+  contentDisclaimerFooter: 'For general information only. This is not medical advice.',
+
+  aboutVersionLabel: (version: string) => `Version: ${version}`,
+
+  aboutVersionText: (version: string) => `Version ${version}`,
+};
+
+export const disclaimerMessages: Messages<DisclaimerMessages> = {
+  tr: disclaimerMessagesTr,
+  en: disclaimerMessagesEn,
+};
+
+/* ------------------------------------------------------------------------- */
+/* The Turkish values under their original names, for the assertions that     */
+/* already name them. Not for screens - see the note at the top of the file.  */
+/* ------------------------------------------------------------------------- */
+
+export const DISCLAIMER_TITLE = disclaimerMessagesTr.disclaimerTitle;
+export const DISCLAIMER_INTRO = disclaimerMessagesTr.disclaimerIntro;
+export const DISCLAIMER_POINTS = disclaimerMessagesTr.disclaimerPoints;
+export const ABOUT_SCREEN_TITLE = disclaimerMessagesTr.aboutScreenTitle;
+export const ABOUT_OPEN_LABEL = disclaimerMessagesTr.aboutOpenLabel;
+export const ABOUT_IMPORTANT_SECTION_TITLE = disclaimerMessagesTr.aboutImportantSectionTitle;
+export const ABOUT_IMPORTANT_PARAGRAPHS = disclaimerMessagesTr.aboutImportantParagraphs;
+export const ABOUT_APP_NAME = disclaimerMessagesTr.aboutAppName;
+export const ABOUT_VERSION_LABEL = disclaimerMessagesTr.aboutVersionLabelText;
+export const ABOUT_VERSION_UNKNOWN = disclaimerMessagesTr.aboutVersionUnknown;
+export const ABOUT_TRANSFER_SECTION_TITLE = disclaimerMessagesTr.aboutTransferSectionTitle;
+export const ABOUT_TRANSFER_PARAGRAPH = disclaimerMessagesTr.aboutTransferParagraph;
+export const ABOUT_LINKS_SECTION_TITLE = disclaimerMessagesTr.aboutLinksSectionTitle;
+export const ABOUT_PRIVACY_LABEL = disclaimerMessagesTr.aboutPrivacyLabel;
+export const ABOUT_KVKK_LABEL = disclaimerMessagesTr.aboutKvkkLabel;
+export const ABOUT_DELETION_LABEL = disclaimerMessagesTr.aboutDeletionLabel;
+export const ABOUT_SUPPORT_SECTION_TITLE = disclaimerMessagesTr.aboutSupportSectionTitle;
+export const CONTENT_DISCLAIMER_FOOTER = disclaimerMessagesTr.contentDisclaimerFooter;
+
+export const aboutSupportLabel = disclaimerMessagesTr.aboutSupportLabel;
+export const linkOpenFailedMessage = disclaimerMessagesTr.linkOpenFailedMessage;
+export const mailOpenFailedMessage = disclaimerMessagesTr.mailOpenFailedMessage;
+export const aboutVersionLabel = disclaimerMessagesTr.aboutVersionLabel;
+export const aboutVersionText = disclaimerMessagesTr.aboutVersionText;

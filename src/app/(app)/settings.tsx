@@ -86,10 +86,10 @@ import {
   APP_LOCK_STATUS_ON,
 } from '@/features/app-lock/presentation/app-lock-messages';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
-import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
-import { useMessages } from '@/i18n';
+import { useMessages} from '@/i18n';
 import { appMessages } from '@/shared/presentation/app-messages';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
@@ -123,6 +123,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const disclaimer = useMessages(disclaimerMessages);
   const common = useMessages(appMessages);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -696,14 +697,14 @@ export default function SettingsScreen() {
             <View style={styles.fields}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={ABOUT_OPEN_LABEL}
+                accessibilityLabel={disclaimer.aboutOpenLabel}
                 onPress={() => router.push('/(app)/about')}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{ABOUT_OPEN_LABEL}</ThemedText>
+                <ThemedText type="smallBold">{disclaimer.aboutOpenLabel}</ThemedText>
               </Pressable>
             </View>
 

@@ -9,12 +9,9 @@ import {
   DISCLAIMER_CONTINUE_HINT,
   DISCLAIMER_CONTINUE_LABEL,
 } from '@/features/onboarding/presentation/onboarding-messages';
-import {
-  DISCLAIMER_INTRO,
-  DISCLAIMER_POINTS,
-  DISCLAIMER_TITLE,
-} from '@/features/disclaimer/presentation/disclaimer-messages';
+import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * What the app is not, said once, before anything is asked for.
@@ -32,6 +29,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function OnboardingDisclaimerScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const disclaimer = useMessages(disclaimerMessages);
 
   return (
     <ThemedView style={styles.screen}>
@@ -41,17 +39,17 @@ export default function OnboardingDisclaimerScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-              {DISCLAIMER_TITLE}
+              {disclaimer.disclaimerTitle}
             </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.body}>
-              {DISCLAIMER_INTRO}
+              {disclaimer.disclaimerIntro}
             </ThemedText>
 
             {/* A bullet per point, drawn rather than typed: a literal "-" in the
                 string would be read out by a screen reader as a hyphen. */}
             <View style={styles.points}>
-              {DISCLAIMER_POINTS.map((point) => (
+              {disclaimer.disclaimerPoints.map((point) => (
                 <View key={point} style={styles.point}>
                   <ThemedText themeColor="textSecondary" style={styles.bullet}>
                     •

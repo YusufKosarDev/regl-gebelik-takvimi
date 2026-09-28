@@ -12,8 +12,9 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * What today's phase has to offer: the mood words, the message and the
@@ -37,6 +38,7 @@ export function DailySupportSection({
   readonly hasSourceError: boolean;
 }) {
   const theme = useTheme();
+  const disclaimer = useMessages(disclaimerMessages);
 
   return (
     <View style={styles.supportSection}>
@@ -110,7 +112,7 @@ export function DailySupportSection({
           is about all of it — the mood words, the message and the
           sources — not about the message alone. */}
       <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-        {CONTENT_DISCLAIMER_FOOTER}
+        {disclaimer.contentDisclaimerFooter}
       </ThemedText>
     </View>
   );
