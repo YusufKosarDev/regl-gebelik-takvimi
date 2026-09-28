@@ -58,13 +58,14 @@ makes no network calls of its own beyond the Firebase SDK.
 src/
 ├── app/                  expo-router routes
 │   ├── (onboarding)/     first-run setup flow
+│   ├── (lock)/           the PIN screen, when a lock is set
 │   ├── (app)/            everything after onboarding completes
 │   └── _layout.tsx       startup gate: hydrate state, mount one route group
 ├── components/           ThemedText / ThemedView
 ├── constants/            theme tokens (colours, spacing, fonts)
 ├── features/             the actual domain work — see the layer contract below
 ├── hooks/                colour scheme and theme hooks
-├── navigation/           routing-gate.ts, a pure decision function
+├── i18n/                 which language the interface is in, and how that is decided
 ├── shared/logging/       event-name allowlist so health data never reaches logs
 ├── storage/              single DB connection + schema migrations
 ├── store/                zustand app store
