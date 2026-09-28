@@ -306,6 +306,72 @@ code.
 If push notifications are ever genuinely needed, the policy and
 [`docs/data-privacy.md`](docs/data-privacy.md) have to change first.
 
+## Android permissions
+
+A release build asks for eight, and every one of them is here because something
+in the app needs it:
+
+| Permission | Why |
+| --- | --- |
+| `INTERNET` | The Firebase SDK, for accounts, backup and sync |
+| `ACCESS_NETWORK_STATE` | Same — the SDK checks whether it can reach the server |
+| `POST_NOTIFICATIONS` | Reminders, on Android 13 and newer |
+| `RECEIVE_BOOT_COMPLETED` | So a scheduled reminder survives a restart |
+| `VIBRATE` | A reminder's own notification |
+| `WAKE_LOCK` | Delivering one while the screen is off |
+| `USE_BIOMETRIC` / `USE_FINGERPRINT` | Opening the app lock with a fingerprint or a face |
+
+There is no location, no camera, no contacts, no storage and no calendar
+permission, because there is no feature that would use one.
+
+### The twenty-one that are blocked
+
+The merged manifest used to carry twenty-nine. The other twenty-one came from
+**ShortcutBadger**, which `expo-notifications` depends on for drawing an unread
+count on the launcher icon:
+
+```
+com.android.launcher.permission.INSTALL_SHORTCUT / UNINSTALL_SHORTCUT
+com.android.launcher.permission.READ_SETTINGS / WRITE_SETTINGS
+android.permission.READ_APP_BADGE
+… and OEM badge permissions for Samsung, HTC, Sony, Huawei, Oppo, Anddoes,
+   Majeur and Badger
+```
+
+plus `com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`,
+which is Play's install-attribution service.
+
+None of them is used. `foreground-notification-handler.ts` sets
+`shouldSetBadge: false` and says why — this app keeps no unread count, and a
+number nothing ever clears is worse than no number — so the badge code never
+runs, and nothing here reads an install referrer. They are listed in
+`android.blockedPermissions` in `app.json`, which adds `tools:node="remove"` to
+each and drops them at merge time.
+
+This matters more than tidiness. The permission list is what somebody reads on
+the Play listing before installing a period tracker, and "read launcher
+settings" and "install shortcuts" are not things this app should appear to
+want.
+
+### Checking a build
+
+The manifest is produced long before the JS bundle, so this works even on a
+machine where the Hermes step is blocked:
+
+```sh
+cd android && ./gradlew :app:processReleaseManifestForPackage
+grep -oE 'android:name="[a-zA-Z.]+permission\.[A-Z_]+"' \
+  app/build/intermediates/packaged_manifests/release/*/AndroidManifest.xml | sort -u
+```
+
+Eight lines is the expected answer.
+
+**Use the release variant, not debug.** A debug manifest also carries
+`SYSTEM_ALERT_WINDOW`, which comes from
+`react-native/ReactAndroid/src/debug/AndroidManifest.xml` for the dev menu
+overlay. It is not in a release build, and `blockedPermissions` does not remove
+it from a debug one — which looks alarming and is not.
+
 ## Android auto backup
 
 Android copies an app's data to the user's Google Drive by default. This app
