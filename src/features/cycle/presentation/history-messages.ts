@@ -50,6 +50,27 @@ export function recordAccessibilityLabel(record: PeriodRecord, language: Languag
     : `${start}, bitiş: ${formatDisplayDate(record.endDate, language)}`;
 }
 
+/**
+ * How a record's end reads.
+ *
+ * A period with no end date is not the same as one still running, so the two
+ * get different words. Nothing is estimated from the average period length:
+ * what was never recorded stays unrecorded.
+ *
+ * Written beside the history screen until the screen was split. It is three
+ * sentences about which words to use, which is what this file is for, and both
+ * the row and the start-date editor need the same answer.
+ */
+export function recordEndLabel(record: PeriodRecord, language: Language): string {
+  if (record.isOngoing) {
+    return RECORD_ONGOING_LABEL;
+  }
+
+  return record.endDate === undefined
+    ? RECORD_UNKNOWN_END_LABEL
+    : formatDisplayDate(record.endDate, language);
+}
+
 /* ------------------------------------------------- the three row actions -- */
 
 export const EDIT_START_TEXT = 'Başlangıcı düzenle';

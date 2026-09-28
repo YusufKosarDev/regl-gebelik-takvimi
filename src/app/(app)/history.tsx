@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
+import { EndDateEditor } from '@/features/cycle/components/end-date-editor';
+import { StartDateEditor } from '@/features/cycle/components/start-date-editor';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -10,123 +12,43 @@ import { deletePeriodRecord } from '@/features/cycle/application/delete-period-r
 import { getPeriodHistory } from '@/features/cycle/application/get-period-history';
 import { updatePeriodEndDate } from '@/features/cycle/application/update-period-end-date';
 import { updatePeriodStartDate } from '@/features/cycle/application/update-period-start-date';
-import { MAX_PERIOD_DURATION_DAYS } from '@/features/cycle/domain/limits';
 import type { PeriodRecord } from '@/features/cycle/domain/types';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage } from '@/i18n';
-import type { Language } from '@/i18n/language';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
-import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 import {
-  CLEAR_END_BUSY_LABEL,
-  CLEAR_END_CONFIRM_LABEL,
-  CLEAR_END_CONSEQUENCE,
-  CLEAR_END_OPEN_LABEL,
-  CLEAR_END_QUESTION,
   DELETE_CONFIRM_LABEL,
   DELETE_CONSEQUENCE,
   DELETE_QUESTION,
   DELETE_TEXT,
-  EDIT_END_PANEL_TITLE,
   EDIT_END_TEXT,
-  EDIT_START_PANEL_TITLE,
   EDIT_START_TEXT,
   HISTORY_DELETE_FAILED_MESSAGE,
   HISTORY_DESCRIPTION,
   HISTORY_EMPTY_MESSAGE,
   HISTORY_LOAD_FAILED_MESSAGE,
   HISTORY_TITLE,
-  HISTORY_UPDATE_FAILED_MESSAGE,
-  NEXT_DAY_LABEL,
-  PREVIOUS_DAY_LABEL,
   RECORD_END_LABEL,
-  RECORD_ONGOING_LABEL,
   RECORD_START_LABEL,
-  RECORD_UNKNOWN_END_LABEL,
-  SAVE_END_LABEL,
-  SAVE_START_LABEL,
   deleteRecordLabel,
   editEndLabel,
   editStartLabel,
-  endDateLine,
   recordAccessibilityLabel,
-  selectedEndDateLabel,
-  selectedStartDateLabel,
-  startDateLine,
+  recordEndLabel,
 } from '@/features/cycle/presentation/history-messages';
 import {
   CANCEL_LABEL,
   LOADING_MESSAGE,
-  SAVE_LABEL,
-  SAVING_LABEL,
 } from '@/shared/presentation/app-messages';
 import { logEvent } from '@/shared/logging';
-
-/**
- * How a record's end reads.
- *
- * A period with no end date is not the same as one still running, so the two get
- * different words. Nothing is estimated from the average period length: what was
- * never recorded stays unrecorded.
- */
-function endLabel(record: PeriodRecord, language: Language): string {
-  if (record.isOngoing) {
-    return RECORD_ONGOING_LABEL;
-  }
-
-  return record.endDate === undefined ? RECORD_UNKNOWN_END_LABEL : formatDisplayDate(record.endDate, language);
-}
-
-/**
- * The latest day a period could have finished.
- *
- * Whichever comes first: today, or the domain's limit on how long one record may
- * span. The limit is imported rather than restated, so the picker and validation
- * cannot drift apart.
- */
-function maxSelectableEndDate(startDate: ISODate, today: ISODate): ISODate {
-  const durationLimit = addDays(startDate, MAX_PERIOD_DURATION_DAYS - 1);
-
-  return daysBetween(durationLimit, today) < 0 ? today : durationLimit;
-}
-
-/**
- * The latest day a period could have begun.
- *
- * Never after today, and never after the day it ended: a period that finished on
- * the 7th cannot have started on the 9th.
- */
-function maxSelectableStartDate(record: PeriodRecord, today: ISODate): ISODate {
-  if (record.endDate === undefined) {
-    return today;
-  }
-
-  return daysBetween(record.endDate, today) < 0 ? today : record.endDate;
-}
-
-/**
- * The earliest day a period could have begun, or `null` when nothing bounds it.
- *
- * A recorded end date pins the other side: reaching further back would make the
- * record span more days than the domain allows. With no end date there is
- * nothing to measure against, so the stepper is left open rather than given an
- * invented floor.
- */
-function minSelectableStartDate(record: PeriodRecord): ISODate | null {
-  if (record.endDate === undefined) {
-    return null;
-  }
-
-  return addDays(record.endDate, -(MAX_PERIOD_DURATION_DAYS - 1));
-}
 
 /**
  * The recorded periods, and the corrections that can be made to them.
@@ -469,7 +391,7 @@ export default function HistoryScreen() {
                     <ThemedText type="small" themeColor="textSecondary" style={styles.endLabel}>
                       {RECORD_END_LABEL}
                     </ThemedText>
-                    <ThemedText type="small">{endLabel(record, language)}</ThemedText>
+                    <ThemedText type="small">{recordEndLabel(record, language)}</ThemedText>
 
                     {recordUnderStartEdit?.id === record.id ? (
                       <StartDateEditor
@@ -481,7 +403,6 @@ export default function HistoryScreen() {
                         hasError={hasUpdateError}
                         onCancel={closePanels}
                         onSave={() => applyStartDate(selectedStartDate ?? record.startDate)}
-                        theme={theme}
                       />
                     ) : recordUnderEndEdit?.id === record.id ? (
                       <EndDateEditor
@@ -503,7 +424,6 @@ export default function HistoryScreen() {
                         onCancel={closePanels}
                         onSave={() => applyEndDate(selectedEndDate ?? record.startDate)}
                         onRemove={() => applyEndDate(undefined)}
-                        theme={theme}
                       />
                     ) : recordPendingDelete?.id === record.id ? (
                       <View style={styles.confirmation}>
@@ -617,340 +537,6 @@ export default function HistoryScreen() {
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
-  );
-}
-
-/**
- * Corrects one record's start date.
- *
- * The end date is shown but not editable: this panel answers only "it began on a
- * different day". Moving both ends at once would make it impossible to say which
- * correction was meant, and correcting the end has its own panel.
- *
- * The same day steppers as the end editor, bounded so the control cannot offer a
- * date that saving would refuse.
- */
-function StartDateEditor({
-  record,
-  today,
-  selectedStartDate,
-  onSelectStartDate,
-  isUpdating,
-  hasError,
-  onCancel,
-  onSave,
-  theme,
-}: {
-  record: PeriodRecord;
-  today: ISODate;
-  selectedStartDate: ISODate;
-  onSelectStartDate: (date: ISODate) => void;
-  isUpdating: boolean;
-  hasError: boolean;
-  onCancel: () => void;
-  onSave: () => void;
-  theme: { primary: string; onPrimary: string };
-}) {
-  const language = useLanguage();
-
-  const maxDate = maxSelectableStartDate(record, today);
-  const minDate = minSelectableStartDate(record);
-
-  // With no recorded end there is no maximum duration to measure against, so
-  // nothing bounds how far back the person may reach.
-  const canGoBack = minDate === null || daysBetween(minDate, selectedStartDate) > 0;
-  const canGoForward = daysBetween(selectedStartDate, maxDate) > 0;
-
-  return (
-    <View style={styles.confirmation}>
-      <ThemedText type="smallBold">{EDIT_START_PANEL_TITLE}</ThemedText>
-
-      <ThemedText type="small" themeColor="textSecondary">
-        {endDateLine(endLabel(record, language))}
-      </ThemedText>
-
-      <View style={styles.dateBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={PREVIOUS_DAY_LABEL}
-          accessibilityState={{ disabled: !canGoBack }}
-          disabled={!canGoBack}
-          onPress={() => onSelectStartDate(addDays(selectedStartDate, -1))}
-          style={({ pressed }) => [
-            styles.dayButton,
-            !canGoBack && styles.disabled,
-            pressed && canGoBack && styles.pressed,
-          ]}>
-          <ThemedText style={styles.dayButtonLabel}>‹</ThemedText>
-        </Pressable>
-
-        <ThemedText
-          accessibilityLabel={selectedStartDateLabel(formatDisplayDate(selectedStartDate, language))}
-          type="smallBold"
-          style={styles.selectedDate}>
-          {formatDisplayDate(selectedStartDate, language)}
-        </ThemedText>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={NEXT_DAY_LABEL}
-          accessibilityState={{ disabled: !canGoForward }}
-          disabled={!canGoForward}
-          onPress={() => onSelectStartDate(addDays(selectedStartDate, 1))}
-          style={({ pressed }) => [
-            styles.dayButton,
-            !canGoForward && styles.disabled,
-            pressed && canGoForward && styles.pressed,
-          ]}>
-          <ThemedText style={styles.dayButtonLabel}>›</ThemedText>
-        </Pressable>
-      </View>
-
-      {hasError && (
-        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-          {HISTORY_UPDATE_FAILED_MESSAGE}
-        </ThemedText>
-      )}
-
-      <View style={styles.confirmActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={CANCEL_LABEL}
-          accessibilityState={{ disabled: isUpdating }}
-          disabled={isUpdating}
-          onPress={onCancel}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            isUpdating && styles.disabled,
-            pressed && !isUpdating && styles.pressed,
-          ]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            {CANCEL_LABEL}
-          </ThemedText>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={SAVE_START_LABEL}
-          accessibilityState={{ disabled: isUpdating }}
-          disabled={isUpdating}
-          onPress={onSave}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { backgroundColor: theme.primary },
-            isUpdating && styles.disabled,
-            pressed && !isUpdating && styles.pressed,
-          ]}>
-          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-            {isUpdating ? SAVING_LABEL : SAVE_LABEL}
-          </ThemedText>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-/**
- * Corrects one record's end date.
- *
- * A pair of day steppers rather than a native picker: no extra dependency, and
- * the range it can reach is exactly the range the domain would accept, so the
- * control cannot offer a date that saving would refuse.
- */
-function EndDateEditor({
-  record,
-  today,
-  selectedEndDate,
-  onSelectEndDate,
-  isRemoving,
-  onAskToRemove,
-  onCancelRemove,
-  isUpdating,
-  hasError,
-  onCancel,
-  onSave,
-  onRemove,
-  theme,
-}: {
-  record: PeriodRecord;
-  today: ISODate;
-  selectedEndDate: ISODate;
-  onSelectEndDate: (date: ISODate) => void;
-  isRemoving: boolean;
-  onAskToRemove: () => void;
-  onCancelRemove: () => void;
-  isUpdating: boolean;
-  hasError: boolean;
-  onCancel: () => void;
-  onSave: () => void;
-  onRemove: () => void;
-  theme: { primary: string; onPrimary: string };
-}) {
-  const language = useLanguage();
-
-  const maxDate = maxSelectableEndDate(record.startDate, today);
-
-  const canGoBack = daysBetween(record.startDate, selectedEndDate) > 0;
-  const canGoForward = daysBetween(selectedEndDate, maxDate) > 0;
-
-  if (isRemoving) {
-    return (
-      <View style={styles.confirmation}>
-        <ThemedText type="small">{CLEAR_END_QUESTION}</ThemedText>
-
-        <ThemedText type="small" themeColor="textSecondary">
-          {CLEAR_END_CONSEQUENCE}
-        </ThemedText>
-
-        {hasError && (
-          <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-            {HISTORY_UPDATE_FAILED_MESSAGE}
-          </ThemedText>
-        )}
-
-        <View style={styles.confirmActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={CANCEL_LABEL}
-            accessibilityState={{ disabled: isUpdating }}
-            disabled={isUpdating}
-            onPress={onCancelRemove}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              isUpdating && styles.disabled,
-              pressed && !isUpdating && styles.pressed,
-            ]}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {CANCEL_LABEL}
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={CLEAR_END_CONFIRM_LABEL}
-            accessibilityState={{ disabled: isUpdating }}
-            disabled={isUpdating}
-            onPress={onRemove}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              { backgroundColor: theme.primary },
-              isUpdating && styles.disabled,
-              pressed && !isUpdating && styles.pressed,
-            ]}>
-            <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-              {isUpdating ? CLEAR_END_BUSY_LABEL : CLEAR_END_CONFIRM_LABEL}
-            </ThemedText>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.confirmation}>
-      <ThemedText type="smallBold">{EDIT_END_PANEL_TITLE}</ThemedText>
-
-      <ThemedText type="small" themeColor="textSecondary">
-        {startDateLine(formatDisplayDate(record.startDate, language))}
-      </ThemedText>
-
-      <View style={styles.dateBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={PREVIOUS_DAY_LABEL}
-          accessibilityState={{ disabled: !canGoBack }}
-          disabled={!canGoBack}
-          onPress={() => onSelectEndDate(addDays(selectedEndDate, -1))}
-          style={({ pressed }) => [
-            styles.dayButton,
-            !canGoBack && styles.disabled,
-            pressed && canGoBack && styles.pressed,
-          ]}>
-          <ThemedText style={styles.dayButtonLabel}>‹</ThemedText>
-        </Pressable>
-
-        <ThemedText
-          accessibilityLabel={selectedEndDateLabel(formatDisplayDate(selectedEndDate, language))}
-          type="smallBold"
-          style={styles.selectedDate}>
-          {formatDisplayDate(selectedEndDate, language)}
-        </ThemedText>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={NEXT_DAY_LABEL}
-          accessibilityState={{ disabled: !canGoForward }}
-          disabled={!canGoForward}
-          onPress={() => onSelectEndDate(addDays(selectedEndDate, 1))}
-          style={({ pressed }) => [
-            styles.dayButton,
-            !canGoForward && styles.disabled,
-            pressed && canGoForward && styles.pressed,
-          ]}>
-          <ThemedText style={styles.dayButtonLabel}>›</ThemedText>
-        </Pressable>
-      </View>
-
-      {hasError && (
-        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-          {HISTORY_UPDATE_FAILED_MESSAGE}
-        </ThemedText>
-      )}
-
-      <View style={styles.confirmActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={CANCEL_LABEL}
-          accessibilityState={{ disabled: isUpdating }}
-          disabled={isUpdating}
-          onPress={onCancel}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            isUpdating && styles.disabled,
-            pressed && !isUpdating && styles.pressed,
-          ]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            {CANCEL_LABEL}
-          </ThemedText>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={SAVE_END_LABEL}
-          accessibilityState={{ disabled: isUpdating }}
-          disabled={isUpdating}
-          onPress={onSave}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { backgroundColor: theme.primary },
-            isUpdating && styles.disabled,
-            pressed && !isUpdating && styles.pressed,
-          ]}>
-          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-            {isUpdating ? SAVING_LABEL : SAVE_LABEL}
-          </ThemedText>
-        </Pressable>
-      </View>
-
-      {/* Only offered when there is something to remove. */}
-      {record.endDate !== undefined && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={CLEAR_END_OPEN_LABEL}
-          accessibilityState={{ disabled: isUpdating }}
-          disabled={isUpdating}
-          onPress={onAskToRemove}
-          style={({ pressed }) => [
-            styles.removeButton,
-            isUpdating && styles.disabled,
-            pressed && !isUpdating && styles.pressed,
-          ]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            {CLEAR_END_OPEN_LABEL}
-          </ThemedText>
-        </Pressable>
-      )}
-    </View>
   );
 }
 
