@@ -1,3 +1,5 @@
+import type { LanguagePreference } from '@/i18n/language';
+import { DEFAULT_LANGUAGE_PREFERENCE } from '@/i18n/language';
 import { clearAppState, loadAppState, saveAppState } from '@/storage/app-state-storage';
 import type { AppState } from '@/types/app-state';
 import { DEFAULT_APP_STATE } from '@/types/app-state';
@@ -15,10 +17,18 @@ const saveAppStateMock = saveAppState as jest.Mock;
 const clearAppStateMock = clearAppState as jest.Mock;
 
 /** The store is a module singleton, so each test starts from a known state. */
-function resetStore(overrides: Partial<{ mode: AppState['mode']; onboardingCompleted: boolean; hydrated: boolean }> = {}) {
+function resetStore(
+  overrides: Partial<{
+    mode: AppState['mode'];
+    onboardingCompleted: boolean;
+    languagePreference: LanguagePreference;
+    hydrated: boolean;
+  }> = {}
+) {
   useAppStore.setState({
     mode: DEFAULT_APP_STATE.mode,
     onboardingCompleted: DEFAULT_APP_STATE.onboardingCompleted,
+    languagePreference: DEFAULT_LANGUAGE_PREFERENCE,
     hydrated: false,
     ...overrides,
   });
@@ -50,7 +60,12 @@ describe('initial state', () => {
       (key) => typeof (state as Record<string, unknown>)[key] !== 'function'
     );
 
-    expect(dataKeys.sort()).toEqual(['hydrated', 'mode', 'onboardingCompleted']);
+    expect(dataKeys.sort()).toEqual([
+      'hydrated',
+      'languagePreference',
+      'mode',
+      'onboardingCompleted',
+    ]);
   });
 });
 
@@ -138,6 +153,7 @@ describe('setMode', () => {
     expect(saveAppStateMock).toHaveBeenCalledWith({
       mode: 'pregnancy',
       onboardingCompleted: true,
+      languagePreference: 'system',
     });
     // Memory was still on the old mode while the write was in flight.
     expect(modeAtWriteTime).toBe('cycle');
@@ -185,6 +201,7 @@ describe('completeOnboarding', () => {
     expect(saveAppStateMock).toHaveBeenCalledWith({
       mode: 'pregnancy',
       onboardingCompleted: true,
+      languagePreference: 'system',
     });
   });
 
@@ -249,5 +266,117 @@ describe('resetAppState', () => {
     await useAppStore.getState().resetAppState();
 
     expect(saveAppStateMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The language, and the thing that nearly went wrong when it was added.
+ *
+ * `setMode` and `completeOnboarding` used to rebuild the whole `AppState` from
+ * the two fields they knew about. A third field would have been dropped by
+ * both of them: choosing English and then switching to pregnancy mode would
+ * have written a state with no language in it, and the next launch would have
+ * read that as "never chose". Nothing in the suite would have noticed, because
+ * nothing pressed those two buttons in that order.
+ *
+ * The writers now build their next state through one helper that names every
+ * field. The assertions below are what keep that true.
+ */
+describe('setLanguagePreference', () => {
+  it('stores the chosen language', async () => {
+    resetStore({ onboardingCompleted: true });
+
+    await useAppStore.getState().setLanguagePreference('en');
+
+    expect(useAppStore.getState().languagePreference).toBe('en');
+  });
+
+  it('writes the full state before updating memory', async () => {
+    resetStore({ mode: 'pregnancy', onboardingCompleted: true });
+
+    await useAppStore.getState().setLanguagePreference('en');
+
+    expect(saveAppStateMock).toHaveBeenCalledTimes(1);
+    expect(saveAppStateMock).toHaveBeenCalledWith({
+      mode: 'pregnancy',
+      onboardingCompleted: true,
+      languagePreference: 'en',
+    });
+  });
+
+  it('keeps system as its own value rather than resolving it', async () => {
+    // 'system' and 'tr' produce the same interface on a Turkish phone and
+    // different ones on the next, so storing one as the other would change
+    // what somebody asked for.
+    resetStore({ languagePreference: 'en' });
+
+    await useAppStore.getState().setLanguagePreference('system');
+
+    expect(useAppStore.getState().languagePreference).toBe('system');
+  });
+
+  it('leaves memory unchanged when the write fails', async () => {
+    resetStore({ languagePreference: 'tr' });
+    saveAppStateMock.mockRejectedValue(new Error('storage unavailable'));
+
+    await expect(useAppStore.getState().setLanguagePreference('en')).rejects.toThrow(
+      'storage unavailable'
+    );
+
+    expect(useAppStore.getState().languagePreference).toBe('tr');
+  });
+});
+
+describe('the language survives every other write', () => {
+  it('is not dropped by switching mode', async () => {
+    resetStore({ languagePreference: 'en', onboardingCompleted: true });
+
+    await useAppStore.getState().setMode('pregnancy');
+
+    expect(useAppStore.getState().languagePreference).toBe('en');
+    expect(saveAppStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ languagePreference: 'en' })
+    );
+  });
+
+  it('is not dropped by finishing onboarding', async () => {
+    resetStore({ languagePreference: 'en' });
+
+    await useAppStore.getState().completeOnboarding();
+
+    expect(useAppStore.getState().languagePreference).toBe('en');
+    expect(saveAppStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ languagePreference: 'en' })
+    );
+  });
+});
+
+describe('hydrate, for a state written before the language existed', () => {
+  it('reads a missing language as system rather than failing', async () => {
+    loadAppStateMock.mockResolvedValue({ mode: 'cycle', onboardingCompleted: true });
+
+    await useAppStore.getState().hydrate();
+
+    expect(useAppStore.getState().languagePreference).toBe('system');
+  });
+
+  it('does not send somebody who already onboarded back through it', async () => {
+    loadAppStateMock.mockResolvedValue({ mode: 'cycle', onboardingCompleted: true });
+
+    await useAppStore.getState().hydrate();
+
+    expect(useAppStore.getState().onboardingCompleted).toBe(true);
+  });
+
+  it('keeps a stored language when there is one', async () => {
+    loadAppStateMock.mockResolvedValue({
+      mode: 'cycle',
+      onboardingCompleted: true,
+      languagePreference: 'en',
+    });
+
+    await useAppStore.getState().hydrate();
+
+    expect(useAppStore.getState().languagePreference).toBe('en');
   });
 });

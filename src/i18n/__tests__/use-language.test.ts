@@ -1,5 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 
+import { useAppStore } from '@/store/app-store';
+
 import { useLanguage, useMessages } from '../use-language';
 
 jest.mock('expo-localization', () => ({
@@ -89,5 +91,57 @@ describe('useMessages', () => {
     const { result } = await renderHook(() => useMessages(messages));
 
     expect(result.current).toBe(messages.tr);
+  });
+});
+
+/**
+ * The stored preference, now that there is one.
+ *
+ * `useLanguage()` used to ignore what somebody chose and follow the phone. It
+ * reads the app store now, so these assertions are about the two of them
+ * disagreeing - which is the whole reason the preference is stored one value
+ * wider than the language that gets shown.
+ */
+describe('useLanguage, against the stored preference', () => {
+  afterEach(() => {
+    useAppStore.setState({ languagePreference: 'system' });
+  });
+
+  it('shows Turkish on an English phone when Turkish was chosen', async () => {
+    localization.getLocales.mockReturnValue([{ languageCode: 'en' }]);
+    useAppStore.setState({ languagePreference: 'tr' });
+
+    const { result } = await renderHook(() => useLanguage());
+
+    expect(result.current).toBe('tr');
+  });
+
+  it('shows English on a Turkish phone when English was chosen', async () => {
+    localization.getLocales.mockReturnValue([{ languageCode: 'tr' }]);
+    useAppStore.setState({ languagePreference: 'en' });
+
+    const { result } = await renderHook(() => useLanguage());
+
+    expect(result.current).toBe('en');
+  });
+
+  it('follows the phone while the preference is system', async () => {
+    localization.getLocales.mockReturnValue([{ languageCode: 'de' }]);
+    useAppStore.setState({ languagePreference: 'system' });
+
+    const { result } = await renderHook(() => useLanguage());
+
+    expect(result.current).toBe('en');
+  });
+
+  it('follows the phone before the store has been hydrated', async () => {
+    // The store starts at 'system', so a render that somehow beat the read
+    // shows what the phone asked for rather than guessing a language.
+    localization.getLocales.mockReturnValue([{ languageCode: 'tr' }]);
+    useAppStore.setState({ languagePreference: 'system', hydrated: false });
+
+    const { result } = await renderHook(() => useLanguage());
+
+    expect(result.current).toBe('tr');
   });
 });

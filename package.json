@@ -57,7 +57,8 @@
       "\\.css$": "<rootDir>/jest/style-mock.js"
     },
     "setupFiles": [
-      "<rootDir>/jest/expo-localization-mock.js"
+      "<rootDir>/jest/expo-localization-mock.js",
+      "<rootDir>/jest/async-storage-mock.js"
     ]
   }
 }

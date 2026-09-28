@@ -1,6 +1,8 @@
 import { getDeviceLanguageCode } from './device-locale';
 import type { Language } from './language';
-import { DEFAULT_LANGUAGE_PREFERENCE, resolveLanguage } from './language';
+import { resolveLanguage } from './language';
+
+import { useAppStore } from '@/store/app-store';
 
 /**
  * The language the interface is in right now.
@@ -17,15 +19,20 @@ import { DEFAULT_LANGUAGE_PREFERENCE, resolveLanguage } from './language';
  * phone's language while the app is backgrounded — which Android does not
  * restart the process for.
  *
- * ## The stored preference is not read yet
+ * ## Where the preference comes from
  *
- * It arrives with the settings row, in the stage that adds `language` to the
- * app state. Until then this follows the phone, which is what `'system'` means
- * and what a fresh install gets anyway. The signature does not change when the
- * store does.
+ * The app store, which is the same place `mode` and `onboardingCompleted` live
+ * and which `_layout.tsx` already holds the first frame for. Before hydration
+ * the store holds `'system'`, so a render that somehow beat the read follows
+ * the phone rather than guessing a language.
+ *
+ * The store is subscribed to by field, so choosing a language re-renders every
+ * screen reading this and nothing else re-renders at all.
  */
 export function useLanguage(): Language {
-  return resolveLanguage(DEFAULT_LANGUAGE_PREFERENCE, getDeviceLanguageCode());
+  const preference = useAppStore((state) => state.languagePreference);
+
+  return resolveLanguage(preference, getDeviceLanguageCode());
 }
 
 /**
