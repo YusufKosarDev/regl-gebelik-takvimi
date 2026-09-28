@@ -5,13 +5,15 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
+import { SignedOutForm } from '@/features/auth/components/signed-out-form';
+import { AccountDeletionPanel } from '@/features/deletion/components/account-deletion-panel';
+import { RestorePreviewPanel } from '@/features/backup/components/restore-preview-panel';
+import { AutomaticSyncRow } from '@/features/sync/components/automatic-sync-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -24,19 +26,7 @@ import {
 } from '@/features/auth/data/auth-repository';
 import { deleteAccount } from '@/features/deletion/application/delete-account';
 import {
-  ACCOUNT_DELETE_BUSY_LABEL,
-  ACCOUNT_DELETE_CANCEL_LABEL,
-  ACCOUNT_DELETE_CONFIRM_LABEL,
   ACCOUNT_DELETE_EMPTY_PASSWORD_MESSAGE,
-  ACCOUNT_DELETE_OPEN_LABEL,
-  ACCOUNT_DELETE_PANEL_BODY,
-  ACCOUNT_DELETE_PANEL_TITLE,
-  ACCOUNT_DELETE_PASSWORD_LABEL,
-  ACCOUNT_DELETE_SECTION_DESCRIPTION,
-  ACCOUNT_DELETE_SECTION_TITLE,
-  ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL,
-  ACCOUNT_DELETE_WIPE_OFF_NOTE,
-  ACCOUNT_DELETE_WIPE_ON_NOTE,
   accountDeletionMessage,
   shouldRetryWithPassword,
 } from '@/features/deletion/presentation/deletion-messages';
@@ -44,8 +34,6 @@ import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/
 import { useAppStore } from '@/store/app-store';
 import { isAppLockBoundTo } from '@/features/app-lock/application/remove-app-lock';
 import {
-  LOCK_BOUND_TO_ACCOUNT_WARNING,
-  REMOVE_LOCK_FIRST_LABEL,
 } from '@/features/app-lock/presentation/app-lock-messages';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { isPasswordLongEnough } from '@/features/auth/domain/password-policy';
@@ -64,42 +52,19 @@ import {
   BACKUP_SAVED_MESSAGE,
   BACKUP_SECTION_DESCRIPTION,
   BACKUP_SECTION_TITLE,
-  EMAIL_LABEL,
-  EMAIL_PLACEHOLDER,
   EMPTY_EMAIL_MESSAGE,
   EMPTY_PASSWORD_MESSAGE,
-  FORGOT_PASSWORD_LABEL,
   NO_EMAIL_TEXT,
-  PASSWORD_HINT,
-  PASSWORD_LABEL,
-  PASSWORD_RESET_DESCRIPTION,
-  PASSWORD_RESET_SEND_LABEL,
   PASSWORD_RESET_SENT_MESSAGE,
-  RESTORE_CANCEL_LABEL,
-  RESTORE_CONFIRM_LABEL,
   RESTORE_DONE_MESSAGE,
   RESTORE_FAILED_MESSAGE,
-  RESTORE_OPEN_LABEL,
-  RESTORE_PREVIEW_TITLE,
-  RESTORE_ROW_AVATAR,
-  RESTORE_ROW_CYCLE_SETTINGS,
-  RESTORE_ROW_DAILY_ENTRIES,
-  RESTORE_ROW_PERIOD_RECORDS,
-  RESTORE_ROW_PREGNANCY,
-  RESTORE_ROW_REMINDERS,
-  RESTORE_WARNING,
-  RESTORING_LABEL,
-  SENDING_LABEL,
   SHORT_PASSWORD_MESSAGE,
   SIGNED_IN_LABEL,
   SIGNING_OUT_LABEL,
-  SIGN_IN_LABEL,
   SIGN_OUT_LABEL,
-  SIGN_UP_LABEL,
   SYNC_PREFERENCE_FAILED_MESSAGE,
   authErrorMessage,
   passwordResetErrorMessage,
-  previewRowLabel,
   signedInAccountLabel,
 } from '@/features/auth/presentation/auth-messages';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
@@ -108,10 +73,6 @@ import type { CreateCloudBackupOutcome } from '@/features/backup/application/cre
 import { loadCloudBackup } from '@/features/backup/data/cloud-backup-repository';
 import type { CloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
 import { buildCloudRestorePreviewV1 } from '@/features/backup/domain/cloud-restore-preview-v1';
-import {
-  restorePeriodRecordsLabel,
-  restoreStatusLabel,
-} from '@/features/backup/presentation/restore-labels';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
@@ -130,16 +91,9 @@ import {
   AUTOMATIC_SYNC_DISABLED_MESSAGE,
   AUTOMATIC_SYNC_ENABLED_MESSAGE,
   AUTOMATIC_SYNC_FAILED_MESSAGE,
-  AUTOMATIC_SYNC_LABEL,
   PHONE_TRANSFER_NOTE,
-  AUTOMATIC_SYNC_NOTE,
   BACKUP_DISABLED_BY_SYNC_MESSAGE,
-  CONFLICT_NOTICE_MESSAGE,
-  CONFLICT_OPEN_LABEL,
-  SYNC_BUSY_LABEL,
-  SYNC_BUTTON_LABEL,
   didSyncChangeThisPhone,
-  lastSyncMessage,
   syncConflictCountMessage,
   syncOutcomeMessage,
 } from '@/features/sync/presentation/sync-messages';
@@ -149,7 +103,6 @@ import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cl
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
 import {
-  CANCEL_LABEL,
 } from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
 import { logEvent } from '@/shared/logging';
@@ -905,92 +858,19 @@ export default function AccountScreen() {
 
                   {/* The switch records a choice. Nothing runs on it yet, and
                       the note under it says exactly that. */}
-                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <View style={styles.syncRow}>
-                      <ThemedText type="smallBold" style={styles.syncLabel}>
-                        {AUTOMATIC_SYNC_LABEL}
-                      </ThemedText>
-
-                      <Switch
-                        trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
-                        thumbColor={automaticSync ? theme.switchThumbOn : undefined}
-                        accessibilityLabel={AUTOMATIC_SYNC_LABEL}
-                        accessibilityState={{ checked: automaticSync, disabled: isBusy }}
-                        value={automaticSync}
-                        disabled={isBusy}
-                        onValueChange={(next) => {
-                          void handleAutomaticSyncChange(next);
-                        }}
-                      />
-                    </View>
-
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {AUTOMATIC_SYNC_NOTE}
-                    </ThemedText>
-
-                    {/* Coarse on purpose. "Bugün 14:20" answers the question
-                        somebody actually has; a precise timestamp for every
-                        sync going back weeks is a log of when they open a
-                        period tracker, and nothing here needs one. */}
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {lastSyncMessage(lastSyncAt)}
-                    </ThemedText>
-
-                    {/* A conflict stops every automatic sync for this account
-                        until somebody settles it, so it cannot be a line that
-                        scrolls past: it comes with the way out of it. */}
-                    {hasConflict && (
-                      <>
-                        <ThemedText
-                          accessibilityRole="alert"
-                          type="small"
-                          themeColor="textSecondary">
-                          {CONFLICT_NOTICE_MESSAGE}
-                        </ThemedText>
-
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={CONFLICT_OPEN_LABEL}
-                          onPress={() => router.push('/(app)/sync-conflict')}
-                          style={({ pressed }) => [
-                            styles.secondaryButton,
-                            { borderColor: theme.backgroundSelected },
-                            pressed && styles.pressed,
-                          ]}>
-                          <ThemedText type="smallBold">{CONFLICT_OPEN_LABEL}</ThemedText>
-                        </Pressable>
-                      </>
-                    )}
-
-                    {syncNotice !== null && (
-                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                        {syncNotice}
-                      </ThemedText>
-                    )}
-
-                    {syncDetail !== null && (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {syncDetail}
-                      </ThemedText>
-                    )}
-
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={SYNC_BUTTON_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => handleSyncNow(auth.user)}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.backgroundSelected },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold">
-                        {isBusy ? SYNC_BUSY_LABEL : SYNC_BUTTON_LABEL}
-                      </ThemedText>
-                    </Pressable>
-                  </View>
+                  <AutomaticSyncRow
+                    automaticSync={automaticSync}
+                    syncNotice={syncNotice}
+                    syncDetail={syncDetail}
+                    lastSyncAt={lastSyncAt}
+                    hasConflict={hasConflict}
+                    isBusy={isBusy}
+                    onAutomaticSyncChange={(next) => {
+                      void handleAutomaticSyncChange(next);
+                    }}
+                    onSyncNow={() => handleSyncNow(auth.user)}
+                    onOpenConflict={() => router.push('/(app)/sync-conflict')}
+                  />
 
                   {backupNotice !== null && (
                     <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
@@ -1023,90 +903,18 @@ export default function AccountScreen() {
                     <ThemedText type="smallBold">{BACKUP_CREATE_LABEL}</ThemedText>
                   </Pressable>
 
-                  {preview === null ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={RESTORE_OPEN_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => handlePreviewRestore(auth.user)}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.backgroundSelected },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold">{RESTORE_OPEN_LABEL}</ThemedText>
-                    </Pressable>
-                  ) : (
-                    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                      <ThemedText accessibilityRole="header" type="smallBold">
-                        {RESTORE_PREVIEW_TITLE}
-                      </ThemedText>
-
-                      <PreviewRow
-                        label={RESTORE_ROW_CYCLE_SETTINGS}
-                        value={restoreStatusLabel(preview.cycleSettings)}
-                      />
-                      <PreviewRow
-                        label={RESTORE_ROW_PERIOD_RECORDS}
-                        value={restorePeriodRecordsLabel(preview.periodRecords)}
-                      />
-                      <PreviewRow
-                        label={RESTORE_ROW_PREGNANCY}
-                        value={restoreStatusLabel(preview.pregnancyProfile)}
-                      />
-                      <PreviewRow label={RESTORE_ROW_AVATAR} value={restoreStatusLabel(preview.avatarConfig)} />
-                      <PreviewRow
-                        label={RESTORE_ROW_REMINDERS}
-                        value={restoreStatusLabel(preview.notificationPreferences)}
-                      />
-                      <PreviewRow
-                        label={RESTORE_ROW_DAILY_ENTRIES}
-                        value={restorePeriodRecordsLabel(preview.dailyEntries)}
-                      />
-
-                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                        {RESTORE_WARNING}
-                      </ThemedText>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={RESTORE_CONFIRM_LABEL}
-                        accessibilityState={{ disabled: isBusy || pending === null }}
-                        disabled={isBusy || pending === null}
-                        onPress={() => {
-                          if (pending !== null) {
-                            void handleConfirmRestore(pending);
-                          }
-                        }}
-                        style={({ pressed }) => [
-                          styles.primaryButton,
-                          { backgroundColor: theme.primary },
-                          isBusy && styles.disabled,
-                          pressed && !isBusy && styles.pressed,
-                        ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isBusy ? RESTORING_LABEL : RESTORE_CONFIRM_LABEL}
-                        </ThemedText>
-                      </Pressable>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={RESTORE_CANCEL_LABEL}
-                        accessibilityState={{ disabled: isBusy }}
-                        disabled={isBusy}
-                        onPress={handleCancelRestore}
-                        style={({ pressed }) => [
-                          styles.secondaryButton,
-                          { borderColor: theme.backgroundSelected },
-                          isBusy && styles.disabled,
-                          pressed && !isBusy && styles.pressed,
-                        ]}>
-                        <ThemedText type="smallBold">{CANCEL_LABEL}</ThemedText>
-                      </Pressable>
-                    </View>
-                  )}
+                  <RestorePreviewPanel
+                    preview={preview}
+                    isBusy={isBusy}
+                    canConfirm={pending !== null}
+                    onPreview={() => handlePreviewRestore(auth.user)}
+                    onConfirm={() => {
+                      if (pending !== null) {
+                        void handleConfirmRestore(pending);
+                      }
+                    }}
+                    onCancel={handleCancelRestore}
+                  />
 
                   <Pressable
                     accessibilityRole="button"
@@ -1142,340 +950,62 @@ export default function AccountScreen() {
                 </Pressable>
 
                 {/* Last, and set apart: everything above this is reversible. */}
-                <View style={styles.fields}>
-                  <ThemedText accessibilityRole="header" type="smallBold">
-                    {ACCOUNT_DELETE_SECTION_TITLE}
-                  </ThemedText>
-
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {ACCOUNT_DELETE_SECTION_DESCRIPTION}
-                  </ThemedText>
-
-                  {!isConfirmingDelete && (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={ACCOUNT_DELETE_OPEN_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => {
-                        setDeleteNotice(null);
-                        setIsConfirmingDelete(true);
-                      }}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.backgroundSelected },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold">{ACCOUNT_DELETE_OPEN_LABEL}</ThemedText>
-                    </Pressable>
-                  )}
-
-                  {isConfirmingDelete && (
-                    <View style={styles.fields}>
-                      <ThemedText accessibilityRole="header" type="smallBold">
-                        {ACCOUNT_DELETE_PANEL_TITLE}
-                      </ThemedText>
-
-                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                        {ACCOUNT_DELETE_PANEL_BODY}
-                      </ThemedText>
-
-                      {/* Deleting the account makes the lock unrecoverable: the
-                          uid it is bound to stops existing, so signing in as it
-                          stops being possible. Said here, where the decision is
-                          made, rather than found weeks later at a lock screen. */}
-                      {lockBoundToThisAccount && (
-                        <View style={styles.fields}>
-                          <ThemedText
-                            accessibilityRole="alert"
-                            type="small"
-                            themeColor="textSecondary">
-                            {LOCK_BOUND_TO_ACCOUNT_WARNING}
-                          </ThemedText>
-
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={REMOVE_LOCK_FIRST_LABEL}
-                            onPress={() => router.push('/(app)/app-lock')}
-                            style={({ pressed }) => [
-                              styles.secondaryButton,
-                              { borderColor: theme.backgroundSelected },
-                              pressed && styles.pressed,
-                            ]}>
-                            <ThemedText type="smallBold">{REMOVE_LOCK_FIRST_LABEL}</ThemedText>
-                          </Pressable>
-                        </View>
-                      )}
-
-                      <View style={styles.field}>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {ACCOUNT_DELETE_PASSWORD_LABEL}
-                        </ThemedText>
-
-                        <TextInput
-                          accessibilityLabel={ACCOUNT_DELETE_PASSWORD_LABEL}
-                          value={deletePassword}
-                          onChangeText={setDeletePassword}
-                          secureTextEntry
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          editable={!isBusy}
-                          style={[
-                            styles.input,
-                            { borderColor: theme.backgroundSelected, color: theme.text },
-                          ]}
-                        />
-                      </View>
-
-                      <View style={styles.syncRow}>
-                        <ThemedText type="small" style={styles.syncLabel}>
-                          {ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
-                        </ThemedText>
-
-                        <Switch
-                          trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
-                          thumbColor={wipeLocalToo ? theme.switchThumbOn : undefined}
-                          accessibilityLabel={ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
-                          value={wipeLocalToo}
-                          onValueChange={setWipeLocalToo}
-                          disabled={isBusy}
-                        />
-                      </View>
-
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {wipeLocalToo ? ACCOUNT_DELETE_WIPE_ON_NOTE : ACCOUNT_DELETE_WIPE_OFF_NOTE}
-                      </ThemedText>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={ACCOUNT_DELETE_CONFIRM_LABEL}
-                        accessibilityState={{ disabled: isBusy }}
-                        disabled={isBusy}
-                        onPress={() => {
-                          void handleConfirmDelete(auth.user);
-                        }}
-                        style={({ pressed }) => [
-                          styles.primaryButton,
-                          { backgroundColor: theme.primary },
-                          isBusy && styles.disabled,
-                          pressed && !isBusy && styles.pressed,
-                        ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isBusy ? ACCOUNT_DELETE_BUSY_LABEL : ACCOUNT_DELETE_CONFIRM_LABEL}
-                        </ThemedText>
-                      </Pressable>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={ACCOUNT_DELETE_CANCEL_LABEL}
-                        accessibilityState={{ disabled: isBusy }}
-                        disabled={isBusy}
-                        onPress={handleCancelDelete}
-                        style={({ pressed }) => [
-                          styles.secondaryButton,
-                          { borderColor: theme.backgroundSelected },
-                          isBusy && styles.disabled,
-                          pressed && !isBusy && styles.pressed,
-                        ]}>
-                        <ThemedText type="smallBold">{ACCOUNT_DELETE_CANCEL_LABEL}</ThemedText>
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
+                <AccountDeletionPanel
+                  isConfirming={isConfirmingDelete}
+                  isBusy={isBusy}
+                  deletePassword={deletePassword}
+                  wipeLocalToo={wipeLocalToo}
+                  deleteNotice={deleteNotice}
+                  lockBoundToThisAccount={lockBoundToThisAccount}
+                  onOpen={() => {
+                    setDeleteNotice(null);
+                    setIsConfirmingDelete(true);
+                  }}
+                  onCancel={handleCancelDelete}
+                  onConfirm={() => {
+                    void handleConfirmDelete(auth.user);
+                  }}
+                  onPasswordChange={setDeletePassword}
+                  onWipeLocalTooChange={setWipeLocalToo}
+                  onOpenAppLock={() => router.push('/(app)/app-lock')}
+                />
               </View>
             )}
 
             {auth.status === 'signed-out' && (
-              <View style={styles.fields}>
-                <View style={styles.field}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {EMAIL_LABEL}
-                  </ThemedText>
-
-                  <TextInput
-                    accessibilityLabel={EMAIL_LABEL}
-                    value={email}
-                    onChangeText={(next) => {
-                      setEmail(next);
-                      setNotice(null);
-                      setDeleteNotice(null);
-                    }}
-                    editable={!isBusy}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                    textContentType="emailAddress"
-                    placeholder={EMAIL_PLACEHOLDER}
-                    placeholderTextColor={theme.textSecondary}
-                    style={[
-                      styles.input,
-                      { borderColor: theme.backgroundSelected, color: theme.text },
-                    ]}
-                  />
-                </View>
-
-                {!isResetting && (
-                  <View style={styles.field}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {PASSWORD_LABEL}
-                    </ThemedText>
-
-                    <TextInput
-                      accessibilityLabel={PASSWORD_LABEL}
-                      value={password}
-                      onChangeText={(next) => {
-                        setPassword(next);
-                        setNotice(null);
-                        setDeleteNotice(null);
-                      }}
-                      editable={!isBusy}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      // The field is masked and kept out of the keyboard's own
-                      // learning, which is where a typed password otherwise
-                      // ends up being remembered.
-                      secureTextEntry
-                      textContentType="password"
-                      placeholder={PASSWORD_HINT}
-                      placeholderTextColor={theme.textSecondary}
-                      style={[
-                        styles.input,
-                        { borderColor: theme.backgroundSelected, color: theme.text },
-                      ]}
-                    />
-                  </View>
-                )}
-
-                {isResetting && (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {PASSWORD_RESET_DESCRIPTION}
-                  </ThemedText>
-                )}
-
-                {notice !== null && (
-                  <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {notice}
-                  </ThemedText>
-                )}
-
-                {isResetting ? (
-                  <>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={PASSWORD_RESET_SEND_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={handleSendReset}
-                      style={({ pressed }) => [
-                        styles.primaryButton,
-                        { backgroundColor: theme.primary },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                        {isBusy ? SENDING_LABEL : PASSWORD_RESET_SEND_LABEL}
-                      </ThemedText>
-                    </Pressable>
-
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={CANCEL_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => {
-                        setIsResetting(false);
-                        setNotice(null);
-                      }}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.backgroundSelected },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold">{CANCEL_LABEL}</ThemedText>
-                    </Pressable>
-                  </>
-                ) : (
-                  <>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={SIGN_IN_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => attempt(signInWithEmail)}
-                      style={({ pressed }) => [
-                        styles.primaryButton,
-                        { backgroundColor: theme.primary },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                        {isBusy ? SENDING_LABEL : SIGN_IN_LABEL}
-                      </ThemedText>
-                    </Pressable>
-
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={SIGN_UP_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => attempt(signUpWithEmail, { isNewPassword: true })}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.backgroundSelected },
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold">{SIGN_UP_LABEL}</ThemedText>
-                    </Pressable>
-
-                    {/* Last, and quiet: it is the way out of a form that did
-                        not work, not one of the two things to do here. */}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={FORGOT_PASSWORD_LABEL}
-                      accessibilityState={{ disabled: isBusy }}
-                      disabled={isBusy}
-                      onPress={() => {
-                        setIsResetting(true);
-                        setNotice(null);
-                      }}
-                      style={({ pressed }) => [
-                        styles.linkButton,
-                        isBusy && styles.disabled,
-                        pressed && !isBusy && styles.pressed,
-                      ]}>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {FORGOT_PASSWORD_LABEL}
-                      </ThemedText>
-                    </Pressable>
-                  </>
-                )}
-              </View>
+              <SignedOutForm
+                email={email}
+                password={password}
+                notice={notice}
+                isBusy={isBusy}
+                isResetting={isResetting}
+                onEmailChange={(next) => {
+                  setEmail(next);
+                  setNotice(null);
+                  setDeleteNotice(null);
+                }}
+                onPasswordChange={(next) => {
+                  setPassword(next);
+                  setNotice(null);
+                  setDeleteNotice(null);
+                }}
+                onSignIn={() => attempt(signInWithEmail)}
+                onSignUp={() => attempt(signUpWithEmail, { isNewPassword: true })}
+                onSendReset={handleSendReset}
+                onStartReset={() => {
+                  setIsResetting(true);
+                  setNotice(null);
+                }}
+                onCancelReset={() => {
+                  setIsResetting(false);
+                  setNotice(null);
+                }}
+              />
             )}
           </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
-  );
-}
-
-/**
- * One line of the preview: what would happen, to what.
- *
- * The label and the verdict are one accessibility label, so a screen reader
- * reads "Regl kayıtları: 3 eklenecek" rather than two unrelated fragments.
- */
-function PreviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View accessibilityLabel={previewRowLabel(label, value)} style={styles.previewRow}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
-
-      <ThemedText type="smallBold">{value}</ThemedText>
-    </View>
   );
 }
 
