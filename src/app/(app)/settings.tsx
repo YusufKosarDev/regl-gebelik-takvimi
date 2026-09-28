@@ -6,12 +6,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
+import { LengthStepper } from '@/features/cycle/components/length-stepper';
+import { NotificationsSection } from '@/features/notifications/components/notifications-section';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -32,8 +33,6 @@ import {
   CYCLE_LENGTH_FIELD_LABEL,
   CYCLE_LENGTH_FIELD_NOTE,
   CYCLE_LENGTH_INCREASE_LABEL,
-  DAYS_UNIT,
-  NOTIFICATIONS_SECTION_TITLE,
   PERIOD_LENGTH_DECREASE_LABEL,
   PERIOD_LENGTH_FIELD_LABEL,
   PERIOD_LENGTH_FIELD_NOTE,
@@ -44,7 +43,6 @@ import {
   SETTINGS_SAVE_FAILED_MESSAGE,
   SETTINGS_SAVE_LABEL,
   SETTINGS_TITLE,
-  lengthValueLabel,
 } from '@/features/cycle/presentation/settings-messages';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
@@ -61,15 +59,8 @@ import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/app
 import type { NotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
 import { getNotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
 import {
-  DISCREET_NOTIFICATIONS_DESCRIPTION,
-  DISCREET_NOTIFICATIONS_TOGGLE_LABEL,
-  NOTIFICATIONS_BLOCKED_NOTICE,
   OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
-  OPEN_SYSTEM_SETTINGS_LABEL,
-  PERIOD_REMINDER_TOGGLE_LABEL,
   PERMISSION_REFUSED_MESSAGE,
-  PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL,
-  REMINDERS_INTRO,
   REMINDER_SAVE_FAILED_MESSAGE,
 } from '@/features/notifications/presentation/reminder-messages';
 import { wipeLocalData } from '@/features/deletion/application/wipe-local-data';
@@ -581,7 +572,6 @@ export default function SettingsScreen() {
                   increaseLabel={CYCLE_LENGTH_INCREASE_LABEL}
                   onChange={changeCycleLength}
                   disabled={isSaving}
-                  theme={theme}
                 />
 
                 <LengthStepper
@@ -594,7 +584,6 @@ export default function SettingsScreen() {
                   increaseLabel={PERIOD_LENGTH_INCREASE_LABEL}
                   onChange={changePeriodLength}
                   disabled={isSaving}
-                  theme={theme}
                 />
 
                 {/* Above the save button, because it is about what that
@@ -633,95 +622,21 @@ export default function SettingsScreen() {
             {/* Outside the cycle branch: what someone wants to be reminded
                 about does not depend on what their cycle looks like. */}
             {hasError ? null : (
-              <View style={styles.fields}>
-                <ThemedText accessibilityRole="header" type="smallBold">
-                  {NOTIFICATIONS_SECTION_TITLE}
-                </ThemedText>
-
-                <ThemedText type="small" themeColor="textSecondary">
-                  {REMINDERS_INTRO}
-                </ThemedText>
-
-                {/* Standing, not transient: while this is true every switch in
-                    this section is a promise the phone will not keep, and that
-                    is worth saying before somebody flips one rather than after.
-                    Only for 'denied' — the one state the app cannot ask its way
-                    out of. 'undetermined' is the ordinary starting point and
-                    would be a warning about nothing. */}
-                {permission === 'denied' && (
-                  <View style={[styles.blockedPanel, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                      {NOTIFICATIONS_BLOCKED_NOTICE}
-                    </ThemedText>
-
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={OPEN_SYSTEM_SETTINGS_LABEL}
-                      onPress={() => {
-                        void handleOpenSystemSettings();
-                      }}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.backgroundSelected },
-                        pressed && styles.pressed,
-                      ]}>
-                      <ThemedText type="smallBold">{OPEN_SYSTEM_SETTINGS_LABEL}</ThemedText>
-                    </Pressable>
-
-                    {settingsLinkNotice !== null && (
-                      <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                        {settingsLinkNotice}
-                      </ThemedText>
-                    )}
-                  </View>
-                )}
-
-                <ReminderToggle
-                  label={PERIOD_REMINDER_TOGGLE_LABEL}
-                  value={reminders.periodReminderEnabled}
-                  busy={reminderField === 'periodReminderEnabled'}
-                  disabled={reminderField !== null}
-                  onChange={(next) => handleReminder('periodReminderEnabled', next)}
-                  theme={theme}
-                />
-
-                <ReminderToggle
-                  label={PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL}
-                  value={reminders.pregnancyWeeklyReminderEnabled}
-                  busy={reminderField === 'pregnancyWeeklyReminderEnabled'}
-                  disabled={reminderField !== null}
-                  onChange={(next) => handleReminder('pregnancyWeeklyReminderEnabled', next)}
-                  theme={theme}
-                />
-
-                {/* Below the two reminders, because it is about what they say
-                    and reads as nonsense above them. Its description sits
-                    under the switch rather than above: the label is the thing
-                    being decided, and the reason it exists is what somebody
-                    reads next. */}
-                <ReminderToggle
-                  label={DISCREET_NOTIFICATIONS_TOGGLE_LABEL}
-                  value={discreet}
-                  busy={discreetBusy}
-                  disabled={discreetBusy}
-                  onChange={(next) => handleDiscreet(next)}
-                  theme={theme}
-                />
-
-                <ThemedText type="small" themeColor="textSecondary">
-                  {DISCREET_NOTIFICATIONS_DESCRIPTION}
-                </ThemedText>
-
-                {reminderNotice !== null && (
-                  <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {reminderNotice}
-                  </ThemedText>
-                )}
-              </View>
+              <NotificationsSection
+                reminders={reminders}
+                reminderField={reminderField}
+                reminderNotice={reminderNotice}
+                discreet={discreet}
+                discreetBusy={discreetBusy}
+                permission={permission}
+                settingsLinkNotice={settingsLinkNotice}
+                onReminderChange={handleReminder}
+                onDiscreetChange={handleDiscreet}
+                onOpenSystemSettings={() => {
+                  void handleOpenSystemSettings();
+                }}
+              />
             )}
-
-            {/* Outside every branch: an account is optional, it carries nothing
-                yet, and the rest of the app works the same without one. */}
             <View style={styles.fields}>
               <ThemedText accessibilityRole="header" type="smallBold">
                 {ACCOUNT_SECTION_TITLE}
@@ -893,133 +808,6 @@ export default function SettingsScreen() {
   );
 }
 
-/**
- * One reminder, as a labelled switch.
- *
- * A real `Switch` rather than a button: it is a two-state setting, and it should
- * look and read like one. The label is the accessibility label as well, so a
- * screen reader announces the setting and its state together.
- */
-function ReminderToggle({
-  label,
-  value,
-  busy,
-  disabled,
-  onChange,
-  theme,
-}: {
-  label: string;
-  value: boolean;
-  busy: boolean;
-  disabled: boolean;
-  onChange: (next: boolean) => void;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  return (
-    <View style={[styles.reminderRow, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText style={styles.reminderLabel}>{label}</ThemedText>
-
-      <Switch
-        trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
-        thumbColor={value ? theme.switchThumbOn : undefined}
-        accessibilityLabel={label}
-        accessibilityState={{ checked: value, disabled }}
-        value={value}
-        disabled={disabled}
-        onValueChange={onChange}
-        testID={busy ? 'reminder-busy' : undefined}
-      />
-    </View>
-  );
-}
-
-/**
- * One whole-number setting, in days.
- *
- * The bounds are passed in rather than read here, because the period length's
- * maximum depends on the cycle length as well as on the domain's own limit.
- */
-function LengthStepper({
-  label,
-  note,
-  value,
-  min,
-  max,
-  decreaseLabel,
-  increaseLabel,
-  onChange,
-  disabled,
-  theme,
-}: {
-  label: string;
-  note: string;
-  value: number;
-  min: number;
-  max: number;
-  decreaseLabel: string;
-  increaseLabel: string;
-  onChange: (delta: number) => void;
-  disabled: boolean;
-  theme: { text: string; backgroundSelected: string };
-}) {
-  const canDecrease = !disabled && value > min;
-  const canIncrease = !disabled && value < max;
-
-  return (
-    <View style={styles.field}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
-
-      <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-        {note}
-      </ThemedText>
-
-      <View style={styles.stepper}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={decreaseLabel}
-          accessibilityState={{ disabled: !canDecrease }}
-          disabled={!canDecrease}
-          onPress={() => onChange(-1)}
-          style={({ pressed }) => [
-            styles.stepButton,
-            { borderColor: theme.backgroundSelected },
-            !canDecrease && styles.stepButtonDisabled,
-            pressed && canDecrease && styles.pressed,
-          ]}>
-          <ThemedText style={styles.stepButtonLabel}>−</ThemedText>
-        </Pressable>
-
-        <View
-          accessible
-          accessibilityLabel={lengthValueLabel(label, value)}
-          accessibilityValue={{ min, max, now: value }}
-          style={styles.valueBlock}>
-          <ThemedText style={styles.value}>{value}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {DAYS_UNIT}
-          </ThemedText>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={increaseLabel}
-          accessibilityState={{ disabled: !canIncrease }}
-          disabled={!canIncrease}
-          onPress={() => onChange(1)}
-          style={({ pressed }) => [
-            styles.stepButton,
-            { borderColor: theme.backgroundSelected },
-            !canIncrease && styles.stepButtonDisabled,
-            pressed && canIncrease && styles.pressed,
-          ]}>
-          <ThemedText style={styles.stepButtonLabel}>+</ThemedText>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   screen: {
