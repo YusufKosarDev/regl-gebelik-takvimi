@@ -11,6 +11,16 @@ import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 
 /**
+ * The screen a failed render produces.
+ *
+ * expo-router reads this export off the route file, so it has to be named here
+ * even though it is written in its own module - see that file for why it is not
+ * inline. Re-exported from the *root* layout so that it stands above every
+ * screen, including the ones a deep link opens directly.
+ */
+export { ErrorBoundary } from '@/components/error-boundary';
+
+/**
  * Startup gate.
  *
  * Reads the persisted state once, holds the UI on a placeholder until it lands,
