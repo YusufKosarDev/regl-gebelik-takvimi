@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -23,7 +24,7 @@ import {
   authErrorMessage,
 } from '@/features/auth/presentation/auth-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { BACK_LABEL, SAVING_LABEL } from '@/shared/presentation/app-messages';
+import { SAVING_LABEL } from '@/shared/presentation/app-messages';
 import { useAppLockStore } from '@/store/app-lock-store';
 
 /**
@@ -105,15 +106,7 @@ export default function RecoverScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={BACK_LABEL}
-              onPress={() => router.back()}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {BACK_LABEL}
-              </ThemedText>
-            </Pressable>
+            <BackButton />
 
             <ThemedText accessibilityRole="header" type="subtitle">
               {RECOVERY_TITLE}
@@ -222,11 +215,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    justifyContent: 'center',
   },
   field: {
     gap: Spacing.two,

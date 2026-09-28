@@ -1,8 +1,8 @@
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -46,7 +46,6 @@ import {
   conflictRecordCountLabel,
 } from '@/features/sync/presentation/conflict-labels';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
-import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
@@ -75,7 +74,6 @@ import { getTodayLocalISODate } from '@/utils/today';
 type Choice = 'local' | 'remote';
 
 export default function SyncConflictScreen() {
-  const router = useRouter();
   const theme = useTheme();
   const auth = useAuthState();
 
@@ -255,15 +253,7 @@ export default function SyncConflictScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={BACK_LABEL}
-              onPress={() => router.back()}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {BACK_LABEL}
-              </ThemedText>
-            </Pressable>
+            <BackButton />
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle">
@@ -426,10 +416,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     gap: Spacing.four,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: Spacing.two,
   },
   header: {
     gap: Spacing.two,

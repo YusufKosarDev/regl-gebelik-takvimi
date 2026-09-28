@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -25,7 +26,6 @@ import {
   PREGNANCY_START_TITLE,
   selectedLmpLabel,
 } from '@/features/pregnancy/presentation/pregnancy-labels';
-import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -107,15 +107,7 @@ export default function PregnancyStartScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             {/* The stack hides its header, so back has to be offered here. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={BACK_LABEL}
-              onPress={() => router.back()}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {BACK_LABEL}
-              </ThemedText>
-            </Pressable>
+            <BackButton />
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
@@ -219,12 +211,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     gap: Spacing.four,
-  },
-  backButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    paddingRight: Spacing.three,
   },
   header: {
     gap: Spacing.two,

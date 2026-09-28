@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -47,7 +48,6 @@ import { useLanguage } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import {
-  BACK_LABEL,
   CANCEL_LABEL,
   LOADING_MESSAGE,
   SAVE_LABEL,
@@ -277,15 +277,7 @@ export default function PregnancySettingsScreen() {
 
   // The stack hides its header, so back has to be offered here.
   const backButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={BACK_LABEL}
-      onPress={() => router.back()}
-      style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {BACK_LABEL}
-      </ThemedText>
-    </Pressable>
+    <BackButton />
   );
 
   if (isLoading) {
@@ -613,12 +605,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     gap: Spacing.four,
-  },
-  backButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    paddingRight: Spacing.three,
   },
   header: {
     gap: Spacing.two,

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -46,7 +47,6 @@ import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
-import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useAppLockStore } from '@/store/app-lock-store';
 
 /**
@@ -235,15 +235,7 @@ export default function AppLockScreen() {
   }, [markDisabled, router]);
 
   const backButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={BACK_LABEL}
-      onPress={() => router.back()}
-      style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {BACK_LABEL}
-      </ThemedText>
-    </Pressable>
+    <BackButton />
   );
 
   return (
@@ -464,11 +456,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    justifyContent: 'center',
   },
   title: {
     marginBottom: Spacing.one,
