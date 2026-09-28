@@ -2,6 +2,7 @@ import type { CycleCalendarDay } from '../application/build-cycle-calendar-month
 import type { CycleDashboard } from '../application/get-cycle-dashboard';
 import { getCyclePhaseLabel, getFertilityLevelLabel } from './cycle-labels';
 
+import type { Language } from '@/i18n/language';
 import { formatDisplayDate } from '@/utils/format-date';
 
 /**
@@ -49,7 +50,8 @@ export function selectedDayRows(day: CycleCalendarDay): { label: string; value: 
  * near it, so the number and the warning about it cannot be separated.
  */
 export function summaryRows(
-  dashboard: CycleDashboard
+  dashboard: CycleDashboard,
+  language: Language
 ): { label: string; value: string; note?: string }[] {
   return [
     {
@@ -70,7 +72,7 @@ export function summaryRows(
       value:
         dashboard.nextPeriodStart === null
           ? 'Henüz hesaplanamıyor'
-          : formatDisplayDate(dashboard.nextPeriodStart),
+          : formatDisplayDate(dashboard.nextPeriodStart, language),
     },
   ];
 }

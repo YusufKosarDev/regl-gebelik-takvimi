@@ -1,5 +1,6 @@
 import type { PeriodRecord } from '../domain/types';
 
+import type { Language } from '@/i18n/language';
 import { formatDisplayDate } from '@/utils/format-date';
 
 /**
@@ -37,8 +38,8 @@ export const RECORD_UNKNOWN_END_LABEL = 'Bitiş tarihi bilinmiyor';
  * The three endings are the three states a record can be in: still running,
  * finished on a known day, or finished on a day nobody wrote down.
  */
-export function recordAccessibilityLabel(record: PeriodRecord): string {
-  const start = `Başlangıç: ${formatDisplayDate(record.startDate)}`;
+export function recordAccessibilityLabel(record: PeriodRecord, language: Language): string {
+  const start = `Başlangıç: ${formatDisplayDate(record.startDate, language)}`;
 
   if (record.isOngoing) {
     return `${start}, devam ediyor`;
@@ -46,7 +47,7 @@ export function recordAccessibilityLabel(record: PeriodRecord): string {
 
   return record.endDate === undefined
     ? `${start}, bitiş tarihi bilinmiyor`
-    : `${start}, bitiş: ${formatDisplayDate(record.endDate)}`;
+    : `${start}, bitiş: ${formatDisplayDate(record.endDate, language)}`;
 }
 
 /* ------------------------------------------------- the three row actions -- */

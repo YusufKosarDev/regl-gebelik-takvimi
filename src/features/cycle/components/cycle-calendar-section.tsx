@@ -26,6 +26,7 @@ import {
   CALENDAR_DAY_EDIT_LABEL,
 } from '@/features/daily-log/presentation/daily-log-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 
@@ -65,6 +66,7 @@ export function CycleCalendarSection({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
 
   return (
     <View style={styles.calendarSection}>
@@ -128,7 +130,7 @@ export function CycleCalendarSection({
         ) : (
           <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
-              {formatDisplayDate(selectedDay.date)}
+              {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>
 
             {/* The visible text already reads "label: value", so it

@@ -17,6 +17,7 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 
@@ -55,6 +56,7 @@ export function PeriodActionCard({
   readonly handleSavePeriod: () => Promise<void>;
 }) {
   const theme = useTheme();
+  const language = useLanguage();
 
   return isConfirming ? (
     <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
@@ -63,7 +65,7 @@ export function PeriodActionCard({
       </ThemedText>
 
       <ThemedText style={styles.rowValue}>
-        {formatDisplayDate(today)}
+        {formatDisplayDate(today, language)}
       </ThemedText>
 
       {hasSaveError && (

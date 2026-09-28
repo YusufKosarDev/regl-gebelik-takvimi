@@ -10,6 +10,7 @@ import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-
 import { parseLastPeriodStartDateParam } from '@/features/onboarding/parse-last-period-start-date-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import {
   INVALID_CYCLE_INFO_MESSAGE,
   REVIEW_CONFIRM_LABEL,
@@ -36,6 +37,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function ReviewScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
   const params = useLocalSearchParams<{
     cycleLength?: string | string[];
     periodLength?: string | string[];
@@ -65,7 +67,7 @@ export default function ReviewScreen() {
   const rows: { label: string; value: string }[] = [
     { label: REVIEW_CYCLE_LENGTH_LABEL, value: reviewDaysValue(cycleLength) },
     { label: REVIEW_PERIOD_LENGTH_LABEL, value: reviewDaysValue(periodLength) },
-    { label: REVIEW_LAST_PERIOD_LABEL, value: formatDisplayDate(lastPeriodStartDate) },
+    { label: REVIEW_LAST_PERIOD_LABEL, value: formatDisplayDate(lastPeriodStartDate, language) },
   ];
 
   return (

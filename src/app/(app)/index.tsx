@@ -44,6 +44,7 @@ import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { emptyDailyEntry } from '@/features/daily-log/domain/catalogues';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import { useAppStore } from '@/store/app-store';
 import { LOADING_MESSAGE } from '@/shared/presentation/app-messages';
 import { openAppDatabase } from '@/storage/db';
@@ -76,6 +77,7 @@ import { logEvent } from '@/shared/logging';
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
 
   const [isLoading, setIsLoading] = useState(true);
   const [homeData, setHomeData] = useState<CycleHomeData | null>(null);
@@ -403,7 +405,7 @@ export default function HomeScreen() {
   // Cheap enough to redo on render: at most 31 days of integer arithmetic, and
   // the profile is already in memory, so no database read is involved.
   const calendarGrid = buildCycleCalendarGridForMonth(profile, year, month);
-  const monthHeading = formatDisplayMonth(year, month);
+  const monthHeading = formatDisplayMonth(year, month, language);
 
   const canGoBack = canShiftYearMonth(year, month, -1);
   const canGoForward = canShiftYearMonth(year, month, 1);
@@ -481,7 +483,7 @@ export default function HomeScreen() {
     }
   };
 
-  const rows = summaryRows(dashboard);
+  const rows = summaryRows(dashboard, language);
 
   return (
     <ThemedView style={styles.screen}>
@@ -502,7 +504,7 @@ export default function HomeScreen() {
               </ThemedText>
 
               <ThemedText type="subtitle" style={styles.date}>
-                {formatDisplayDate(dashboard.today)}
+                {formatDisplayDate(dashboard.today, language)}
               </ThemedText>
             </View>
 

@@ -14,6 +14,8 @@ import { MAX_PERIOD_DURATION_DAYS } from '@/features/cycle/domain/limits';
 import type { PeriodRecord } from '@/features/cycle/domain/types';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
+import type { Language } from '@/i18n/language';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
@@ -76,12 +78,12 @@ import { logEvent } from '@/shared/logging';
  * different words. Nothing is estimated from the average period length: what was
  * never recorded stays unrecorded.
  */
-function endLabel(record: PeriodRecord): string {
+function endLabel(record: PeriodRecord, language: Language): string {
   if (record.isOngoing) {
     return RECORD_ONGOING_LABEL;
   }
 
-  return record.endDate === undefined ? RECORD_UNKNOWN_END_LABEL : formatDisplayDate(record.endDate);
+  return record.endDate === undefined ? RECORD_UNKNOWN_END_LABEL : formatDisplayDate(record.endDate, language);
 }
 
 /**
@@ -137,6 +139,7 @@ function minSelectableStartDate(record: PeriodRecord): ISODate | null {
 export default function HistoryScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
 
   const [isLoading, setIsLoading] = useState(true);
   const [records, setRecords] = useState<readonly PeriodRecord[] | null>(null);
@@ -463,20 +466,20 @@ export default function HistoryScreen() {
                   <View
                     key={record.id}
                     accessible
-                    accessibilityLabel={recordAccessibilityLabel(record)}
+                    accessibilityLabel={recordAccessibilityLabel(record, language)}
                     testID={`history-record-${record.id}`}
                     style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                     <ThemedText type="small" themeColor="textSecondary">
                       {RECORD_START_LABEL}
                     </ThemedText>
                     <ThemedText style={styles.rowValue}>
-                      {formatDisplayDate(record.startDate)}
+                      {formatDisplayDate(record.startDate, language)}
                     </ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary" style={styles.endLabel}>
                       {RECORD_END_LABEL}
                     </ThemedText>
-                    <ThemedText type="small">{endLabel(record)}</ThemedText>
+                    <ThemedText type="small">{endLabel(record, language)}</ThemedText>
 
                     {recordUnderStartEdit?.id === record.id ? (
                       <StartDateEditor
@@ -517,7 +520,7 @@ export default function HistoryScreen() {
                         <ThemedText type="small">{DELETE_QUESTION}</ThemedText>
 
                         <ThemedText type="smallBold">
-                          {formatDisplayDate(record.startDate)}
+                          {formatDisplayDate(record.startDate, language)}
                         </ThemedText>
 
                         <ThemedText type="small" themeColor="textSecondary">
@@ -579,7 +582,7 @@ export default function HistoryScreen() {
                           <>
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={editStartLabel(formatDisplayDate(record.startDate))}
+                              accessibilityLabel={editStartLabel(formatDisplayDate(record.startDate, language))}
                               onPress={() => openStartEditor(record)}
                               style={({ pressed }) => [
                                 styles.rowAction,
@@ -592,7 +595,7 @@ export default function HistoryScreen() {
 
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={editEndLabel(formatDisplayDate(record.startDate))}
+                              accessibilityLabel={editEndLabel(formatDisplayDate(record.startDate, language))}
                               onPress={() => openEndEditor(record)}
                               style={({ pressed }) => [
                                 styles.rowAction,
@@ -607,7 +610,7 @@ export default function HistoryScreen() {
 
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={deleteRecordLabel(formatDisplayDate(record.startDate))}
+                          accessibilityLabel={deleteRecordLabel(formatDisplayDate(record.startDate, language))}
                           onPress={() => askToDelete(record)}
                           style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
                           <ThemedText type="small" themeColor="textSecondary">
@@ -658,6 +661,8 @@ function StartDateEditor({
   onSave: () => void;
   theme: { primary: string; onPrimary: string };
 }) {
+  const language = useLanguage();
+
   const maxDate = maxSelectableStartDate(record, today);
   const minDate = minSelectableStartDate(record);
 
@@ -671,7 +676,7 @@ function StartDateEditor({
       <ThemedText type="smallBold">{EDIT_START_PANEL_TITLE}</ThemedText>
 
       <ThemedText type="small" themeColor="textSecondary">
-        {endDateLine(endLabel(record))}
+        {endDateLine(endLabel(record, language))}
       </ThemedText>
 
       <View style={styles.dateBar}>
@@ -690,10 +695,10 @@ function StartDateEditor({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={selectedStartDateLabel(formatDisplayDate(selectedStartDate))}
+          accessibilityLabel={selectedStartDateLabel(formatDisplayDate(selectedStartDate, language))}
           type="smallBold"
           style={styles.selectedDate}>
-          {formatDisplayDate(selectedStartDate)}
+          {formatDisplayDate(selectedStartDate, language)}
         </ThemedText>
 
         <Pressable
@@ -791,6 +796,8 @@ function EndDateEditor({
   onRemove: () => void;
   theme: { primary: string; onPrimary: string };
 }) {
+  const language = useLanguage();
+
   const maxDate = maxSelectableEndDate(record.startDate, today);
 
   const canGoBack = daysBetween(record.startDate, selectedEndDate) > 0;
@@ -854,7 +861,7 @@ function EndDateEditor({
       <ThemedText type="smallBold">{EDIT_END_PANEL_TITLE}</ThemedText>
 
       <ThemedText type="small" themeColor="textSecondary">
-        {startDateLine(formatDisplayDate(record.startDate))}
+        {startDateLine(formatDisplayDate(record.startDate, language))}
       </ThemedText>
 
       <View style={styles.dateBar}>
@@ -873,10 +880,10 @@ function EndDateEditor({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={selectedEndDateLabel(formatDisplayDate(selectedEndDate))}
+          accessibilityLabel={selectedEndDateLabel(formatDisplayDate(selectedEndDate, language))}
           type="smallBold"
           style={styles.selectedDate}>
-          {formatDisplayDate(selectedEndDate)}
+          {formatDisplayDate(selectedEndDate, language)}
         </ThemedText>
 
         <Pressable

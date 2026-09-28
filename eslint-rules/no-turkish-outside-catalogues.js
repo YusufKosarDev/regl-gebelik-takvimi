@@ -59,7 +59,10 @@ const ALLOWED = [
   'src/features/cycle/data/cycle-daily-support.ts',
   // TEMPORARY — the avatar option names, converted with the avatar feature.
   'src/features/avatar/data/avatar-catalog.ts',
-  // TEMPORARY — month and weekday names, converted in the date-format stage.
+  // Permanent: the month names, in both languages. This file is not waiting to
+  // be converted — it has been, and the Turkish half is half of the answer.
+  // `require-language-argument` is what keeps a caller from getting that half
+  // by accident.
   'src/utils/format-date.ts',
 ];
 

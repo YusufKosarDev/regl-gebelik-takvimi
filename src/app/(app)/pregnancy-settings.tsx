@@ -43,6 +43,7 @@ import {
 } from '@/features/pregnancy/presentation/pregnancy-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import {
@@ -70,6 +71,7 @@ import { logEvent } from '@/shared/logging';
 export default function PregnancySettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
 
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<PregnancyProfile | null>(null);
@@ -344,7 +346,7 @@ export default function PregnancySettingsScreen() {
                 <View
                   accessible
                   accessibilityLabel={pregnancyDueDateRowLabel(
-                    formatDisplayDate(profile.estimatedDueDate),
+                    formatDisplayDate(profile.estimatedDueDate, language),
                     dueDateSourceLabel(profile.dueDateSource)
                   )}
                   style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
@@ -352,7 +354,7 @@ export default function PregnancySettingsScreen() {
                     {PREGNANCY_DUE_DATE_LABEL}
                   </ThemedText>
                   <ThemedText style={styles.rowValue}>
-                    {formatDisplayDate(profile.estimatedDueDate)}
+                    {formatDisplayDate(profile.estimatedDueDate, language)}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
                     {dueDateSourceLabel(profile.dueDateSource)}
@@ -489,7 +491,7 @@ export default function PregnancySettingsScreen() {
 
                     <ThemedText type="small" themeColor="textSecondary">
                       {PREGNANCY_LMP_PREFIX}{' '}
-                      {formatDisplayDate(profile.lastMenstrualPeriodStartDate)}
+                      {formatDisplayDate(profile.lastMenstrualPeriodStartDate, language)}
                     </ThemedText>
 
                     <View style={styles.dateBar}>
@@ -508,10 +510,10 @@ export default function PregnancySettingsScreen() {
                       </Pressable>
 
                       <ThemedText
-                        accessibilityLabel={selectedDueDateLabel(formatDisplayDate(selectedDueDate))}
+                        accessibilityLabel={selectedDueDateLabel(formatDisplayDate(selectedDueDate, language))}
                         type="smallBold"
                         style={styles.selectedDate}>
-                        {formatDisplayDate(selectedDueDate)}
+                        {formatDisplayDate(selectedDueDate, language)}
                       </ThemedText>
 
                       <Pressable

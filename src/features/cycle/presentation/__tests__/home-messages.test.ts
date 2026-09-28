@@ -38,7 +38,7 @@ function day(overrides: Partial<CycleCalendarDay> = {}): CycleCalendarDay {
 
 describe('summaryRows', () => {
   it('names the four facts in order', () => {
-    expect(summaryRows(dashboard()).map((row) => row.label)).toEqual([
+    expect(summaryRows(dashboard(), 'tr').map((row) => row.label)).toEqual([
       'Döngü günü',
       'Döngü evresi',
       'Doğurganlık tahmini',
@@ -47,7 +47,7 @@ describe('summaryRows', () => {
   });
 
   it('reads the values off the dashboard', () => {
-    const rows = summaryRows(dashboard());
+    const rows = summaryRows(dashboard(), 'tr');
 
     expect(rows[0]?.value).toBe('5. gün');
     expect(rows[1]?.value).toBe('Regl');
@@ -56,11 +56,11 @@ describe('summaryRows', () => {
   });
 
   it('says a cycle has not started rather than showing a day', () => {
-    expect(summaryRows(dashboard({ cycleDay: null }))[0]?.value).toBe('Henüz başlamadı');
+    expect(summaryRows(dashboard({ cycleDay: null }), 'tr')[0]?.value).toBe('Henüz başlamadı');
   });
 
   it('says the next period cannot be worked out yet rather than guessing', () => {
-    expect(summaryRows(dashboard({ nextPeriodStart: null }))[3]?.value).toBe(
+    expect(summaryRows(dashboard({ nextPeriodStart: null }), 'tr')[3]?.value).toBe(
       'Henüz hesaplanamıyor'
     );
   });
@@ -68,14 +68,14 @@ describe('summaryRows', () => {
   // The warning is the reason the row has a note at all. Attached to the row, it
   // cannot be laid out away from the estimate it qualifies.
   it('carries the contraception warning on the fertility row and nowhere else', () => {
-    const rows = summaryRows(dashboard());
+    const rows = summaryRows(dashboard(), 'tr');
 
     expect(rows[2]?.note).toBe(FERTILITY_DISCLAIMER);
     expect(rows.filter((row) => row.note !== undefined)).toHaveLength(1);
   });
 
   it('keeps the warning when the estimate is unknown', () => {
-    expect(summaryRows(dashboard({ fertilityLevel: null }))[2]).toEqual({
+    expect(summaryRows(dashboard({ fertilityLevel: null }), 'tr')[2]).toEqual({
       label: 'Doğurganlık tahmini',
       value: 'Bilinmiyor',
       note: FERTILITY_DISCLAIMER,
@@ -107,7 +107,7 @@ describe('selectedDayRows', () => {
   // A day in the calendar and today in the summary are the same four facts minus
   // the prediction, so the wording has to match or the same day reads two ways.
   it('words the facts it shares with the summary identically', () => {
-    const summary = summaryRows(dashboard());
+    const summary = summaryRows(dashboard(), 'tr');
     const selected = selectedDayRows(day());
 
     expect(selected).toEqual(summary.slice(0, 3).map(({ label, value }) => ({ label, value })));

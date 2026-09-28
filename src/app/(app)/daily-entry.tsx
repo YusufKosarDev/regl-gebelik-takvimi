@@ -18,7 +18,7 @@ import {
 } from '@/features/daily-log/domain/catalogues';
 import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
 import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-messages';
-import { useMessages } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import { BACK_LABEL } from '@/shared/presentation/app-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
@@ -46,6 +46,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function DailyEntryScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
   const strings = useMessages(dailyLogMessages);
   const labels = useMessages(dailyLogCatalogueLabels);
 
@@ -216,7 +217,7 @@ export default function DailyEntryScreen() {
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
-                {formatDisplayDate(date)}
+                {formatDisplayDate(date, language)}
               </ThemedText>
             </View>
 

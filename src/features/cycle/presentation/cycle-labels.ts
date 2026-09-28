@@ -2,6 +2,7 @@ import type { CycleCalendarDay } from '../application/build-cycle-calendar-month
 import type { FertilityLevel } from '../domain/fertility-level';
 import type { CyclePhase } from '../domain/phases';
 
+import type { Language } from '@/i18n/language';
 import { formatDisplayDate } from '@/utils/format-date';
 
 /**
@@ -12,6 +13,18 @@ import { formatDisplayDate } from '@/utils/format-date';
  *
  * Fertility is deliberately ordinal — no percentage, no chance of conceiving —
  * because the estimate does not support that kind of claim.
+ *
+ * ## Why one function here takes a language and the words around it do not
+ *
+ * The labels are still Turkish-only; this file becomes a `Messages` pair in
+ * its own stage, and at that point the language stops being an argument and
+ * becomes which half of the pair you are reading.
+ *
+ * Until then the one function that formats a *date* has to be told, because
+ * the date is already bilingual. It is a required parameter rather than one
+ * defaulting to Turkish: there is a single caller, so there is nothing to
+ * spare, and a default here would be a second silent way to render a Turkish
+ * date to an English reader.
  */
 
 const UNKNOWN_LABEL = 'Bilinmiyor';
@@ -47,9 +60,10 @@ export function getFertilityLevelLabel(level: FertilityLevel | null): string {
  */
 export function getCalendarDayAccessibilityLabel(
   day: CycleCalendarDay,
+  language: Language,
   options: { readonly isToday?: boolean; readonly isSelected?: boolean } = {}
 ): string {
-  const parts: string[] = [formatDisplayDate(day.date)];
+  const parts: string[] = [formatDisplayDate(day.date, language)];
 
   if (day.phase === 'menstrual' || day.phase === 'ovulatory') {
     parts.push(getCyclePhaseLabel(day.phase));

@@ -90,24 +90,35 @@ describe('the daily entry screen in English', () => {
   });
 
   /**
-   * What is still Turkish on this screen, named rather than glossed over.
+   * The date, now that the date-formatting stage has landed.
    *
-   * Two things the daily log does not own are still showing Turkish here:
+   * This assertion used to say the opposite. It named `27 Eylül 2026` as
+   * something the daily log does not own and a later stage would fix, so that
+   * a half-translated screen could not look finished. That stage is this one:
+   * `utils/format-date.ts` has an English table and takes the language, so the
+   * line flips from "still Turkish" to "English, and no longer Turkish".
    *
-   *   - `27 Eylül 2026`, from `utils/format-date.ts`, which gains English
-   *     months in the date-formatting stage;
-   *   - `Geri`, from `shared/presentation/app-messages.ts`, which converts
-   *     with the shared strings.
-   *
-   * Asserting them keeps the remaining work visible instead of letting a
-   * half-translated screen look finished. Each line comes out as its stage
-   * lands, and when both are gone this becomes the blunt "no Turkish anywhere"
-   * check the screen should end up with.
+   * Both halves are asserted on purpose. Checking only for `September` would
+   * still pass if the screen somehow rendered the date twice.
    */
-  it('still shows the date and the back label in Turkish, which later stages own', async () => {
+  it('shows the date in English', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByText(/Eylül/)).toBeTruthy();
+    expect(screen.getByText(/September/)).toBeTruthy();
+    expect(screen.queryByText(/Eylül/)).toBeNull();
+  });
+
+  /**
+   * What is still Turkish on this screen, named rather than glossed over.
+   *
+   * One thing the daily log does not own is still showing Turkish here: `Geri`,
+   * from `shared/presentation/app-messages.ts`, which converts with the shared
+   * strings. When that line goes, this becomes the blunt "no Turkish anywhere"
+   * check the screen should end up with.
+   */
+  it('still shows the back label in Turkish, which a later stage owns', async () => {
+    const screen = await renderScreen();
+
     expect(screen.getByLabelText('Geri')).toBeTruthy();
   });
 

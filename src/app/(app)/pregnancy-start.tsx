@@ -9,6 +9,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { startPregnancyTracking } from '@/features/pregnancy/application/start-pregnancy-tracking';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
@@ -42,6 +43,7 @@ import { logEvent } from '@/shared/logging';
 export default function PregnancyStartScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
 
   // Read once for the screen, so the future check and the date the person picks
   // are measured against the same day.
@@ -147,10 +149,10 @@ export default function PregnancyStartScreen() {
                 </Pressable>
 
                 <ThemedText
-                  accessibilityLabel={selectedLmpLabel(formatDisplayDate(lmp))}
+                  accessibilityLabel={selectedLmpLabel(formatDisplayDate(lmp, language))}
                   type="smallBold"
                   style={styles.selectedDate}>
-                  {formatDisplayDate(lmp)}
+                  {formatDisplayDate(lmp, language)}
                 </ThemedText>
 
                 <Pressable

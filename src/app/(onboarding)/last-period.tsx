@@ -20,6 +20,7 @@ import {
   selectedDateLabel,
 } from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
@@ -37,6 +38,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function LastPeriodScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const language = useLanguage();
   const params = useLocalSearchParams<{
     cycleLength?: string | string[];
     periodLength?: string | string[];
@@ -62,7 +64,7 @@ export default function LastPeriodScreen() {
     );
   }
 
-  const readableDate = formatDisplayDate(selectedDate);
+  const readableDate = formatDisplayDate(selectedDate, language);
   const canGoToNextDay = daysBetween(selectedDate, today) > 0;
 
   return (

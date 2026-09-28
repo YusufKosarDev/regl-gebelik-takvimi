@@ -8,6 +8,7 @@ import { getCalendarDayAccessibilityLabel } from '../presentation/cycle-labels';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { getDayOfMonth } from '@/utils/date';
 
@@ -146,10 +147,11 @@ function DayCell({
   onSelectDay?: (day: CycleCalendarDay) => void;
 }) {
   const theme = useTheme();
+  const language = useLanguage();
   const state = resolveDayState(day);
   const marker = STATE_MARKERS[state];
 
-  const label = getCalendarDayAccessibilityLabel(day, { isToday, isSelected });
+  const label = getCalendarDayAccessibilityLabel(day, language, { isToday, isSelected });
 
   const box = (
     <View

@@ -8,10 +8,22 @@
 const expoConfig = require('eslint-config-expo/flat');
 const { defineConfig, globalIgnores } = require('eslint/config');
 
-// The one rule this project adds. It is not style: with the suite pinned to
-// Turkish rendering, a hard-coded Turkish string passes every test and still
-// shows Turkish to an English user. Nothing else catches that.
-const i18nPlugin = require('./eslint-rules/no-turkish-outside-catalogues');
+// The two rules this project adds. Neither is style: with the suite pinned to
+// Turkish rendering, a hard-coded Turkish string and a date formatted without
+// a language both pass every test and still show Turkish to an English user.
+// Nothing else catches either one.
+//
+// One file per rule, and one plugin namespace for both, so a screen sees them
+// as what they are - two halves of the same guarantee.
+const noTurkishOutsideCatalogues = require('./eslint-rules/no-turkish-outside-catalogues');
+const requireLanguageArgument = require('./eslint-rules/require-language-argument');
+
+const i18nPlugin = {
+  rules: {
+    ...noTurkishOutsideCatalogues.rules,
+    ...requireLanguageArgument.rules,
+  },
+};
 
 module.exports = defineConfig([
   // Nothing generated, vendored or compiled is source, and linting it would
@@ -37,6 +49,7 @@ module.exports = defineConfig([
     plugins: { i18n: i18nPlugin },
     rules: {
       'i18n/no-turkish-outside-catalogues': 'error',
+      'i18n/require-language-argument': 'error',
     },
   },
 ]);
