@@ -44,15 +44,11 @@ import {
 } from '@/features/pregnancy/presentation/pregnancy-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+import { useLanguage, useMessages } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
-import {
-  CANCEL_LABEL,
-  LOADING_MESSAGE,
-  SAVE_LABEL,
-  SAVING_LABEL,
-} from '@/shared/presentation/app-messages';
+
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
@@ -71,6 +67,7 @@ import { logEvent } from '@/shared/logging';
 export default function PregnancySettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const common = useMessages(appMessages);
   const language = useLanguage();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -286,7 +283,7 @@ export default function PregnancySettingsScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="pregnancy-settings-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            {LOADING_MESSAGE}
+            {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -375,7 +372,7 @@ export default function PregnancySettingsScreen() {
                     <View style={styles.confirmActions}>
                       <Pressable
                         accessibilityRole="button"
-                      accessibilityLabel={CANCEL_LABEL}
+                      accessibilityLabel={common.cancelLabel}
                         accessibilityState={{ disabled: isStopping }}
                         disabled={isStopping}
                         onPress={dismissStop}
@@ -385,7 +382,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isStopping && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {CANCEL_LABEL}
+                          {common.cancelLabel}
                         </ThemedText>
                       </Pressable>
 
@@ -446,7 +443,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {isSaving ? SAVING_LABEL : PREGNANCY_BACK_TO_LMP_TEXT}
+                          {isSaving ? common.savingLabel : PREGNANCY_BACK_TO_LMP_TEXT}
                         </ThemedText>
                       </Pressable>
                     )}
@@ -535,7 +532,7 @@ export default function PregnancySettingsScreen() {
                     <View style={styles.confirmActions}>
                       <Pressable
                         accessibilityRole="button"
-                      accessibilityLabel={CANCEL_LABEL}
+                      accessibilityLabel={common.cancelLabel}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={closeEditor}
@@ -545,7 +542,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {CANCEL_LABEL}
+                          {common.cancelLabel}
                         </ThemedText>
                       </Pressable>
 
@@ -562,7 +559,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isSaving ? SAVING_LABEL : SAVE_LABEL}
+                          {isSaving ? common.savingLabel : common.saveLabel}
                         </ThemedText>
                       </Pressable>
                     </View>

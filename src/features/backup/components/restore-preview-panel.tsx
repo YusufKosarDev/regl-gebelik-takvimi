@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { CANCEL_LABEL } from '@/shared/presentation/app-messages';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+
 
 import type { CloudRestorePreviewV1 } from '../domain/cloud-restore-preview-v1';
 import {
@@ -58,6 +60,7 @@ export function RestorePreviewPanel({
   readonly onCancel: () => void;
 }) {
   const theme = useTheme();
+  const common = useMessages(appMessages);
 
   return preview === null ? (
           <Pressable
@@ -135,7 +138,7 @@ export function RestorePreviewPanel({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{CANCEL_LABEL}</ThemedText>
+              <ThemedText type="smallBold">{common.cancelLabel}</ThemedText>
             </Pressable>
           </View>
   );

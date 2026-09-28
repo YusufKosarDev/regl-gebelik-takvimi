@@ -3,7 +3,8 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { BACK_LABEL } from '@/shared/presentation/app-messages';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
 
 /**
  * The way back, on the eleven screens that have one.
@@ -30,16 +31,17 @@ import { BACK_LABEL } from '@/shared/presentation/app-messages';
  */
 export function BackButton() {
   const router = useRouter();
+  const strings = useMessages(appMessages);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={BACK_LABEL}
+      accessibilityLabel={strings.backLabel}
       onPress={() => router.back()}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
     >
       <ThemedText type="small" themeColor="textSecondary">
-        {BACK_LABEL}
+        {strings.backLabel}
       </ThemedText>
     </Pressable>
   );

@@ -44,9 +44,10 @@ import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { emptyDailyEntry } from '@/features/daily-log/domain/catalogues';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+import { useLanguage, useMessages } from '@/i18n';
 import { useAppStore } from '@/store/app-store';
-import { LOADING_MESSAGE } from '@/shared/presentation/app-messages';
+
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
@@ -77,6 +78,7 @@ import { logEvent } from '@/shared/logging';
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const common = useMessages(appMessages);
   const language = useLanguage();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -366,7 +368,7 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="cycle-dashboard-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            {LOADING_MESSAGE}
+            {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>

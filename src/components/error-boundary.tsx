@@ -1,11 +1,8 @@
 import type { ErrorBoundaryProps } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import {
-  ERROR_BODY,
-  ERROR_RETRY_LABEL,
-  ERROR_TITLE,
-} from '@/shared/presentation/app-messages';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
 
 /**
  * What is drawn when a screen throws while rendering.
@@ -42,23 +39,25 @@ import {
  * again, and the alternative is telling somebody to force-quit the app.
  */
 export function ErrorBoundary({ error: _error, retry }: ErrorBoundaryProps) {
+  const strings = useMessages(appMessages);
+
   return (
     <View style={styles.center}>
       <Text accessibilityRole="header" style={styles.title}>
-        {ERROR_TITLE}
+        {strings.errorTitle}
       </Text>
 
-      <Text style={styles.body}>{ERROR_BODY}</Text>
+      <Text style={styles.body}>{strings.errorBody}</Text>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={ERROR_RETRY_LABEL}
+        accessibilityLabel={strings.errorRetryLabel}
         onPress={() => {
           void retry();
         }}
         style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
       >
-        <Text style={styles.retryLabel}>{ERROR_RETRY_LABEL}</Text>
+        <Text style={styles.retryLabel}>{strings.errorRetryLabel}</Text>
       </Pressable>
     </View>
   );

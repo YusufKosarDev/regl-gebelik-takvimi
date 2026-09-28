@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
@@ -23,7 +24,7 @@ import {
   recordEndLabel,
   selectedStartDateLabel,
 } from '../presentation/history-messages';
-import { CANCEL_LABEL, SAVE_LABEL, SAVING_LABEL } from '@/shared/presentation/app-messages';
+
 
 /**
  * Corrects one record's start date.
@@ -55,6 +56,7 @@ export function StartDateEditor({
   onSave: () => void;
 }) {
   const theme = useTheme();
+  const common = useMessages(appMessages);
   const language = useLanguage();
 
   const maxDate = maxSelectableStartDate(record, today);
@@ -119,7 +121,7 @@ export function StartDateEditor({
       <View style={styles.confirmActions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={CANCEL_LABEL}
+          accessibilityLabel={common.cancelLabel}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onCancel}
@@ -129,7 +131,7 @@ export function StartDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            {CANCEL_LABEL}
+            {common.cancelLabel}
           </ThemedText>
         </Pressable>
 
@@ -146,7 +148,7 @@ export function StartDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-            {isUpdating ? SAVING_LABEL : SAVE_LABEL}
+            {isUpdating ? common.savingLabel : common.saveLabel}
           </ThemedText>
         </Pressable>
       </View>

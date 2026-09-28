@@ -89,13 +89,11 @@ import { useAuthState } from '@/features/auth/application/use-auth-state';
 import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
-import {
-  LOADING_MESSAGE,
-  SAVE_LABEL,
-  SAVING_LABEL,
-} from '@/shared/presentation/app-messages';
+
 import { openAppDatabase } from '@/storage/db';
 import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
@@ -125,6 +123,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const common = useMessages(appMessages);
 
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState<CycleSettings | null>(null);
@@ -528,7 +527,7 @@ export default function SettingsScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="cycle-settings-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            {LOADING_MESSAGE}
+            {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -613,7 +612,7 @@ export default function SettingsScreen() {
                     pressed && !isSaving && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                    {isSaving ? SAVING_LABEL : SAVE_LABEL}
+                    {isSaving ? common.savingLabel : common.saveLabel}
                   </ThemedText>
                 </Pressable>
               </View>

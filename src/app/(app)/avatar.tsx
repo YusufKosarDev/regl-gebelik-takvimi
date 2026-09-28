@@ -35,15 +35,13 @@ import {
 } from '@/features/avatar/presentation/avatar-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
-import {
-  LOADING_MESSAGE,
-  SAVE_LABEL,
-  SAVING_LABEL,
-} from '@/shared/presentation/app-messages';
+
 import { logEvent } from '@/shared/logging';
 
 /**
@@ -88,6 +86,7 @@ function isSameAvatarConfig(a: AvatarConfig, b: AvatarConfig): boolean {
 export default function AvatarScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const common = useMessages(appMessages);
 
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -249,7 +248,7 @@ export default function AvatarScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="avatar-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            {LOADING_MESSAGE}
+            {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -360,7 +359,7 @@ export default function AvatarScreen() {
                     pressed && !isSaving && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                    {isSaving ? SAVING_LABEL : SAVE_LABEL}
+                    {isSaving ? common.savingLabel : common.saveLabel}
                   </ThemedText>
                 </Pressable>
               </>

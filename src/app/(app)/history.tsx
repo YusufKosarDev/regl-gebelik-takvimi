@@ -15,7 +15,8 @@ import { updatePeriodStartDate } from '@/features/cycle/application/update-perio
 import type { PeriodRecord } from '@/features/cycle/domain/types';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+import { useLanguage, useMessages } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
@@ -44,10 +45,7 @@ import {
   recordAccessibilityLabel,
   recordEndLabel,
 } from '@/features/cycle/presentation/history-messages';
-import {
-  CANCEL_LABEL,
-  LOADING_MESSAGE,
-} from '@/shared/presentation/app-messages';
+
 import { logEvent } from '@/shared/logging';
 
 /**
@@ -59,6 +57,7 @@ import { logEvent } from '@/shared/logging';
  */
 export default function HistoryScreen() {
   const theme = useTheme();
+  const common = useMessages(appMessages);
   const language = useLanguage();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -333,7 +332,7 @@ export default function HistoryScreen() {
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="period-history-loading" color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-            {LOADING_MESSAGE}
+            {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -449,7 +448,7 @@ export default function HistoryScreen() {
                         <View style={styles.confirmActions}>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={CANCEL_LABEL}
+                            accessibilityLabel={common.cancelLabel}
                             accessibilityState={{ disabled: isDeleting }}
                             disabled={isDeleting}
                             onPress={closePanels}
@@ -459,7 +458,7 @@ export default function HistoryScreen() {
                               pressed && !isDeleting && styles.pressed,
                             ]}>
                             <ThemedText type="small" themeColor="textSecondary">
-                              {CANCEL_LABEL}
+                              {common.cancelLabel}
                             </ThemedText>
                           </Pressable>
 

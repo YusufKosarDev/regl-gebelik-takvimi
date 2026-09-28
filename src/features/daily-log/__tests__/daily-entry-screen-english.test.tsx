@@ -109,17 +109,28 @@ describe('the daily entry screen in English', () => {
   });
 
   /**
-   * What is still Turkish on this screen, named rather than glossed over.
+   * The back label, now that the shared strings have converted.
    *
-   * One thing the daily log does not own is still showing Turkish here: `Geri`,
-   * from `shared/presentation/app-messages.ts`, which converts with the shared
-   * strings. When that line goes, this becomes the blunt "no Turkish anywhere"
-   * check the screen should end up with.
+   * This is the second and last of the two assertions that named something on
+   * this screen as still Turkish. Both have now flipped, which means the screen
+   * is finished: every word on it, including the ones it does not own, is in
+   * the language the reader asked for.
+   *
+   * What is left is the blunt check below, which is what this file was always
+   * going to end up as.
    */
-  it('still shows the back label in Turkish, which a later stage owns', async () => {
+  it('shows the back label in English', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByLabelText('Geri')).toBeTruthy();
+    expect(screen.getByLabelText('Back')).toBeTruthy();
+    expect(screen.queryByLabelText('Geri')).toBeNull();
+  });
+
+  it('shows no Turkish anywhere on the screen', async () => {
+    // Not "nothing the daily log owns" any more. Nothing at all.
+    const screen = await renderScreen();
+
+    expect(JSON.stringify(screen.toJSON())).not.toMatch(/[ğüşıöçĞÜŞİÖÇ]/);
   });
 
   it('shows no Turkish in anything the daily log itself owns', async () => {

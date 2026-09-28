@@ -24,7 +24,9 @@ import {
   authErrorMessage,
 } from '@/features/auth/presentation/auth-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { SAVING_LABEL } from '@/shared/presentation/app-messages';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+
 import { useAppLockStore } from '@/store/app-lock-store';
 
 /**
@@ -42,6 +44,7 @@ import { useAppLockStore } from '@/store/app-lock-store';
 export default function RecoverScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const common = useMessages(appMessages);
 
   const markDisabled = useAppLockStore((state) => state.markDisabled);
 
@@ -188,7 +191,7 @@ export default function RecoverScreen() {
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? SAVING_LABEL : RECOVERY_SUBMIT_LABEL}
+                {isBusy ? common.savingLabel : RECOVERY_SUBMIT_LABEL}
               </ThemedText>
             </Pressable>
           </View>

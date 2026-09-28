@@ -6,11 +6,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  NOT_FOUND_BODY,
-  NOT_FOUND_HOME_LABEL,
-  NOT_FOUND_TITLE,
-} from '@/shared/presentation/app-messages';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
 
 /**
  * Where a link that matches nothing lands.
@@ -32,20 +29,21 @@ import {
 export default function NotFoundScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const strings = useMessages(appMessages);
 
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <ThemedText type="title" accessibilityRole="header">
-            {NOT_FOUND_TITLE}
+            {strings.notFoundTitle}
           </ThemedText>
 
-          <ThemedText themeColor="textSecondary">{NOT_FOUND_BODY}</ThemedText>
+          <ThemedText themeColor="textSecondary">{strings.notFoundBody}</ThemedText>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={NOT_FOUND_HOME_LABEL}
+            accessibilityLabel={strings.notFoundHomeLabel}
             onPress={() => router.replace('/')}
             style={({ pressed }) => [
               styles.button,
@@ -54,7 +52,7 @@ export default function NotFoundScreen() {
             ]}
           >
             <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-              {NOT_FOUND_HOME_LABEL}
+              {strings.notFoundHomeLabel}
             </ThemedText>
           </Pressable>
         </View>

@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { CANCEL_LABEL } from '@/shared/presentation/app-messages';
+import { useMessages } from '@/i18n';
+import { appMessages } from '@/shared/presentation/app-messages';
+
 
 import {
   EMAIL_LABEL,
@@ -66,6 +68,7 @@ export function SignedOutForm({
   readonly onCancelReset: () => void;
 }) {
   const theme = useTheme();
+  const common = useMessages(appMessages);
 
   return (
       <View style={styles.fields}>
@@ -157,7 +160,7 @@ export function SignedOutForm({
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={CANCEL_LABEL}
+              accessibilityLabel={common.cancelLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onCancelReset}
@@ -167,7 +170,7 @@ export function SignedOutForm({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{CANCEL_LABEL}</ThemedText>
+              <ThemedText type="smallBold">{common.cancelLabel}</ThemedText>
             </Pressable>
           </>
         ) : (
