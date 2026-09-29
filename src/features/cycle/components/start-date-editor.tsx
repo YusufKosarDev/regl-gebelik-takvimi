@@ -15,14 +15,8 @@ import {
 } from '../domain/record-bounds';
 import type { PeriodRecord } from '../domain/types';
 import {
-  EDIT_START_PANEL_TITLE,
-  HISTORY_UPDATE_FAILED_MESSAGE,
-  NEXT_DAY_LABEL,
-  PREVIOUS_DAY_LABEL,
-  SAVE_START_LABEL,
-  endDateLine,
-  recordEndLabel,
-  selectedStartDateLabel,
+  historyMessages,
+  recordEndLabelIn,
 } from '../presentation/history-messages';
 
 
@@ -56,6 +50,7 @@ export function StartDateEditor({
   onSave: () => void;
 }) {
   const theme = useTheme();
+  const history = useMessages(historyMessages);
   const common = useMessages(appMessages);
   const language = useLanguage();
 
@@ -69,16 +64,16 @@ export function StartDateEditor({
 
   return (
     <View style={styles.confirmation}>
-      <ThemedText type="smallBold">{EDIT_START_PANEL_TITLE}</ThemedText>
+      <ThemedText type="smallBold">{history.editStartPanelTitle}</ThemedText>
 
       <ThemedText type="small" themeColor="textSecondary">
-        {endDateLine(recordEndLabel(record, language))}
+        {history.endDateLine(recordEndLabelIn(history, record, language))}
       </ThemedText>
 
       <View style={styles.dateBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={PREVIOUS_DAY_LABEL}
+          accessibilityLabel={history.previousDayLabel}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => onSelectStartDate(addDays(selectedStartDate, -1))}
@@ -91,7 +86,7 @@ export function StartDateEditor({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={selectedStartDateLabel(formatDisplayDate(selectedStartDate, language))}
+          accessibilityLabel={history.selectedStartDateLabel(formatDisplayDate(selectedStartDate, language))}
           type="smallBold"
           style={styles.selectedDate}>
           {formatDisplayDate(selectedStartDate, language)}
@@ -99,7 +94,7 @@ export function StartDateEditor({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={NEXT_DAY_LABEL}
+          accessibilityLabel={history.nextDayLabel}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => onSelectStartDate(addDays(selectedStartDate, 1))}
@@ -114,7 +109,7 @@ export function StartDateEditor({
 
       {hasError && (
         <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-          {HISTORY_UPDATE_FAILED_MESSAGE}
+          {history.historyUpdateFailedMessage}
         </ThemedText>
       )}
 
@@ -137,7 +132,7 @@ export function StartDateEditor({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={SAVE_START_LABEL}
+          accessibilityLabel={history.saveStartLabel}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onSave}

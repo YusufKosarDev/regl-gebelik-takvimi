@@ -1,16 +1,9 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
-import {
-  AVATAR_CREATE_LABEL,
-  AVATAR_EDIT_LABEL,
-  AVATAR_LINK_TEXT,
-  HISTORY_LINK_LABEL,
-  HISTORY_LINK_TEXT,
-  PREGNANCY_START_LINK_LABEL,
-  SETTINGS_LINK_LABEL,
-  SETTINGS_LINK_TEXT,
-} from '../presentation/home-messages';
+import { useMessages } from '@/i18n';
+
+import { homeMessages } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -37,16 +30,17 @@ export function HomeLinks({
   readonly pregnancy: PregnancyDashboard | null;
 }) {
   const router = useRouter();
+  const home = useMessages(homeMessages);
 
   return (
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={HISTORY_LINK_LABEL}
+        accessibilityLabel={home.historyLinkLabel}
         onPress={() => router.push('/(app)/history')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
         <ThemedText type="small" themeColor="textSecondary">
-          {HISTORY_LINK_TEXT}
+          {home.historyLinkText}
         </ThemedText>
       </Pressable>
 
@@ -54,7 +48,7 @@ export function HomeLinks({
           says which of the two errands the link is on. */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={avatar === null ? AVATAR_CREATE_LABEL : AVATAR_EDIT_LABEL}
+        accessibilityLabel={avatar === null ? home.avatarCreateLabel : home.avatarEditLabel}
         onPress={() => router.push('/(app)/avatar')}
         style={({ pressed }) => [styles.avatarLink, pressed && styles.pressed]}>
         {avatar !== null && (
@@ -62,17 +56,17 @@ export function HomeLinks({
         )}
 
         <ThemedText type="small" themeColor="textSecondary">
-          {avatar === null ? AVATAR_LINK_TEXT : AVATAR_EDIT_LABEL}
+          {avatar === null ? home.avatarLinkText : home.avatarEditLabel}
         </ThemedText>
       </Pressable>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={SETTINGS_LINK_LABEL}
+        accessibilityLabel={home.settingsLinkLabel}
         onPress={() => router.push('/(app)/settings')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
         <ThemedText type="small" themeColor="textSecondary">
-          {SETTINGS_LINK_TEXT}
+          {home.settingsLinkText}
         </ThemedText>
       </Pressable>
 
@@ -81,14 +75,14 @@ export function HomeLinks({
       {pregnancy === null && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={PREGNANCY_START_LINK_LABEL}
+          accessibilityLabel={home.pregnancyStartLinkLabel}
           onPress={() => router.push('/(app)/pregnancy-start')}
           style={({ pressed }) => [
             styles.secondaryButton,
             pressed && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            {PREGNANCY_START_LINK_LABEL}
+            {home.pregnancyStartLinkLabel}
           </ThemedText>
         </Pressable>
       )}

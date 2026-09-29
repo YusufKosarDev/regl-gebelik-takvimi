@@ -11,20 +11,7 @@ import { formatDisplayDate } from '@/utils/format-date';
 
 import { maxSelectableEndDate } from '../domain/record-bounds';
 import type { PeriodRecord } from '../domain/types';
-import {
-  CLEAR_END_BUSY_LABEL,
-  CLEAR_END_CONFIRM_LABEL,
-  CLEAR_END_CONSEQUENCE,
-  CLEAR_END_OPEN_LABEL,
-  CLEAR_END_QUESTION,
-  EDIT_END_PANEL_TITLE,
-  HISTORY_UPDATE_FAILED_MESSAGE,
-  NEXT_DAY_LABEL,
-  PREVIOUS_DAY_LABEL,
-  SAVE_END_LABEL,
-  selectedEndDateLabel,
-  startDateLine,
-} from '../presentation/history-messages';
+import { historyMessages } from '../presentation/history-messages';
 
 
 /**
@@ -62,6 +49,7 @@ export function EndDateEditor({
   onRemove: () => void;
 }) {
   const theme = useTheme();
+  const history = useMessages(historyMessages);
   const common = useMessages(appMessages);
   const language = useLanguage();
 
@@ -73,15 +61,15 @@ export function EndDateEditor({
   if (isRemoving) {
     return (
       <View style={styles.confirmation}>
-        <ThemedText type="small">{CLEAR_END_QUESTION}</ThemedText>
+        <ThemedText type="small">{history.clearEndQuestion}</ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary">
-          {CLEAR_END_CONSEQUENCE}
+          {history.clearEndConsequence}
         </ThemedText>
 
         {hasError && (
           <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-            {HISTORY_UPDATE_FAILED_MESSAGE}
+            {history.historyUpdateFailedMessage}
           </ThemedText>
         )}
 
@@ -104,7 +92,7 @@ export function EndDateEditor({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={CLEAR_END_CONFIRM_LABEL}
+            accessibilityLabel={history.clearEndConfirmLabel}
             accessibilityState={{ disabled: isUpdating }}
             disabled={isUpdating}
             onPress={onRemove}
@@ -115,7 +103,7 @@ export function EndDateEditor({
               pressed && !isUpdating && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-              {isUpdating ? CLEAR_END_BUSY_LABEL : CLEAR_END_CONFIRM_LABEL}
+              {isUpdating ? history.clearEndBusyLabel : history.clearEndConfirmLabel}
             </ThemedText>
           </Pressable>
         </View>
@@ -125,16 +113,16 @@ export function EndDateEditor({
 
   return (
     <View style={styles.confirmation}>
-      <ThemedText type="smallBold">{EDIT_END_PANEL_TITLE}</ThemedText>
+      <ThemedText type="smallBold">{history.editEndPanelTitle}</ThemedText>
 
       <ThemedText type="small" themeColor="textSecondary">
-        {startDateLine(formatDisplayDate(record.startDate, language))}
+        {history.startDateLine(formatDisplayDate(record.startDate, language))}
       </ThemedText>
 
       <View style={styles.dateBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={PREVIOUS_DAY_LABEL}
+          accessibilityLabel={history.previousDayLabel}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => onSelectEndDate(addDays(selectedEndDate, -1))}
@@ -147,7 +135,7 @@ export function EndDateEditor({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={selectedEndDateLabel(formatDisplayDate(selectedEndDate, language))}
+          accessibilityLabel={history.selectedEndDateLabel(formatDisplayDate(selectedEndDate, language))}
           type="smallBold"
           style={styles.selectedDate}>
           {formatDisplayDate(selectedEndDate, language)}
@@ -155,7 +143,7 @@ export function EndDateEditor({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={NEXT_DAY_LABEL}
+          accessibilityLabel={history.nextDayLabel}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => onSelectEndDate(addDays(selectedEndDate, 1))}
@@ -170,7 +158,7 @@ export function EndDateEditor({
 
       {hasError && (
         <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-          {HISTORY_UPDATE_FAILED_MESSAGE}
+          {history.historyUpdateFailedMessage}
         </ThemedText>
       )}
 
@@ -193,7 +181,7 @@ export function EndDateEditor({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={SAVE_END_LABEL}
+          accessibilityLabel={history.saveEndLabel}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onSave}
@@ -213,7 +201,7 @@ export function EndDateEditor({
       {record.endDate !== undefined && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={CLEAR_END_OPEN_LABEL}
+          accessibilityLabel={history.clearEndOpenLabel}
           accessibilityState={{ disabled: isUpdating }}
           disabled={isUpdating}
           onPress={onAskToRemove}
@@ -223,7 +211,7 @@ export function EndDateEditor({
             pressed && !isUpdating && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            {CLEAR_END_OPEN_LABEL}
+            {history.clearEndOpenLabel}
           </ThemedText>
         </Pressable>
       )}

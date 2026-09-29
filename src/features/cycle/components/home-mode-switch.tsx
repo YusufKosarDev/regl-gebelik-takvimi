@@ -1,11 +1,12 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { CYCLE_TAB_LABEL, PREGNANCY_TAB_LABEL } from '../presentation/home-messages';
+import { homeMessages } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * The two views over the same day: Döngü and Gebelik.
@@ -29,12 +30,13 @@ export function HomeModeSwitch({
   readonly chooseMode: (mode: 'cycle' | 'pregnancy') => void;
 }) {
   const theme = useTheme();
+  const home = useMessages(homeMessages);
 
   return (
     <View accessibilityRole="tablist" style={styles.modeSwitch}>
       <Pressable
         accessibilityRole="tab"
-        accessibilityLabel={CYCLE_TAB_LABEL}
+        accessibilityLabel={home.cycleTabLabel}
         accessibilityState={{ selected: !isPregnancyView }}
         onPress={() => chooseMode('cycle')}
         style={({ pressed }) => [
@@ -45,13 +47,13 @@ export function HomeModeSwitch({
         <ThemedText
           type={isPregnancyView ? 'small' : 'smallBold'}
           themeColor={isPregnancyView ? 'text' : 'onPrimary'}>
-          {CYCLE_TAB_LABEL}
+          {home.cycleTabLabel}
         </ThemedText>
       </Pressable>
 
       <Pressable
         accessibilityRole="tab"
-        accessibilityLabel={PREGNANCY_TAB_LABEL}
+        accessibilityLabel={home.pregnancyTabLabel}
         accessibilityState={{ selected: isPregnancyView, disabled: pregnancy === null }}
         disabled={pregnancy === null}
         onPress={() => chooseMode('pregnancy')}
@@ -64,7 +66,7 @@ export function HomeModeSwitch({
         <ThemedText
           type={isPregnancyView ? 'smallBold' : 'small'}
           themeColor={isPregnancyView ? 'onPrimary' : 'text'}>
-          {PREGNANCY_TAB_LABEL}
+          {home.pregnancyTabLabel}
         </ThemedText>
       </Pressable>
     </View>

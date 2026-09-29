@@ -53,12 +53,8 @@ import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { PregnancySection } from '@/features/pregnancy/components/pregnancy-section';
 import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
-import {
-  EMPTY_MESSAGE,
-  LOAD_ERROR_MESSAGE,
-  TODAY_HEADING,
-  summaryRows,
-} from '@/features/cycle/presentation/home-messages';
+import { homeMessages, summaryRowsIn } from '@/features/cycle/presentation/home-messages';
+import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
 import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -78,6 +74,8 @@ import { logEvent } from '@/shared/logging';
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const home = useMessages(homeMessages);
+  const labels = useMessages(cycleLabels);
   const common = useMessages(appMessages);
   const language = useLanguage();
 
@@ -380,7 +378,7 @@ export default function HomeScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ThemedText accessibilityRole="alert" type="subtitle" style={styles.messageText}>
-            {LOAD_ERROR_MESSAGE}
+            {home.loadErrorMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -392,7 +390,7 @@ export default function HomeScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ThemedText type="subtitle" style={styles.messageText}>
-            {EMPTY_MESSAGE}
+            {home.emptyMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -485,7 +483,7 @@ export default function HomeScreen() {
     }
   };
 
-  const rows = summaryRows(dashboard, language);
+  const rows = summaryRowsIn(home, labels, dashboard, language);
 
   return (
     <ThemedView style={styles.screen}>
@@ -502,7 +500,7 @@ export default function HomeScreen() {
 
             <View style={styles.header}>
               <ThemedText type="small" themeColor="textSecondary">
-                {TODAY_HEADING}
+                {home.todayHeading}
               </ThemedText>
 
               <ThemedText type="subtitle" style={styles.date}>

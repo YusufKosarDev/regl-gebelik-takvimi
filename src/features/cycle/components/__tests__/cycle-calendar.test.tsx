@@ -1,4 +1,5 @@
 import { fireEvent, render, within } from '@testing-library/react-native';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
 
 import { CycleCalendar } from '../cycle-calendar';
 
@@ -48,10 +49,13 @@ describe('CycleCalendar weekday header', () => {
     }
   });
 
-  it('renders the labels the grid supplies', async () => {
+  it('renders the labels the catalogue supplies', async () => {
+    // They used to travel on the grid. The suite renders a Turkish device, so
+    // this is the Turkish half either way - what changed is where it comes
+    // from, not what it says.
     const { getByText } = await renderCalendar();
 
-    for (const label of septemberGrid.weekdayLabels) {
+    for (const label of homeMessages.tr.weekdayLabels) {
       expect(getByText(label)).toBeTruthy();
     }
   });

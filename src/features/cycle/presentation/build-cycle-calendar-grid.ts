@@ -7,15 +7,6 @@ import { getISOWeekday } from '@/utils/date';
 
 const DAYS_PER_WEEK = 7;
 
-/**
- * Column headers, Monday first.
- *
- * A fixed tuple rather than anything locale-driven: `Intl` is unreliable on
- * Hermes, and the app is Turkish-only for now. When a second language arrives it
- * gets a real translation layer, not a lookup bolted on here.
- */
-export const WEEKDAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'] as const;
-
 export type CalendarGridCell =
   | {
       readonly kind: 'empty';
@@ -29,7 +20,6 @@ export type CycleCalendarGrid = {
   readonly year: number;
   /** 1-12. */
   readonly month: number;
-  readonly weekdayLabels: typeof WEEKDAY_LABELS;
   /** Row-major, always a whole number of 7-cell rows. */
   readonly cells: readonly CalendarGridCell[];
   readonly rowCount: number;
@@ -83,7 +73,6 @@ export function buildCycleCalendarGrid(month: CycleCalendarMonth): CycleCalendar
   return {
     year: month.year,
     month: month.month,
-    weekdayLabels: WEEKDAY_LABELS,
     cells,
     rowCount: cells.length / DAYS_PER_WEEK,
   };

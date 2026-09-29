@@ -1,10 +1,11 @@
 import { StyleSheet, View } from 'react-native';
 
-import { labelledValue } from '../presentation/home-messages';
+import { homeMessages } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * The four facts about today, at the top of the cycle view.
@@ -23,6 +24,7 @@ export function CycleSummary({
   readonly rows: readonly { label: string; value: string; note?: string }[];
 }) {
   const theme = useTheme();
+  const home = useMessages(homeMessages);
 
   return (
     <View style={styles.summary}>
@@ -30,7 +32,7 @@ export function CycleSummary({
         <View
           key={row.label}
           accessible
-          accessibilityLabel={labelledValue(row.label, row.value)}
+          accessibilityLabel={home.labelledValue(row.label, row.value)}
           style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText type="small" themeColor="textSecondary">
             {row.label}

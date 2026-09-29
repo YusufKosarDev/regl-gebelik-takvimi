@@ -3,17 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
-import {
-  CALENDAR_NEXT_MONTH_LABEL,
-  CALENDAR_PREVIOUS_MONTH_LABEL,
-  CALENDAR_SECTION_TITLE,
-  PREDICTED_PERIOD_START_NOTE,
-  SELECTED_DAY_EMPTY_MESSAGE,
-  SELECTED_DAY_TITLE,
-  labelledValue,
-  calendarMonthLabel,
-  selectedDayRows,
-} from '../presentation/home-messages';
+import { cycleLabels } from '../presentation/cycle-labels';
+import { homeMessages, selectedDayRowsIn } from '../presentation/home-messages';
 import { CycleCalendar } from './cycle-calendar';
 import { CycleCalendarLegend } from './cycle-calendar-legend';
 
@@ -26,7 +17,7 @@ import {
   CALENDAR_DAY_EDIT_LABEL,
 } from '@/features/daily-log/presentation/daily-log-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 
@@ -66,6 +57,8 @@ export function CycleCalendarSection({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const home = useMessages(homeMessages);
+  const labels = useMessages(cycleLabels);
   const language = useLanguage();
 
   return (
@@ -74,13 +67,13 @@ export function CycleCalendarSection({
         accessibilityRole="header"
         type="small"
         themeColor="textSecondary">
-        {CALENDAR_SECTION_TITLE}
+        {home.calendarSectionTitle}
       </ThemedText>
 
       <View style={styles.monthBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={CALENDAR_PREVIOUS_MONTH_LABEL}
+          accessibilityLabel={home.calendarPreviousMonthLabel}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => setMonthOffset((current) => current - 1)}
@@ -93,14 +86,14 @@ export function CycleCalendarSection({
         </Pressable>
 
         <ThemedText
-          accessibilityLabel={calendarMonthLabel(monthHeading)}
+          accessibilityLabel={home.calendarMonthLabel(monthHeading)}
           style={styles.monthHeading}>
           {monthHeading}
         </ThemedText>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={CALENDAR_NEXT_MONTH_LABEL}
+          accessibilityLabel={home.calendarNextMonthLabel}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => setMonthOffset((current) => current + 1)}
@@ -122,11 +115,11 @@ export function CycleCalendarSection({
 
       <View style={styles.selectedSection}>
         <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-          {SELECTED_DAY_TITLE}
+          {home.selectedDayTitle}
         </ThemedText>
 
         {selectedDay === null ? (
-          <ThemedText themeColor="textSecondary">{SELECTED_DAY_EMPTY_MESSAGE}</ThemedText>
+          <ThemedText themeColor="textSecondary">{home.selectedDayEmptyMessage}</ThemedText>
         ) : (
           <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
@@ -135,15 +128,15 @@ export function CycleCalendarSection({
 
             {/* The visible text already reads "label: value", so it
                 needs no separate accessibility label. */}
-            {selectedDayRows(selectedDay).map((row) => (
+            {selectedDayRowsIn(home, labels, selectedDay).map((row) => (
               <ThemedText key={row.label} type="small">
-                {labelledValue(row.label, row.value)}
+                {home.labelledValue(row.label, row.value)}
               </ThemedText>
             ))}
 
             {selectedDay.isPredictedPeriodStart && (
               <ThemedText type="small" themeColor="textSecondary">
-                {PREDICTED_PERIOD_START_NOTE}
+                {home.predictedPeriodStartNote}
               </ThemedText>
             )}
 

@@ -1,23 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import {
-  END_SAVE_ERROR_MESSAGE,
-  PERIOD_CANCEL_LABEL,
-  PERIOD_END_BUTTON_LABEL,
-  PERIOD_END_BUTTON_TEXT,
-  PERIOD_END_QUESTION,
-  PERIOD_SAVE_LABEL,
-  PERIOD_SAVING_LABEL,
-  PERIOD_START_BUTTON_LABEL,
-  PERIOD_START_BUTTON_TEXT,
-  PERIOD_START_QUESTION,
-  SAVE_ERROR_MESSAGE,
-} from '../presentation/home-messages';
+import { homeMessages } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 
@@ -56,12 +44,13 @@ export function PeriodActionCard({
   readonly handleSavePeriod: () => Promise<void>;
 }) {
   const theme = useTheme();
+  const home = useMessages(homeMessages);
   const language = useLanguage();
 
   return isConfirming ? (
     <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="small" themeColor="textSecondary">
-        {isEnding ? PERIOD_END_QUESTION : PERIOD_START_QUESTION}
+        {isEnding ? home.periodEndQuestion : home.periodStartQuestion}
       </ThemedText>
 
       <ThemedText style={styles.rowValue}>
@@ -74,14 +63,14 @@ export function PeriodActionCard({
           type="small"
           themeColor="textSecondary"
           style={styles.rowNote}>
-          {isEnding ? END_SAVE_ERROR_MESSAGE : SAVE_ERROR_MESSAGE}
+          {isEnding ? home.endSaveErrorMessage : home.saveErrorMessage}
         </ThemedText>
       )}
 
       <View style={styles.confirmActions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={PERIOD_CANCEL_LABEL}
+          accessibilityLabel={home.periodCancelLabel}
           accessibilityState={{ disabled: isSaving }}
           disabled={isSaving}
           onPress={() => {
@@ -94,13 +83,13 @@ export function PeriodActionCard({
             pressed && !isSaving && styles.pressed,
           ]}>
           <ThemedText type="small" themeColor="textSecondary">
-            {PERIOD_CANCEL_LABEL}
+            {home.periodCancelLabel}
           </ThemedText>
         </Pressable>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={PERIOD_SAVE_LABEL}
+          accessibilityLabel={home.periodSaveLabel}
           accessibilityState={{ disabled: isSaving }}
           disabled={isSaving}
           onPress={handleSavePeriod}
@@ -111,7 +100,7 @@ export function PeriodActionCard({
             pressed && !isSaving && styles.pressed,
           ]}>
           <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-            {isSaving ? PERIOD_SAVING_LABEL : PERIOD_SAVE_LABEL}
+            {isSaving ? home.periodSavingLabel : home.periodSaveLabel}
           </ThemedText>
         </Pressable>
       </View>
@@ -119,7 +108,7 @@ export function PeriodActionCard({
   ) : (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={isEnding ? PERIOD_END_BUTTON_LABEL : PERIOD_START_BUTTON_LABEL}
+      accessibilityLabel={isEnding ? home.periodEndButtonLabel : home.periodStartButtonLabel}
       onPress={() => setIsConfirming(true)}
       style={({ pressed }) => [
         styles.primaryButton,
@@ -127,7 +116,7 @@ export function PeriodActionCard({
         pressed && styles.pressed,
       ]}>
       <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-        {isEnding ? PERIOD_END_BUTTON_TEXT : PERIOD_START_BUTTON_TEXT}
+        {isEnding ? home.periodEndButtonText : home.periodStartButtonText}
       </ThemedText>
     </Pressable>
   );

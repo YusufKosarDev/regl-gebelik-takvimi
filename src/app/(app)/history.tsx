@@ -26,24 +26,9 @@ import { syncPeriodReminderQuietly } from '@/features/notifications/application/
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
 import {
-  DELETE_CONFIRM_LABEL,
-  DELETE_CONSEQUENCE,
-  DELETE_QUESTION,
-  DELETE_TEXT,
-  EDIT_END_TEXT,
-  EDIT_START_TEXT,
-  HISTORY_DELETE_FAILED_MESSAGE,
-  HISTORY_DESCRIPTION,
-  HISTORY_EMPTY_MESSAGE,
-  HISTORY_LOAD_FAILED_MESSAGE,
-  HISTORY_TITLE,
-  RECORD_END_LABEL,
-  RECORD_START_LABEL,
-  deleteRecordLabel,
-  editEndLabel,
-  editStartLabel,
-  recordAccessibilityLabel,
-  recordEndLabel,
+  historyMessages,
+  recordAccessibilityLabelIn,
+  recordEndLabelIn,
 } from '@/features/cycle/presentation/history-messages';
 
 import { logEvent } from '@/shared/logging';
@@ -57,6 +42,7 @@ import { logEvent } from '@/shared/logging';
  */
 export default function HistoryScreen() {
   const theme = useTheme();
+  const history = useMessages(historyMessages);
   const common = useMessages(appMessages);
   const language = useLanguage();
 
@@ -350,11 +336,11 @@ export default function HistoryScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                {HISTORY_TITLE}
+                {history.historyTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {HISTORY_DESCRIPTION}
+                {history.historyDescription}
               </ThemedText>
 
               {/* Only after a sync closed something that was open. */}
@@ -367,30 +353,30 @@ export default function HistoryScreen() {
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {HISTORY_LOAD_FAILED_MESSAGE}
+                {history.historyLoadFailedMessage}
               </ThemedText>
             ) : records === null || records.length === 0 ? (
-              <ThemedText themeColor="textSecondary">{HISTORY_EMPTY_MESSAGE}</ThemedText>
+              <ThemedText themeColor="textSecondary">{history.historyEmptyMessage}</ThemedText>
             ) : (
               <View style={styles.list}>
                 {records.map((record) => (
                   <View
                     key={record.id}
                     accessible
-                    accessibilityLabel={recordAccessibilityLabel(record, language)}
+                    accessibilityLabel={recordAccessibilityLabelIn(history, record, language)}
                     testID={`history-record-${record.id}`}
                     style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                     <ThemedText type="small" themeColor="textSecondary">
-                      {RECORD_START_LABEL}
+                      {history.recordStartLabel}
                     </ThemedText>
                     <ThemedText style={styles.rowValue}>
                       {formatDisplayDate(record.startDate, language)}
                     </ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary" style={styles.endLabel}>
-                      {RECORD_END_LABEL}
+                      {history.recordEndLabel}
                     </ThemedText>
-                    <ThemedText type="small">{recordEndLabel(record, language)}</ThemedText>
+                    <ThemedText type="small">{recordEndLabelIn(history, record, language)}</ThemedText>
 
                     {recordUnderStartEdit?.id === record.id ? (
                       <StartDateEditor
@@ -426,14 +412,14 @@ export default function HistoryScreen() {
                       />
                     ) : recordPendingDelete?.id === record.id ? (
                       <View style={styles.confirmation}>
-                        <ThemedText type="small">{DELETE_QUESTION}</ThemedText>
+                        <ThemedText type="small">{history.deleteQuestion}</ThemedText>
 
                         <ThemedText type="smallBold">
                           {formatDisplayDate(record.startDate, language)}
                         </ThemedText>
 
                         <ThemedText type="small" themeColor="textSecondary">
-                          {DELETE_CONSEQUENCE}
+                          {history.deleteConsequence}
                         </ThemedText>
 
                         {hasDeleteError && (
@@ -441,7 +427,7 @@ export default function HistoryScreen() {
                             accessibilityRole="alert"
                             type="small"
                             themeColor="textSecondary">
-                            {HISTORY_DELETE_FAILED_MESSAGE}
+                            {history.historyDeleteFailedMessage}
                           </ThemedText>
                         )}
 
@@ -464,7 +450,7 @@ export default function HistoryScreen() {
 
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={DELETE_CONFIRM_LABEL}
+                            accessibilityLabel={history.deleteConfirmLabel}
                             accessibilityState={{ disabled: isDeleting }}
                             disabled={isDeleting}
                             onPress={handleDelete}
@@ -491,27 +477,27 @@ export default function HistoryScreen() {
                           <>
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={editStartLabel(formatDisplayDate(record.startDate, language))}
+                              accessibilityLabel={history.editStartLabel(formatDisplayDate(record.startDate, language))}
                               onPress={() => openStartEditor(record)}
                               style={({ pressed }) => [
                                 styles.rowAction,
                                 pressed && styles.pressed,
                               ]}>
                               <ThemedText type="small" themeColor="textSecondary">
-                                {EDIT_START_TEXT}
+                                {history.editStartText}
                               </ThemedText>
                             </Pressable>
 
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={editEndLabel(formatDisplayDate(record.startDate, language))}
+                              accessibilityLabel={history.editEndLabel(formatDisplayDate(record.startDate, language))}
                               onPress={() => openEndEditor(record)}
                               style={({ pressed }) => [
                                 styles.rowAction,
                                 pressed && styles.pressed,
                               ]}>
                               <ThemedText type="small" themeColor="textSecondary">
-                                {EDIT_END_TEXT}
+                                {history.editEndText}
                               </ThemedText>
                             </Pressable>
                           </>
@@ -519,11 +505,11 @@ export default function HistoryScreen() {
 
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={deleteRecordLabel(formatDisplayDate(record.startDate, language))}
+                          accessibilityLabel={history.deleteRecordLabel(formatDisplayDate(record.startDate, language))}
                           onPress={() => askToDelete(record)}
                           style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
                           <ThemedText type="small" themeColor="textSecondary">
-                            {DELETE_TEXT}
+                            {history.deleteText}
                           </ThemedText>
                         </Pressable>
                       </View>

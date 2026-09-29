@@ -1,26 +1,24 @@
 import { StyleSheet, View } from 'react-native';
 
-import {
-  CALENDAR_ESTIMATE_NOTICE,
-  LEGEND_ITEMS,
-  legendItemLabel,
-} from '../presentation/home-messages';
+import { homeMessages, legendItemsIn } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /** Explains the calendar's marks. Reads nothing and computes nothing. */
 export function CycleCalendarLegend() {
   const theme = useTheme();
+  const home = useMessages(homeMessages);
 
   return (
     <View style={styles.legend}>
-      {LEGEND_ITEMS.map((item) => (
+      {legendItemsIn(home).map((item) => (
         <View
           key={item.marker}
           accessible
-          accessibilityLabel={legendItemLabel(item)}
+          accessibilityLabel={home.legendItemLabel(item.spokenMarker, item.label)}
           style={styles.item}>
           <View
             style={[
@@ -41,7 +39,7 @@ export function CycleCalendarLegend() {
       ))}
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.notice}>
-        {CALENDAR_ESTIMATE_NOTICE}
+        {home.calendarEstimateNotice}
       </ThemedText>
     </View>
   );

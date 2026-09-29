@@ -29,10 +29,10 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { SOURCE_ERROR_MESSAGE } from '@/features/cycle/presentation/home-messages';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage, useMessages} from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import { formatDisplayDate } from '@/utils/format-date';
 
 /**
@@ -70,6 +70,7 @@ export function PregnancySection({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const home = useMessages(homeMessages);
   const disclaimer = useMessages(disclaimerMessages);
   const language = useLanguage();
 
@@ -221,7 +222,7 @@ export function PregnancySection({
                   type="small"
                   themeColor="textSecondary"
                   style={styles.weeklyFeature}>
-                  {SOURCE_ERROR_MESSAGE}
+                  {home.sourceErrorMessage}
                 </ThemedText>
               )}
 

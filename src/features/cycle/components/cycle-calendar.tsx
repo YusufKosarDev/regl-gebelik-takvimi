@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CalendarGridCell, CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
-import { CALENDAR_TODAY_LABEL } from '../presentation/home-messages';
+import { homeMessages } from '../presentation/home-messages';
 import {
   cycleLabels,
   getCalendarDayAccessibilityLabelIn,
@@ -72,14 +72,17 @@ const PREDICTED_MARKER = '≈';
  *
  * Which day falls in which column, how many rows there are and what the domain
  * thinks of each day are all settled before this component runs. It reads
- * `grid.weekdayLabels` and `grid.cells` and lays them out, so the picture can
- * never disagree with the model behind it.
+ * `grid.cells` and lays them out, so the picture can never disagree with the
+ * model behind it. The column headers come from the catalogue rather than the
+ * grid: seven words drawn above a layout are not part of one.
  */
 export function CycleCalendar({ grid, today, selectedDate, onSelectDay }: CycleCalendarProps) {
+  const home = useMessages(homeMessages);
+
   return (
     <View style={styles.calendar}>
       <View style={styles.row}>
-        {grid.weekdayLabels.map((label) => (
+        {home.weekdayLabels.map((label) => (
           <View key={label} style={styles.weekdayCell}>
             <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
               {label}
@@ -150,6 +153,7 @@ function DayCell({
   onSelectDay?: (day: CycleCalendarDay) => void;
 }) {
   const theme = useTheme();
+  const home = useMessages(homeMessages);
   const language = useLanguage();
   const labels = useMessages(cycleLabels);
   const state = resolveDayState(day);
@@ -193,7 +197,7 @@ function DayCell({
 
       {isToday && (
         <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
-          {CALENDAR_TODAY_LABEL}
+          {home.calendarTodayLabel}
         </ThemedText>
       )}
     </View>

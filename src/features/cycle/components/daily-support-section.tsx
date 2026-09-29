@@ -1,14 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleDailySupport } from '../domain/daily-support';
-import {
-  SOURCE_ERROR_MESSAGE,
-  SUPPORT_DISCLAIMER,
-  SUPPORT_MESSAGE_TITLE,
-  SUPPORT_MOOD_TITLE,
-  SUPPORT_SOURCES_TITLE,
-  openSourceLabel,
-} from '../presentation/home-messages';
+import { homeMessages } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -38,6 +31,7 @@ export function DailySupportSection({
   readonly hasSourceError: boolean;
 }) {
   const theme = useTheme();
+  const home = useMessages(homeMessages);
   const disclaimer = useMessages(disclaimerMessages);
 
   return (
@@ -48,7 +42,7 @@ export function DailySupportSection({
       {dailySupport.moodLabels !== undefined && (
         <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-            {SUPPORT_MOOD_TITLE}
+            {home.supportMoodTitle}
           </ThemedText>
 
           {dailySupport.moodLabels.map((mood) => (
@@ -61,7 +55,7 @@ export function DailySupportSection({
 
       <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-          {SUPPORT_MESSAGE_TITLE}
+          {home.supportMessageTitle}
         </ThemedText>
 
         <ThemedText style={styles.weeklySummary}>
@@ -69,7 +63,7 @@ export function DailySupportSection({
         </ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-          {SUPPORT_DISCLAIMER}
+          {home.supportDisclaimer}
         </ThemedText>
       </View>
 
@@ -79,7 +73,7 @@ export function DailySupportSection({
       {dailySupport.sources.length > 0 && (
         <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
-            {SUPPORT_SOURCES_TITLE}
+            {home.supportSourcesTitle}
           </ThemedText>
 
           {hasSourceError && (
@@ -88,7 +82,7 @@ export function DailySupportSection({
               type="small"
               themeColor="textSecondary"
               style={styles.weeklyFeature}>
-              {SOURCE_ERROR_MESSAGE}
+              {home.sourceErrorMessage}
             </ThemedText>
           )}
 
@@ -96,7 +90,7 @@ export function DailySupportSection({
             <Pressable
               key={source.url}
               accessibilityRole="link"
-              accessibilityLabel={openSourceLabel(source.name)}
+              accessibilityLabel={home.openSourceLabel(source.name)}
               onPress={() => openSource(source.url)}
               style={({ pressed }) => [styles.sourceLink, pressed && styles.pressed]}>
               <ThemedText type="small">{source.name}</ThemedText>

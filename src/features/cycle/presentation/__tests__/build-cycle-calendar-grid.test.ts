@@ -1,4 +1,4 @@
-import { buildCycleCalendarGrid, WEEKDAY_LABELS } from '../build-cycle-calendar-grid';
+import { buildCycleCalendarGrid } from '../build-cycle-calendar-grid';
 
 import { buildCycleCalendarMonth } from '@/features/cycle/application/build-cycle-calendar-month';
 import type {
@@ -40,24 +40,18 @@ function dayCells(cells: readonly { kind: string }[]): CycleCalendarDay[] {
 }
 
 describe('weekday labels', () => {
-  it('runs Monday to Sunday in Turkish', () => {
-    expect(WEEKDAY_LABELS).toEqual(['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']);
-  });
-
-  it('exposes the same tuple on every grid', () => {
-    expect(gridFor(2026, 9).weekdayLabels).toEqual([
-      'Pzt',
-      'Sal',
-      'Çar',
-      'Per',
-      'Cum',
-      'Cmt',
-      'Paz',
-    ]);
-  });
-
-  it('has exactly seven columns', () => {
-    expect(WEEKDAY_LABELS).toHaveLength(7);
+  /**
+   * They are not on the grid any more.
+   *
+   * The seven column headers moved into the home catalogue, because they are
+   * words drawn above a layout rather than part of one - which is what this
+   * file's own "purely positional" description has always said about the grid.
+   * What they say is now asserted beside them; what belongs here is that the
+   * grid no longer carries them, so nothing can start reading a language off a
+   * layout again.
+   */
+  it('are not part of the grid', () => {
+    expect(gridFor(2026, 9)).not.toHaveProperty('weekdayLabels');
   });
 });
 
