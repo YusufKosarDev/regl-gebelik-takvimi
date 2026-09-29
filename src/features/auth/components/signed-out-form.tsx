@@ -7,18 +7,7 @@ import { useMessages } from '@/i18n';
 import { appMessages } from '@/shared/presentation/app-messages';
 
 
-import {
-  EMAIL_LABEL,
-  EMAIL_PLACEHOLDER,
-  FORGOT_PASSWORD_LABEL,
-  PASSWORD_HINT,
-  PASSWORD_LABEL,
-  PASSWORD_RESET_DESCRIPTION,
-  PASSWORD_RESET_SEND_LABEL,
-  SENDING_LABEL,
-  SIGN_IN_LABEL,
-  SIGN_UP_LABEL,
-} from '../presentation/auth-messages';
+import { authMessages } from '../presentation/auth-messages';
 
 /**
  * The form somebody signs in, signs up or asks for a reset link with.
@@ -68,17 +57,18 @@ export function SignedOutForm({
   readonly onCancelReset: () => void;
 }) {
   const theme = useTheme();
+  const authStrings = useMessages(authMessages);
   const common = useMessages(appMessages);
 
   return (
       <View style={styles.fields}>
         <View style={styles.field}>
           <ThemedText type="small" themeColor="textSecondary">
-            {EMAIL_LABEL}
+            {authStrings.emailLabel}
           </ThemedText>
 
           <TextInput
-            accessibilityLabel={EMAIL_LABEL}
+            accessibilityLabel={authStrings.emailLabel}
             value={email}
             onChangeText={(next) => {
               onEmailChange(next);
@@ -88,7 +78,7 @@ export function SignedOutForm({
             autoCorrect={false}
             keyboardType="email-address"
             textContentType="emailAddress"
-            placeholder={EMAIL_PLACEHOLDER}
+            placeholder={authStrings.emailPlaceholder}
             placeholderTextColor={theme.textSecondary}
             style={[
               styles.input,
@@ -100,11 +90,11 @@ export function SignedOutForm({
         {!isResetting && (
           <View style={styles.field}>
             <ThemedText type="small" themeColor="textSecondary">
-              {PASSWORD_LABEL}
+              {authStrings.passwordLabel}
             </ThemedText>
 
             <TextInput
-              accessibilityLabel={PASSWORD_LABEL}
+              accessibilityLabel={authStrings.passwordLabel}
               value={password}
               onChangeText={(next) => {
                 onPasswordChange(next);
@@ -117,7 +107,7 @@ export function SignedOutForm({
               // ends up being remembered.
               secureTextEntry
               textContentType="password"
-              placeholder={PASSWORD_HINT}
+              placeholder={authStrings.passwordHint}
               placeholderTextColor={theme.textSecondary}
               style={[
                 styles.input,
@@ -129,7 +119,7 @@ export function SignedOutForm({
 
         {isResetting && (
           <ThemedText type="small" themeColor="textSecondary">
-            {PASSWORD_RESET_DESCRIPTION}
+            {authStrings.passwordResetDescription}
           </ThemedText>
         )}
 
@@ -143,7 +133,7 @@ export function SignedOutForm({
           <>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={PASSWORD_RESET_SEND_LABEL}
+              accessibilityLabel={authStrings.passwordResetSendLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onSendReset}
@@ -154,7 +144,7 @@ export function SignedOutForm({
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? SENDING_LABEL : PASSWORD_RESET_SEND_LABEL}
+                {isBusy ? authStrings.sendingLabel : authStrings.passwordResetSendLabel}
               </ThemedText>
             </Pressable>
 
@@ -177,7 +167,7 @@ export function SignedOutForm({
           <>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={SIGN_IN_LABEL}
+              accessibilityLabel={authStrings.signInLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onSignIn}
@@ -188,13 +178,13 @@ export function SignedOutForm({
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? SENDING_LABEL : SIGN_IN_LABEL}
+                {isBusy ? authStrings.sendingLabel : authStrings.signInLabel}
               </ThemedText>
             </Pressable>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={SIGN_UP_LABEL}
+              accessibilityLabel={authStrings.signUpLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onSignUp}
@@ -204,14 +194,14 @@ export function SignedOutForm({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{SIGN_UP_LABEL}</ThemedText>
+              <ThemedText type="smallBold">{authStrings.signUpLabel}</ThemedText>
             </Pressable>
 
             {/* Last, and quiet: it is the way out of a form that did
                 not work, not one of the two things to do here. */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={FORGOT_PASSWORD_LABEL}
+              accessibilityLabel={authStrings.forgotPasswordLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onStartReset}
@@ -221,7 +211,7 @@ export function SignedOutForm({
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="small" themeColor="textSecondary">
-                {FORGOT_PASSWORD_LABEL}
+                {authStrings.forgotPasswordLabel}
               </ThemedText>
             </Pressable>
           </>

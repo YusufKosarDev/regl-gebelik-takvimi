@@ -8,21 +8,7 @@ import { appMessages } from '@/shared/presentation/app-messages';
 
 
 import type { CloudRestorePreviewV1 } from '../domain/cloud-restore-preview-v1';
-import {
-  RESTORE_CANCEL_LABEL,
-  RESTORE_CONFIRM_LABEL,
-  RESTORE_OPEN_LABEL,
-  RESTORE_PREVIEW_TITLE,
-  RESTORE_ROW_AVATAR,
-  RESTORE_ROW_CYCLE_SETTINGS,
-  RESTORE_ROW_DAILY_ENTRIES,
-  RESTORE_ROW_PERIOD_RECORDS,
-  RESTORE_ROW_PREGNANCY,
-  RESTORE_ROW_REMINDERS,
-  RESTORE_WARNING,
-  RESTORING_LABEL,
-  previewRowLabel,
-} from '@/features/auth/presentation/auth-messages';
+import { authMessages } from '@/features/auth/presentation/auth-messages';
 import {
   restoreLabels,
   restorePeriodRecordsLabelIn,
@@ -61,13 +47,14 @@ export function RestorePreviewPanel({
   readonly onCancel: () => void;
 }) {
   const theme = useTheme();
+  const authStrings = useMessages(authMessages);
   const labels = useMessages(restoreLabels);
   const common = useMessages(appMessages);
 
   return preview === null ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={RESTORE_OPEN_LABEL}
+            accessibilityLabel={authStrings.restoreOpenLabel}
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
             onPress={onPreview}
@@ -77,43 +64,43 @@ export function RestorePreviewPanel({
               isBusy && styles.disabled,
               pressed && !isBusy && styles.pressed,
             ]}>
-            <ThemedText type="smallBold">{RESTORE_OPEN_LABEL}</ThemedText>
+            <ThemedText type="smallBold">{authStrings.restoreOpenLabel}</ThemedText>
           </Pressable>
         ) : (
           <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText accessibilityRole="header" type="smallBold">
-              {RESTORE_PREVIEW_TITLE}
+              {authStrings.restorePreviewTitle}
             </ThemedText>
 
             <PreviewRow
-              label={RESTORE_ROW_CYCLE_SETTINGS}
+              label={authStrings.restoreRowCycleSettings}
               value={restoreStatusLabelIn(labels, preview.cycleSettings)}
             />
             <PreviewRow
-              label={RESTORE_ROW_PERIOD_RECORDS}
+              label={authStrings.restoreRowPeriodRecords}
               value={restorePeriodRecordsLabelIn(labels, preview.periodRecords)}
             />
             <PreviewRow
-              label={RESTORE_ROW_PREGNANCY}
+              label={authStrings.restoreRowPregnancy}
               value={restoreStatusLabelIn(labels, preview.pregnancyProfile)}
             />
-            <PreviewRow label={RESTORE_ROW_AVATAR} value={restoreStatusLabelIn(labels, preview.avatarConfig)} />
+            <PreviewRow label={authStrings.restoreRowAvatar} value={restoreStatusLabelIn(labels, preview.avatarConfig)} />
             <PreviewRow
-              label={RESTORE_ROW_REMINDERS}
+              label={authStrings.restoreRowReminders}
               value={restoreStatusLabelIn(labels, preview.notificationPreferences)}
             />
             <PreviewRow
-              label={RESTORE_ROW_DAILY_ENTRIES}
+              label={authStrings.restoreRowDailyEntries}
               value={restorePeriodRecordsLabelIn(labels, preview.dailyEntries)}
             />
 
             <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-              {RESTORE_WARNING}
+              {authStrings.restoreWarning}
             </ThemedText>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={RESTORE_CONFIRM_LABEL}
+              accessibilityLabel={authStrings.restoreConfirmLabel}
               accessibilityState={{ disabled: isBusy || !canConfirm }}
               disabled={isBusy || !canConfirm}
               onPress={onConfirm}
@@ -124,13 +111,13 @@ export function RestorePreviewPanel({
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? RESTORING_LABEL : RESTORE_CONFIRM_LABEL}
+                {isBusy ? authStrings.restoringLabel : authStrings.restoreConfirmLabel}
               </ThemedText>
             </Pressable>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={RESTORE_CANCEL_LABEL}
+              accessibilityLabel={authStrings.restoreCancelLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onCancel}
@@ -153,8 +140,10 @@ export function RestorePreviewPanel({
  * reads "Regl kayitlari: 3 eklenecek" rather than two unrelated fragments.
  */
 function PreviewRow({ label, value }: { label: string; value: string }) {
+  const authStrings = useMessages(authMessages);
+
   return (
-    <View accessibilityLabel={previewRowLabel(label, value)} style={styles.previewRow}>
+    <View accessibilityLabel={authStrings.previewRowLabel(label, value)} style={styles.previewRow}>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>

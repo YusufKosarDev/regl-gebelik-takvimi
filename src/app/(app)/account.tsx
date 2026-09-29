@@ -37,35 +37,11 @@ import {
 } from '@/features/app-lock/presentation/app-lock-messages';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { isPasswordLongEnough } from '@/features/auth/domain/password-policy';
+import type { AuthMessages } from '@/features/auth/presentation/auth-messages';
 import {
-  ACCOUNT_DESCRIPTION,
-  ACCOUNT_LOADING_MESSAGE,
-  ACCOUNT_NOT_CONFIGURED_MESSAGE,
-  ACCOUNT_NOT_CONFIGURED_NOTE,
-  ACCOUNT_TITLE,
-  BACKUP_CHECK_LABEL,
-  BACKUP_CREATE_LABEL,
-  BACKUP_DELETION_PENDING_MESSAGE,
-  BACKUP_FOUND_MESSAGE,
-  BACKUP_MISSING_MESSAGE,
-  BACKUP_OUTDATED_APP_MESSAGE,
-  BACKUP_SAVED_MESSAGE,
-  BACKUP_SECTION_DESCRIPTION,
-  BACKUP_SECTION_TITLE,
-  EMPTY_EMAIL_MESSAGE,
-  EMPTY_PASSWORD_MESSAGE,
-  NO_EMAIL_TEXT,
-  PASSWORD_RESET_SENT_MESSAGE,
-  RESTORE_DONE_MESSAGE,
-  RESTORE_FAILED_MESSAGE,
-  SHORT_PASSWORD_MESSAGE,
-  SIGNED_IN_LABEL,
-  SIGNING_OUT_LABEL,
-  SIGN_OUT_LABEL,
-  SYNC_PREFERENCE_FAILED_MESSAGE,
-  authErrorMessage,
-  passwordResetErrorMessage,
-  signedInAccountLabel,
+  authErrorMessageIn,
+  authMessages,
+  passwordResetErrorMessageIn,
 } from '@/features/auth/presentation/auth-messages';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { createCloudBackup } from '@/features/backup/application/create-cloud-backup';
@@ -108,14 +84,17 @@ import { openAppDatabase } from '@/storage/db';
 import { logEvent } from '@/shared/logging';
 
 /** What to say about a backup that was saved, or refused for one of two reasons. */
-function backupOutcomeMessage(outcome: CreateCloudBackupOutcome): string {
+function backupOutcomeMessage(
+  messages: AuthMessages,
+  outcome: CreateCloudBackupOutcome
+): string {
   if (outcome.kind === 'saved') {
-    return BACKUP_SAVED_MESSAGE;
+    return messages.backupSavedMessage;
   }
 
   return outcome.kind === 'refused-deletion-pending'
-    ? BACKUP_DELETION_PENDING_MESSAGE
-    : BACKUP_OUTDATED_APP_MESSAGE;
+    ? messages.backupDeletionPendingMessage
+    : messages.backupOutdatedAppMessage;
 }
 
 /**
@@ -133,6 +112,7 @@ function backupOutcomeMessage(outcome: CreateCloudBackupOutcome): string {
 export default function AccountScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const authStrings = useMessages(authMessages);
   const deletion = useMessages(deletionMessages);
   const auth = useAuthState();
 
@@ -161,6 +141,16 @@ export default function AccountScreen() {
   // knows what is stored is a promise made on a guess.
   const [automaticSync, setAutomaticSync] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  /**
+   * The one notice that is stored as what happened rather than as what to say.
+   *
+   * It is set by an effect that runs once, so a sentence stored there would be
+   * frozen in whichever language was showing at mount. A flag resolved at
+   * render follows the language, and the effect stays a mount effect instead of
+   * re-reading storage every time somebody switches.
+   */
+  const [syncPreferenceFailed, setSyncPreferenceFailed] = useState(false);
   const [syncDetail, setSyncDetail] = useState<string | null>(null);
 
   // The status line, and whether a conflict is waiting. Both are read from
@@ -237,7 +227,7 @@ export default function AccountScreen() {
       },
       () => {
         if (isActive) {
-          setSyncNotice(SYNC_PREFERENCE_FAILED_MESSAGE);
+          setSyncPreferenceFailed(true);
         }
       }
     );
@@ -320,13 +310,13 @@ export default function AccountScreen() {
     const trimmedEmail = email.trim();
 
     if (trimmedEmail === '') {
-      setNotice(EMPTY_EMAIL_MESSAGE);
+      setNotice(authStrings.emptyEmailMessage);
 
       return;
     }
 
     if (password === '') {
-      setNotice(EMPTY_PASSWORD_MESSAGE);
+      setNotice(authStrings.emptyPasswordMessage);
 
       return;
     }
@@ -334,7 +324,7 @@ export default function AccountScreen() {
     // Only when one is being chosen. An account made before this rule has a
     // shorter password, and its owner still has to be able to sign in.
     if (isNewPassword && !isPasswordLongEnough(password)) {
-      setNotice(SHORT_PASSWORD_MESSAGE);
+      setNotice(authStrings.shortPasswordMessage);
 
       return;
     }
@@ -352,7 +342,7 @@ export default function AccountScreen() {
     } catch (error) {
       // Only the code crosses. Whatever the SDK wrote is not shown, not kept
       // and not logged.
-      setNotice(authErrorMessage(toAuthError(error).code));
+      setNotice(authErrorMessageIn(authStrings, toAuthError(error).code));
       setPassword('');
     } finally {
       inFlight.current = false;
@@ -375,7 +365,7 @@ export default function AccountScreen() {
     const trimmedEmail = email.trim();
 
     if (trimmedEmail === '') {
-      setNotice(EMPTY_EMAIL_MESSAGE);
+      setNotice(authStrings.emptyEmailMessage);
 
       return;
     }
@@ -390,9 +380,9 @@ export default function AccountScreen() {
       // Back to signing in, with the answer above it: the next thing to do is
       // read the mail and come back.
       setIsResetting(false);
-      setNotice(PASSWORD_RESET_SENT_MESSAGE);
+      setNotice(authStrings.passwordResetSentMessage);
     } catch (error) {
-      setNotice(passwordResetErrorMessage(toAuthError(error).code));
+      setNotice(passwordResetErrorMessageIn(authStrings, toAuthError(error).code));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -422,11 +412,11 @@ export default function AccountScreen() {
       // Two of the three are refusals rather than failures: a deletion is
       // part-way through, or the account holds something this build cannot
       // write back. Neither is worth retrying and neither changed anything.
-      setBackupNotice(backupOutcomeMessage(outcome));
+      setBackupNotice(backupOutcomeMessage(authStrings, outcome));
     } catch (error) {
       // The database's own failures and Firestore's arrive here the same way,
       // and neither message is shown.
-      setBackupNotice(authErrorMessage(toAuthError(error).code));
+      setBackupNotice(authErrorMessageIn(authStrings, toAuthError(error).code));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -452,9 +442,9 @@ export default function AccountScreen() {
     try {
       const backup = await loadCloudBackup(user);
 
-      setBackupNotice(backup === null ? BACKUP_MISSING_MESSAGE : BACKUP_FOUND_MESSAGE);
+      setBackupNotice(backup === null ? authStrings.backupMissingMessage : authStrings.backupFoundMessage);
     } catch (error) {
-      setBackupNotice(authErrorMessage(toAuthError(error).code));
+      setBackupNotice(authErrorMessageIn(authStrings, toAuthError(error).code));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -483,7 +473,7 @@ export default function AccountScreen() {
       const backup = await loadCloudBackup(user);
 
       if (backup === null) {
-        setBackupNotice(BACKUP_MISSING_MESSAGE);
+        setBackupNotice(authStrings.backupMissingMessage);
 
         return;
       }
@@ -494,7 +484,7 @@ export default function AccountScreen() {
       setPreview(buildCloudRestorePreviewV1(local, backup.payload));
       setPending(backup.payload);
     } catch (error) {
-      setBackupNotice(authErrorMessage(toAuthError(error).code));
+      setBackupNotice(authErrorMessageIn(authStrings, toAuthError(error).code));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -531,7 +521,7 @@ export default function AccountScreen() {
 
       setPreview(null);
       setPending(null);
-      setBackupNotice(RESTORE_DONE_MESSAGE);
+      setBackupNotice(authStrings.restoreDoneMessage);
 
       // After the write, and never instead of it. Each is quiet by contract and
       // caught as well, so a refusal cannot reach this screen.
@@ -543,7 +533,7 @@ export default function AccountScreen() {
     } catch {
       // The transaction rolled back, so what is on the phone is what was there
       // before. Nothing about the failure is shown or written down.
-      setBackupNotice(RESTORE_FAILED_MESSAGE);
+      setBackupNotice(authStrings.restoreFailedMessage);
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -605,7 +595,7 @@ export default function AccountScreen() {
     } catch {
       // Storage's own message is not read. Nothing about it would help, and the
       // switch staying where it was is the answer.
-      setSyncNotice(SYNC_PREFERENCE_FAILED_MESSAGE);
+      setSyncNotice(authStrings.syncPreferenceFailedMessage);
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -673,7 +663,7 @@ export default function AccountScreen() {
       await signOut();
       clearForm();
     } catch (error) {
-      setNotice(authErrorMessage(toAuthError(error).code));
+      setNotice(authErrorMessageIn(authStrings, toAuthError(error).code));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -778,11 +768,11 @@ export default function AccountScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                {ACCOUNT_TITLE}
+                {authStrings.accountTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {ACCOUNT_DESCRIPTION}
+                {authStrings.accountDescription}
               </ThemedText>
             </View>
 
@@ -790,7 +780,7 @@ export default function AccountScreen() {
               <View style={styles.loading}>
                 <ActivityIndicator testID="account-loading" />
                 <ThemedText type="small" themeColor="textSecondary">
-                  {ACCOUNT_LOADING_MESSAGE}
+                  {authStrings.accountLoadingMessage}
                 </ThemedText>
               </View>
             )}
@@ -798,11 +788,11 @@ export default function AccountScreen() {
             {auth.status === 'not-configured' && (
               <View style={styles.fields}>
                 <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                  {ACCOUNT_NOT_CONFIGURED_MESSAGE}
+                  {authStrings.accountNotConfiguredMessage}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  {ACCOUNT_NOT_CONFIGURED_NOTE}
+                  {authStrings.accountNotConfiguredNote}
                 </ThemedText>
               </View>
             )}
@@ -825,14 +815,14 @@ export default function AccountScreen() {
               <View style={styles.fields}>
                 <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {SIGNED_IN_LABEL}
+                    {authStrings.signedInLabel}
                   </ThemedText>
 
                   <ThemedText
-                    accessibilityLabel={signedInAccountLabel(auth.user.email ?? null)}
+                    accessibilityLabel={authStrings.signedInAccountLabel(auth.user.email ?? null)}
                     type="smallBold"
                     style={styles.email}>
-                    {auth.user.email ?? NO_EMAIL_TEXT}
+                    {auth.user.email ?? authStrings.noEmailText}
                   </ThemedText>
                 </View>
 
@@ -846,11 +836,11 @@ export default function AccountScreen() {
                     backup, and a backup happens when someone asks for one. */}
                 <View style={styles.fields}>
                   <ThemedText accessibilityRole="header" type="smallBold">
-                    {BACKUP_SECTION_TITLE}
+                    {authStrings.backupSectionTitle}
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
-                    {BACKUP_SECTION_DESCRIPTION}
+                    {authStrings.backupSectionDescription}
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
@@ -861,7 +851,9 @@ export default function AccountScreen() {
                       the note under it says exactly that. */}
                   <AutomaticSyncRow
                     automaticSync={automaticSync}
-                    syncNotice={syncNotice}
+                    syncNotice={
+                      syncPreferenceFailed ? authStrings.syncPreferenceFailedMessage : syncNotice
+                    }
                     syncDetail={syncDetail}
                     lastSyncAt={lastSyncAt}
                     hasConflict={hasConflict}
@@ -891,7 +883,7 @@ export default function AccountScreen() {
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={BACKUP_CREATE_LABEL}
+                    accessibilityLabel={authStrings.backupCreateLabel}
                     accessibilityState={{ disabled: isBusy || automaticSync }}
                     disabled={isBusy || automaticSync}
                     onPress={() => handleCreateBackup(auth.user)}
@@ -901,7 +893,7 @@ export default function AccountScreen() {
                       (isBusy || automaticSync) && styles.disabled,
                       pressed && !isBusy && !automaticSync && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">{BACKUP_CREATE_LABEL}</ThemedText>
+                    <ThemedText type="smallBold">{authStrings.backupCreateLabel}</ThemedText>
                   </Pressable>
 
                   <RestorePreviewPanel
@@ -919,7 +911,7 @@ export default function AccountScreen() {
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={BACKUP_CHECK_LABEL}
+                    accessibilityLabel={authStrings.backupCheckLabel}
                     accessibilityState={{ disabled: isBusy }}
                     disabled={isBusy}
                     onPress={() => handleCheckBackup(auth.user)}
@@ -929,13 +921,13 @@ export default function AccountScreen() {
                       isBusy && styles.disabled,
                       pressed && !isBusy && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">{BACKUP_CHECK_LABEL}</ThemedText>
+                    <ThemedText type="smallBold">{authStrings.backupCheckLabel}</ThemedText>
                   </Pressable>
                 </View>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={SIGN_OUT_LABEL}
+                  accessibilityLabel={authStrings.signOutLabel}
                   accessibilityState={{ disabled: isBusy }}
                   disabled={isBusy}
                   onPress={handleSignOut}
@@ -946,7 +938,7 @@ export default function AccountScreen() {
                     pressed && !isBusy && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold">
-                    {isBusy ? SIGNING_OUT_LABEL : SIGN_OUT_LABEL}
+                    {isBusy ? authStrings.signingOutLabel : authStrings.signOutLabel}
                   </ThemedText>
                 </Pressable>
 

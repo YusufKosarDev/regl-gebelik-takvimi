@@ -16,12 +16,8 @@ import {
   RECOVERY_WRONG_ACCOUNT_MESSAGE,
 } from '@/features/app-lock/presentation/app-lock-messages';
 import {
-  EMAIL_LABEL,
-  EMAIL_PLACEHOLDER,
-  EMPTY_EMAIL_MESSAGE,
-  EMPTY_PASSWORD_MESSAGE,
-  PASSWORD_LABEL,
-  authErrorMessage,
+  authErrorMessageIn,
+  authMessages,
 } from '@/features/auth/presentation/auth-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -44,6 +40,7 @@ import { useAppLockStore } from '@/store/app-lock-store';
 export default function RecoverScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const authStrings = useMessages(authMessages);
   const common = useMessages(appMessages);
 
   const markDisabled = useAppLockStore((state) => state.markDisabled);
@@ -55,13 +52,13 @@ export default function RecoverScreen() {
 
   const submit = useCallback(async () => {
     if (email.trim() === '') {
-      setMessage(EMPTY_EMAIL_MESSAGE);
+      setMessage(authStrings.emptyEmailMessage);
 
       return;
     }
 
     if (password === '') {
-      setMessage(EMPTY_PASSWORD_MESSAGE);
+      setMessage(authStrings.emptyPasswordMessage);
 
       return;
     }
@@ -93,14 +90,14 @@ export default function RecoverScreen() {
         return;
       }
 
-      setMessage(authErrorMessage(outcome.code));
+      setMessage(authErrorMessageIn(authStrings, outcome.code));
     } finally {
       // Cleared whatever happened. A password does not sit in state waiting
       // for the next render.
       setPassword('');
       setIsBusy(false);
     }
-  }, [email, markDisabled, password, router]);
+  }, [authStrings, email, markDisabled, password, router]);
 
   return (
     <ThemedView style={styles.screen}>
@@ -128,12 +125,12 @@ export default function RecoverScreen() {
 
             <View style={styles.field}>
               <ThemedText type="small" themeColor="textSecondary">
-                {EMAIL_LABEL}
+                {authStrings.emailLabel}
               </ThemedText>
 
               <TextInput
-                accessibilityLabel={EMAIL_LABEL}
-                placeholder={EMAIL_PLACEHOLDER}
+                accessibilityLabel={authStrings.emailLabel}
+                placeholder={authStrings.emailPlaceholder}
                 placeholderTextColor={theme.textSecondary}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -151,11 +148,11 @@ export default function RecoverScreen() {
 
             <View style={styles.field}>
               <ThemedText type="small" themeColor="textSecondary">
-                {PASSWORD_LABEL}
+                {authStrings.passwordLabel}
               </ThemedText>
 
               <TextInput
-                accessibilityLabel={PASSWORD_LABEL}
+                accessibilityLabel={authStrings.passwordLabel}
                 autoCapitalize="none"
                 autoCorrect={false}
                 secureTextEntry
