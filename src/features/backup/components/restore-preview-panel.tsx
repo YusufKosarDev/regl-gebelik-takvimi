@@ -24,8 +24,9 @@ import {
   previewRowLabel,
 } from '@/features/auth/presentation/auth-messages';
 import {
-  restorePeriodRecordsLabel,
-  restoreStatusLabel,
+  restoreLabels,
+  restorePeriodRecordsLabelIn,
+  restoreStatusLabelIn,
 } from '../presentation/restore-labels';
 
 /**
@@ -60,6 +61,7 @@ export function RestorePreviewPanel({
   readonly onCancel: () => void;
 }) {
   const theme = useTheme();
+  const labels = useMessages(restoreLabels);
   const common = useMessages(appMessages);
 
   return preview === null ? (
@@ -85,24 +87,24 @@ export function RestorePreviewPanel({
 
             <PreviewRow
               label={RESTORE_ROW_CYCLE_SETTINGS}
-              value={restoreStatusLabel(preview.cycleSettings)}
+              value={restoreStatusLabelIn(labels, preview.cycleSettings)}
             />
             <PreviewRow
               label={RESTORE_ROW_PERIOD_RECORDS}
-              value={restorePeriodRecordsLabel(preview.periodRecords)}
+              value={restorePeriodRecordsLabelIn(labels, preview.periodRecords)}
             />
             <PreviewRow
               label={RESTORE_ROW_PREGNANCY}
-              value={restoreStatusLabel(preview.pregnancyProfile)}
+              value={restoreStatusLabelIn(labels, preview.pregnancyProfile)}
             />
-            <PreviewRow label={RESTORE_ROW_AVATAR} value={restoreStatusLabel(preview.avatarConfig)} />
+            <PreviewRow label={RESTORE_ROW_AVATAR} value={restoreStatusLabelIn(labels, preview.avatarConfig)} />
             <PreviewRow
               label={RESTORE_ROW_REMINDERS}
-              value={restoreStatusLabel(preview.notificationPreferences)}
+              value={restoreStatusLabelIn(labels, preview.notificationPreferences)}
             />
             <PreviewRow
               label={RESTORE_ROW_DAILY_ENTRIES}
-              value={restorePeriodRecordsLabel(preview.dailyEntries)}
+              value={restorePeriodRecordsLabelIn(labels, preview.dailyEntries)}
             />
 
             <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">

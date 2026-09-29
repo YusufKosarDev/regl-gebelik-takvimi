@@ -25,25 +25,7 @@ import {
   MIN_PERIOD_LENGTH_DAYS,
 } from '@/features/cycle/domain/limits';
 import type { CycleSettings } from '@/features/cycle/domain/types';
-import {
-  ACCOUNT_OPEN_LABEL,
-  ACCOUNT_SECTION_DESCRIPTION,
-  ACCOUNT_SECTION_TITLE,
-  CYCLE_LENGTH_DECREASE_LABEL,
-  CYCLE_LENGTH_FIELD_LABEL,
-  CYCLE_LENGTH_FIELD_NOTE,
-  CYCLE_LENGTH_INCREASE_LABEL,
-  PERIOD_LENGTH_DECREASE_LABEL,
-  PERIOD_LENGTH_FIELD_LABEL,
-  PERIOD_LENGTH_FIELD_NOTE,
-  PERIOD_LENGTH_INCREASE_LABEL,
-  SETTINGS_DESCRIPTION,
-  SETTINGS_EMPTY_MESSAGE,
-  SETTINGS_LOAD_FAILED_MESSAGE,
-  SETTINGS_SAVE_FAILED_MESSAGE,
-  SETTINGS_SAVE_LABEL,
-  SETTINGS_TITLE,
-} from '@/features/cycle/presentation/settings-messages';
+import { settingsMessages } from '@/features/cycle/presentation/settings-messages';
 import { syncPeriodReminderQuietly } from '@/features/notifications/application/sync-period-reminder';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { setDiscreetNotifications } from '@/features/notifications/application/set-discreet-notifications';
@@ -89,7 +71,7 @@ import { useAuthState } from '@/features/auth/application/use-auth-state';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
-import { useMessages} from '@/i18n';
+import { useMessages } from '@/i18n';
 import { appMessages } from '@/shared/presentation/app-messages';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
@@ -123,6 +105,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const cycleSettings = useMessages(settingsMessages);
   const disclaimer = useMessages(disclaimerMessages);
   const common = useMessages(appMessages);
 
@@ -546,42 +529,42 @@ export default function SettingsScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                {SETTINGS_TITLE}
+                {cycleSettings.settingsTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {SETTINGS_DESCRIPTION}
+                {cycleSettings.settingsDescription}
               </ThemedText>
             </View>
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {SETTINGS_LOAD_FAILED_MESSAGE}
+                {cycleSettings.settingsLoadFailedMessage}
               </ThemedText>
             ) : settings === null ? (
-              <ThemedText themeColor="textSecondary">{SETTINGS_EMPTY_MESSAGE}</ThemedText>
+              <ThemedText themeColor="textSecondary">{cycleSettings.settingsEmptyMessage}</ThemedText>
             ) : (
               <View style={styles.fields}>
                 <LengthStepper
-                  label={CYCLE_LENGTH_FIELD_LABEL}
-                  note={CYCLE_LENGTH_FIELD_NOTE}
+                  label={cycleSettings.cycleLengthFieldLabel}
+                  note={cycleSettings.cycleLengthFieldNote}
                   value={cycleLength}
                   min={MIN_CYCLE_LENGTH_DAYS}
                   max={MAX_CYCLE_LENGTH_DAYS}
-                  decreaseLabel={CYCLE_LENGTH_DECREASE_LABEL}
-                  increaseLabel={CYCLE_LENGTH_INCREASE_LABEL}
+                  decreaseLabel={cycleSettings.cycleLengthDecreaseLabel}
+                  increaseLabel={cycleSettings.cycleLengthIncreaseLabel}
                   onChange={changeCycleLength}
                   disabled={isSaving}
                 />
 
                 <LengthStepper
-                  label={PERIOD_LENGTH_FIELD_LABEL}
-                  note={PERIOD_LENGTH_FIELD_NOTE}
+                  label={cycleSettings.periodLengthFieldLabel}
+                  note={cycleSettings.periodLengthFieldNote}
                   value={periodLength}
                   min={MIN_PERIOD_LENGTH_DAYS}
                   max={maxPeriodLength}
-                  decreaseLabel={PERIOD_LENGTH_DECREASE_LABEL}
-                  increaseLabel={PERIOD_LENGTH_INCREASE_LABEL}
+                  decreaseLabel={cycleSettings.periodLengthDecreaseLabel}
+                  increaseLabel={cycleSettings.periodLengthIncreaseLabel}
                   onChange={changePeriodLength}
                   disabled={isSaving}
                 />
@@ -596,13 +579,13 @@ export default function SettingsScreen() {
 
                 {hasSaveError && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {SETTINGS_SAVE_FAILED_MESSAGE}
+                    {cycleSettings.settingsSaveFailedMessage}
                   </ThemedText>
                 )}
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={SETTINGS_SAVE_LABEL}
+                  accessibilityLabel={cycleSettings.settingsSaveLabel}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={handleSave}
@@ -639,23 +622,23 @@ export default function SettingsScreen() {
             )}
             <View style={styles.fields}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {ACCOUNT_SECTION_TITLE}
+                {cycleSettings.accountSectionTitle}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
-                {ACCOUNT_SECTION_DESCRIPTION}
+                {cycleSettings.accountSectionDescription}
               </ThemedText>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={ACCOUNT_OPEN_LABEL}
+                accessibilityLabel={cycleSettings.accountOpenLabel}
                 onPress={() => router.push('/(app)/account')}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{ACCOUNT_OPEN_LABEL}</ThemedText>
+                <ThemedText type="smallBold">{cycleSettings.accountOpenLabel}</ThemedText>
               </Pressable>
             </View>
 

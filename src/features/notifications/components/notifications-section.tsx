@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 import type { NotificationPreferences } from '../domain/notification-preferences';
 import type { NotificationPermissionStatus } from '../infrastructure/notification-permission';
 import { ReminderToggle } from './reminder-toggle';
@@ -15,7 +16,7 @@ import {
   PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL,
   REMINDERS_INTRO,
 } from '../presentation/reminder-messages';
-import { NOTIFICATIONS_SECTION_TITLE } from '@/features/cycle/presentation/settings-messages';
+import { settingsMessages } from '@/features/cycle/presentation/settings-messages';
 
 /**
  * Which reminders a person has asked for, and how much they may say.
@@ -53,11 +54,12 @@ export function NotificationsSection({
   readonly onOpenSystemSettings: () => void;
 }) {
   const theme = useTheme();
+  const cycleSettings = useMessages(settingsMessages);
 
   return (
     <View style={styles.fields}>
         <ThemedText accessibilityRole="header" type="smallBold">
-          {NOTIFICATIONS_SECTION_TITLE}
+          {cycleSettings.notificationsSectionTitle}
         </ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary">

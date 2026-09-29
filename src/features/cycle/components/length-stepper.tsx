@@ -3,8 +3,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
-import { DAYS_UNIT, lengthValueLabel } from '../presentation/settings-messages';
+import { settingsMessages } from '../presentation/settings-messages';
 
 /**
  * One whole-number setting, in days.
@@ -34,6 +35,7 @@ export function LengthStepper({
   disabled: boolean;
 }) {
   const theme = useTheme();
+  const cycleSettings = useMessages(settingsMessages);
 
   const canDecrease = !disabled && value > min;
   const canIncrease = !disabled && value < max;
@@ -66,12 +68,12 @@ export function LengthStepper({
 
         <View
           accessible
-          accessibilityLabel={lengthValueLabel(label, value)}
+          accessibilityLabel={cycleSettings.lengthValueLabel(label, value)}
           accessibilityValue={{ min, max, now: value }}
           style={styles.valueBlock}>
           <ThemedText style={styles.value}>{value}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {DAYS_UNIT}
+            {cycleSettings.daysUnit(value)}
           </ThemedText>
         </View>
 

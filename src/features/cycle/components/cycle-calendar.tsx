@@ -3,12 +3,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CalendarGridCell, CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
 import { CALENDAR_TODAY_LABEL } from '../presentation/home-messages';
-import { getCalendarDayAccessibilityLabel } from '../presentation/cycle-labels';
+import {
+  cycleLabels,
+  getCalendarDayAccessibilityLabelIn,
+} from '../presentation/cycle-labels';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { getDayOfMonth } from '@/utils/date';
 
@@ -148,10 +151,11 @@ function DayCell({
 }) {
   const theme = useTheme();
   const language = useLanguage();
+  const labels = useMessages(cycleLabels);
   const state = resolveDayState(day);
   const marker = STATE_MARKERS[state];
 
-  const label = getCalendarDayAccessibilityLabel(day, language, { isToday, isSelected });
+  const label = getCalendarDayAccessibilityLabelIn(labels, language, day, { isToday, isSelected });
 
   const box = (
     <View
