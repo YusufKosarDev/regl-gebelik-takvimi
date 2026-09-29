@@ -2,10 +2,7 @@ import { afterSuccess, mayAttempt, remainingWaitMs } from '../domain/attempt-pol
 import type { BiometricOutcome } from '../infrastructure/biometrics';
 import { promptForBiometrics } from '../infrastructure/biometrics';
 import { readLockRecord, writeLockRecord } from '../infrastructure/lock-record-store';
-import {
-  LOCK_BIOMETRIC_CANCEL_LABEL,
-  LOCK_BIOMETRIC_PROMPT,
-} from '../presentation/app-lock-messages';
+import { appLockMessages } from '../presentation/app-lock-messages';
 
 import { setAuthenticationInProgress } from './use-app-lock';
 
@@ -40,8 +37,28 @@ export type BiometricUnlockOutcome =
   | { readonly kind: 'unavailable' }
   | { readonly kind: 'waiting'; readonly remainingMs: number };
 
+/**
+ * The two strings Android prints on its own sheet.
+ *
+ * Only these two, rather than the whole catalogue, because that is all the
+ * sheet can show: a message and the label on the button that dismisses it.
+ */
+export type BiometricSheetLabels = {
+  readonly lockBiometricPrompt: string;
+  readonly lockBiometricCancelLabel: string;
+};
+
+/**
+ * @param sheet what Android prints on the biometric sheet.
+ *
+ * Defaults to Turkish, and the lock screen passes the half it is showing. The
+ * default exists so the twenty-odd assertions written before the second
+ * language keep calling this with one argument; it is not a language anybody
+ * chose, and a caller that has one should say so.
+ */
 export async function unlockWithBiometrics(
-  now: number = Date.now()
+  now: number = Date.now(),
+  sheet: BiometricSheetLabels = appLockMessages.tr
 ): Promise<BiometricUnlockOutcome> {
   const read = await readLockRecord();
 
@@ -61,7 +78,7 @@ export async function unlockWithBiometrics(
   setAuthenticationInProgress(true);
 
   try {
-    outcome = await promptForBiometrics(LOCK_BIOMETRIC_PROMPT, LOCK_BIOMETRIC_CANCEL_LABEL);
+    outcome = await promptForBiometrics(sheet.lockBiometricPrompt, sheet.lockBiometricCancelLabel);
   } finally {
     // Cleared on every path, including a throw. Left set, the app would stop
     // locking on return from the background entirely.

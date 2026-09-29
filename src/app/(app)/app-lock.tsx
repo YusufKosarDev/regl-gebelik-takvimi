@@ -14,38 +14,13 @@ import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import { canUseBiometrics } from '@/features/app-lock/infrastructure/biometrics';
 import { blocksScreenshots } from '@/features/app-lock/infrastructure/screen-privacy';
-import {
-  BIOMETRIC_TOGGLE_LABEL,
-  BIOMETRIC_TOGGLE_NOTE,
-  BIOMETRIC_UNAVAILABLE_NOTE,
-  CHANGE_PIN_LABEL,
-  NO_ACCOUNT_BODY,
-  NO_ACCOUNT_CONTINUE_LABEL,
-  NO_ACCOUNT_CREATE_LABEL,
-  NO_ACCOUNT_SUGGESTION,
-  NO_ACCOUNT_TITLE,
-  REMOVE_LOCK_CONFIRM_LABEL,
-  REMOVE_LOCK_CONSEQUENCE,
-  REMOVE_LOCK_LABEL,
-  REMOVE_LOCK_QUESTION,
-  SETUP_CHOOSE_PIN,
-  SETUP_CONFIRM_PIN,
-  SETUP_DESCRIPTION,
-  SETUP_DIFFERENT_PIN_HINT,
-  SETUP_DISCREET_NOTIFICATIONS_NOTE,
-  SETUP_HONESTY_NOTE,
-  SETUP_MISMATCH_MESSAGE,
-  SETUP_SAVE_FAILED_MESSAGE,
-  SETUP_SCREENSHOT_NOTE,
-  SETUP_TITLE,
-  SETUP_WIDGET_NOTE,
-  SETUP_WRITE_IT_DOWN_NOTE,
-} from '@/features/app-lock/presentation/app-lock-messages';
+import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
 import { setDiscreetNotifications } from '@/features/notifications/application/set-discreet-notifications';
 import { currentUidOrNull } from '@/features/sync/application/use-automatic-sync';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 import { logEvent } from '@/shared/logging';
 import { useAppLockStore } from '@/store/app-lock-store';
 
@@ -73,6 +48,7 @@ const BLOCKS_SCREENSHOTS = blocksScreenshots();
 export default function AppLockScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
 
   const enabled = useAppLockStore((state) => state.enabled);
   const markEnabled = useAppLockStore((state) => state.markEnabled);
@@ -140,7 +116,7 @@ export default function AppLockScreen() {
         // in somebody else's hands. A reminder that then prints "regl dönemin
         // yaklaşıyor" on the lock screen would walk straight past the lock, and
         // Android does not let an app hide it — only reword it. Announced above
-        // by SETUP_DISCREET_NOTIFICATIONS_NOTE rather than done quietly.
+        // by lock.setupDiscreetNotificationsNote rather than done quietly.
         //
         // After the lock is saved, and quietly: the lock is what the person
         // asked for and it is already stored. Failing the setup because a
@@ -163,7 +139,7 @@ export default function AppLockScreen() {
       } catch (error: unknown) {
         logEvent('app lock save failed', error);
 
-        setMessage(SETUP_SAVE_FAILED_MESSAGE);
+        setMessage(lock.setupSaveFailedMessage);
         setStep('choose');
         setFirst('');
       } finally {
@@ -171,7 +147,7 @@ export default function AppLockScreen() {
         setIsSaving(false);
       }
     },
-    [biometricsAvailable, markEnabled, router, uid, useBiometrics]
+    [biometricsAvailable, lock, markEnabled, router, uid, useBiometrics]
   );
 
   const handleDigit = useCallback(
@@ -204,14 +180,14 @@ export default function AppLockScreen() {
 
         // Back to the start rather than asking again: somebody who mistyped
         // the second one does not know which of the two was wrong.
-        setMessage(SETUP_MISMATCH_MESSAGE);
+        setMessage(lock.setupMismatchMessage);
         setFirst('');
         setStep('choose');
 
         return '';
       });
     },
-    [finish, first, step]
+    [finish, first, lock, step]
   );
 
   const handleDelete = useCallback(() => {
@@ -228,11 +204,11 @@ export default function AppLockScreen() {
       router.back();
     } catch (error: unknown) {
       logEvent('app lock save failed', error);
-      setMessage(SETUP_SAVE_FAILED_MESSAGE);
+      setMessage(lock.setupSaveFailedMessage);
     } finally {
       setIsSaving(false);
     }
-  }, [markDisabled, router]);
+  }, [lock, markDisabled, router]);
 
   const backButton = (
     <BackButton />
@@ -248,26 +224,26 @@ export default function AppLockScreen() {
             {backButton}
 
             <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-              {SETUP_TITLE}
+              {lock.setupTitle}
             </ThemedText>
 
             {step === 'warning' && (
               <View style={styles.section}>
                 <ThemedText accessibilityRole="header" type="smallBold">
-                  {NO_ACCOUNT_TITLE}
+                  {lock.noAccountTitle}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  {NO_ACCOUNT_BODY}
+                  {lock.noAccountBody}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  {NO_ACCOUNT_SUGGESTION}
+                  {lock.noAccountSuggestion}
                 </ThemedText>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={NO_ACCOUNT_CREATE_LABEL}
+                  accessibilityLabel={lock.noAccountCreateLabel}
                   onPress={() => router.push('/(app)/account')}
                   style={({ pressed }) => [
                     styles.primaryButton,
@@ -275,7 +251,7 @@ export default function AppLockScreen() {
                     pressed && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                    {NO_ACCOUNT_CREATE_LABEL}
+                    {lock.noAccountCreateLabel}
                   </ThemedText>
                 </Pressable>
 
@@ -284,11 +260,11 @@ export default function AppLockScreen() {
                     condescending to somebody who has just read why. */}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={NO_ACCOUNT_CONTINUE_LABEL}
+                  accessibilityLabel={lock.noAccountContinueLabel}
                   onPress={() => setStep('choose')}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {NO_ACCOUNT_CONTINUE_LABEL}
+                    {lock.noAccountContinueLabel}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -297,15 +273,15 @@ export default function AppLockScreen() {
             {(step === 'choose' || step === 'confirm') && (
               <View style={styles.section}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {SETUP_DESCRIPTION}
+                  {lock.setupDescription}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                  {SETUP_HONESTY_NOTE}
+                  {lock.setupHonestyNote}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                  {SETUP_WIDGET_NOTE}
+                  {lock.setupWidgetNote}
                 </ThemedText>
 
                 {/* Beside the widget note, because it is the same kind of
@@ -313,23 +289,23 @@ export default function AppLockScreen() {
                     said before the PIN is chosen rather than discovered
                     afterwards. */}
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                  {SETUP_DISCREET_NOTIFICATIONS_NOTE}
+                  {lock.setupDiscreetNotificationsNote}
                 </ThemedText>
 
                 {BLOCKS_SCREENSHOTS && (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                    {SETUP_SCREENSHOT_NOTE}
+                    {lock.setupScreenshotNote}
                   </ThemedText>
                 )}
 
                 {uid === null && (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                    {SETUP_WRITE_IT_DOWN_NOTE}
+                    {lock.setupWriteItDownNote}
                   </ThemedText>
                 )}
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  {SETUP_DIFFERENT_PIN_HINT}
+                  {lock.setupDifferentPinHint}
                 </ThemedText>
 
                 {/* Shown only once the answer is in, so the row does not
@@ -337,7 +313,7 @@ export default function AppLockScreen() {
                 {biometricsAvailable === true && (
                   <View style={styles.toggleBlock}>
                     <View style={[styles.toggleRow, { backgroundColor: theme.backgroundElement }]}>
-                      <ThemedText style={styles.toggleLabel}>{BIOMETRIC_TOGGLE_LABEL}</ThemedText>
+                      <ThemedText style={styles.toggleLabel}>{lock.biometricToggleLabel}</ThemedText>
 
                       <Switch
                         trackColor={{
@@ -345,7 +321,7 @@ export default function AppLockScreen() {
                           true: theme.switchTrackOn,
                         }}
                         thumbColor={useBiometrics ? theme.switchThumbOn : undefined}
-                        accessibilityLabel={BIOMETRIC_TOGGLE_LABEL}
+                        accessibilityLabel={lock.biometricToggleLabel}
                         accessibilityState={{ checked: useBiometrics }}
                         value={useBiometrics}
                         onValueChange={setUseBiometrics}
@@ -353,19 +329,19 @@ export default function AppLockScreen() {
                     </View>
 
                     <ThemedText type="small" themeColor="textSecondary">
-                      {BIOMETRIC_TOGGLE_NOTE}
+                      {lock.biometricToggleNote}
                     </ThemedText>
                   </View>
                 )}
 
                 {biometricsAvailable === false && (
                   <ThemedText type="small" themeColor="textSecondary">
-                    {BIOMETRIC_UNAVAILABLE_NOTE}
+                    {lock.biometricUnavailableNote}
                   </ThemedText>
                 )}
 
                 <ThemedText accessibilityRole="header" type="smallBold" style={styles.stepTitle}>
-                  {step === 'choose' ? SETUP_CHOOSE_PIN : SETUP_CONFIRM_PIN}
+                  {step === 'choose' ? lock.setupChoosePin : lock.setupConfirmPin}
                 </ThemedText>
 
                 <PinDots entered={entered.length} />
@@ -388,27 +364,27 @@ export default function AppLockScreen() {
               <View style={styles.section}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={CHANGE_PIN_LABEL}
+                  accessibilityLabel={lock.changePinLabel}
                   onPress={() => {
                     setFirst('');
                     setEntered('');
                     setStep('choose');
                   }}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                  <ThemedText type="smallBold">{CHANGE_PIN_LABEL}</ThemedText>
+                  <ThemedText type="smallBold">{lock.changePinLabel}</ThemedText>
                 </Pressable>
 
                 <ThemedText accessibilityRole="header" type="smallBold">
-                  {REMOVE_LOCK_QUESTION}
+                  {lock.removeLockQuestion}
                 </ThemedText>
 
                 <ThemedText type="small" themeColor="textSecondary">
-                  {REMOVE_LOCK_CONSEQUENCE}
+                  {lock.removeLockConsequence}
                 </ThemedText>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={REMOVE_LOCK_LABEL}
+                  accessibilityLabel={lock.removeLockLabel}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={() => {
@@ -421,7 +397,7 @@ export default function AppLockScreen() {
                     pressed && !isSaving && styles.pressed,
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                    {REMOVE_LOCK_CONFIRM_LABEL}
+                    {lock.removeLockConfirmLabel}
                   </ThemedText>
                 </Pressable>
 

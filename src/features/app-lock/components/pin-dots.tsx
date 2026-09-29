@@ -1,10 +1,11 @@
 import { StyleSheet, View } from 'react-native';
 
 import { PIN_LENGTH } from '../domain/pin';
-import { enteredDigitsLabel } from '../presentation/app-lock-messages';
+import { appLockMessages } from '../presentation/app-lock-messages';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * How much of the PIN is in, without showing any of it.
@@ -18,11 +19,12 @@ import { useTheme } from '@/hooks/use-theme';
  */
 export function PinDots({ entered }: { readonly entered: number }) {
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
 
   return (
     <View
       accessible
-      accessibilityLabel={enteredDigitsLabel(entered)}
+      accessibilityLabel={lock.enteredDigitsLabel(entered)}
       accessibilityLiveRegion="polite"
       testID="pin-dots"
       style={styles.row}>

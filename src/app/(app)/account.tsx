@@ -33,8 +33,6 @@ import {
 import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
 import { useAppStore } from '@/store/app-store';
 import { isAppLockBoundTo } from '@/features/app-lock/application/remove-app-lock';
-import {
-} from '@/features/app-lock/presentation/app-lock-messages';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { isPasswordLongEnough } from '@/features/auth/domain/password-policy';
 import type { AuthMessages } from '@/features/auth/presentation/auth-messages';

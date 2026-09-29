@@ -4,10 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
-import {
-  LOCK_BOUND_TO_ACCOUNT_WARNING,
-  REMOVE_LOCK_FIRST_LABEL,
-} from '@/features/app-lock/presentation/app-lock-messages';
+import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
 
 import { deletionMessages } from '../presentation/deletion-messages';
 
@@ -56,6 +53,7 @@ export function AccountDeletionPanel({
   readonly onOpenAppLock: () => void;
 }) {
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
   const deletion = useMessages(deletionMessages);
 
   return (
@@ -107,19 +105,19 @@ export function AccountDeletionPanel({
                   accessibilityRole="alert"
                   type="small"
                   themeColor="textSecondary">
-                  {LOCK_BOUND_TO_ACCOUNT_WARNING}
+                  {lock.lockBoundToAccountWarning}
                 </ThemedText>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={REMOVE_LOCK_FIRST_LABEL}
+                  accessibilityLabel={lock.removeLockFirstLabel}
                   onPress={onOpenAppLock}
                   style={({ pressed }) => [
                     styles.secondaryButton,
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{REMOVE_LOCK_FIRST_LABEL}</ThemedText>
+                  <ThemedText type="smallBold">{lock.removeLockFirstLabel}</ThemedText>
                 </Pressable>
               </View>
             )}

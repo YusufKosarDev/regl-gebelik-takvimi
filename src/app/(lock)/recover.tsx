@@ -8,13 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { recoverWithAccountPassword } from '@/features/app-lock/application/recover-with-account-password';
-import {
-  RECOVERY_DESCRIPTION,
-  RECOVERY_NEEDS_INTERNET_NOTE,
-  RECOVERY_SUBMIT_LABEL,
-  RECOVERY_TITLE,
-  RECOVERY_WRONG_ACCOUNT_MESSAGE,
-} from '@/features/app-lock/presentation/app-lock-messages';
+import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
 import {
   authErrorMessageIn,
   authMessages,
@@ -40,6 +34,7 @@ import { useAppLockStore } from '@/store/app-lock-store';
 export default function RecoverScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
   const authStrings = useMessages(authMessages);
   const common = useMessages(appMessages);
 
@@ -79,7 +74,7 @@ export default function RecoverScreen() {
       }
 
       if (outcome.kind === 'wrong-account') {
-        setMessage(RECOVERY_WRONG_ACCOUNT_MESSAGE);
+        setMessage(lock.recoveryWrongAccountMessage);
 
         return;
       }
@@ -97,7 +92,7 @@ export default function RecoverScreen() {
       setPassword('');
       setIsBusy(false);
     }
-  }, [authStrings, email, markDisabled, password, router]);
+  }, [authStrings, email, lock, markDisabled, password, router]);
 
   return (
     <ThemedView style={styles.screen}>
@@ -109,18 +104,18 @@ export default function RecoverScreen() {
             <BackButton />
 
             <ThemedText accessibilityRole="header" type="subtitle">
-              {RECOVERY_TITLE}
+              {lock.recoveryTitle}
             </ThemedText>
 
             <ThemedText type="small" themeColor="textSecondary">
-              {RECOVERY_DESCRIPTION}
+              {lock.recoveryDescription}
             </ThemedText>
 
             {/* Said up front rather than as a failure afterwards: there is no
                 way to do this offline, and finding that out after typing a
                 password is a worse way to learn it. */}
             <ThemedText type="small" themeColor="textSecondary">
-              {RECOVERY_NEEDS_INTERNET_NOTE}
+              {lock.recoveryNeedsInternetNote}
             </ThemedText>
 
             <View style={styles.field}>
@@ -175,7 +170,7 @@ export default function RecoverScreen() {
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={RECOVERY_SUBMIT_LABEL}
+              accessibilityLabel={lock.recoverySubmitLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={() => {
@@ -188,7 +183,7 @@ export default function RecoverScreen() {
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? common.savingLabel : RECOVERY_SUBMIT_LABEL}
+                {isBusy ? common.savingLabel : lock.recoverySubmitLabel}
               </ThemedText>
             </Pressable>
           </View>

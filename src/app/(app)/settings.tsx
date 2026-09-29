@@ -46,14 +46,7 @@ import {
   deletionMessages,
   localWipeMessageIn,
 } from '@/features/deletion/presentation/deletion-messages';
-import {
-  APP_LOCK_MANAGE_LABEL,
-  APP_LOCK_SECTION_DESCRIPTION,
-  APP_LOCK_SECTION_TITLE,
-  APP_LOCK_SET_LABEL,
-  APP_LOCK_STATUS_OFF,
-  APP_LOCK_STATUS_ON,
-} from '@/features/app-lock/presentation/app-lock-messages';
+import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
@@ -92,6 +85,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
   const deletion = useMessages(deletionMessages);
   const reminderStrings = useMessages(reminderMessages);
   const cycleSettings = useMessages(settingsMessages);
@@ -637,16 +631,16 @@ export default function SettingsScreen() {
                 mind for that warning. */}
             <View style={styles.fields}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {APP_LOCK_SECTION_TITLE}
+                {lock.appLockSectionTitle}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
-                {APP_LOCK_SECTION_DESCRIPTION}
+                {lock.appLockSectionDescription}
               </ThemedText>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={appLockEnabled ? APP_LOCK_MANAGE_LABEL : APP_LOCK_SET_LABEL}
+                accessibilityLabel={appLockEnabled ? lock.appLockManageLabel : lock.appLockSetLabel}
                 onPress={() => router.push('/(app)/app-lock')}
                 style={({ pressed }) => [
                   styles.secondaryButton,
@@ -654,12 +648,12 @@ export default function SettingsScreen() {
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText type="smallBold">
-                  {appLockEnabled ? APP_LOCK_MANAGE_LABEL : APP_LOCK_SET_LABEL}
+                  {appLockEnabled ? lock.appLockManageLabel : lock.appLockSetLabel}
                 </ThemedText>
               </Pressable>
 
               <ThemedText type="small" themeColor="textSecondary">
-                {appLockEnabled ? APP_LOCK_STATUS_ON : APP_LOCK_STATUS_OFF}
+                {appLockEnabled ? lock.appLockStatusOn : lock.appLockStatusOff}
               </ThemedText>
             </View>
 

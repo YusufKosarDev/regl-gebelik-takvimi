@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import {
   isAppLockRecoverable,
@@ -17,14 +18,7 @@ import { PinDots } from '@/features/app-lock/components/pin-dots';
 import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { attemptsBeforeWait } from '@/features/app-lock/domain/attempt-policy';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
-import {
-  BIOMETRIC_FAILED_MESSAGE,
-  LOCK_BIOMETRIC_RETRY_LABEL,
-  LOCK_FORGOT_LABEL,
-  LOCK_PROMPT,
-  LOCK_WRONG_PIN_MESSAGE,
-  remainingAttemptsMessage,
-} from '@/features/app-lock/presentation/app-lock-messages';
+import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
 import { waitMessage } from '@/features/app-lock/presentation/wait-message';
 import { useAppLockStore } from '@/store/app-lock-store';
 
@@ -43,6 +37,7 @@ import { useAppLockStore } from '@/store/app-lock-store';
 export default function LockScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
   const unlock = useAppLockStore((state) => state.unlock);
 
   const [entered, setEntered] = useState('');
@@ -135,8 +130,8 @@ export default function LockScreen() {
         // Only as they run out. Five left before any are used is noise.
         setMessage(
           left !== null && left <= 2
-            ? `${LOCK_WRONG_PIN_MESSAGE} ${remainingAttemptsMessage(left)}`
-            : LOCK_WRONG_PIN_MESSAGE
+            ? `${lock.lockWrongPinMessage} ${lock.remainingAttemptsMessage(left)}`
+            : lock.lockWrongPinMessage
         );
 
         if (outcome.attempts.lockedUntil !== null) {
@@ -153,7 +148,7 @@ export default function LockScreen() {
         setIsChecking(false);
       }
     },
-    [unlock]
+    [lock, unlock]
   );
 
   /**
@@ -163,7 +158,7 @@ export default function LockScreen() {
    * background transition re-locking the screen underneath it.
    */
   const tryBiometrics = useCallback(async () => {
-    const outcome = await unlockWithBiometrics();
+    const outcome = await unlockWithBiometrics(Date.now(), lock);
 
     if (outcome.kind === 'unlocked') {
       unlock();
@@ -191,9 +186,9 @@ export default function LockScreen() {
       // A wet thumb is not a wrong PIN and does not cost an attempt. The
       // button stays so somebody can try again without leaving the screen.
       setCanRetryBiometrics(true);
-      setMessage(BIOMETRIC_FAILED_MESSAGE);
+      setMessage(lock.biometricFailedMessage);
     }
-  }, [unlock]);
+  }, [lock, unlock]);
 
   /**
    * Once, on arrival.
@@ -235,7 +230,7 @@ export default function LockScreen() {
     let active = true;
 
     void (async () => {
-      const outcome = await unlockWithBiometrics();
+      const outcome = await unlockWithBiometrics(Date.now(), lock);
 
       if (!active) {
         return;
@@ -264,14 +259,14 @@ export default function LockScreen() {
 
       if (outcome.kind === 'failed') {
         setCanRetryBiometrics(true);
-        setMessage(BIOMETRIC_FAILED_MESSAGE);
+        setMessage(lock.biometricFailedMessage);
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [unlock]);
+  }, [lock, unlock]);
 
   const handleDigit = useCallback(
     (digit: string) => {
@@ -305,7 +300,7 @@ export default function LockScreen() {
         <View style={styles.content}>
           <View style={styles.top}>
             <ThemedText accessibilityRole="header" type="subtitle" style={styles.prompt}>
-              {LOCK_PROMPT}
+              {lock.lockPrompt}
             </ThemedText>
 
             <PinDots entered={entered.length} />
@@ -331,13 +326,13 @@ export default function LockScreen() {
             {canRetryBiometrics && !isWaiting && (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={LOCK_BIOMETRIC_RETRY_LABEL}
+                accessibilityLabel={lock.lockBiometricRetryLabel}
                 onPress={() => {
                   void tryBiometrics();
                 }}
                 style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
                 <ThemedText type="smallBold" style={{ color: theme.primary }}>
-                  {LOCK_BIOMETRIC_RETRY_LABEL}
+                  {lock.lockBiometricRetryLabel}
                 </ThemedText>
               </Pressable>
             )}
@@ -347,11 +342,11 @@ export default function LockScreen() {
             {recoverable === true && (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={LOCK_FORGOT_LABEL}
+                accessibilityLabel={lock.lockForgotLabel}
                 onPress={() => router.push('/(lock)/recover')}
                 style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {LOCK_FORGOT_LABEL}
+                  {lock.lockForgotLabel}
                 </ThemedText>
               </Pressable>
             )}

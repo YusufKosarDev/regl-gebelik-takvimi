@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { LOCK_DELETE_DIGIT_LABEL, digitLabel } from '../presentation/app-lock-messages';
+import { appLockMessages, digitLabel } from '../presentation/app-lock-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * The keys.
@@ -31,6 +32,7 @@ export function PinPad({
   readonly disabled: boolean;
 }) {
   const theme = useTheme();
+  const lock = useMessages(appLockMessages);
 
   const key = (label: string, onPress: () => void, accessibilityLabel: string, testID: string) => (
     <Pressable
@@ -68,7 +70,7 @@ export function PinPad({
 
       {key('0', () => onDigit('0'), digitLabel('0'), 'pin-key-0')}
 
-      {key('⌫', onDelete, LOCK_DELETE_DIGIT_LABEL, 'pin-key-delete')}
+      {key('⌫', onDelete, lock.lockDeleteDigitLabel, 'pin-key-delete')}
     </View>
   );
 }
