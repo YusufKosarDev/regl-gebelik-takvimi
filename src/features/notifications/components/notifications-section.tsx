@@ -7,15 +7,7 @@ import { useMessages } from '@/i18n';
 import type { NotificationPreferences } from '../domain/notification-preferences';
 import type { NotificationPermissionStatus } from '../infrastructure/notification-permission';
 import { ReminderToggle } from './reminder-toggle';
-import {
-  DISCREET_NOTIFICATIONS_DESCRIPTION,
-  DISCREET_NOTIFICATIONS_TOGGLE_LABEL,
-  NOTIFICATIONS_BLOCKED_NOTICE,
-  OPEN_SYSTEM_SETTINGS_LABEL,
-  PERIOD_REMINDER_TOGGLE_LABEL,
-  PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL,
-  REMINDERS_INTRO,
-} from '../presentation/reminder-messages';
+import { reminderMessages } from '../presentation/reminder-messages';
 import { settingsMessages } from '@/features/cycle/presentation/settings-messages';
 
 /**
@@ -54,6 +46,7 @@ export function NotificationsSection({
   readonly onOpenSystemSettings: () => void;
 }) {
   const theme = useTheme();
+  const reminderStrings = useMessages(reminderMessages);
   const cycleSettings = useMessages(settingsMessages);
 
   return (
@@ -63,7 +56,7 @@ export function NotificationsSection({
         </ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary">
-          {REMINDERS_INTRO}
+          {reminderStrings.remindersIntro}
         </ThemedText>
 
         {/* Standing, not transient: while this is true every switch in
@@ -75,12 +68,12 @@ export function NotificationsSection({
         {permission === 'denied' && (
           <View style={[styles.blockedPanel, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-              {NOTIFICATIONS_BLOCKED_NOTICE}
+              {reminderStrings.notificationsBlockedNotice}
             </ThemedText>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={OPEN_SYSTEM_SETTINGS_LABEL}
+              accessibilityLabel={reminderStrings.openSystemSettingsLabel}
               onPress={() => {
                 onOpenSystemSettings();
               }}
@@ -89,7 +82,7 @@ export function NotificationsSection({
                 { borderColor: theme.backgroundSelected },
                 pressed && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{OPEN_SYSTEM_SETTINGS_LABEL}</ThemedText>
+              <ThemedText type="smallBold">{reminderStrings.openSystemSettingsLabel}</ThemedText>
             </Pressable>
 
             {settingsLinkNotice !== null && (
@@ -101,7 +94,7 @@ export function NotificationsSection({
         )}
 
         <ReminderToggle
-          label={PERIOD_REMINDER_TOGGLE_LABEL}
+          label={reminderStrings.periodReminderToggleLabel}
           value={reminders.periodReminderEnabled}
           busy={reminderField === 'periodReminderEnabled'}
           disabled={reminderField !== null}
@@ -109,7 +102,7 @@ export function NotificationsSection({
         />
 
         <ReminderToggle
-          label={PREGNANCY_WEEKLY_REMINDER_TOGGLE_LABEL}
+          label={reminderStrings.pregnancyWeeklyReminderToggleLabel}
           value={reminders.pregnancyWeeklyReminderEnabled}
           busy={reminderField === 'pregnancyWeeklyReminderEnabled'}
           disabled={reminderField !== null}
@@ -122,7 +115,7 @@ export function NotificationsSection({
             being decided, and the reason it exists is what somebody
             reads next. */}
         <ReminderToggle
-          label={DISCREET_NOTIFICATIONS_TOGGLE_LABEL}
+          label={reminderStrings.discreetNotificationsToggleLabel}
           value={discreet}
           busy={discreetBusy}
           disabled={discreetBusy}
@@ -130,7 +123,7 @@ export function NotificationsSection({
         />
 
         <ThemedText type="small" themeColor="textSecondary">
-          {DISCREET_NOTIFICATIONS_DESCRIPTION}
+          {reminderStrings.discreetNotificationsDescription}
         </ThemedText>
 
         {reminderNotice !== null && (

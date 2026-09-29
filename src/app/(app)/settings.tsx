@@ -40,11 +40,7 @@ import { setReminderEnabled } from '@/features/notifications/application/set-rem
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import type { NotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
 import { getNotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
-import {
-  OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
-  PERMISSION_REFUSED_MESSAGE,
-  REMINDER_SAVE_FAILED_MESSAGE,
-} from '@/features/notifications/presentation/reminder-messages';
+import { reminderMessages } from '@/features/notifications/presentation/reminder-messages';
 import { wipeLocalData } from '@/features/deletion/application/wipe-local-data';
 import {
   LOCAL_WIPE_BUSY_LABEL,
@@ -105,6 +101,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const reminderStrings = useMessages(reminderMessages);
   const cycleSettings = useMessages(settingsMessages);
   const disclaimer = useMessages(disclaimerMessages);
   const common = useMessages(appMessages);
@@ -381,12 +378,12 @@ export default function SettingsScreen() {
       }
 
       if (enabled && result.permission !== 'granted') {
-        setReminderNotice(PERMISSION_REFUSED_MESSAGE);
+        setReminderNotice(reminderStrings.permissionRefusedMessage);
       }
     } catch (error) {
       logEvent('notification preference change failed', error);
 
-      setReminderNotice(REMINDER_SAVE_FAILED_MESSAGE);
+      setReminderNotice(reminderStrings.reminderSaveFailedMessage);
     } finally {
       reminderInFlight.current = false;
       setReminderField(null);
@@ -420,7 +417,7 @@ export default function SettingsScreen() {
     } catch (error) {
       logEvent('notification preference change failed', error);
 
-      setReminderNotice(REMINDER_SAVE_FAILED_MESSAGE);
+      setReminderNotice(reminderStrings.reminderSaveFailedMessage);
 
       try {
         setDiscreet(await loadDiscreetNotifications(await openAppDatabase()));
@@ -454,7 +451,7 @@ export default function SettingsScreen() {
     } catch (error) {
       logEvent('notification settings open failed', error);
 
-      setSettingsLinkNotice(OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE);
+      setSettingsLinkNotice(reminderStrings.openSystemSettingsFailedMessage);
     }
   };
 
