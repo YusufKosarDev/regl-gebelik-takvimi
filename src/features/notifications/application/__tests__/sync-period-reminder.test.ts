@@ -129,7 +129,7 @@ describe('syncPeriodReminder when the reminder is on', () => {
   it('schedules one a day before the predicted start', async () => {
     const result = await syncPeriodReminder(db, date('2026-09-18'));
 
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', false);
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', false, 'tr');
     expect(result.scheduled).toBe('2026-09-28');
   });
 
@@ -140,7 +140,7 @@ describe('syncPeriodReminder when the reminder is on', () => {
 
     await syncPeriodReminder(db, date('2026-09-18'));
 
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', true);
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', true, 'tr');
   });
 
   /**
@@ -182,7 +182,7 @@ describe('syncPeriodReminder when the reminder is on', () => {
     await syncPeriodReminder(db, date('2026-09-18'));
 
     // 2026-09-10 plus 28 days is 2026-10-08; the reminder is the day before.
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-10-07', false);
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-10-07', false, 'tr');
   });
 
   it('reads the prediction rather than working one out', async () => {

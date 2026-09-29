@@ -1,20 +1,16 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import type { Language } from '@/i18n/language';
+import { SOURCE_LANGUAGE } from '@/i18n/language';
+
 import {
   PERIOD_REMINDER_CHANNEL_ID,
   PERIOD_REMINDER_HOUR,
   PERIOD_REMINDER_TYPE,
   periodReminderData,
 } from '../domain/period-reminder';
-import {
-  DISCREET_REMINDER_BODY,
-  DISCREET_REMINDER_TITLE,
-  PERIOD_REMINDER_BODY,
-  PERIOD_REMINDER_CHANNEL_DESCRIPTION,
-  PERIOD_REMINDER_CHANNEL_NAME,
-  PERIOD_REMINDER_TITLE,
-} from '../presentation/reminder-messages';
+import { reminderMessages } from '../presentation/reminder-messages';
 
 import { cancelScheduledRemindersOfType } from './scheduled-reminders';
 
@@ -43,14 +39,18 @@ import type { ISODate } from '@/types/iso-date';
  * Android only: there are no channels anywhere else, and asking for one is a
  * no-op that still costs a bridge round trip.
  */
-export async function ensurePeriodReminderChannel(): Promise<void> {
+export async function ensurePeriodReminderChannel(
+  language: Language = SOURCE_LANGUAGE
+): Promise<void> {
+  const strings = reminderMessages[language];
+
   if (Platform.OS !== 'android') {
     return;
   }
 
   await Notifications.setNotificationChannelAsync(PERIOD_REMINDER_CHANNEL_ID, {
-    name: PERIOD_REMINDER_CHANNEL_NAME,
-    description: PERIOD_REMINDER_CHANNEL_DESCRIPTION,
+    name: strings.periodReminderChannelName,
+    description: strings.periodReminderChannelDescription,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
 }
@@ -134,23 +134,26 @@ export function periodReminderMoment(date: ISODate): number {
  */
 export async function schedulePeriodReminder(
   date: ISODate,
-  discreet: boolean = false
+  discreet: boolean = false,
+  language: Language = SOURCE_LANGUAGE
 ): Promise<string | null> {
+  const strings = reminderMessages[language];
+
   const moment = periodReminderMoment(date);
 
   if (moment <= Date.now()) {
     return null;
   }
 
-  await ensurePeriodReminderChannel();
+  await ensurePeriodReminderChannel(language);
 
   return Notifications.scheduleNotificationAsync({
     content: {
       // Chosen here and fixed here. A queued notification carries the words it
       // was scheduled with, so changing the switch has to rebuild the queue
       // rather than expecting the pending reminder to read it later.
-      title: discreet ? DISCREET_REMINDER_TITLE : PERIOD_REMINDER_TITLE,
-      body: discreet ? DISCREET_REMINDER_BODY : PERIOD_REMINDER_BODY,
+      title: discreet ? strings.discreetReminderTitle : strings.periodReminderTitle,
+      body: discreet ? strings.discreetReminderBody : strings.periodReminderBody,
       data: periodReminderData(),
     },
     trigger: {

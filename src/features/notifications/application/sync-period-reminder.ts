@@ -1,3 +1,4 @@
+import { currentLanguage } from '@/i18n';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import {
@@ -82,7 +83,11 @@ export async function syncPeriodReminder(
 
   // `null` back means the moment has already gone. Nothing is scheduled and no
   // hour is invented to replace it; the next cycle change looks again.
-  const identifier = await schedulePeriodReminder(reminderDate, discreet);
+  // Resolved here rather than passed in from a screen. Two of the callers are
+  // not screens - the automatic sync scheduler and the background flush - and a
+  // notification is queued with whatever the language is at that moment, which
+  // is exactly what this reads.
+  const identifier = await schedulePeriodReminder(reminderDate, discreet, currentLanguage());
 
   return { scheduled: identifier === null ? null : reminderDate, cancelled };
 }

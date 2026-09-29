@@ -147,7 +147,7 @@ describe('syncPregnancyWeeklyReminder when the reminder is on', () => {
   it('passes only the wording, because the day and time are fixed', async () => {
     await syncPregnancyWeeklyReminder(db);
 
-    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith(false);
+    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith(false, 'tr');
   });
 
   it('carries the quiet wording when this phone has asked for it', async () => {
@@ -155,7 +155,7 @@ describe('syncPregnancyWeeklyReminder when the reminder is on', () => {
 
     await syncPregnancyWeeklyReminder(db);
 
-    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith(true);
+    expect(scheduler.schedulePregnancyWeeklyReminder).toHaveBeenCalledWith(true, 'tr');
   });
 
   /**

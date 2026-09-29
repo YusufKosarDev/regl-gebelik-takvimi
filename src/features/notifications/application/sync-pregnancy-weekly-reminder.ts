@@ -1,3 +1,4 @@
+import { currentLanguage } from '@/i18n';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import {
@@ -74,7 +75,9 @@ export async function syncPregnancyWeeklyReminder(
   //
   // Read separately from the preferences above, because it is not one of them:
   // it is this device's answer and cloud sync does not carry it.
-  await schedulePregnancyWeeklyReminder(await loadDiscreetNotifications(db));
+  // Same as the period reminder: the language as it is when the notification
+  // is queued, because that is the language it will still be in when it fires.
+  await schedulePregnancyWeeklyReminder(await loadDiscreetNotifications(db), currentLanguage());
 
   return { scheduled: true, cancelled };
 }

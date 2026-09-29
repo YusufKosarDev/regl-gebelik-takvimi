@@ -54,3 +54,29 @@ export function useLanguage(): Language {
 export function useMessages<T>(catalogue: { readonly tr: T; readonly en: T }): T {
   return catalogue[useLanguage()];
 }
+
+/**
+ * The same answer, outside a component.
+ *
+ * ## Why this exists beside the hook
+ *
+ * Some words are chosen where there is no render. A reminder's title and body
+ * are picked when the notification is *scheduled*, which happens from
+ * application use cases, from the automatic sync scheduler, and from a
+ * background flush - none of which can call a hook.
+ *
+ * It reads the same two facts the hook does, through the same pure resolver, so
+ * a screen and a scheduler running in the same second cannot disagree. What it
+ * does not do is subscribe: a caller gets the language as it is when it asks,
+ * which is exactly what "the words this notification is queued with" means.
+ *
+ * ## It is not a shortcut past the hook
+ *
+ * A component calling this instead of `useLanguage()` would render once in the
+ * right language and then never again, because nothing would tell it to. The
+ * ESLint rule cannot see the difference, so the rule here is the plain one:
+ * inside a component, always the hook.
+ */
+export function currentLanguage(): Language {
+  return resolveLanguage(useAppStore.getState().languagePreference, getDeviceLanguageCode());
+}

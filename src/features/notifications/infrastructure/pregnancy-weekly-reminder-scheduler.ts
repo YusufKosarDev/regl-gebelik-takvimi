@@ -1,6 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import type { Language } from '@/i18n/language';
+import { SOURCE_LANGUAGE } from '@/i18n/language';
+
 import {
   PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID,
   PREGNANCY_WEEKLY_REMINDER_HOUR,
@@ -9,14 +12,7 @@ import {
   PREGNANCY_WEEKLY_REMINDER_WEEKDAY,
   pregnancyWeeklyReminderData,
 } from '../domain/pregnancy-weekly-reminder';
-import {
-  DISCREET_REMINDER_BODY,
-  DISCREET_REMINDER_TITLE,
-  PREGNANCY_WEEKLY_REMINDER_BODY,
-  PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
-  PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
-  PREGNANCY_WEEKLY_REMINDER_TITLE,
-} from '../presentation/reminder-messages';
+import { reminderMessages } from '../presentation/reminder-messages';
 
 import { cancelScheduledRemindersOfType } from './scheduled-reminders';
 
@@ -42,14 +38,18 @@ import { cancelScheduledRemindersOfType } from './scheduled-reminders';
  * the channel when it is not there, and Android refuses to change an existing
  * channel's importance because that belongs to the person.
  */
-export async function ensurePregnancyWeeklyReminderChannel(): Promise<void> {
+export async function ensurePregnancyWeeklyReminderChannel(
+  language: Language = SOURCE_LANGUAGE
+): Promise<void> {
+  const strings = reminderMessages[language];
+
   if (Platform.OS !== 'android') {
     return;
   }
 
   await Notifications.setNotificationChannelAsync(PREGNANCY_WEEKLY_REMINDER_CHANNEL_ID, {
-    name: PREGNANCY_WEEKLY_REMINDER_CHANNEL_NAME,
-    description: PREGNANCY_WEEKLY_REMINDER_CHANNEL_DESCRIPTION,
+    name: strings.pregnancyWeeklyReminderChannelName,
+    description: strings.pregnancyWeeklyReminderChannelDescription,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
 }
@@ -87,14 +87,17 @@ export async function cancelPregnancyWeeklyReminders(): Promise<number> {
  * switch only reaches next week's reminder by replacing this one.
  */
 export async function schedulePregnancyWeeklyReminder(
-  discreet: boolean = false
+  discreet: boolean = false,
+  language: Language = SOURCE_LANGUAGE
 ): Promise<string> {
-  await ensurePregnancyWeeklyReminderChannel();
+  const strings = reminderMessages[language];
+
+  await ensurePregnancyWeeklyReminderChannel(language);
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: discreet ? DISCREET_REMINDER_TITLE : PREGNANCY_WEEKLY_REMINDER_TITLE,
-      body: discreet ? DISCREET_REMINDER_BODY : PREGNANCY_WEEKLY_REMINDER_BODY,
+      title: discreet ? strings.discreetReminderTitle : strings.pregnancyWeeklyReminderTitle,
+      body: discreet ? strings.discreetReminderBody : strings.pregnancyWeeklyReminderBody,
       data: pregnancyWeeklyReminderData(),
     },
     trigger: {

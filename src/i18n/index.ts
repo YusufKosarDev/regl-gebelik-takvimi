@@ -23,7 +23,7 @@ export {
   getDeviceUses24HourClock,
 } from './device-locale';
 
-export { useLanguage, useMessages } from './use-language';
+export { currentLanguage, useLanguage, useMessages } from './use-language';
 
 export { plural } from './plural';
 
