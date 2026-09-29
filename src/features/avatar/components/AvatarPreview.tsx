@@ -1,7 +1,10 @@
 import { StyleSheet, View } from 'react-native';
 
 import type { AvatarConfig } from '../domain/avatar-config';
-import { describeAvatar } from '../presentation/avatar-labels';
+import { useMessages } from '@/i18n';
+
+import { avatarCatalogue } from '../data/avatar-catalog';
+import { avatarLabels, describeAvatarIn } from '../presentation/avatar-labels';
 import type { AvatarVisuals } from '../presentation/avatar-visuals';
 import { resolveAvatarVisuals } from '../presentation/avatar-visuals';
 
@@ -45,6 +48,8 @@ export type AvatarPreviewProps = {
 };
 
 export function AvatarPreview({ config, size = 'large', testID }: AvatarPreviewProps) {
+  const labels = useMessages(avatarLabels);
+  const catalogue = useMessages(avatarCatalogue);
   const visuals = resolveAvatarVisuals(config);
   const scale = size === 'large' ? 1 : 0.5;
   const u = (value: number) => value * scale;
@@ -55,7 +60,7 @@ export function AvatarPreview({ config, size = 'large', testID }: AvatarPreviewP
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={describeAvatar(config)}
+      accessibilityLabel={describeAvatarIn(labels, catalogue, config)}
       testID={testID}
       style={{ width: u(CANVAS.width), height: u(CANVAS.height) }}>
       <HairBack visuals={visuals} u={u} />

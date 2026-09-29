@@ -57,7 +57,12 @@ const ALLOWED = [
   'src/features/pregnancy/data/pregnancy-weekly-content.ts',
   // TEMPORARY — the daily support lines, converted with the health content.
   'src/features/cycle/data/cycle-daily-support.ts',
-  // TEMPORARY — the avatar option names, converted with the avatar feature.
+  // Permanent: the avatar option names, in both languages. They stayed beside
+  // their ids rather than moving to presentation/ because `avatar-option.ts`
+  // states the catalogue rule in terms of the two together — retire an entry by
+  // hiding it, "and leave it in the catalogue so that what was already chosen
+  // still has a name." Splitting the name away would put the two halves of that
+  // rule in two files.
   'src/features/avatar/data/avatar-catalog.ts',
   // Permanent: the month names, in both languages. This file is not waiting to
   // be converted — it has been, and the Turkish half is half of the answer.

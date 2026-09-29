@@ -9,7 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
 import {
-  AVATAR_ACCESSORIES,
+  avatarCatalogue,
   AVATAR_HAIR_COLORS,
   AVATAR_HAIR_STYLES,
   AVATAR_OUTFITS,
@@ -19,20 +19,7 @@ import { loadAvatarConfig, saveAvatarConfig } from '@/features/avatar/data/avata
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { AvatarOption } from '@/features/avatar/domain/avatar-option';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
-import {
-  AVATAR_ACCESSORY_SECTION_TITLE,
-  AVATAR_DESCRIPTION,
-  AVATAR_HAIR_COLOR_SECTION_TITLE,
-  AVATAR_HAIR_STYLE_SECTION_TITLE,
-  AVATAR_LOAD_FAILED_MESSAGE,
-  AVATAR_OUTFIT_SECTION_TITLE,
-  AVATAR_SAVE_BUTTON_LABEL,
-  AVATAR_SAVE_FAILED_MESSAGE,
-  AVATAR_SCREEN_TITLE,
-  AVATAR_SKIN_SECTION_TITLE,
-  NO_ACCESSORY_LABEL,
-  avatarChoiceLabel,
-} from '@/features/avatar/presentation/avatar-labels';
+import { avatarLabels } from '@/features/avatar/presentation/avatar-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -86,6 +73,8 @@ function isSameAvatarConfig(a: AvatarConfig, b: AvatarConfig): boolean {
 export default function AvatarScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const avatar = useMessages(avatarLabels);
+  const catalogue = useMessages(avatarCatalogue);
   const common = useMessages(appMessages);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -266,17 +255,17 @@ export default function AvatarScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                {AVATAR_SCREEN_TITLE}
+                {avatar.avatarScreenTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {AVATAR_DESCRIPTION}
+                {avatar.avatarDescriptionNote}
               </ThemedText>
             </View>
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {AVATAR_LOAD_FAILED_MESSAGE}
+                {avatar.avatarLoadFailedMessage}
               </ThemedText>
             ) : (
               <>
@@ -284,8 +273,8 @@ export default function AvatarScreen() {
 
                 <View style={styles.sections}>
                   <OptionSection
-                    title={AVATAR_SKIN_SECTION_TITLE}
-                    options={AVATAR_SKIN_TONES}
+                    title={avatar.avatarSkinSectionTitle}
+                    options={catalogue.skinTones}
                     selectedId={config.skinToneId}
                     onSelect={(id) => choose({ skinToneId: id ?? config.skinToneId })}
                     disabled={isSaving}
@@ -293,8 +282,8 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title={AVATAR_HAIR_STYLE_SECTION_TITLE}
-                    options={AVATAR_HAIR_STYLES}
+                    title={avatar.avatarHairStyleSectionTitle}
+                    options={catalogue.hairStyles}
                     selectedId={config.hairStyleId}
                     onSelect={(id) => choose({ hairStyleId: id ?? config.hairStyleId })}
                     disabled={isSaving}
@@ -302,8 +291,8 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title={AVATAR_HAIR_COLOR_SECTION_TITLE}
-                    options={AVATAR_HAIR_COLORS}
+                    title={avatar.avatarHairColorSectionTitle}
+                    options={catalogue.hairColors}
                     selectedId={config.hairColorId}
                     onSelect={(id) => choose({ hairColorId: id ?? config.hairColorId })}
                     disabled={isSaving}
@@ -311,8 +300,8 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title={AVATAR_OUTFIT_SECTION_TITLE}
-                    options={AVATAR_OUTFITS}
+                    title={avatar.avatarOutfitSectionTitle}
+                    options={catalogue.outfits}
                     selectedId={config.outfitId}
                     onSelect={(id) => choose({ outfitId: id ?? config.outfitId })}
                     disabled={isSaving}
@@ -322,13 +311,13 @@ export default function AvatarScreen() {
                   {/* "Yok" leads rather than trails: wearing nothing is a choice
                       people make, not a way of skipping the question. */}
                   <OptionSection
-                    title={AVATAR_ACCESSORY_SECTION_TITLE}
-                    options={AVATAR_ACCESSORIES}
+                    title={avatar.avatarAccessorySectionTitle}
+                    options={catalogue.accessories}
                     selectedId={config.accessoryId ?? null}
                     onSelect={chooseAccessory}
                     disabled={isSaving}
                     theme={theme}
-                    noneLabel={NO_ACCESSORY_LABEL}
+                    noneLabel={avatar.noAccessoryLabel}
                   />
                 </View>
 
@@ -342,13 +331,13 @@ export default function AvatarScreen() {
 
                 {hasSaveError && (
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {AVATAR_SAVE_FAILED_MESSAGE}
+                    {avatar.avatarSaveFailedMessage}
                   </ThemedText>
                 )}
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={AVATAR_SAVE_BUTTON_LABEL}
+                  accessibilityLabel={avatar.avatarSaveButtonLabel}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={handleSave}
@@ -395,6 +384,8 @@ function OptionSection({
   theme: ReturnType<typeof useTheme>;
   noneLabel?: string;
 }) {
+  const labels = useMessages(avatarLabels);
+
   const choices: { key: string; id: string | null; label: string }[] = [
     ...(noneLabel === undefined ? [] : [{ key: 'none', id: null, label: noneLabel }]),
     ...options.map((option) => ({ key: option.id, id: option.id as string | null, label: option.label })),
@@ -414,7 +405,7 @@ function OptionSection({
             <Pressable
               key={choice.key}
               accessibilityRole="radio"
-              accessibilityLabel={avatarChoiceLabel(title, choice.label)}
+              accessibilityLabel={labels.avatarChoiceLabel(title, choice.label)}
               accessibilityState={{ selected: isSelected, disabled }}
               disabled={disabled}
               onPress={() => onSelect(choice.id)}
