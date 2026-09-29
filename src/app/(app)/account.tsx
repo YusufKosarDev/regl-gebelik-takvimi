@@ -26,8 +26,8 @@ import {
 } from '@/features/auth/data/auth-repository';
 import { deleteAccount } from '@/features/deletion/application/delete-account';
 import {
-  ACCOUNT_DELETE_EMPTY_PASSWORD_MESSAGE,
-  accountDeletionMessage,
+  accountDeletionMessageIn,
+  deletionMessages,
   shouldRetryWithPassword,
 } from '@/features/deletion/presentation/deletion-messages';
 import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
@@ -102,6 +102,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 import { openAppDatabase } from '@/storage/db';
 import { logEvent } from '@/shared/logging';
@@ -132,6 +133,7 @@ function backupOutcomeMessage(outcome: CreateCloudBackupOutcome): string {
 export default function AccountScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const deletion = useMessages(deletionMessages);
   const auth = useAuthState();
 
   const [email, setEmail] = useState('');
@@ -696,7 +698,7 @@ export default function AccountScreen() {
     }
 
     if (deletePassword === '') {
-      setDeleteNotice(ACCOUNT_DELETE_EMPTY_PASSWORD_MESSAGE);
+      setDeleteNotice(deletion.accountDeleteEmptyPasswordMessage);
 
       return;
     }
@@ -717,13 +719,13 @@ export default function AccountScreen() {
 
       if (shouldRetryWithPassword(outcome)) {
         setDeletePassword('');
-        setDeleteNotice(accountDeletionMessage(outcome));
+        setDeleteNotice(accountDeletionMessageIn(deletion, outcome));
 
         return;
       }
 
       if (outcome.kind === 'failed') {
-        setDeleteNotice(accountDeletionMessage(outcome));
+        setDeleteNotice(accountDeletionMessageIn(deletion, outcome));
 
         return;
       }
@@ -735,10 +737,10 @@ export default function AccountScreen() {
 
       // `deleted-and-wiped` unmounts this screen, so its message would never be
       // read; the other two leave the person here and need one.
-      setDeleteNotice(outcome.kind === 'deleted-and-wiped' ? null : accountDeletionMessage(outcome));
+      setDeleteNotice(outcome.kind === 'deleted-and-wiped' ? null : accountDeletionMessageIn(deletion, outcome));
     } catch (error: unknown) {
       logEvent('account delete failed', error);
-      setDeleteNotice(accountDeletionMessage({ kind: 'failed', reason: 'unknown' }));
+      setDeleteNotice(accountDeletionMessageIn(deletion, { kind: 'failed', reason: 'unknown' }));
     } finally {
       inFlight.current = false;
       setIsBusy(false);

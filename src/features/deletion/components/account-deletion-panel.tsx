@@ -3,25 +3,13 @@ import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 import {
   LOCK_BOUND_TO_ACCOUNT_WARNING,
   REMOVE_LOCK_FIRST_LABEL,
 } from '@/features/app-lock/presentation/app-lock-messages';
 
-import {
-  ACCOUNT_DELETE_BUSY_LABEL,
-  ACCOUNT_DELETE_CANCEL_LABEL,
-  ACCOUNT_DELETE_CONFIRM_LABEL,
-  ACCOUNT_DELETE_OPEN_LABEL,
-  ACCOUNT_DELETE_PANEL_BODY,
-  ACCOUNT_DELETE_PANEL_TITLE,
-  ACCOUNT_DELETE_PASSWORD_LABEL,
-  ACCOUNT_DELETE_SECTION_DESCRIPTION,
-  ACCOUNT_DELETE_SECTION_TITLE,
-  ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL,
-  ACCOUNT_DELETE_WIPE_OFF_NOTE,
-  ACCOUNT_DELETE_WIPE_ON_NOTE,
-} from '../presentation/deletion-messages';
+import { deletionMessages } from '../presentation/deletion-messages';
 
 /**
  * Deleting the account, and the one question that comes with it.
@@ -68,21 +56,22 @@ export function AccountDeletionPanel({
   readonly onOpenAppLock: () => void;
 }) {
   const theme = useTheme();
+  const deletion = useMessages(deletionMessages);
 
   return (
       <View style={styles.fields}>
         <ThemedText accessibilityRole="header" type="smallBold">
-          {ACCOUNT_DELETE_SECTION_TITLE}
+          {deletion.accountDeleteSectionTitle}
         </ThemedText>
 
         <ThemedText type="small" themeColor="textSecondary">
-          {ACCOUNT_DELETE_SECTION_DESCRIPTION}
+          {deletion.accountDeleteSectionDescription}
         </ThemedText>
 
         {!isConfirming && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={ACCOUNT_DELETE_OPEN_LABEL}
+            accessibilityLabel={deletion.accountDeleteOpenLabel}
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
             onPress={() => {
@@ -94,18 +83,18 @@ export function AccountDeletionPanel({
               isBusy && styles.disabled,
               pressed && !isBusy && styles.pressed,
             ]}>
-            <ThemedText type="smallBold">{ACCOUNT_DELETE_OPEN_LABEL}</ThemedText>
+            <ThemedText type="smallBold">{deletion.accountDeleteOpenLabel}</ThemedText>
           </Pressable>
         )}
 
         {isConfirming && (
           <View style={styles.fields}>
             <ThemedText accessibilityRole="header" type="smallBold">
-              {ACCOUNT_DELETE_PANEL_TITLE}
+              {deletion.accountDeletePanelTitle}
             </ThemedText>
 
             <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-              {ACCOUNT_DELETE_PANEL_BODY}
+              {deletion.accountDeletePanelBody}
             </ThemedText>
 
             {/* Deleting the account makes the lock unrecoverable: the
@@ -137,11 +126,11 @@ export function AccountDeletionPanel({
 
             <View style={styles.field}>
               <ThemedText type="small" themeColor="textSecondary">
-                {ACCOUNT_DELETE_PASSWORD_LABEL}
+                {deletion.accountDeletePasswordLabel}
               </ThemedText>
 
               <TextInput
-                accessibilityLabel={ACCOUNT_DELETE_PASSWORD_LABEL}
+                accessibilityLabel={deletion.accountDeletePasswordLabel}
                 value={deletePassword}
                 onChangeText={onPasswordChange}
                 secureTextEntry
@@ -157,13 +146,13 @@ export function AccountDeletionPanel({
 
             <View style={styles.syncRow}>
               <ThemedText type="small" style={styles.syncLabel}>
-                {ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
+                {deletion.accountDeleteWipeCheckboxLabel}
               </ThemedText>
 
               <Switch
                 trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
                 thumbColor={wipeLocalToo ? theme.switchThumbOn : undefined}
-                accessibilityLabel={ACCOUNT_DELETE_WIPE_CHECKBOX_LABEL}
+                accessibilityLabel={deletion.accountDeleteWipeCheckboxLabel}
                 value={wipeLocalToo}
                 onValueChange={onWipeLocalTooChange}
                 disabled={isBusy}
@@ -171,12 +160,12 @@ export function AccountDeletionPanel({
             </View>
 
             <ThemedText type="small" themeColor="textSecondary">
-              {wipeLocalToo ? ACCOUNT_DELETE_WIPE_ON_NOTE : ACCOUNT_DELETE_WIPE_OFF_NOTE}
+              {wipeLocalToo ? deletion.accountDeleteWipeOnNote : deletion.accountDeleteWipeOffNote}
             </ThemedText>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={ACCOUNT_DELETE_CONFIRM_LABEL}
+              accessibilityLabel={deletion.accountDeleteConfirmLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={() => {
@@ -189,13 +178,13 @@ export function AccountDeletionPanel({
                 pressed && !isBusy && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? ACCOUNT_DELETE_BUSY_LABEL : ACCOUNT_DELETE_CONFIRM_LABEL}
+                {isBusy ? deletion.accountDeleteBusyLabel : deletion.accountDeleteConfirmLabel}
               </ThemedText>
             </Pressable>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={ACCOUNT_DELETE_CANCEL_LABEL}
+              accessibilityLabel={deletion.accountDeleteCancelLabel}
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
               onPress={onCancel}
@@ -205,7 +194,7 @@ export function AccountDeletionPanel({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{ACCOUNT_DELETE_CANCEL_LABEL}</ThemedText>
+              <ThemedText type="smallBold">{deletion.accountDeleteCancelLabel}</ThemedText>
             </Pressable>
           </View>
         )}

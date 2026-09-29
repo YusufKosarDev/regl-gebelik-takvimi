@@ -43,17 +43,8 @@ import { getNotificationPermissionStatus } from '@/features/notifications/infras
 import { reminderMessages } from '@/features/notifications/presentation/reminder-messages';
 import { wipeLocalData } from '@/features/deletion/application/wipe-local-data';
 import {
-  LOCAL_WIPE_BUSY_LABEL,
-  LOCAL_WIPE_CANCEL_LABEL,
-  LOCAL_WIPE_CLOUD_DISCLAIMER,
-  LOCAL_WIPE_CONFIRM_LABEL,
-  LOCAL_WIPE_OPEN_LABEL,
-  LOCAL_WIPE_PANEL_BODY,
-  LOCAL_WIPE_PANEL_TITLE,
-  LOCAL_WIPE_SECTION_DESCRIPTION,
-  LOCAL_WIPE_SECTION_TITLE,
-  LOCAL_WIPE_SIGNED_IN_NOTE,
-  localWipeMessage,
+  deletionMessages,
+  localWipeMessageIn,
 } from '@/features/deletion/presentation/deletion-messages';
 import {
   APP_LOCK_MANAGE_LABEL,
@@ -101,6 +92,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const deletion = useMessages(deletionMessages);
   const reminderStrings = useMessages(reminderMessages);
   const cycleSettings = useMessages(settingsMessages);
   const disclaimer = useMessages(disclaimerMessages);
@@ -174,7 +166,7 @@ export default function SettingsScreen() {
       const db = await openAppDatabase();
       const outcome = await wipeLocalData({ db, resetAppState });
 
-      const message = localWipeMessage(outcome);
+      const message = localWipeMessageIn(deletion, outcome);
 
       if (message === null) {
         // Gone. `RootLayout` is already unmounting this.
@@ -185,7 +177,7 @@ export default function SettingsScreen() {
       setIsConfirmingWipe(false);
     } catch (error: unknown) {
       logEvent('local data wipe failed', error);
-      setWipeNotice(localWipeMessage({ kind: 'failed', reason: 'unknown' }));
+      setWipeNotice(localWipeMessageIn(deletion, { kind: 'failed', reason: 'unknown' }));
     } finally {
       wipeInFlight.current = false;
       setIsWiping(false);
@@ -692,11 +684,11 @@ export default function SettingsScreen() {
                 account: this is about the phone, not about a session. */}
             <View style={styles.fields}>
               <ThemedText accessibilityRole="header" type="smallBold">
-                {LOCAL_WIPE_SECTION_TITLE}
+                {deletion.localWipeSectionTitle}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary">
-                {LOCAL_WIPE_SECTION_DESCRIPTION}
+                {deletion.localWipeSectionDescription}
               </ThemedText>
 
               {wipeNotice !== null && (
@@ -708,7 +700,7 @@ export default function SettingsScreen() {
               {!isConfirmingWipe && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={LOCAL_WIPE_OPEN_LABEL}
+                  accessibilityLabel={deletion.localWipeOpenLabel}
                   onPress={() => {
                     setWipeNotice(null);
                     setIsConfirmingWipe(true);
@@ -718,34 +710,34 @@ export default function SettingsScreen() {
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{LOCAL_WIPE_OPEN_LABEL}</ThemedText>
+                  <ThemedText type="smallBold">{deletion.localWipeOpenLabel}</ThemedText>
                 </Pressable>
               )}
 
               {isConfirmingWipe && (
                 <View style={styles.fields}>
                   <ThemedText accessibilityRole="header" type="smallBold">
-                    {LOCAL_WIPE_PANEL_TITLE}
+                    {deletion.localWipePanelTitle}
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
-                    {LOCAL_WIPE_PANEL_BODY}
+                    {deletion.localWipePanelBody}
                   </ThemedText>
 
                   {/* The line that keeps this apart from "Hesabı sil". */}
                   <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                    {LOCAL_WIPE_CLOUD_DISCLAIMER}
+                    {deletion.localWipeCloudDisclaimer}
                   </ThemedText>
 
                   {auth.status === 'signed-in' && (
                     <ThemedText type="small" themeColor="textSecondary">
-                      {LOCAL_WIPE_SIGNED_IN_NOTE}
+                      {deletion.localWipeSignedInNote}
                     </ThemedText>
                   )}
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={LOCAL_WIPE_CONFIRM_LABEL}
+                    accessibilityLabel={deletion.localWipeConfirmLabel}
                     accessibilityState={{ disabled: isWiping }}
                     disabled={isWiping}
                     onPress={() => {
@@ -758,13 +750,13 @@ export default function SettingsScreen() {
                       pressed && !isWiping && styles.pressed,
                     ]}>
                     <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                      {isWiping ? LOCAL_WIPE_BUSY_LABEL : LOCAL_WIPE_CONFIRM_LABEL}
+                      {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
                     </ThemedText>
                   </Pressable>
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={LOCAL_WIPE_CANCEL_LABEL}
+                    accessibilityLabel={deletion.localWipeCancelLabel}
                     accessibilityState={{ disabled: isWiping }}
                     disabled={isWiping}
                     onPress={() => {
@@ -776,7 +768,7 @@ export default function SettingsScreen() {
                       isWiping && styles.disabled,
                       pressed && !isWiping && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">{LOCAL_WIPE_CANCEL_LABEL}</ThemedText>
+                    <ThemedText type="smallBold">{deletion.localWipeCancelLabel}</ThemedText>
                   </Pressable>
                 </View>
               )}
