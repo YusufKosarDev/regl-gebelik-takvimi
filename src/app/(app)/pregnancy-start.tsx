@@ -10,22 +10,11 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { startPregnancyTracking } from '@/features/pregnancy/application/start-pregnancy-tracking';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
-import {
-  PREGNANCY_START_DESCRIPTION,
-  PREGNANCY_START_FAILED_MESSAGE,
-  PREGNANCY_START_LMP_LABEL,
-  PREGNANCY_START_NEXT_DAY_LABEL,
-  PREGNANCY_START_PREVIOUS_DAY_LABEL,
-  PREGNANCY_START_STARTING_LABEL,
-  PREGNANCY_START_SUBMIT_LABEL,
-  PREGNANCY_START_SUBMIT_TEXT,
-  PREGNANCY_START_TITLE,
-  selectedLmpLabel,
-} from '@/features/pregnancy/presentation/pregnancy-labels';
+import { pregnancyLabels } from '@/features/pregnancy/presentation/pregnancy-labels';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -43,6 +32,7 @@ import { logEvent } from '@/shared/logging';
 export default function PregnancyStartScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const pregnancy1 = useMessages(pregnancyLabels);
   const language = useLanguage();
 
   // Read once for the screen, so the future check and the date the person picks
@@ -111,23 +101,23 @@ export default function PregnancyStartScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                {PREGNANCY_START_TITLE}
+                {pregnancy1.pregnancyStartTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {PREGNANCY_START_DESCRIPTION}
+                {pregnancy1.pregnancyStartDescription}
               </ThemedText>
             </View>
 
             <View style={styles.field}>
               <ThemedText type="small" themeColor="textSecondary">
-                {PREGNANCY_START_LMP_LABEL}
+                {pregnancy1.pregnancyStartLmpLabel}
               </ThemedText>
 
               <View style={styles.dateBar}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={PREGNANCY_START_PREVIOUS_DAY_LABEL}
+                  accessibilityLabel={pregnancy1.pregnancyStartPreviousDayLabel}
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={() => changeLmp(-1)}
@@ -141,7 +131,7 @@ export default function PregnancyStartScreen() {
                 </Pressable>
 
                 <ThemedText
-                  accessibilityLabel={selectedLmpLabel(formatDisplayDate(lmp, language))}
+                  accessibilityLabel={pregnancy1.selectedLmpLabel(formatDisplayDate(lmp, language))}
                   type="smallBold"
                   style={styles.selectedDate}>
                   {formatDisplayDate(lmp, language)}
@@ -149,7 +139,7 @@ export default function PregnancyStartScreen() {
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={PREGNANCY_START_NEXT_DAY_LABEL}
+                  accessibilityLabel={pregnancy1.pregnancyStartNextDayLabel}
                   accessibilityState={{ disabled: !canGoForward }}
                   disabled={!canGoForward}
                   onPress={() => changeLmp(1)}
@@ -166,13 +156,13 @@ export default function PregnancyStartScreen() {
 
             {hasSaveError && (
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                {PREGNANCY_START_FAILED_MESSAGE}
+                {pregnancy1.pregnancyStartFailedMessage}
               </ThemedText>
             )}
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={PREGNANCY_START_SUBMIT_LABEL}
+              accessibilityLabel={pregnancy1.pregnancyStartSubmitLabel}
               accessibilityState={{ disabled: isSaving }}
               disabled={isSaving}
               onPress={handleStart}
@@ -183,7 +173,7 @@ export default function PregnancyStartScreen() {
                 pressed && !isSaving && styles.pressed,
               ]}>
               <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isSaving ? PREGNANCY_START_STARTING_LABEL : PREGNANCY_START_SUBMIT_TEXT}
+                {isSaving ? pregnancy1.pregnancyStartStartingLabel : pregnancy1.pregnancyStartSubmitText}
               </ThemedText>
             </Pressable>
           </View>

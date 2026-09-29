@@ -1,14 +1,239 @@
 import type { PregnancyDashboard } from '../application/get-pregnancy-dashboard';
 import type { PregnancyDueDateSource, PregnancyWeeklyContent } from '../domain/types';
 
+import type { Messages } from '@/i18n';
+
 /**
- * What the home screen says about a pregnancy, in Turkish.
+ * Everything the three pregnancy screens say.
  *
- * Lifted out of the screen unchanged, so the pregnancy section can be a
+ * Lifted out of the screens unchanged, so the pregnancy section can be a
  * component of its own without taking its sentences with it as props.
+ *
+ * ## Weeks and days read differently in the two languages
+ *
+ * Turkish counts with an ordinal suffix and no noun in front — "12. hafta
+ * 3. gün". English needs the noun first and the number after it — "week 12,
+ * day 3". Neither is the other with the words swapped, which is why both halves
+ * build the phrase rather than filling in one template.
  */
 
-export const NOT_STARTED_MESSAGE = 'Gebelik başlangıç tarihi henüz gelmedi.';
+const pregnancyLabelsTr = {
+  notStartedMessage: 'Gebelik başlangıç tarihi henüz gelmedi.',
+
+  /** How far along, once there is something to report. */
+  progress: (week: number, day: number) => `${week}. hafta ${day}. gün`,
+
+  /** Where the due date came from, so an adjusted one is not read as calculated. */
+  dueDateAdjusted: 'Düzeltilmiş tarih',
+  dueDateFromLmp: 'Son regl tarihine göre',
+
+  /** The week's content in one line, when there is a size to lead with. */
+  weeklyHighlightWithSize: (label: string, comparison: string, summary: string) =>
+    `${label} — ${comparison}. ${summary}`,
+
+  /* ---------------------------------------------- starting to track -- */
+
+  pregnancyStartTitle: 'Gebelik takibini başlat',
+
+  pregnancyStartDescription:
+    'Son regl döneminin başladığı günü seç. Gebelik haftaları ve tahmini doğum ' +
+    'tarihi bu güne göre hesaplanır.',
+
+  pregnancyStartLmpLabel: 'Son regl başlangıcı',
+
+  pregnancyStartPreviousDayLabel: 'Önceki gün',
+  pregnancyStartNextDayLabel: 'Sonraki gün',
+
+  /** The button says what it does; the label says what it is for. */
+  pregnancyStartSubmitLabel: 'Gebelik takibini başlat',
+  pregnancyStartSubmitText: 'Takibi başlat',
+  pregnancyStartStartingLabel: 'Başlatılıyor...',
+
+  pregnancyStartFailedMessage: 'Gebelik takibi başlatılamadı.',
+
+  /** The chosen day, read as what it is rather than as a bare date. */
+  selectedLmpLabel: (readableDate: string) => `Seçilen son regl başlangıcı: ${readableDate}`,
+
+  /* ------------------------------------------- the section on home -- */
+
+  pregnancySectionTitle: 'Gebelik takibi',
+
+  pregnancyWeekLabel: 'Gebelik haftası',
+  pregnancyDueDateLabel: 'Tahmini doğum tarihi',
+
+  pregnancyPreviousWeekLabel: 'Önceki hafta',
+  pregnancyNextWeekLabel: 'Sonraki hafta',
+  pregnancyBackToCurrentWeekLabel: 'Bugünkü haftaya dön',
+
+  pregnancyThisWeekTitle: 'Bu hafta',
+  pregnancyDevelopmentsTitle: 'Bu hafta gelişenler',
+  pregnancySourcesTitle: 'Kaynaklar',
+
+  pregnancySettingsLinkLabel: 'Gebelik ayarlarını düzenle',
+  pregnancySettingsLinkText: 'Gebelik ayarları',
+
+  /** The week, spoken as a label and its value. */
+  pregnancyWeekRowLabel: (progress: string) => `Gebelik haftası: ${progress}`,
+
+  /**
+   * The due date with where it came from, read as one sentence rather than a
+   * date and an unexplained phrase after it.
+   */
+  pregnancyDueDateRowLabel: (readableDate: string, source: string) =>
+    `Tahmini doğum tarihi: ${readableDate}, ${source}`,
+
+  /** Which week is on screen, for the stepper. */
+  shownWeekLabel: (week: number) => `Gösterilen hafta: ${week}. hafta`,
+
+  /** The week's content in one line, so a reader hears it without the layout. */
+  thisWeekLabel: (highlight: string) => `Bu hafta: ${highlight}`,
+
+  /** The bullets, joined, so they are heard as one list rather than five items. */
+  developmentsLabel: (features: readonly string[]) =>
+    `Bu hafta gelişenler: ${features.join(', ')}`,
+
+  /** A source, as something to open. */
+  pregnancySourceLabel: (name: string) => `${name} kaynağını aç`,
+
+  /* -------------------------------------------- the settings screen -- */
+
+  pregnancySettingsTitle: 'Gebelik ayarları',
+
+  pregnancySettingsDescription:
+    'Tahmini doğum tarihini düzeltebilir ya da son regl tarihine göre hesaplanan ' +
+    'tarihe geri dönebilirsin.',
+
+  pregnancySettingsLoadFailedMessage: 'Gebelik ayarları yüklenemedi.',
+  pregnancySettingsSaveFailedMessage: 'Tahmini doğum tarihi güncellenemedi.',
+  pregnancySettingsEmptyMessage: 'Takip edilen bir gebelik bulunamadı.',
+  pregnancyStopFailedMessage: 'Gebelik takibi sonlandırılamadı.',
+
+  pregnancyStopQuestion: 'Gebelik takibini sonlandırmak istiyor musun?',
+  pregnancyStopConsequence: 'Gebelik takip bilgilerin silinecek.',
+
+  pregnancyStopOpenLabel: 'Gebelik takibini sonlandırmayı seç',
+  pregnancyStopConfirmLabel: 'Gebelik takibini sonlandır',
+  pregnancyStopConfirmText: 'Takibi sonlandır',
+  pregnancyStoppingLabel: 'Sonlandırılıyor...',
+
+  pregnancyEditDueDateLabel: 'Tahmini doğum tarihini düzenle',
+  pregnancyEditDueDateText: 'Tarihi düzenle',
+  pregnancySaveDueDateLabel: 'Tahmini doğum tarihini kaydet',
+
+  pregnancyBackToLmpLabel: 'Son regl tarihine göre hesaplanan tarihe dön',
+  pregnancyBackToLmpText: 'LMP hesabına dön',
+
+  pregnancySettingsPreviousDayLabel: 'Önceki gün',
+  pregnancySettingsNextDayLabel: 'Sonraki gün',
+
+  /** The label before the stored last menstrual period, which follows it. */
+  pregnancyLmpPrefix: 'Son regl başlangıcı:',
+
+  /** The day being chosen, read as what it is rather than as a bare date. */
+  selectedDueDateLabel: (readableDate: string) =>
+    `Seçilen tahmini doğum tarihi: ${readableDate}`,
+};
+
+export type PregnancyLabels = typeof pregnancyLabelsTr;
+
+const pregnancyLabelsEn: PregnancyLabels = {
+  notStartedMessage: 'That pregnancy has not started yet.',
+
+  progress: (week: number, day: number) => `Week ${week}, day ${day}`,
+
+  dueDateAdjusted: 'Adjusted date',
+  dueDateFromLmp: 'From your last period',
+
+  weeklyHighlightWithSize: (label: string, comparison: string, summary: string) =>
+    `${label} — ${comparison}. ${summary}`,
+
+  pregnancyStartTitle: 'Start following a pregnancy',
+
+  pregnancyStartDescription:
+    'Pick the day your last period started. The pregnancy weeks and the estimated due ' +
+    'date are worked out from that day.',
+
+  pregnancyStartLmpLabel: 'Last period started',
+
+  pregnancyStartPreviousDayLabel: 'Previous day',
+  pregnancyStartNextDayLabel: 'Next day',
+
+  pregnancyStartSubmitLabel: 'Start following a pregnancy',
+  pregnancyStartSubmitText: 'Start tracking',
+  pregnancyStartStartingLabel: 'Starting...',
+
+  pregnancyStartFailedMessage: 'That pregnancy could not be started.',
+
+  selectedLmpLabel: (readableDate: string) => `Last period start chosen: ${readableDate}`,
+
+  pregnancySectionTitle: 'Pregnancy tracking',
+
+  pregnancyWeekLabel: 'Pregnancy week',
+  pregnancyDueDateLabel: 'Estimated due date',
+
+  pregnancyPreviousWeekLabel: 'Previous week',
+  pregnancyNextWeekLabel: 'Next week',
+  pregnancyBackToCurrentWeekLabel: 'Back to this week',
+
+  pregnancyThisWeekTitle: 'This week',
+  pregnancyDevelopmentsTitle: 'Developing this week',
+  pregnancySourcesTitle: 'Sources',
+
+  pregnancySettingsLinkLabel: 'Edit your pregnancy settings',
+  pregnancySettingsLinkText: 'Pregnancy settings',
+
+  pregnancyWeekRowLabel: (progress: string) => `Pregnancy week: ${progress}`,
+
+  pregnancyDueDateRowLabel: (readableDate: string, source: string) =>
+    `Estimated due date: ${readableDate}, ${source}`,
+
+  shownWeekLabel: (week: number) => `Showing week ${week}`,
+
+  thisWeekLabel: (highlight: string) => `This week: ${highlight}`,
+
+  developmentsLabel: (features: readonly string[]) =>
+    `Developing this week: ${features.join(', ')}`,
+
+  pregnancySourceLabel: (name: string) => `Open the source ${name}`,
+
+  pregnancySettingsTitle: 'Pregnancy settings',
+
+  pregnancySettingsDescription:
+    'You can correct the estimated due date, or go back to the one worked out from your ' +
+    'last period.',
+
+  pregnancySettingsLoadFailedMessage: 'Those pregnancy settings could not be loaded.',
+  pregnancySettingsSaveFailedMessage: 'The estimated due date could not be updated.',
+  pregnancySettingsEmptyMessage: 'No pregnancy is being followed.',
+  pregnancyStopFailedMessage: 'That pregnancy could not be stopped.',
+
+  pregnancyStopQuestion: 'Stop following this pregnancy?',
+  pregnancyStopConsequence: 'Your pregnancy tracking information will be deleted.',
+
+  pregnancyStopOpenLabel: 'Choose to stop following this pregnancy',
+  pregnancyStopConfirmLabel: 'Stop following this pregnancy',
+  pregnancyStopConfirmText: 'Stop tracking',
+  pregnancyStoppingLabel: 'Stopping...',
+
+  pregnancyEditDueDateLabel: 'Edit the estimated due date',
+  pregnancyEditDueDateText: 'Edit the date',
+  pregnancySaveDueDateLabel: 'Save the estimated due date',
+
+  pregnancyBackToLmpLabel: 'Go back to the date worked out from your last period',
+  pregnancyBackToLmpText: 'Back to the LMP date',
+
+  pregnancySettingsPreviousDayLabel: 'Previous day',
+  pregnancySettingsNextDayLabel: 'Next day',
+
+  pregnancyLmpPrefix: 'Last period started:',
+
+  selectedDueDateLabel: (readableDate: string) => `Estimated due date chosen: ${readableDate}`,
+};
+
+export const pregnancyLabels: Messages<PregnancyLabels> = {
+  tr: pregnancyLabelsTr,
+  en: pregnancyLabelsEn,
+};
 
 /**
  * How far along the pregnancy is, in words.
@@ -17,12 +242,15 @@ export const NOT_STARTED_MESSAGE = 'Gebelik başlangıç tarihi henüz gelmedi.'
  * progress to report. It says so rather than showing week 0 or a negative day,
  * and the due date beside it is still shown because that much is known.
  */
-export function pregnancyProgressLabel(pregnancy: PregnancyDashboard): string {
+export function pregnancyProgressLabelIn(
+  labels: PregnancyLabels,
+  pregnancy: PregnancyDashboard
+): string {
   if (pregnancy.pregnancyWeek === null) {
-    return NOT_STARTED_MESSAGE;
+    return labels.notStartedMessage;
   }
 
-  return `${pregnancy.pregnancyWeek.week}. hafta ${pregnancy.pregnancyWeek.day}. gün`;
+  return labels.progress(pregnancy.pregnancyWeek.week, pregnancy.pregnancyWeek.day);
 }
 
 /**
@@ -31,152 +259,103 @@ export function pregnancyProgressLabel(pregnancy: PregnancyDashboard): string {
  * The size leads when there is one, because that is the part a screen reader
  * would otherwise have to reach the summary to get any sense of.
  */
-export function weeklyHighlight(content: PregnancyWeeklyContent): string {
+export function weeklyHighlightIn(
+  labels: PregnancyLabels,
+  content: PregnancyWeeklyContent
+): string {
   if (content.size === undefined) {
     return content.developmentSummary;
   }
 
-  return `${content.size.label} — ${content.size.comparison}. ${content.developmentSummary}`;
+  return labels.weeklyHighlightWithSize(
+    content.size.label,
+    content.size.comparison,
+    content.developmentSummary
+  );
 }
 
 /** Where the due date came from, so an adjusted one is not read as calculated. */
-export function dueDateSourceLabel(source: PregnancyDueDateSource): string {
-  return source === 'adjusted' ? 'Düzeltilmiş tarih' : 'Son regl tarihine göre';
+export function dueDateSourceLabelIn(
+  labels: PregnancyLabels,
+  source: PregnancyDueDateSource
+): string {
+  return source === 'adjusted' ? labels.dueDateAdjusted : labels.dueDateFromLmp;
 }
 
-/* ------------------------------------------------ starting to track -- */
+/* ------------------------------------------------------------------------- */
+/* The Turkish values under their original names, for the assertions that     */
+/* already name them. Not for screens - see the note at the top of the file.  */
+/* ------------------------------------------------------------------------- */
 
-/**
- * The screen that begins a pregnancy, in Turkish.
- *
- * Moved out of `app/(app)/pregnancy-start.tsx` verbatim.
- */
+export const NOT_STARTED_MESSAGE = pregnancyLabelsTr.notStartedMessage;
+export const PREGNANCY_START_TITLE = pregnancyLabelsTr.pregnancyStartTitle;
+export const PREGNANCY_START_DESCRIPTION = pregnancyLabelsTr.pregnancyStartDescription;
+export const PREGNANCY_START_LMP_LABEL = pregnancyLabelsTr.pregnancyStartLmpLabel;
+export const PREGNANCY_START_PREVIOUS_DAY_LABEL =
+  pregnancyLabelsTr.pregnancyStartPreviousDayLabel;
+export const PREGNANCY_START_NEXT_DAY_LABEL = pregnancyLabelsTr.pregnancyStartNextDayLabel;
+export const PREGNANCY_START_SUBMIT_LABEL = pregnancyLabelsTr.pregnancyStartSubmitLabel;
+export const PREGNANCY_START_SUBMIT_TEXT = pregnancyLabelsTr.pregnancyStartSubmitText;
+export const PREGNANCY_START_STARTING_LABEL = pregnancyLabelsTr.pregnancyStartStartingLabel;
+export const PREGNANCY_START_FAILED_MESSAGE = pregnancyLabelsTr.pregnancyStartFailedMessage;
+export const PREGNANCY_SECTION_TITLE = pregnancyLabelsTr.pregnancySectionTitle;
+export const PREGNANCY_WEEK_LABEL = pregnancyLabelsTr.pregnancyWeekLabel;
+export const PREGNANCY_DUE_DATE_LABEL = pregnancyLabelsTr.pregnancyDueDateLabel;
+export const PREGNANCY_PREVIOUS_WEEK_LABEL = pregnancyLabelsTr.pregnancyPreviousWeekLabel;
+export const PREGNANCY_NEXT_WEEK_LABEL = pregnancyLabelsTr.pregnancyNextWeekLabel;
+export const PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL =
+  pregnancyLabelsTr.pregnancyBackToCurrentWeekLabel;
+export const PREGNANCY_THIS_WEEK_TITLE = pregnancyLabelsTr.pregnancyThisWeekTitle;
+export const PREGNANCY_DEVELOPMENTS_TITLE = pregnancyLabelsTr.pregnancyDevelopmentsTitle;
+export const PREGNANCY_SOURCES_TITLE = pregnancyLabelsTr.pregnancySourcesTitle;
+export const PREGNANCY_SETTINGS_LINK_LABEL = pregnancyLabelsTr.pregnancySettingsLinkLabel;
+export const PREGNANCY_SETTINGS_LINK_TEXT = pregnancyLabelsTr.pregnancySettingsLinkText;
+export const PREGNANCY_SETTINGS_TITLE = pregnancyLabelsTr.pregnancySettingsTitle;
+export const PREGNANCY_SETTINGS_DESCRIPTION = pregnancyLabelsTr.pregnancySettingsDescription;
+export const PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE =
+  pregnancyLabelsTr.pregnancySettingsLoadFailedMessage;
+export const PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE =
+  pregnancyLabelsTr.pregnancySettingsSaveFailedMessage;
+export const PREGNANCY_SETTINGS_EMPTY_MESSAGE =
+  pregnancyLabelsTr.pregnancySettingsEmptyMessage;
+export const PREGNANCY_STOP_FAILED_MESSAGE = pregnancyLabelsTr.pregnancyStopFailedMessage;
+export const PREGNANCY_STOP_QUESTION = pregnancyLabelsTr.pregnancyStopQuestion;
+export const PREGNANCY_STOP_CONSEQUENCE = pregnancyLabelsTr.pregnancyStopConsequence;
+export const PREGNANCY_STOP_OPEN_LABEL = pregnancyLabelsTr.pregnancyStopOpenLabel;
+export const PREGNANCY_STOP_CONFIRM_LABEL = pregnancyLabelsTr.pregnancyStopConfirmLabel;
+export const PREGNANCY_STOP_CONFIRM_TEXT = pregnancyLabelsTr.pregnancyStopConfirmText;
+export const PREGNANCY_STOPPING_LABEL = pregnancyLabelsTr.pregnancyStoppingLabel;
+export const PREGNANCY_EDIT_DUE_DATE_LABEL = pregnancyLabelsTr.pregnancyEditDueDateLabel;
+export const PREGNANCY_EDIT_DUE_DATE_TEXT = pregnancyLabelsTr.pregnancyEditDueDateText;
+export const PREGNANCY_SAVE_DUE_DATE_LABEL = pregnancyLabelsTr.pregnancySaveDueDateLabel;
+export const PREGNANCY_BACK_TO_LMP_LABEL = pregnancyLabelsTr.pregnancyBackToLmpLabel;
+export const PREGNANCY_BACK_TO_LMP_TEXT = pregnancyLabelsTr.pregnancyBackToLmpText;
+export const PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL =
+  pregnancyLabelsTr.pregnancySettingsPreviousDayLabel;
+export const PREGNANCY_SETTINGS_NEXT_DAY_LABEL =
+  pregnancyLabelsTr.pregnancySettingsNextDayLabel;
+export const PREGNANCY_LMP_PREFIX = pregnancyLabelsTr.pregnancyLmpPrefix;
 
-export const PREGNANCY_START_TITLE = 'Gebelik takibini başlat';
+export const selectedLmpLabel = pregnancyLabelsTr.selectedLmpLabel;
+export const pregnancyWeekRowLabel = pregnancyLabelsTr.pregnancyWeekRowLabel;
+export const shownWeekLabel = pregnancyLabelsTr.shownWeekLabel;
+export const thisWeekLabel = pregnancyLabelsTr.thisWeekLabel;
+export const developmentsLabel = pregnancyLabelsTr.developmentsLabel;
+export const pregnancySourceLabel = pregnancyLabelsTr.pregnancySourceLabel;
+export const selectedDueDateLabel = pregnancyLabelsTr.selectedDueDateLabel;
 
-export const PREGNANCY_START_DESCRIPTION =
-  'Son regl döneminin başladığı günü seç. Gebelik haftaları ve tahmini doğum ' +
-  'tarihi bu güne göre hesaplanır.';
-
-export const PREGNANCY_START_LMP_LABEL = 'Son regl başlangıcı';
-
-export const PREGNANCY_START_PREVIOUS_DAY_LABEL = 'Önceki gün';
-export const PREGNANCY_START_NEXT_DAY_LABEL = 'Sonraki gün';
-
-/** The button says what it does; the label says what it is for. */
-export const PREGNANCY_START_SUBMIT_LABEL = 'Gebelik takibini başlat';
-export const PREGNANCY_START_SUBMIT_TEXT = 'Takibi başlat';
-export const PREGNANCY_START_STARTING_LABEL = 'Başlatılıyor...';
-
-export const PREGNANCY_START_FAILED_MESSAGE = 'Gebelik takibi başlatılamadı.';
-
-/** The chosen day, read as what it is rather than as a bare date. */
-export function selectedLmpLabel(readableDate: string): string {
-  return `Seçilen son regl başlangıcı: ${readableDate}`;
-}
-
-/* --------------------------------------------- the section on home -- */
-
-/**
- * What the pregnancy half of the home screen says, in Turkish.
- *
- * Moved out of `pregnancy/components/pregnancy-section.tsx` verbatim.
- */
-
-export const PREGNANCY_SECTION_TITLE = 'Gebelik takibi';
-
-export const PREGNANCY_WEEK_LABEL = 'Gebelik haftası';
-export const PREGNANCY_DUE_DATE_LABEL = 'Tahmini doğum tarihi';
-
-export const PREGNANCY_PREVIOUS_WEEK_LABEL = 'Önceki hafta';
-export const PREGNANCY_NEXT_WEEK_LABEL = 'Sonraki hafta';
-export const PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL = 'Bugünkü haftaya dön';
-
-export const PREGNANCY_THIS_WEEK_TITLE = 'Bu hafta';
-export const PREGNANCY_DEVELOPMENTS_TITLE = 'Bu hafta gelişenler';
-export const PREGNANCY_SOURCES_TITLE = 'Kaynaklar';
-
-export const PREGNANCY_SETTINGS_LINK_LABEL = 'Gebelik ayarlarını düzenle';
-export const PREGNANCY_SETTINGS_LINK_TEXT = 'Gebelik ayarları';
-
-/** The week, spoken as a label and its value. */
-export function pregnancyWeekRowLabel(progress: string): string {
-  return `Gebelik haftası: ${progress}`;
-}
-
-/**
- * The due date with where it came from.
- *
- * The trailing space belongs to the label: the source is appended to it, so
- * "tarihi: 23 Nisan 2027, Son regl tarihine göre" reads as one sentence.
- */
 export function pregnancyDueDateRowLabel(readableDate: string, source: string): string {
-  return `Tahmini doğum tarihi: ${readableDate}, ` + source;
+  return pregnancyLabelsTr.pregnancyDueDateRowLabel(readableDate, source);
 }
 
-/** Which week is on screen, for the stepper. */
-export function shownWeekLabel(week: number): string {
-  return `Gösterilen hafta: ${week}. hafta`;
+export function pregnancyProgressLabel(pregnancy: PregnancyDashboard): string {
+  return pregnancyProgressLabelIn(pregnancyLabelsTr, pregnancy);
 }
 
-/** The week's content in one line, so a reader hears it without the layout. */
-export function thisWeekLabel(highlight: string): string {
-  return `Bu hafta: ${highlight}`;
+export function weeklyHighlight(content: PregnancyWeeklyContent): string {
+  return weeklyHighlightIn(pregnancyLabelsTr, content);
 }
 
-/** The bullets, joined, so they are heard as one list rather than five items. */
-export function developmentsLabel(features: readonly string[]): string {
-  return `Bu hafta gelişenler: ${features.join(', ')}`;
-}
-
-/** A source, as something to open. */
-export function pregnancySourceLabel(name: string): string {
-  return `${name} kaynağını aç`;
-}
-
-/* ---------------------------------------------- the settings screen -- */
-
-/**
- * What the pregnancy settings screen says, in Turkish.
- *
- * Moved out of `app/(app)/pregnancy-settings.tsx` verbatim. Its own copy of
- * `dueDateSourceLabel` went with it: the function above was already here, word
- * for word, and the screen had a second one.
- */
-
-export const PREGNANCY_SETTINGS_TITLE = 'Gebelik ayarları';
-
-export const PREGNANCY_SETTINGS_DESCRIPTION =
-  'Tahmini doğum tarihini düzeltebilir ya da son regl tarihine göre hesaplanan ' +
-  'tarihe geri dönebilirsin.';
-
-export const PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE = 'Gebelik ayarları yüklenemedi.';
-export const PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE = 'Tahmini doğum tarihi güncellenemedi.';
-export const PREGNANCY_SETTINGS_EMPTY_MESSAGE = 'Takip edilen bir gebelik bulunamadı.';
-export const PREGNANCY_STOP_FAILED_MESSAGE = 'Gebelik takibi sonlandırılamadı.';
-
-export const PREGNANCY_STOP_QUESTION = 'Gebelik takibini sonlandırmak istiyor musun?';
-export const PREGNANCY_STOP_CONSEQUENCE = 'Gebelik takip bilgilerin silinecek.';
-
-export const PREGNANCY_STOP_OPEN_LABEL = 'Gebelik takibini sonlandırmayı seç';
-export const PREGNANCY_STOP_CONFIRM_LABEL = 'Gebelik takibini sonlandır';
-export const PREGNANCY_STOP_CONFIRM_TEXT = 'Takibi sonlandır';
-export const PREGNANCY_STOPPING_LABEL = 'Sonlandırılıyor...';
-
-export const PREGNANCY_EDIT_DUE_DATE_LABEL = 'Tahmini doğum tarihini düzenle';
-export const PREGNANCY_EDIT_DUE_DATE_TEXT = 'Tarihi düzenle';
-export const PREGNANCY_SAVE_DUE_DATE_LABEL = 'Tahmini doğum tarihini kaydet';
-
-export const PREGNANCY_BACK_TO_LMP_LABEL = 'Son regl tarihine göre hesaplanan tarihe dön';
-export const PREGNANCY_BACK_TO_LMP_TEXT = 'LMP hesabına dön';
-
-export const PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL = 'Önceki gün';
-export const PREGNANCY_SETTINGS_NEXT_DAY_LABEL = 'Sonraki gün';
-
-/** The label before the stored last menstrual period, which follows it. */
-export const PREGNANCY_LMP_PREFIX = 'Son regl başlangıcı:';
-
-/** The day being chosen, read as what it is rather than as a bare date. */
-export function selectedDueDateLabel(readableDate: string): string {
-  return `Seçilen tahmini doğum tarihi: ${readableDate}`;
+export function dueDateSourceLabel(source: PregnancyDueDateSource): string {
+  return dueDateSourceLabelIn(pregnancyLabelsTr, source);
 }

@@ -17,30 +17,8 @@ import type {
 } from '@/features/pregnancy/domain/types';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import {
-  PREGNANCY_BACK_TO_LMP_LABEL,
-  PREGNANCY_BACK_TO_LMP_TEXT,
-  PREGNANCY_EDIT_DUE_DATE_LABEL,
-  PREGNANCY_EDIT_DUE_DATE_TEXT,
-  PREGNANCY_LMP_PREFIX,
-  PREGNANCY_SAVE_DUE_DATE_LABEL,
-  PREGNANCY_SETTINGS_DESCRIPTION,
-  PREGNANCY_SETTINGS_EMPTY_MESSAGE,
-  PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE,
-  PREGNANCY_SETTINGS_NEXT_DAY_LABEL,
-  PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL,
-  PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE,
-  PREGNANCY_SETTINGS_TITLE,
-  PREGNANCY_STOPPING_LABEL,
-  PREGNANCY_STOP_CONFIRM_LABEL,
-  PREGNANCY_STOP_CONFIRM_TEXT,
-  PREGNANCY_STOP_CONSEQUENCE,
-  PREGNANCY_STOP_FAILED_MESSAGE,
-  PREGNANCY_STOP_OPEN_LABEL,
-  PREGNANCY_STOP_QUESTION,
-  PREGNANCY_DUE_DATE_LABEL,
-  dueDateSourceLabel,
-  pregnancyDueDateRowLabel,
-  selectedDueDateLabel,
+  dueDateSourceLabelIn,
+  pregnancyLabels,
 } from '@/features/pregnancy/presentation/pregnancy-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
@@ -67,6 +45,7 @@ import { logEvent } from '@/shared/logging';
 export default function PregnancySettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const pregnancy1 = useMessages(pregnancyLabels);
   const common = useMessages(appMessages);
   const language = useLanguage();
 
@@ -309,11 +288,11 @@ export default function PregnancySettingsScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
-                {PREGNANCY_SETTINGS_TITLE}
+                {pregnancy1.pregnancySettingsTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {PREGNANCY_SETTINGS_DESCRIPTION}
+                {pregnancy1.pregnancySettingsDescription}
               </ThemedText>
 
               {/* Only after a sync moved the date out from under an editor. */}
@@ -326,38 +305,38 @@ export default function PregnancySettingsScreen() {
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
-                {PREGNANCY_SETTINGS_LOAD_FAILED_MESSAGE}
+                {pregnancy1.pregnancySettingsLoadFailedMessage}
               </ThemedText>
             ) : profile === null ? (
-              <ThemedText themeColor="textSecondary">{PREGNANCY_SETTINGS_EMPTY_MESSAGE}</ThemedText>
+              <ThemedText themeColor="textSecondary">{pregnancy1.pregnancySettingsEmptyMessage}</ThemedText>
             ) : (
               <View style={styles.fields}>
                 <View
                   accessible
-                  accessibilityLabel={pregnancyDueDateRowLabel(
+                  accessibilityLabel={pregnancy1.pregnancyDueDateRowLabel(
                     formatDisplayDate(profile.estimatedDueDate, language),
-                    dueDateSourceLabel(profile.dueDateSource)
+                    dueDateSourceLabelIn(pregnancy1, profile.dueDateSource)
                   )}
                   style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {PREGNANCY_DUE_DATE_LABEL}
+                    {pregnancy1.pregnancyDueDateLabel}
                   </ThemedText>
                   <ThemedText style={styles.rowValue}>
                     {formatDisplayDate(profile.estimatedDueDate, language)}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                    {dueDateSourceLabel(profile.dueDateSource)}
+                    {dueDateSourceLabelIn(pregnancy1, profile.dueDateSource)}
                   </ThemedText>
                 </View>
 
                 {isConfirmingStop ? (
                   <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                     <ThemedText type="small">
-                      {PREGNANCY_STOP_QUESTION}
+                      {pregnancy1.pregnancyStopQuestion}
                     </ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary">
-                      {PREGNANCY_STOP_CONSEQUENCE}
+                      {pregnancy1.pregnancyStopConsequence}
                     </ThemedText>
 
                     {hasStopError && (
@@ -365,7 +344,7 @@ export default function PregnancySettingsScreen() {
                         accessibilityRole="alert"
                         type="small"
                         themeColor="textSecondary">
-                        {PREGNANCY_STOP_FAILED_MESSAGE}
+                        {pregnancy1.pregnancyStopFailedMessage}
                       </ThemedText>
                     )}
 
@@ -388,7 +367,7 @@ export default function PregnancySettingsScreen() {
 
                       <Pressable
                         accessibilityRole="button"
-                      accessibilityLabel={PREGNANCY_STOP_CONFIRM_LABEL}
+                      accessibilityLabel={pregnancy1.pregnancyStopConfirmLabel}
                         accessibilityState={{ disabled: isStopping }}
                         disabled={isStopping}
                         onPress={handleStop}
@@ -399,7 +378,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isStopping && styles.pressed,
                         ]}>
                         <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                          {isStopping ? PREGNANCY_STOPPING_LABEL : PREGNANCY_STOP_CONFIRM_TEXT}
+                          {isStopping ? pregnancy1.pregnancyStoppingLabel : pregnancy1.pregnancyStopConfirmText}
                         </ThemedText>
                       </Pressable>
                     </View>
@@ -408,7 +387,7 @@ export default function PregnancySettingsScreen() {
                   <View style={styles.actions}>
                     <Pressable
                       accessibilityRole="button"
-                    accessibilityLabel={PREGNANCY_EDIT_DUE_DATE_LABEL}
+                    accessibilityLabel={pregnancy1.pregnancyEditDueDateLabel}
                       accessibilityState={{ disabled: isSaving }}
                       disabled={isSaving}
                       onPress={openEditor}
@@ -419,7 +398,7 @@ export default function PregnancySettingsScreen() {
                         pressed && !isSaving && styles.pressed,
                       ]}>
                       <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                        {PREGNANCY_EDIT_DUE_DATE_TEXT}
+                        {pregnancy1.pregnancyEditDueDateText}
                       </ThemedText>
                     </Pressable>
 
@@ -428,7 +407,7 @@ export default function PregnancySettingsScreen() {
                     {profile.dueDateSource === 'adjusted' && (
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={PREGNANCY_BACK_TO_LMP_LABEL}
+                        accessibilityLabel={pregnancy1.pregnancyBackToLmpLabel}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() =>
@@ -443,7 +422,7 @@ export default function PregnancySettingsScreen() {
                           pressed && !isSaving && styles.pressed,
                         ]}>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {isSaving ? common.savingLabel : PREGNANCY_BACK_TO_LMP_TEXT}
+                          {isSaving ? common.savingLabel : pregnancy1.pregnancyBackToLmpText}
                         </ThemedText>
                       </Pressable>
                     )}
@@ -453,13 +432,13 @@ export default function PregnancySettingsScreen() {
                         accessibilityRole="alert"
                         type="small"
                         themeColor="textSecondary">
-                        {PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE}
+                        {pregnancy1.pregnancySettingsSaveFailedMessage}
                       </ThemedText>
                     )}
 
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={PREGNANCY_STOP_OPEN_LABEL}
+                      accessibilityLabel={pregnancy1.pregnancyStopOpenLabel}
                       accessibilityState={{ disabled: isSaving }}
                       disabled={isSaving}
                       onPress={askToStop}
@@ -470,23 +449,23 @@ export default function PregnancySettingsScreen() {
                         pressed && !isSaving && styles.pressed,
                       ]}>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {PREGNANCY_STOP_CONFIRM_LABEL}
+                        {pregnancy1.pregnancyStopConfirmLabel}
                       </ThemedText>
                     </Pressable>
                   </View>
                 ) : (
                   <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText type="smallBold">{PREGNANCY_EDIT_DUE_DATE_LABEL}</ThemedText>
+                    <ThemedText type="smallBold">{pregnancy1.pregnancyEditDueDateLabel}</ThemedText>
 
                     <ThemedText type="small" themeColor="textSecondary">
-                      {PREGNANCY_LMP_PREFIX}{' '}
+                      {pregnancy1.pregnancyLmpPrefix}{' '}
                       {formatDisplayDate(profile.lastMenstrualPeriodStartDate, language)}
                     </ThemedText>
 
                     <View style={styles.dateBar}>
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={PREGNANCY_SETTINGS_PREVIOUS_DAY_LABEL}
+                        accessibilityLabel={pregnancy1.pregnancySettingsPreviousDayLabel}
                         accessibilityState={{ disabled: !canGoBack }}
                         disabled={!canGoBack}
                         onPress={() => setSelectedDueDate(addDays(selectedDueDate, -1))}
@@ -499,7 +478,7 @@ export default function PregnancySettingsScreen() {
                       </Pressable>
 
                       <ThemedText
-                        accessibilityLabel={selectedDueDateLabel(formatDisplayDate(selectedDueDate, language))}
+                        accessibilityLabel={pregnancy1.selectedDueDateLabel(formatDisplayDate(selectedDueDate, language))}
                         type="smallBold"
                         style={styles.selectedDate}>
                         {formatDisplayDate(selectedDueDate, language)}
@@ -507,7 +486,7 @@ export default function PregnancySettingsScreen() {
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={PREGNANCY_SETTINGS_NEXT_DAY_LABEL}
+                        accessibilityLabel={pregnancy1.pregnancySettingsNextDayLabel}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() => setSelectedDueDate(addDays(selectedDueDate, 1))}
@@ -525,7 +504,7 @@ export default function PregnancySettingsScreen() {
                         accessibilityRole="alert"
                         type="small"
                         themeColor="textSecondary">
-                        {PREGNANCY_SETTINGS_SAVE_FAILED_MESSAGE}
+                        {pregnancy1.pregnancySettingsSaveFailedMessage}
                       </ThemedText>
                     )}
 
@@ -548,7 +527,7 @@ export default function PregnancySettingsScreen() {
 
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={PREGNANCY_SAVE_DUE_DATE_LABEL}
+                        accessibilityLabel={pregnancy1.pregnancySaveDueDateLabel}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() => applyDueDate(selectedDueDate, 'adjusted')}

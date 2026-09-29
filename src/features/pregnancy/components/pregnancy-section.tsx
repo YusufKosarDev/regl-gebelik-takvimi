@@ -5,26 +5,10 @@ import type { PregnancyDashboard } from '../application/get-pregnancy-dashboard'
 import type { PregnancyWeeklyContent } from '../domain/types';
 import { MAX_PREGNANCY_WEEK, MIN_PREGNANCY_WEEK } from '../domain/weekly-content';
 import {
-  PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL,
-  PREGNANCY_DEVELOPMENTS_TITLE,
-  PREGNANCY_DUE_DATE_LABEL,
-  PREGNANCY_NEXT_WEEK_LABEL,
-  PREGNANCY_PREVIOUS_WEEK_LABEL,
-  PREGNANCY_SECTION_TITLE,
-  PREGNANCY_SETTINGS_LINK_LABEL,
-  PREGNANCY_SETTINGS_LINK_TEXT,
-  PREGNANCY_SOURCES_TITLE,
-  PREGNANCY_THIS_WEEK_TITLE,
-  PREGNANCY_WEEK_LABEL,
-  developmentsLabel,
-  dueDateSourceLabel,
-  pregnancyDueDateRowLabel,
-  pregnancyProgressLabel,
-  pregnancySourceLabel,
-  pregnancyWeekRowLabel,
-  shownWeekLabel,
-  thisWeekLabel,
-  weeklyHighlight,
+  dueDateSourceLabelIn,
+  pregnancyLabels,
+  pregnancyProgressLabelIn,
+  weeklyHighlightIn,
 } from '../presentation/pregnancy-labels';
 
 import { ThemedText } from '@/components/themed-text';
@@ -70,6 +54,7 @@ export function PregnancySection({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const pregnancy1 = useMessages(pregnancyLabels);
   const home = useMessages(homeMessages);
   const disclaimer = useMessages(disclaimerMessages);
   const language = useLanguage();
@@ -77,36 +62,36 @@ export function PregnancySection({
   return (
     <View style={styles.pregnancySection}>
       <ThemedText accessibilityRole="header" type="smallBold">
-        {PREGNANCY_SECTION_TITLE}
+        {pregnancy1.pregnancySectionTitle}
       </ThemedText>
 
       <View
         accessible
-        accessibilityLabel={pregnancyWeekRowLabel(pregnancyProgressLabel(pregnancy))}
+        accessibilityLabel={pregnancy1.pregnancyWeekRowLabel(pregnancyProgressLabelIn(pregnancy1, pregnancy))}
         style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="small" themeColor="textSecondary">
-          {PREGNANCY_WEEK_LABEL}
+          {pregnancy1.pregnancyWeekLabel}
         </ThemedText>
         <ThemedText style={styles.rowValue}>
-          {pregnancyProgressLabel(pregnancy)}
+          {pregnancyProgressLabelIn(pregnancy1, pregnancy)}
         </ThemedText>
       </View>
 
       <View
         accessible
-        accessibilityLabel={pregnancyDueDateRowLabel(
+        accessibilityLabel={pregnancy1.pregnancyDueDateRowLabel(
           formatDisplayDate(pregnancy.estimatedDueDate, language),
-          dueDateSourceLabel(pregnancy.dueDateSource)
+          dueDateSourceLabelIn(pregnancy1, pregnancy.dueDateSource)
         )}
         style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="small" themeColor="textSecondary">
-          {PREGNANCY_DUE_DATE_LABEL}
+          {pregnancy1.pregnancyDueDateLabel}
         </ThemedText>
         <ThemedText style={styles.rowValue}>
           {formatDisplayDate(pregnancy.estimatedDueDate, language)}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-          {dueDateSourceLabel(pregnancy.dueDateSource)}
+          {dueDateSourceLabelIn(pregnancy1, pregnancy.dueDateSource)}
         </ThemedText>
       </View>
 
@@ -117,7 +102,7 @@ export function PregnancySection({
           <View style={styles.weekBar}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={PREGNANCY_PREVIOUS_WEEK_LABEL}
+              accessibilityLabel={pregnancy1.pregnancyPreviousWeekLabel}
               accessibilityState={{ disabled: shownWeek <= MIN_PREGNANCY_WEEK }}
               disabled={shownWeek <= MIN_PREGNANCY_WEEK}
               onPress={() => stepWeek(-1)}
@@ -130,7 +115,7 @@ export function PregnancySection({
             </Pressable>
 
             <ThemedText
-              accessibilityLabel={shownWeekLabel(shownWeek)}
+              accessibilityLabel={pregnancy1.shownWeekLabel(shownWeek)}
               type="smallBold"
               style={styles.selectedWeek}>
               {shownWeek}. hafta
@@ -138,7 +123,7 @@ export function PregnancySection({
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={PREGNANCY_NEXT_WEEK_LABEL}
+              accessibilityLabel={pregnancy1.pregnancyNextWeekLabel}
               accessibilityState={{ disabled: shownWeek >= MAX_PREGNANCY_WEEK }}
               disabled={shownWeek >= MAX_PREGNANCY_WEEK}
               onPress={() => stepWeek(1)}
@@ -156,7 +141,7 @@ export function PregnancySection({
           {shownWeek !== currentWeek && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL}
+              accessibilityLabel={pregnancy1.pregnancyBackToCurrentWeekLabel}
               onPress={() => {
                 setPreviewWeek(null);
                 setHasSourceError(false);
@@ -166,17 +151,17 @@ export function PregnancySection({
                 pressed && styles.pressed,
               ]}>
               <ThemedText type="small" themeColor="textSecondary">
-                {PREGNANCY_BACK_TO_CURRENT_WEEK_LABEL}
+                {pregnancy1.pregnancyBackToCurrentWeekLabel}
               </ThemedText>
             </Pressable>
           )}
 
           <View
             accessible
-            accessibilityLabel={thisWeekLabel(weeklyHighlight(shownContent))}
+            accessibilityLabel={pregnancy1.thisWeekLabel(weeklyHighlightIn(pregnancy1, shownContent))}
             style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="small" themeColor="textSecondary">
-              {PREGNANCY_THIS_WEEK_TITLE}
+              {pregnancy1.pregnancyThisWeekTitle}
             </ThemedText>
 
             {/* Only the weeks that have a size show one. */}
@@ -194,10 +179,10 @@ export function PregnancySection({
 
           <View
             accessible
-            accessibilityLabel={developmentsLabel(shownContent.developingFeatures)}
+            accessibilityLabel={pregnancy1.developmentsLabel(shownContent.developingFeatures)}
             style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="small" themeColor="textSecondary">
-              {PREGNANCY_DEVELOPMENTS_TITLE}
+              {pregnancy1.pregnancyDevelopmentsTitle}
             </ThemedText>
 
             {shownContent.developingFeatures.map((feature) => (
@@ -213,7 +198,7 @@ export function PregnancySection({
           {shownContent.sources.length > 0 && (
             <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                {PREGNANCY_SOURCES_TITLE}
+                {pregnancy1.pregnancySourcesTitle}
               </ThemedText>
 
               {hasSourceError && (
@@ -230,7 +215,7 @@ export function PregnancySection({
                 <Pressable
                   key={source.url}
                   accessibilityRole="link"
-                  accessibilityLabel={pregnancySourceLabel(source.name)}
+                  accessibilityLabel={pregnancy1.pregnancySourceLabel(source.name)}
                   onPress={() => openSource(source.url)}
                   style={({ pressed }) => [
                     styles.sourceLink,
@@ -253,11 +238,11 @@ export function PregnancySection({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={PREGNANCY_SETTINGS_LINK_LABEL}
+        accessibilityLabel={pregnancy1.pregnancySettingsLinkLabel}
         onPress={() => router.push('/(app)/pregnancy-settings')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
         <ThemedText type="small" themeColor="textSecondary">
-          {PREGNANCY_SETTINGS_LINK_TEXT}
+          {pregnancy1.pregnancySettingsLinkText}
         </ThemedText>
       </Pressable>
     </View>
