@@ -5,14 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import {
-  WELCOME_DESCRIPTION,
-  WELCOME_NOTE,
-  WELCOME_START_HINT,
-  WELCOME_START_LABEL,
-  WELCOME_TITLE,
-} from '@/features/onboarding/presentation/onboarding-messages';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * First screen of onboarding.
@@ -27,6 +22,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function OnboardingWelcomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const onboarding = useMessages(onboardingMessages);
 
   return (
     <ThemedView style={styles.screen}>
@@ -36,16 +32,16 @@ export default function OnboardingWelcomeScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <ThemedText type="subtitle" style={styles.title}>
-              {WELCOME_TITLE}
+              {onboarding.welcomeTitle}
             </ThemedText>
 
             <ThemedText themeColor="textSecondary" style={styles.description}>
-              {WELCOME_DESCRIPTION}
+              {onboarding.welcomeDescription}
             </ThemedText>
 
             <View style={[styles.note, { borderLeftColor: theme.backgroundSelected }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                {WELCOME_NOTE}
+                {onboarding.welcomeNote}
               </ThemedText>
             </View>
           </View>
@@ -54,8 +50,8 @@ export default function OnboardingWelcomeScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={WELCOME_START_LABEL}
-            accessibilityHint={WELCOME_START_HINT}
+            accessibilityLabel={onboarding.welcomeStartLabel}
+            accessibilityHint={onboarding.welcomeStartHint}
             onPress={() => router.push('/(onboarding)/disclaimer')}
             style={({ pressed }) => [
               styles.button,
@@ -63,7 +59,7 @@ export default function OnboardingWelcomeScreen() {
               pressed && styles.buttonPressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.onPrimary }]}>
-              {WELCOME_START_LABEL}
+              {onboarding.welcomeStartLabel}
             </ThemedText>
           </Pressable>
         </View>

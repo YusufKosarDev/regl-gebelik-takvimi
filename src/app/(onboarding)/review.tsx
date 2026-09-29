@@ -10,19 +10,8 @@ import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-
 import { parseLastPeriodStartDateParam } from '@/features/onboarding/parse-last-period-start-date-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
-import {
-  INVALID_CYCLE_INFO_MESSAGE,
-  REVIEW_CONFIRM_LABEL,
-  REVIEW_CYCLE_LENGTH_LABEL,
-  REVIEW_DESCRIPTION,
-  REVIEW_EDIT_LABEL,
-  REVIEW_LAST_PERIOD_LABEL,
-  REVIEW_PERIOD_LENGTH_LABEL,
-  REVIEW_TITLE,
-  reviewDaysValue,
-  reviewRowLabel,
-} from '@/features/onboarding/presentation/onboarding-messages';
+import { useLanguage, useMessages } from '@/i18n';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -37,6 +26,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function ReviewScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const onboarding = useMessages(onboardingMessages);
   const language = useLanguage();
   const params = useLocalSearchParams<{
     cycleLength?: string | string[];
@@ -57,7 +47,7 @@ export default function ReviewScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorText}>
-            {INVALID_CYCLE_INFO_MESSAGE}
+            {onboarding.invalidCycleInfoMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -65,9 +55,9 @@ export default function ReviewScreen() {
   }
 
   const rows: { label: string; value: string }[] = [
-    { label: REVIEW_CYCLE_LENGTH_LABEL, value: reviewDaysValue(cycleLength) },
-    { label: REVIEW_PERIOD_LENGTH_LABEL, value: reviewDaysValue(periodLength) },
-    { label: REVIEW_LAST_PERIOD_LABEL, value: formatDisplayDate(lastPeriodStartDate, language) },
+    { label: onboarding.reviewCycleLengthLabel, value: onboarding.reviewDaysValue(cycleLength) },
+    { label: onboarding.reviewPeriodLengthLabel, value: onboarding.reviewDaysValue(periodLength) },
+    { label: onboarding.reviewLastPeriodLabel, value: formatDisplayDate(lastPeriodStartDate, language) },
   ];
 
   return (
@@ -79,11 +69,11 @@ export default function ReviewScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                {REVIEW_TITLE}
+                {onboarding.reviewTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {REVIEW_DESCRIPTION}
+                {onboarding.reviewDescription}
               </ThemedText>
             </View>
 
@@ -92,7 +82,7 @@ export default function ReviewScreen() {
                 <View
                   key={row.label}
                   accessible
-                  accessibilityLabel={reviewRowLabel(row.label, row.value)}
+                  accessibilityLabel={onboarding.reviewRowLabel(row.label, row.value)}
                   style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText type="small" themeColor="textSecondary">
                     {row.label}
@@ -107,7 +97,7 @@ export default function ReviewScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={REVIEW_CONFIRM_LABEL}
+            accessibilityLabel={onboarding.reviewConfirmLabel}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/finish',
@@ -124,17 +114,17 @@ export default function ReviewScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              {REVIEW_CONFIRM_LABEL}
+              {onboarding.reviewConfirmLabel}
             </ThemedText>
           </Pressable>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={REVIEW_EDIT_LABEL}
+            accessibilityLabel={onboarding.reviewEditLabel}
             onPress={() => router.back()}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <ThemedText type="small" themeColor="textSecondary">
-              {REVIEW_EDIT_LABEL}
+              {onboarding.reviewEditLabel}
             </ThemedText>
           </Pressable>
         </View>

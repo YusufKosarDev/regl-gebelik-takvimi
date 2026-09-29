@@ -5,10 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import {
-  DISCLAIMER_CONTINUE_HINT,
-  DISCLAIMER_CONTINUE_LABEL,
-} from '@/features/onboarding/presentation/onboarding-messages';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -29,6 +26,7 @@ import { useMessages } from '@/i18n';
 export default function OnboardingDisclaimerScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const onboarding = useMessages(onboardingMessages);
   const disclaimer = useMessages(disclaimerMessages);
 
   return (
@@ -67,8 +65,8 @@ export default function OnboardingDisclaimerScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={DISCLAIMER_CONTINUE_LABEL}
-            accessibilityHint={DISCLAIMER_CONTINUE_HINT}
+            accessibilityLabel={onboarding.disclaimerContinueLabel}
+            accessibilityHint={onboarding.disclaimerContinueHint}
             onPress={() => router.push('/(onboarding)/cycle-settings')}
             style={({ pressed }) => [
               styles.button,
@@ -76,7 +74,7 @@ export default function OnboardingDisclaimerScreen() {
               pressed && styles.buttonPressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.buttonLabel, { color: theme.onPrimary }]}>
-              {DISCLAIMER_CONTINUE_LABEL}
+              {onboarding.disclaimerContinueLabel}
             </ThemedText>
           </Pressable>
         </View>

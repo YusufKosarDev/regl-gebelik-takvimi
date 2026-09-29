@@ -8,19 +8,9 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
 import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
-import {
-  CONTINUE_LABEL,
-  INVALID_CYCLE_INFO_MESSAGE,
-  LAST_PERIOD_DESCRIPTION,
-  LAST_PERIOD_NEXT_DAY_LABEL,
-  LAST_PERIOD_NEXT_DAY_TEXT,
-  LAST_PERIOD_PREVIOUS_DAY_LABEL,
-  LAST_PERIOD_PREVIOUS_DAY_TEXT,
-  LAST_PERIOD_TITLE,
-  selectedDateLabel,
-} from '@/features/onboarding/presentation/onboarding-messages';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
@@ -38,6 +28,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function LastPeriodScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const onboarding = useMessages(onboardingMessages);
   const language = useLanguage();
   const params = useLocalSearchParams<{
     cycleLength?: string | string[];
@@ -57,7 +48,7 @@ export default function LastPeriodScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorText}>
-            {INVALID_CYCLE_INFO_MESSAGE}
+            {onboarding.invalidCycleInfoMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -76,23 +67,23 @@ export default function LastPeriodScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                {LAST_PERIOD_TITLE}
+                {onboarding.lastPeriodTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {LAST_PERIOD_DESCRIPTION}
+                {onboarding.lastPeriodDescription}
               </ThemedText>
             </View>
 
             <View style={styles.picker}>
-              <View accessible accessibilityLabel={selectedDateLabel(readableDate)}>
+              <View accessible accessibilityLabel={onboarding.selectedDateLabel(readableDate)}>
                 <ThemedText style={styles.date}>{readableDate}</ThemedText>
               </View>
 
               <View style={styles.dayButtons}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={LAST_PERIOD_PREVIOUS_DAY_LABEL}
+                  accessibilityLabel={onboarding.lastPeriodPreviousDayLabel}
                   accessibilityState={{ disabled: false }}
                   onPress={() => setSelectedDate((current) => addDays(current, -1))}
                   style={({ pressed }) => [
@@ -100,12 +91,12 @@ export default function LastPeriodScreen() {
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="small">{LAST_PERIOD_PREVIOUS_DAY_TEXT}</ThemedText>
+                  <ThemedText type="small">{onboarding.lastPeriodPreviousDayText}</ThemedText>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={LAST_PERIOD_NEXT_DAY_LABEL}
+                  accessibilityLabel={onboarding.lastPeriodNextDayLabel}
                   accessibilityState={{ disabled: !canGoToNextDay }}
                   disabled={!canGoToNextDay}
                   onPress={() => setSelectedDate((current) => addDays(current, 1))}
@@ -115,7 +106,7 @@ export default function LastPeriodScreen() {
                     !canGoToNextDay && styles.dayButtonDisabled,
                     pressed && canGoToNextDay && styles.pressed,
                   ]}>
-                  <ThemedText type="small">{LAST_PERIOD_NEXT_DAY_TEXT}</ThemedText>
+                  <ThemedText type="small">{onboarding.lastPeriodNextDayText}</ThemedText>
                 </Pressable>
               </View>
             </View>
@@ -125,7 +116,7 @@ export default function LastPeriodScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={CONTINUE_LABEL}
+            accessibilityLabel={onboarding.continueLabel}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/review',
@@ -142,7 +133,7 @@ export default function LastPeriodScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              {CONTINUE_LABEL}
+              {onboarding.continueLabel}
             </ThemedText>
           </Pressable>
         </View>

@@ -7,16 +7,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { MAX_CYCLE_LENGTH_DAYS, MIN_CYCLE_LENGTH_DAYS } from '@/features/cycle/domain/limits';
-import {
-  CONTINUE_LABEL,
-  CYCLE_LENGTH_DECREASE_LABEL,
-  CYCLE_LENGTH_DESCRIPTION,
-  CYCLE_LENGTH_INCREASE_LABEL,
-  CYCLE_LENGTH_TITLE,
-  DAYS_UNIT,
-  cycleLengthValueLabel,
-} from '@/features/onboarding/presentation/onboarding-messages';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * First onboarding input: average cycle length.
@@ -29,6 +22,7 @@ const DEFAULT_CYCLE_LENGTH_DAYS = 28;
 export default function CycleSettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const onboarding = useMessages(onboardingMessages);
 
   const [cycleLength, setCycleLength] = useState(DEFAULT_CYCLE_LENGTH_DAYS);
 
@@ -44,18 +38,18 @@ export default function CycleSettingsScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                {CYCLE_LENGTH_TITLE}
+                {onboarding.cycleLengthTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {CYCLE_LENGTH_DESCRIPTION}
+                {onboarding.cycleLengthDescription}
               </ThemedText>
             </View>
 
             <View style={styles.stepper}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={CYCLE_LENGTH_DECREASE_LABEL}
+                accessibilityLabel={onboarding.cycleLengthDecreaseLabel}
                 accessibilityState={{ disabled: !canDecrease }}
                 disabled={!canDecrease}
                 onPress={() => setCycleLength((current) => current - 1)}
@@ -70,7 +64,7 @@ export default function CycleSettingsScreen() {
 
               <View
                 accessible
-                accessibilityLabel={cycleLengthValueLabel(cycleLength)}
+                accessibilityLabel={onboarding.cycleLengthValueLabel(cycleLength)}
                 accessibilityValue={{
                   min: MIN_CYCLE_LENGTH_DAYS,
                   max: MAX_CYCLE_LENGTH_DAYS,
@@ -79,13 +73,13 @@ export default function CycleSettingsScreen() {
                 style={styles.valueBlock}>
                 <ThemedText style={styles.value}>{cycleLength}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {DAYS_UNIT}
+                  {onboarding.daysUnit(cycleLength)}
                 </ThemedText>
               </View>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={CYCLE_LENGTH_INCREASE_LABEL}
+                accessibilityLabel={onboarding.cycleLengthIncreaseLabel}
                 accessibilityState={{ disabled: !canIncrease }}
                 disabled={!canIncrease}
                 onPress={() => setCycleLength((current) => current + 1)}
@@ -104,7 +98,7 @@ export default function CycleSettingsScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={CONTINUE_LABEL}
+            accessibilityLabel={onboarding.continueLabel}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/period-length',
@@ -117,7 +111,7 @@ export default function CycleSettingsScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              {CONTINUE_LABEL}
+              {onboarding.continueLabel}
             </ThemedText>
           </Pressable>
         </View>

@@ -8,17 +8,9 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { MAX_PERIOD_LENGTH_DAYS, MIN_PERIOD_LENGTH_DAYS } from '@/features/cycle/domain/limits';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
-import {
-  CONTINUE_LABEL,
-  DAYS_UNIT,
-  INVALID_CYCLE_INFO_MESSAGE,
-  PERIOD_LENGTH_DECREASE_LABEL,
-  PERIOD_LENGTH_DESCRIPTION,
-  PERIOD_LENGTH_INCREASE_LABEL,
-  PERIOD_LENGTH_TITLE,
-  periodLengthValueLabel,
-} from '@/features/onboarding/presentation/onboarding-messages';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
+import { useMessages } from '@/i18n';
 
 /**
  * Second onboarding input: average period length.
@@ -32,6 +24,7 @@ const DEFAULT_PERIOD_LENGTH_DAYS = 5;
 export default function PeriodLengthScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const onboarding = useMessages(onboardingMessages);
   const params = useLocalSearchParams<{ cycleLength?: string | string[] }>();
 
   const cycleLength = parseCycleLengthParam(params.cycleLength);
@@ -43,7 +36,7 @@ export default function PeriodLengthScreen() {
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>
           <ThemedText type="subtitle" style={styles.errorText}>
-            {INVALID_CYCLE_INFO_MESSAGE}
+            {onboarding.invalidCycleInfoMessage}
           </ThemedText>
         </SafeAreaView>
       </ThemedView>
@@ -63,18 +56,18 @@ export default function PeriodLengthScreen() {
           <View style={styles.content}>
             <View style={styles.intro}>
               <ThemedText type="subtitle" style={styles.title}>
-                {PERIOD_LENGTH_TITLE}
+                {onboarding.periodLengthTitle}
               </ThemedText>
 
               <ThemedText themeColor="textSecondary" style={styles.description}>
-                {PERIOD_LENGTH_DESCRIPTION}
+                {onboarding.periodLengthDescription}
               </ThemedText>
             </View>
 
             <View style={styles.stepper}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={PERIOD_LENGTH_DECREASE_LABEL}
+                accessibilityLabel={onboarding.periodLengthDecreaseLabel}
                 accessibilityState={{ disabled: !canDecrease }}
                 disabled={!canDecrease}
                 onPress={() => setPeriodLength((current) => current - 1)}
@@ -89,7 +82,7 @@ export default function PeriodLengthScreen() {
 
               <View
                 accessible
-                accessibilityLabel={periodLengthValueLabel(periodLength)}
+                accessibilityLabel={onboarding.periodLengthValueLabel(periodLength)}
                 accessibilityValue={{
                   min: MIN_PERIOD_LENGTH_DAYS,
                   max: maxPeriodLength,
@@ -98,13 +91,13 @@ export default function PeriodLengthScreen() {
                 style={styles.valueBlock}>
                 <ThemedText style={styles.value}>{periodLength}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {DAYS_UNIT}
+                  {onboarding.daysUnit(periodLength)}
                 </ThemedText>
               </View>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={PERIOD_LENGTH_INCREASE_LABEL}
+                accessibilityLabel={onboarding.periodLengthIncreaseLabel}
                 accessibilityState={{ disabled: !canIncrease }}
                 disabled={!canIncrease}
                 onPress={() => setPeriodLength((current) => current + 1)}
@@ -123,7 +116,7 @@ export default function PeriodLengthScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={CONTINUE_LABEL}
+            accessibilityLabel={onboarding.continueLabel}
             onPress={() =>
               router.push({
                 pathname: '/(onboarding)/last-period',
@@ -139,7 +132,7 @@ export default function PeriodLengthScreen() {
               pressed && styles.pressed,
             ]}>
             <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
-              {CONTINUE_LABEL}
+              {onboarding.continueLabel}
             </ThemedText>
           </Pressable>
         </View>
