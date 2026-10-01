@@ -359,8 +359,9 @@ If push notifications are ever genuinely needed, the policy and
 
 ## Android permissions
 
-A release build asks for eight, and every one of them is here because something
-in the app needs it:
+A release build's merged manifest carries ten `<uses-permission>` entries.
+Eight of them are capabilities the app asks the person for, and each is here
+because something needs it:
 
 | Permission | Why |
 | --- | --- |
@@ -372,14 +373,32 @@ in the app needs it:
 | `WAKE_LOCK` | Delivering one while the screen is off |
 | `USE_BIOMETRIC` / `USE_FINGERPRINT` | Opening the app lock with a fingerprint or a face |
 
+The other two are not capability requests and are not what a person sees on a
+store listing:
+
+- `com.yusufkosardev.regltakvimi.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is
+  namespaced to this app's own package. AndroidX declares it and holds it
+  itself, so that a dynamically registered receiver is reachable by nothing
+  else. It grants this app nothing it did not already have.
+- `com.google.android.c2dm.permission.RECEIVE` arrives from
+  `com.google.firebase:firebase-messaging`, by way of `expo-notifications`.
+  **This app sends no push messages** — every reminder is scheduled locally on
+  the device — so the permission is unused. It is left in rather than blocked
+  because it is what `expo-notifications` registers its receiver against, and
+  removing it is a change to that library's wiring rather than a line in
+  `app.json`. Worth revisiting before a store release: if it can go, the app
+  asks for nothing it does not use.
+
 There is no location, no camera, no contacts, no storage and no calendar
 permission, because there is no feature that would use one.
 
-### The twenty-one that are blocked
+### The twenty-four that are blocked
 
-The merged manifest used to carry twenty-nine. The other twenty-one came from
-**ShortcutBadger**, which `expo-notifications` depends on for drawing an unread
-count on the launcher icon:
+The manifest merger considers thirty-four `<uses-permission>` entries across
+the app and every library it links. Twenty-four are removed, leaving the ten
+above. They break down as twenty from **ShortcutBadger** — which
+`expo-notifications` depends on for drawing an unread count on the launcher
+icon — plus four others:
 
 ```
 com.android.launcher.permission.INSTALL_SHORTCUT / UNINSTALL_SHORTCUT
@@ -389,8 +408,10 @@ android.permission.READ_APP_BADGE
    Majeur and Badger
 ```
 
-plus `com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`,
-which is Play's install-attribution service.
+The four others are
+`com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`,
+which is Play's install-attribution service, and the three that were blocked
+before any of this: `SYSTEM_ALERT_WINDOW` and read/write external storage.
 
 None of them is used. `foreground-notification-handler.ts` sets
 `shouldSetBadge: false` and says why — this app keeps no unread count, and a
@@ -411,17 +432,38 @@ machine where the Hermes step is blocked:
 
 ```sh
 cd android && ./gradlew :app:processReleaseManifestForPackage
-grep -oE 'android:name="[a-zA-Z.]+permission\.[A-Z_]+"' \
-  app/build/intermediates/packaged_manifests/release/*/AndroidManifest.xml | sort -u
+grep -oE '<uses-permission[^>]*android:name="[^"]+"' \
+  app/build/intermediates/packaged_manifests/release/*/AndroidManifest.xml \
+  | grep -oE 'android:name="[^"]+"' | sort -u
 ```
 
-Eight lines is the expected answer.
+Ten lines is the expected answer.
+
+Match the whole name rather than a `permission\.[A-Z_]+` tail. Two of the ten
+do not have that shape — `com.google.android.c2dm.permission.RECEIVE` has a
+digit in it and the app's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` has no
+`.permission.` segment at all — and a pattern that misses them reports eight
+and looks like a clean answer.
+
+To see what was removed as well as what survived, read the merger's own report,
+which names every entry and the library it came from:
+
+```sh
+grep -oE 'uses-permission#[a-zA-Z0-9._]+' \
+  app/build/outputs/logs/manifest-merger-release-report.txt | sort -u
+```
 
 **Use the release variant, not debug.** A debug manifest also carries
 `SYSTEM_ALERT_WINDOW`, which comes from
 `react-native/ReactAndroid/src/debug/AndroidManifest.xml` for the dev menu
 overlay. It is not in a release build, and `blockedPermissions` does not remove
 it from a debug one — which looks alarming and is not.
+
+Changing `blockedPermissions` in `app.json` does **not** change a build on its
+own. The Expo config plugin writes the `tools:node="remove"` attributes into
+`android/app/src/main/AndroidManifest.xml` at prebuild time, and that file is
+what Gradle merges. Editing `app.json` and re-running Gradle merges the old
+manifest and proves nothing.
 
 ## Android auto backup
 
