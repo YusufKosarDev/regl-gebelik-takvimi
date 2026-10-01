@@ -1,4 +1,6 @@
 import { act, render } from '@testing-library/react-native';
+import { formatDisplayDate } from '@/utils/format-date';
+import { getTodayLocalISODate } from '@/utils/today';
 import React from 'react';
 
 import DailyEntryScreen from '@/app/(app)/daily-entry';
@@ -102,10 +104,15 @@ describe('the daily entry screen in English', () => {
    * still pass if the screen somehow rendered the date twice.
    */
   it('shows the date in English', async () => {
+    // Asserted against today rather than against a month name. The screen shows
+    // the day it was opened on, so naming one month made this pass for four
+    // weeks a year and fail for the rest - which is exactly the kind of test
+    // that gets deleted rather than understood.
     const screen = await renderScreen();
+    const today = getTodayLocalISODate();
 
-    expect(screen.getByText(/September/)).toBeTruthy();
-    expect(screen.queryByText(/Eylül/)).toBeNull();
+    expect(screen.getByText(formatDisplayDate(today, 'en'))).toBeTruthy();
+    expect(screen.queryByText(formatDisplayDate(today, 'tr'))).toBeNull();
   });
 
   /**

@@ -25,7 +25,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { appMessages } from '@/shared/presentation/app-messages';
 import { useLanguage, useMessages } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
-import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
+import { syncMessages } from '@/features/sync/presentation/sync-messages';
 
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -45,6 +45,7 @@ import { logEvent } from '@/shared/logging';
 export default function PregnancySettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const sync1 = useMessages(syncMessages);
   const pregnancy1 = useMessages(pregnancyLabels);
   const common = useMessages(appMessages);
   const language = useLanguage();
@@ -120,7 +121,7 @@ export default function PregnancySettingsScreen() {
 
           if (origin === 'remote' && editorOpen) {
             setSelectedDueDate(null);
-            setRefreshNotice(DATA_REFRESHED_NOTICE);
+            setRefreshNotice(sync1.dataRefreshedNotice);
           }
         } catch (error) {
           logEvent('pregnancy load failed', error);
@@ -141,7 +142,7 @@ export default function PregnancySettingsScreen() {
         cancelled = true;
       };
     },
-    [readProfile]
+    [readProfile, sync1]
   );
 
   useDataChangeReload(load);

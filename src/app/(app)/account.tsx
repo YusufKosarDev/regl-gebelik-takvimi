@@ -62,14 +62,10 @@ import {
   setAutomaticSyncEnabled,
 } from '@/features/sync/infrastructure/sync-preferences';
 import {
-  AUTOMATIC_SYNC_DISABLED_MESSAGE,
-  AUTOMATIC_SYNC_ENABLED_MESSAGE,
-  AUTOMATIC_SYNC_FAILED_MESSAGE,
-  PHONE_TRANSFER_NOTE,
-  BACKUP_DISABLED_BY_SYNC_MESSAGE,
   didSyncChangeThisPhone,
-  syncConflictCountMessage,
-  syncOutcomeMessage,
+  syncConflictCountMessageIn,
+  syncMessages,
+  syncOutcomeMessageIn,
 } from '@/features/sync/presentation/sync-messages';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -110,6 +106,7 @@ function backupOutcomeMessage(
 export default function AccountScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const sync1 = useMessages(syncMessages);
   const authStrings = useMessages(authMessages);
   const deletion = useMessages(deletionMessages);
   const auth = useAuthState();
@@ -566,12 +563,12 @@ export default function AccountScreen() {
       setAutomaticSync(preferences.automaticSyncEnabled);
 
       if (!preferences.automaticSyncEnabled) {
-        setSyncNotice(AUTOMATIC_SYNC_DISABLED_MESSAGE);
+        setSyncNotice(sync1.automaticSyncDisabledMessage);
 
         return;
       }
 
-      setSyncNotice(AUTOMATIC_SYNC_ENABLED_MESSAGE);
+      setSyncNotice(sync1.automaticSyncEnabledMessage);
 
       // The scheduler owns the rules, including the ones that say no. A null
       // means one of them applied — a pending deletion, an unresolved conflict
@@ -583,13 +580,13 @@ export default function AccountScreen() {
       }
 
       if (outcome.kind === 'error') {
-        setSyncNotice(AUTOMATIC_SYNC_FAILED_MESSAGE);
+        setSyncNotice(sync1.automaticSyncFailedMessage);
 
         return;
       }
 
-      setSyncNotice(syncOutcomeMessage(outcome));
-      setSyncDetail(syncConflictCountMessage(outcome));
+      setSyncNotice(syncOutcomeMessageIn(sync1, outcome));
+      setSyncDetail(syncConflictCountMessageIn(sync1, outcome));
     } catch {
       // Storage's own message is not read. Nothing about it would help, and the
       // switch staying where it was is the answer.
@@ -627,8 +624,8 @@ export default function AccountScreen() {
       const db = await openAppDatabase();
       const outcome = await runCloudSync({ db, uid: user.uid });
 
-      setSyncNotice(syncOutcomeMessage(outcome));
-      setSyncDetail(syncConflictCountMessage(outcome));
+      setSyncNotice(syncOutcomeMessageIn(sync1, outcome));
+      setSyncDetail(syncConflictCountMessageIn(sync1, outcome));
 
       if (didSyncChangeThisPhone(outcome)) {
         const today = getTodayLocalISODate();
@@ -641,7 +638,7 @@ export default function AccountScreen() {
       // `runCloudSync` reports its failures rather than throwing them, so this
       // is only for whatever is left — opening the database, most likely. The
       // same rule applies: no message of its own is shown.
-      setSyncNotice(syncOutcomeMessage({ kind: 'error', failure: 'unknown' }));
+      setSyncNotice(syncOutcomeMessageIn(sync1, { kind: 'error', failure: 'unknown' }));
     } finally {
       inFlight.current = false;
       setIsBusy(false);
@@ -842,7 +839,7 @@ export default function AccountScreen() {
                   </ThemedText>
 
                   <ThemedText type="small" themeColor="textSecondary">
-                    {PHONE_TRANSFER_NOTE}
+                    {sync1.phoneTransferNote}
                   </ThemedText>
 
                   {/* The switch records a choice. Nothing runs on it yet, and
@@ -875,7 +872,7 @@ export default function AccountScreen() {
                       by a greyed-out button. */}
                   {automaticSync && (
                     <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                      {BACKUP_DISABLED_BY_SYNC_MESSAGE}
+                      {sync1.backupDisabledBySyncMessage}
                     </ThemedText>
                   )}
 

@@ -18,7 +18,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { appMessages } from '@/shared/presentation/app-messages';
 import { useLanguage, useMessages } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
-import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
+import { syncMessages } from '@/features/sync/presentation/sync-messages';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
@@ -42,6 +42,7 @@ import { logEvent } from '@/shared/logging';
  */
 export default function HistoryScreen() {
   const theme = useTheme();
+  const sync1 = useMessages(syncMessages);
   const history = useMessages(historyMessages);
   const common = useMessages(appMessages);
   const language = useLanguage();
@@ -133,7 +134,7 @@ export default function HistoryScreen() {
             setRecordPendingDelete(null);
             setRecordUnderEndEdit(null);
             setRecordUnderStartEdit(null);
-            setRefreshNotice(DATA_REFRESHED_NOTICE);
+            setRefreshNotice(sync1.dataRefreshedNotice);
           }
         } catch (error) {
           logEvent('period history load failed', error);
@@ -154,7 +155,7 @@ export default function HistoryScreen() {
         cancelled = true;
       };
     },
-    [readHistory]
+    [readHistory, sync1]
   );
 
   useDataChangeReload(load);

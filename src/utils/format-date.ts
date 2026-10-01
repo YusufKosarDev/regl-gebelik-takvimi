@@ -106,3 +106,43 @@ export function formatDisplayMonth(
 
   return `${MONTH_NAMES[language][month - 1]} ${year}`;
 }
+
+/**
+ * A date as digits: `17.09.2026` in Turkish, `17/09/2026` in English.
+ *
+ * Its own function rather than a third month table, because this is not a
+ * sentence — it is the compact form the sync status line falls back to for
+ * anything older than yesterday, where a month name would be longer than the
+ * line it sits on.
+ *
+ * Day-first in both, for the same reason `formatDisplayDate` is: the two
+ * languages agree about which number is which, and only the separator differs.
+ * American month-first would be the one ordering a Turkish reader could
+ * misread as a date in the past.
+ *
+ * Takes a `Date` rather than an `ISODate` because its callers are working from
+ * a stored instant, not from a day in a cycle.
+ */
+export function formatNumericDate(when: Date, language: Language = SOURCE_LANGUAGE): string {
+  const day = String(when.getDate()).padStart(2, '0');
+  const month = String(when.getMonth() + 1).padStart(2, '0');
+  const separator = language === 'tr' ? '.' : '/';
+
+  return `${day}${separator}${month}${separator}${when.getFullYear()}`;
+}
+
+/**
+ * A time as `14:05`.
+ *
+ * No language argument, and that is a measurement rather than an oversight:
+ * both catalogues ship a 24-hour clock, and the device mock the suite runs
+ * against reports one. `getDeviceUses24HourClock()` already exists for the day
+ * that stops being good enough — it is read and not yet acted on, exactly like
+ * the first weekday.
+ */
+export function formatClock(when: Date): string {
+  const hours = String(when.getHours()).padStart(2, '0');
+  const minutes = String(when.getMinutes()).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
+}

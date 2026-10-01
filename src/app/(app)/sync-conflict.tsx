@@ -15,38 +15,17 @@ import { keepLocalData, keepRemoteData } from '@/features/sync/application/resol
 import { getDeviceId } from '@/features/sync/infrastructure/device-id';
 import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolved-conflict';
 import {
-  CONFLICT_BODY_NO_BASE,
-  CONFLICT_BODY_UNRESOLVED,
-  CONFLICT_BUSY_LABEL,
-  CONFLICT_CANCEL_LABEL,
-  CONFLICT_COLUMN_LOCAL,
-  CONFLICT_COLUMN_REMOTE,
-  comparisonRowLabel,
-  CONFLICT_KEEP_LOCAL_CONFIRM,
-  CONFLICT_KEEP_LOCAL_DONE,
-  CONFLICT_KEEP_LOCAL_LABEL,
-  CONFLICT_KEEP_LOCAL_WARNING,
-  CONFLICT_KEEP_REMOTE_CONFIRM,
-  CONFLICT_KEEP_REMOTE_DONE,
-  CONFLICT_KEEP_REMOTE_LABEL,
-  CONFLICT_KEEP_REMOTE_WARNING,
-  CONFLICT_LOAD_FAILED_MESSAGE,
-  CONFLICT_NO_REMOTE_MESSAGE,
-  CONFLICT_ROW_AVATAR,
-  CONFLICT_ROW_DEVICE,
-  CONFLICT_ROW_LAST_CHANGE,
-  CONFLICT_ROW_PREGNANCY,
-  CONFLICT_ROW_RECORDS,
-  CONFLICT_ROW_SETTINGS,
-  CONFLICT_SCREEN_TITLE,
-  conflictDeviceLabel,
-  conflictFailureMessage,
-  conflictLastChangeLabel,
-  conflictPresenceLabel,
-  conflictRecordCountLabel,
+  comparisonRowLabelIn,
+  conflictDeviceLabelIn,
+  conflictFailureMessageIn,
+  conflictLabels,
+  conflictLastChangeLabelIn,
+  conflictPresenceLabelIn,
+  conflictRecordCountLabelIn,
 } from '@/features/sync/presentation/conflict-labels';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage, useMessages } from '@/i18n';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -75,6 +54,8 @@ type Choice = 'local' | 'remote';
 
 export default function SyncConflictScreen() {
   const theme = useTheme();
+  const conflict1 = useMessages(conflictLabels);
+  const language = useLanguage();
   const auth = useAuthState();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -113,22 +94,22 @@ export default function SyncConflictScreen() {
         // Nothing to choose between any more. Clear the note so automatic sync
         // is not held up by a conflict that no longer exists.
         setPreview(null);
-        setNotice(CONFLICT_NO_REMOTE_MESSAGE);
+        setNotice(conflict1.conflictNoRemoteMessage);
         setIsDone(true);
 
         await clearUnresolvedConflict().catch(() => undefined);
       } else {
         setPreview(null);
-        setNotice(CONFLICT_LOAD_FAILED_MESSAGE);
+        setNotice(conflict1.conflictLoadFailedMessage);
       }
     } catch (error: unknown) {
       logEvent('sync conflict resolve failed', error);
       setPreview(null);
-      setNotice(CONFLICT_LOAD_FAILED_MESSAGE);
+      setNotice(conflict1.conflictLoadFailedMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [uid]);
+  }, [conflict1, uid]);
 
   useEffect(() => {
     // Reading both sides of the conflict is exactly what an effect is for: it
@@ -162,7 +143,7 @@ export default function SyncConflictScreen() {
       const outcome = choice === 'local' ? await keepLocalData(input) : await keepRemoteData(input);
 
       if (outcome.kind === 'failed') {
-        setNotice(conflictFailureMessage(outcome.reason));
+        setNotice(conflictFailureMessageIn(conflict1, outcome.reason));
         setConfirming(null);
 
         // The cloud moved: show what it holds now rather than the stale view.
@@ -178,7 +159,7 @@ export default function SyncConflictScreen() {
       setConfirming(null);
       setIsDone(true);
       setNotice(
-        outcome.kind === 'local-kept' ? CONFLICT_KEEP_LOCAL_DONE : CONFLICT_KEEP_REMOTE_DONE
+        outcome.kind === 'local-kept' ? conflict1.conflictKeepLocalDone : conflict1.conflictKeepRemoteDone
       );
 
       // Only the cloud-wins path rewrote this phone. The widget and the
@@ -193,7 +174,7 @@ export default function SyncConflictScreen() {
       }
     } catch (error: unknown) {
       logEvent('sync conflict resolve failed', error);
-      setNotice(conflictFailureMessage('unknown'));
+      setNotice(conflictFailureMessageIn(conflict1, 'unknown'));
       setConfirming(null);
     } finally {
       inFlight.current = false;
@@ -206,41 +187,41 @@ export default function SyncConflictScreen() {
       <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
         <ComparisonRow
           label=""
-          local={CONFLICT_COLUMN_LOCAL}
-          remote={CONFLICT_COLUMN_REMOTE}
+          local={conflict1.conflictColumnLocal}
+          remote={conflict1.conflictColumnRemote}
           heading
         />
         <ComparisonRow
-          label={CONFLICT_ROW_RECORDS}
-          local={conflictRecordCountLabel(preview.local)}
-          remote={conflictRecordCountLabel(preview.remote)}
+          label={conflict1.conflictRowRecords}
+          local={conflictRecordCountLabelIn(conflict1, preview.local)}
+          remote={conflictRecordCountLabelIn(conflict1, preview.remote)}
         />
         <ComparisonRow
-          label={CONFLICT_ROW_PREGNANCY}
-          local={conflictPresenceLabel(preview.local.hasPregnancy)}
-          remote={conflictPresenceLabel(preview.remote.hasPregnancy)}
+          label={conflict1.conflictRowPregnancy}
+          local={conflictPresenceLabelIn(conflict1, preview.local.hasPregnancy)}
+          remote={conflictPresenceLabelIn(conflict1, preview.remote.hasPregnancy)}
         />
         <ComparisonRow
-          label={CONFLICT_ROW_AVATAR}
-          local={conflictPresenceLabel(preview.local.hasAvatar)}
-          remote={conflictPresenceLabel(preview.remote.hasAvatar)}
+          label={conflict1.conflictRowAvatar}
+          local={conflictPresenceLabelIn(conflict1, preview.local.hasAvatar)}
+          remote={conflictPresenceLabelIn(conflict1, preview.remote.hasAvatar)}
         />
         <ComparisonRow
-          label={CONFLICT_ROW_SETTINGS}
-          local={conflictPresenceLabel(preview.local.hasCycleSettings)}
-          remote={conflictPresenceLabel(preview.remote.hasCycleSettings)}
+          label={conflict1.conflictRowSettings}
+          local={conflictPresenceLabelIn(conflict1, preview.local.hasCycleSettings)}
+          remote={conflictPresenceLabelIn(conflict1, preview.remote.hasCycleSettings)}
         />
         {/* The phone keeps no "last edited" stamp of its own — nothing needs
             one — so the local side has nothing honest to put here. */}
         <ComparisonRow
-          label={CONFLICT_ROW_LAST_CHANGE}
+          label={conflict1.conflictRowLastChange}
           local="—"
-          remote={conflictLastChangeLabel(preview.remoteUpdatedAt)}
+          remote={conflictLastChangeLabelIn(conflict1, language, preview.remoteUpdatedAt)}
         />
         <ComparisonRow
-          label={CONFLICT_ROW_DEVICE}
-          local={CONFLICT_COLUMN_LOCAL}
-          remote={conflictDeviceLabel(preview.remoteWrittenByThisDevice)}
+          label={conflict1.conflictRowDevice}
+          local={conflict1.conflictColumnLocal}
+          remote={conflictDeviceLabelIn(conflict1, preview.remoteWrittenByThisDevice)}
         />
       </View>
     </View>
@@ -257,12 +238,12 @@ export default function SyncConflictScreen() {
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle">
-                {CONFLICT_SCREEN_TITLE}
+                {conflict1.conflictScreenTitle}
               </ThemedText>
 
               {!isDone && (
                 <ThemedText type="small" themeColor="textSecondary">
-                  {preview === null ? CONFLICT_BODY_NO_BASE : CONFLICT_BODY_UNRESOLVED}
+                  {preview === null ? conflict1.conflictBodyNoBase : conflict1.conflictBodyUnresolved}
                 </ThemedText>
               )}
             </View>
@@ -285,26 +266,26 @@ export default function SyncConflictScreen() {
               <View style={styles.fields}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={CONFLICT_KEEP_LOCAL_LABEL}
+                  accessibilityLabel={conflict1.conflictKeepLocalLabel}
                   onPress={() => setConfirming('local')}
                   style={({ pressed }) => [
                     styles.secondaryButton,
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{CONFLICT_KEEP_LOCAL_LABEL}</ThemedText>
+                  <ThemedText type="smallBold">{conflict1.conflictKeepLocalLabel}</ThemedText>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={CONFLICT_KEEP_REMOTE_LABEL}
+                  accessibilityLabel={conflict1.conflictKeepRemoteLabel}
                   onPress={() => setConfirming('remote')}
                   style={({ pressed }) => [
                     styles.secondaryButton,
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{CONFLICT_KEEP_REMOTE_LABEL}</ThemedText>
+                  <ThemedText type="smallBold">{conflict1.conflictKeepRemoteLabel}</ThemedText>
                 </Pressable>
               </View>
             )}
@@ -313,16 +294,16 @@ export default function SyncConflictScreen() {
               <View style={styles.fields}>
                 <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
                   {confirming === 'local'
-                    ? CONFLICT_KEEP_LOCAL_WARNING
-                    : CONFLICT_KEEP_REMOTE_WARNING}
+                    ? conflict1.conflictKeepLocalWarning
+                    : conflict1.conflictKeepRemoteWarning}
                 </ThemedText>
 
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
                     confirming === 'local'
-                      ? CONFLICT_KEEP_LOCAL_CONFIRM
-                      : CONFLICT_KEEP_REMOTE_CONFIRM
+                      ? conflict1.conflictKeepLocalConfirm
+                      : conflict1.conflictKeepRemoteConfirm
                   }
                   accessibilityState={{ disabled: isBusy }}
                   disabled={isBusy}
@@ -337,16 +318,16 @@ export default function SyncConflictScreen() {
                   ]}>
                   <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
                     {isBusy
-                      ? CONFLICT_BUSY_LABEL
+                      ? conflict1.conflictBusyLabel
                       : confirming === 'local'
-                        ? CONFLICT_KEEP_LOCAL_CONFIRM
-                        : CONFLICT_KEEP_REMOTE_CONFIRM}
+                        ? conflict1.conflictKeepLocalConfirm
+                        : conflict1.conflictKeepRemoteConfirm}
                   </ThemedText>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={CONFLICT_CANCEL_LABEL}
+                  accessibilityLabel={conflict1.conflictCancelLabel}
                   accessibilityState={{ disabled: isBusy }}
                   disabled={isBusy}
                   onPress={() => setConfirming(null)}
@@ -356,7 +337,7 @@ export default function SyncConflictScreen() {
                     isBusy && styles.disabled,
                     pressed && !isBusy && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{CONFLICT_CANCEL_LABEL}</ThemedText>
+                  <ThemedText type="smallBold">{conflict1.conflictCancelLabel}</ThemedText>
                 </Pressable>
               </View>
             )}
@@ -379,9 +360,11 @@ function ComparisonRow({
   remote: string;
   heading?: boolean;
 }) {
+  const conflict1 = useMessages(conflictLabels);
+
   return (
     <View
-      accessibilityLabel={label === '' ? undefined : comparisonRowLabel(label, local, remote)}
+      accessibilityLabel={label === '' ? undefined : comparisonRowLabelIn(conflict1, label, local, remote)}
       style={styles.comparisonRow}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.comparisonLabel}>
         {label}

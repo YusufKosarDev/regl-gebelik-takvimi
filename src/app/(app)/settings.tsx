@@ -54,7 +54,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 import { appMessages } from '@/shared/presentation/app-messages';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
-import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
+import { syncMessages } from '@/features/sync/presentation/sync-messages';
 
 import { openAppDatabase } from '@/storage/db';
 import { useAppLockStore } from '@/store/app-lock-store';
@@ -85,6 +85,7 @@ function maxPeriodLengthFor(cycleLength: number): number {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const sync1 = useMessages(syncMessages);
   const lock = useMessages(appLockMessages);
   const deletion = useMessages(deletionMessages);
   const reminderStrings = useMessages(reminderMessages);
@@ -277,7 +278,7 @@ export default function SettingsScreen() {
             setPeriodLength(data.settings.averagePeriodLengthDays);
 
             if (origin === 'remote' && hadUnsavedEdit) {
-              setRefreshNotice(DATA_REFRESHED_NOTICE);
+              setRefreshNotice(sync1.dataRefreshedNotice);
             }
           }
 
@@ -301,7 +302,7 @@ export default function SettingsScreen() {
         cancelled = true;
       };
     },
-    [readSettings]
+    [readSettings, sync1]
   );
 
   useDataChangeReload(load);

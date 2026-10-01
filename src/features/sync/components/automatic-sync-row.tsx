@@ -3,16 +3,9 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage, useMessages } from '@/i18n';
 
-import {
-  AUTOMATIC_SYNC_LABEL,
-  CONFLICT_NOTICE_MESSAGE,
-  CONFLICT_OPEN_LABEL,
-  AUTOMATIC_SYNC_NOTE,
-  SYNC_BUSY_LABEL,
-  SYNC_BUTTON_LABEL,
-  lastSyncMessage,
-} from '../presentation/sync-messages';
+import { lastSyncMessageIn, syncMessages } from '../presentation/sync-messages';
 
 /**
  * The automatic sync switch, what it last did, and the way to run one by hand.
@@ -52,18 +45,20 @@ export function AutomaticSyncRow({
   readonly onOpenConflict: () => void;
 }) {
   const theme = useTheme();
+  const language = useLanguage();
+  const sync1 = useMessages(syncMessages);
 
   return (
         <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <View style={styles.syncRow}>
             <ThemedText type="smallBold" style={styles.syncLabel}>
-              {AUTOMATIC_SYNC_LABEL}
+              {sync1.automaticSyncLabel}
             </ThemedText>
 
             <Switch
               trackColor={{ false: theme.backgroundSelected, true: theme.switchTrackOn }}
               thumbColor={automaticSync ? theme.switchThumbOn : undefined}
-              accessibilityLabel={AUTOMATIC_SYNC_LABEL}
+              accessibilityLabel={sync1.automaticSyncLabel}
               accessibilityState={{ checked: automaticSync, disabled: isBusy }}
               value={automaticSync}
               disabled={isBusy}
@@ -72,7 +67,7 @@ export function AutomaticSyncRow({
           </View>
 
           <ThemedText type="small" themeColor="textSecondary">
-            {AUTOMATIC_SYNC_NOTE}
+            {sync1.automaticSyncNote}
           </ThemedText>
 
           {/* Coarse on purpose. "Bugün 14:20" answers the question
@@ -80,7 +75,7 @@ export function AutomaticSyncRow({
               sync going back weeks is a log of when they open a
               period tracker, and nothing here needs one. */}
           <ThemedText type="small" themeColor="textSecondary">
-            {lastSyncMessage(lastSyncAt)}
+            {lastSyncMessageIn(sync1, language, lastSyncAt)}
           </ThemedText>
 
           {/* A conflict stops every automatic sync for this account
@@ -92,19 +87,19 @@ export function AutomaticSyncRow({
                 accessibilityRole="alert"
                 type="small"
                 themeColor="textSecondary">
-                {CONFLICT_NOTICE_MESSAGE}
+                {sync1.conflictNoticeMessage}
               </ThemedText>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={CONFLICT_OPEN_LABEL}
+                accessibilityLabel={sync1.conflictOpenLabel}
                 onPress={onOpenConflict}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{CONFLICT_OPEN_LABEL}</ThemedText>
+                <ThemedText type="smallBold">{sync1.conflictOpenLabel}</ThemedText>
               </Pressable>
             </>
           )}
@@ -123,7 +118,7 @@ export function AutomaticSyncRow({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={SYNC_BUTTON_LABEL}
+            accessibilityLabel={sync1.syncButtonLabel}
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
             onPress={onSyncNow}
@@ -134,7 +129,7 @@ export function AutomaticSyncRow({
               pressed && !isBusy && styles.pressed,
             ]}>
             <ThemedText type="smallBold">
-              {isBusy ? SYNC_BUSY_LABEL : SYNC_BUTTON_LABEL}
+              {isBusy ? sync1.syncBusyLabel : sync1.syncButtonLabel}
             </ThemedText>
           </Pressable>
         </View>
