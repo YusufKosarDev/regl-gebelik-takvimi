@@ -21,9 +21,14 @@ describe('parity', () => {
       ['calendarMonthLabel', ['September 2026']],
       ['legendItemLabel', ['P', 'Period day']],
       ['labelledValue', ['Cycle day', 'Day 14']],
+      ['nextPeriodRangeValue', ['24 October 2026', '2 November 2026']],
+      ['cycleLengthSuggestionBody', [31, 28, 5]],
+      ['cycleLengthSuggestionAcceptText', [31]],
+      ['cycleLengthSuggestionAcceptLabel', [31]],
     ],
-    // Both are ": " joins of two values that have already been translated.
-    identical: ['labelledValue', 'legendItemLabel'],
+    // All three are joins of values that have already been translated, or of
+    // two dates that were formatted in the chosen language before arriving.
+    identical: ['labelledValue', 'legendItemLabel', 'nextPeriodRangeValue'],
   });
 });
 

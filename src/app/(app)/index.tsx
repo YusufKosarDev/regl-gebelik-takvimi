@@ -17,10 +17,14 @@ import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
 import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
+import { buildCycleOutlook } from '@/features/cycle/application/build-cycle-outlook';
 import { endCurrentPeriod } from '@/features/cycle/application/end-current-period';
+import { withoutPrediction } from '@/features/cycle/application/without-prediction';
+import { updateCycleSettings } from '@/features/cycle/application/update-cycle-settings';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
+import { CycleLengthSuggestionCard } from '@/features/cycle/components/cycle-length-suggestion-card';
 import { HomeModeSwitch } from '@/features/cycle/components/home-mode-switch';
 import { CycleSummary } from '@/features/cycle/components/cycle-summary';
 import { HomeLinks } from '@/features/cycle/components/home-links';
@@ -106,6 +110,14 @@ export default function HomeScreen() {
   // month's grid, so keeping the date lets the selection be resolved against
   // whichever month is on screen and fall away by itself when it is not there.
   const [pickedDate, setPickedDate] = useState<ISODate | null>(null);
+
+  // Whether the cycle-length suggestion has been waved away this session.
+  // Deliberately not persisted: a dismissal that outlived the records it was
+  // about would silence a suggestion that had since become more right, and the
+  // records it is about change every time a period is recorded.
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const [isAcceptingSuggestion, setIsAcceptingSuggestion] = useState(false);
+  const [suggestionFailed, setSuggestionFailed] = useState(false);
 
   /** What was recorded today, for the card. An unvisited day reads as empty. */
   const [todayEntry, setTodayEntry] = useState<DailyEntry | null>(null);
@@ -404,8 +416,21 @@ export default function HomeScreen() {
 
   // Cheap enough to redo on render: at most 31 days of integer arithmetic, and
   // the profile is already in memory, so no database read is involved.
-  const calendarGrid = buildCycleCalendarGridForMonth(profile, year, month);
   const monthHeading = formatDisplayMonth(year, month, language);
+
+  // Read beside the dashboard rather than inside it, for the reason written in
+  // `build-cycle-outlook.ts`: it is pure arithmetic over a profile already in
+  // memory, and putting it on `CycleDashboard` would have changed a type six
+  // existing test files build by hand.
+  const outlook = buildCycleOutlook(profile, dashboard.today);
+
+  // A prediction counted forward from a record months old lands in a month
+  // nobody is looking at and says nothing true. The summary row above already
+  // withholds the date in that case; the calendar has to agree with it, or the
+  // screen contradicts itself one scroll apart.
+  const builtGrid = buildCycleCalendarGridForMonth(profile, year, month);
+  const calendarGrid =
+    outlook.predictionConfidence === 'stale' ? withoutPrediction(builtGrid) : builtGrid;
 
   const canGoBack = canShiftYearMonth(year, month, -1);
   const canGoForward = canShiftYearMonth(year, month, 1);
@@ -483,7 +508,56 @@ export default function HomeScreen() {
     }
   };
 
-  const rows = summaryRowsIn(home, labels, dashboard, language);
+  /**
+   * Takes the observed cycle length as the stored setting.
+   *
+   * Goes through `updateCycleSettings` like the settings screen does, so there
+   * is one write path and `saveCycleProfile` announces the change the way
+   * everything else expects. The period length is carried over untouched - this
+   * card is about one number and must not quietly change the other.
+   */
+  const handleAcceptSuggestion = async () => {
+    if (saveInFlight.current) {
+      return;
+    }
+
+    saveInFlight.current = true;
+    setIsAcceptingSuggestion(true);
+    setSuggestionFailed(false);
+
+    try {
+      const db = await openAppDatabase();
+
+      await updateCycleSettings(db, {
+        averageCycleLengthDays: outlook.cycleLengthSuggestion?.observedMedianDays ?? 0,
+        averagePeriodLengthDays: profile.settings.averagePeriodLengthDays,
+      });
+
+      // The write is durable; the widget and the reminder only hold copies of
+      // what it changed, so a failure here must not undo it.
+      await syncWidgetSnapshotQuietly(db, dashboard.today);
+      await syncPeriodReminderQuietly(db, dashboard.today);
+
+      const data = await readCycleData(dashboard.today);
+
+      setHomeData(data.cycle);
+      setPregnancy(data.pregnancy);
+      setAvatar(data.avatar);
+    } catch (error: unknown) {
+      logEvent('cycle length suggestion failed', error);
+      setSuggestionFailed(true);
+    } finally {
+      saveInFlight.current = false;
+      setIsAcceptingSuggestion(false);
+    }
+  };
+
+  const rows = summaryRowsIn(home, labels, dashboard, language, outlook);
+
+  // Absent until the records have something to say, and gone once it has been
+  // acted on or waved away. The suggestion itself is null whenever there is
+  // nothing worth asking about, so this is only the session's half of it.
+  const suggestion = suggestionDismissed ? null : outlook.cycleLengthSuggestion;
 
   return (
     <ThemedView style={styles.screen}>
@@ -511,6 +585,22 @@ export default function HomeScreen() {
             {isPregnancyView ? null : (
               <>
               <CycleSummary rows={rows} />
+
+              {/* Under the four facts rather than above them. The facts are
+                  what the screen is for; this is a question about one of the
+                  numbers behind them, and it should not be the first thing
+                  anybody reads. */}
+              {suggestion === null ? null : (
+                <CycleLengthSuggestionCard
+                  suggestion={suggestion}
+                  isBusy={isAcceptingSuggestion}
+                  hasFailed={suggestionFailed}
+                  onAccept={() => {
+                    void handleAcceptSuggestion();
+                  }}
+                  onDismiss={() => setSuggestionDismissed(true)}
+                />
+              )}
 
               {/* Today, above the general content and below the four facts
                   about it. Recording is a thing to do; everything under it is

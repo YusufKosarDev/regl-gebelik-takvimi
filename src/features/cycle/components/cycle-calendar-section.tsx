@@ -12,10 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { hasAnything } from '@/features/daily-log/domain/catalogues';
-import {
-  CALENDAR_DAY_ADD_LABEL,
-  CALENDAR_DAY_EDIT_LABEL,
-} from '@/features/daily-log/presentation/daily-log-messages';
+import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
@@ -59,6 +56,7 @@ export function CycleCalendarSection({
   const theme = useTheme();
   const home = useMessages(homeMessages);
   const labels = useMessages(cycleLabels);
+  const dailyLog = useMessages(dailyLogMessages);
   const language = useLanguage();
 
   return (
@@ -147,8 +145,8 @@ export function CycleCalendarSection({
               accessibilityRole="button"
               accessibilityLabel={
                 pickedEntry?.date === selectedDay.date && hasAnything(pickedEntry)
-                  ? CALENDAR_DAY_EDIT_LABEL
-                  : CALENDAR_DAY_ADD_LABEL
+                  ? dailyLog.calendarDayEditLabel
+                  : dailyLog.calendarDayAddLabel
               }
               onPress={() => {
                 router.push({
@@ -163,8 +161,8 @@ export function CycleCalendarSection({
               ]}>
               <ThemedText type="smallBold" themeColor="primary">
                 {pickedEntry?.date === selectedDay.date && hasAnything(pickedEntry)
-                  ? CALENDAR_DAY_EDIT_LABEL
-                  : CALENDAR_DAY_ADD_LABEL}
+                  ? dailyLog.calendarDayEditLabel
+                  : dailyLog.calendarDayAddLabel}
               </ThemedText>
             </Pressable>
           </View>

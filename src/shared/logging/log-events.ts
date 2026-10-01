@@ -25,6 +25,7 @@ export const LOG_EVENTS = [
   'daily entry save failed',
   'cycle settings load failed',
   'cycle settings save failed',
+  'cycle length suggestion failed',
   'local data wipe failed',
   'notification preference change failed',
   'about link open failed',

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CalendarGridCell, CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
+import type { HomeMessages } from '../presentation/home-messages';
 import { homeMessages } from '../presentation/home-messages';
 import {
   cycleLabels,
@@ -55,14 +56,31 @@ function resolveDayState(day: CycleCalendarDay): DayState {
  *
  * Every state that has a fill or a border also carries one of these, so the
  * calendar never asks a person to tell days apart by colour alone.
+ *
+ * ## Why two of them come from the catalogue
+ *
+ * The two shapes are language-neutral and stay here. The two letters are not:
+ * they are initials, and an initial only works in the language it was taken
+ * from. `R` is Regl and `Y` is Yumurtlama, so an English phone used to show a
+ * grid full of R and Y underneath a legend that explained P and O - the
+ * explanation and the thing it explained disagreed, which is worse than having
+ * no legend.
+ *
+ * The letters now come from the same catalogue entries the legend is drawn
+ * from, so the two cannot drift apart again.
  */
-const STATE_MARKERS: Readonly<Record<DayState, string>> = {
-  menstrual: 'R',
-  ovulatory: 'Y',
+const NEUTRAL_MARKERS: Readonly<Record<Exclude<DayState, 'menstrual' | 'ovulatory'>, string>> = {
   peak: '●',
   elevated: '○',
   default: '',
 };
+
+function markerFor(state: DayState, messages: HomeMessages): string {
+  if (state === 'menstrual') return messages.legendPeriodMarker;
+  if (state === 'ovulatory') return messages.legendOvulationMarker;
+
+  return NEUTRAL_MARKERS[state];
+}
 
 /** Deliberately not a solid mark: this day is predicted, not recorded. */
 const PREDICTED_MARKER = '≈';
@@ -157,7 +175,7 @@ function DayCell({
   const language = useLanguage();
   const labels = useMessages(cycleLabels);
   const state = resolveDayState(day);
-  const marker = STATE_MARKERS[state];
+  const marker = markerFor(state, home);
 
   const label = getCalendarDayAccessibilityLabelIn(labels, language, day, { isToday, isSelected });
 

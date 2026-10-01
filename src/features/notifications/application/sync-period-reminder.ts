@@ -12,7 +12,9 @@ import {
   schedulePeriodReminder,
 } from '../infrastructure/period-reminder-scheduler';
 
-import { getCycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
+import { buildCycleOutlook } from '@/features/cycle/application/build-cycle-outlook';
+import { buildCycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
+import { loadCycleProfile } from '@/features/cycle/data/cycle-repository';
 import type { ISODate } from '@/types/iso-date';
 import { logEvent } from '@/shared/logging';
 
@@ -64,8 +66,25 @@ export async function syncPeriodReminder(
     return { scheduled: null, cancelled: await cancelPeriodReminders() };
   }
 
-  const dashboard = await getCycleDashboard(db, today);
-  const reminderDate = periodReminderDate(dashboard?.nextPeriodStart ?? null);
+  // One read for both answers. `getCycleDashboard` would load the profile too
+  // and then throw it away, and the outlook needs it - two reads of the same
+  // rows could also land either side of a write.
+  const profile = await loadCycleProfile(db);
+  const dashboard = profile === null ? null : buildCycleDashboard(profile, today);
+
+  // A prediction counted forward from a record older than the longest possible
+  // cycle is not a prediction. Without this, somebody who stopped logging - or
+  // who has just been pregnant for nine months - gets a reminder queued for a
+  // date in the past, or one built on a start date that stopped describing
+  // anything long ago. The home screen already withholds the date in that case;
+  // a notification that arrived anyway would be the app contradicting itself
+  // somewhere the person cannot see the reasoning.
+  const isStale =
+    profile !== null && buildCycleOutlook(profile, today).predictionConfidence === 'stale';
+
+  const reminderDate = isStale
+    ? null
+    : periodReminderDate(dashboard?.nextPeriodStart ?? null);
 
   const cancelled = await cancelPeriodReminders();
 
