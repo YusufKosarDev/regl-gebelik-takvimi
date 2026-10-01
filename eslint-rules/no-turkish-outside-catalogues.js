@@ -38,9 +38,12 @@
 // rather than removed, with the reason written where each entry is.
 //
 // What proves it finished is therefore not an empty list. It is that every file
-// on this list exports a `Messages<T>` pair and has a parity test holding the
-// two halves to each other. Adding an entry without one would re-open exactly
-// the hole this rule closes, which is why each entry says why it is here.
+// here that is interface text carries both halves and a parity test holding
+// them to each other. The one entry that is not interface text is
+// `data-category.ts`, whose Turkish is developer prose mirrored by
+// `docs/data-privacy.md`. Adding an entry without either justification would
+// re-open exactly the hole this rule closes, which is why each entry says why
+// it is here.
 
 const TURKISH_LETTERS = /[ğüşıöçĞÜŞİÖÇ]/;
 

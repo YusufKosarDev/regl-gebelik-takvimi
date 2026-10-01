@@ -33,9 +33,9 @@ The interface is Turkish and English. Turkish is the source language: every
 string exists in it first, and the English side is type-checked against it.
 Source comments and identifiers are in English throughout.
 
-The translation is **not finished** — see [Languages](#languages) for what has
-converted, what has not, and how the two rules in `eslint-rules/` keep a
-half-translated screen from looking finished.
+Every screen, every message and every piece of health content exists in both.
+See [Languages](#languages) for how one is chosen and for the two rules in
+`eslint-rules/` that keep a half-translated screen from looking finished.
 
 ## Tech stack
 
@@ -65,7 +65,7 @@ src/
 │   ├── (lock)/           the PIN screen, when a lock is set
 │   ├── (app)/            everything after onboarding completes
 │   └── _layout.tsx       startup gate: hydrate state, mount one route group
-├── components/           ThemedText / ThemedView
+├── components/           shared UI: themed primitives, error boundary, language picker
 ├── constants/            theme tokens (colours, spacing, fonts)
 ├── features/             the actual domain work — see the layer contract below
 ├── hooks/                colour scheme and theme hooks
@@ -88,7 +88,7 @@ are enforced by where things are allowed to import from:
 | `application/` | use cases that sequence domain + repositories | UI |
 | `data/` | SQLite and Firestore repositories | UI |
 | `infrastructure/` | platform surfaces (Firebase SDK, notification queue, device id) | domain rules |
-| `presentation/` | Turkish labels and messages for screens | data access |
+| `presentation/` | the Turkish/English catalogue pair for screens | data access |
 | `components/` | React components belonging to that feature | — |
 | `__tests__/` | tests, colocated per folder | — |
 
@@ -125,6 +125,41 @@ person stored and what the phone says:
 `src/i18n/device-locale.ts` is the only module that talks to
 `expo-localization`, and every one of its three reads can return `null`.
 
+The stored side comes from one place: a three-choice row in settings — Türkçe,
+English, and follow the phone. The two languages name themselves in both
+interfaces rather than being translated, because the person most likely to open
+that row is somebody who has landed in a language they cannot read, for whom a
+translated list of languages is a list of words they cannot match to anything.
+Only "follow the phone" is translated, because it is a sentence rather than a
+name.
+
+"Follow the phone" is a third answer, not a default that collapses into one of
+the other two. It and "Türkçe" produce the same interface on a Turkish phone and
+different ones on the next, and somebody who picked the first did not pick the
+second.
+
+The preference is an optional field on the stored app state. A state written
+before the field existed loads without it and resolves to "follow the phone",
+and `validateAppState` checks the field only when it is present: a missing
+field is an older shape, not a corrupt one. A bad `mode` still throws.
+
+Code that cannot call a hook — schedulers, the widget write, anything running
+outside React — reads `currentLanguage()` instead, which resolves the same two
+inputs from the store directly.
+
+### What a language change does not reach immediately
+
+Two things keep the words they were already given, and both are visible to
+somebody who switches:
+
+- **A reminder already queued keeps the language it was scheduled in.** Android
+  holds the notification text, not the app, so retranslating a pending reminder
+  would mean cancelling and rescheduling it. The reminders reschedule on their
+  own triggers, so the next one arrives in the new language.
+- **The widget follows at the next snapshot write.** It renders the last
+  snapshot the app wrote, so it changes when something writes one, not at the
+  moment the row is pressed.
+
 ### How a feature holds its strings
 
 One catalogue pair per feature, in its `presentation/` folder. The Turkish
@@ -145,10 +180,12 @@ export const xMessages: Messages<XMessages> = { tr: xMessagesTr, en: xMessagesEn
 A screen reads the pair with `useMessages(xMessages)`, which is a bare hook
 with no provider, mirroring `useTheme()`.
 
-`src/features/daily-log/` is the worked example. Its catalogue also re-exports
-every string under its original constant name; that block is a transitional
-crutch for the roughly two thousand existing assertions that name those
-constants, not part of the pattern.
+`src/features/daily-log/` is the worked example — it was converted first and the
+rest follow its shape. Nearly every catalogue also re-exports its Turkish
+strings under their original constant names; that block is a transitional crutch
+for the roughly two thousand existing assertions that name those constants, not
+part of the pattern. A string added after the second language gets no such
+export, and each catalogue's test lists the ones that deliberately have none.
 
 ### Dates
 
@@ -174,17 +211,31 @@ Turkish. That default is what lets the assertions written before the second
 language existed keep calling with one argument and keep proving the Turkish
 output is unchanged; the rule is what stops it being reachable anywhere else.
 
-`no-turkish-outside-catalogues` carries an allow-list. Entries marked
-`TEMPORARY` are features that have not converted yet, and each comes off as its
-stage lands.
+`no-turkish-outside-catalogues` carries an allow-list, and it is no longer a
+list of things waiting their turn — the `TEMPORARY` entries are gone. What
+remains is Turkish that is meant to stay: the Turkish half of a pair. The month
+tables in `src/utils/format-date.ts`, the weekly pregnancy content, the daily
+cycle support text and the avatar names all exist in both languages but live
+outside `presentation/`, each for a reason written where its entry sits. One
+entry is not interface text at all: `data-category.ts` holds the Turkish prose
+that `docs/data-privacy.md` mirrors, and a test binds the two.
 
-### What has not converted yet
+### What proves the migration finished
 
-Everything except `daily-log`, the dates, and the two rules above. The
-remaining features still hold Turkish-only constants, `useLanguage()` does not
-yet read a stored preference — it follows the phone — and there is no language
-picker in settings. An English phone therefore gets an English daily-entry
-screen and English dates, and Turkish everywhere else.
+Not an empty allow-list. The claim rests on two things instead.
+
+Every presentation catalogue exports a `Messages<T>` pair, and every pair has a
+parity test built on `jest/catalogue-parity.ts`. That helper holds the two
+halves to the same keys, the same shapes and the same list lengths; it refuses a
+Turkish letter in an English value, and an English value identical to its
+Turkish counterpart unless the file names the exception and the exception is
+itself asserted to exist. It **calls** every function the catalogue has rather
+than counting them, because a sentence assembled inside a function body is
+invisible to the type system.
+
+The four two-language files outside `presentation/` carry the same kind of test
+beside them, so being on the allow-list buys a file nothing: it still has to
+prove it has both halves.
 
 ## Prerequisites
 
@@ -591,8 +642,9 @@ npm run ios      # present, but iOS is not supported — see below
 
 ### Why a development build is required
 
-This app contains a local Expo native module (`modules/widget-snapshot-bridge`),
-so Android needs a development build rather than Expo Go:
+This app contains two local Expo native modules
+(`modules/widget-snapshot-bridge` and `modules/screen-privacy`), so Android
+needs a development build rather than Expo Go:
 
 ```sh
 npx expo run:android
@@ -612,7 +664,7 @@ script is left over from the template.
 ```sh
 npm run typecheck  # tsc --noEmit, under strict mode
 npm run lint       # ESLint, via eslint-config-expo's flat config
-npm test           # Jest — 176 suites, 5905 tests
+npm test           # Jest — 199 suites, 6,296 tests
 npm run test:watch # watch mode
 ```
 
