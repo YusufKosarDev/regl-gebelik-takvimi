@@ -118,7 +118,7 @@ export function PregnancySection({
               accessibilityLabel={pregnancy1.shownWeekLabel(shownWeek)}
               type="smallBold"
               style={styles.selectedWeek}>
-              {shownWeek}. hafta
+              {pregnancy1.shownWeekTitle(shownWeek)}
             </ThemedText>
 
             <Pressable

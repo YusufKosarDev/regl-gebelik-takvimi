@@ -19,6 +19,7 @@ describe('parity', () => {
       ['pregnancyWeekRowLabel', ['Week 12, day 3']],
       ['pregnancyDueDateRowLabel', ['23 April 2027', 'From your last period']],
       ['shownWeekLabel', [12]],
+      ['shownWeekTitle', [12]],
       ['thisWeekLabel', ['Fingers are forming.']],
       ['developmentsLabel', [['Fingers', 'Toes']]],
       ['pregnancySourceLabel', ['NHS']],

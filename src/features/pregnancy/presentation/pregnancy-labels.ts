@@ -85,6 +85,22 @@ const pregnancyLabelsTr = {
   /** Which week is on screen, for the stepper. */
   shownWeekLabel: (week: number) => `Gösterilen hafta: ${week}. hafta`,
 
+  /**
+   * The same week, written on the stepper itself.
+   *
+   * Separate from `shownWeekLabel` because that one is what a screen reader
+   * says and this one is what the eye reads; the stepper has the two arrows
+   * beside it, so the visible form does not repeat "Gösterilen".
+   *
+   * It exists at all because it used to be written into the component as the
+   * JSX text `{shownWeek}. hafta`. `no-turkish-outside-catalogues` reads JSX
+   * text and still did not catch it: the rule matches Turkish-specific letters
+   * and "hafta" has none. That blind spot is stated in the rule and accepted
+   * there on purpose, so the thing that catches this is a test, not the rule —
+   * see the English render assertion beside this feature.
+   */
+  shownWeekTitle: (week: number) => `${week}. hafta`,
+
   /** The week's content in one line, so a reader hears it without the layout. */
   thisWeekLabel: (highlight: string) => `Bu hafta: ${highlight}`,
 
@@ -188,6 +204,8 @@ const pregnancyLabelsEn: PregnancyLabels = {
     `Estimated due date: ${readableDate}, ${source}`,
 
   shownWeekLabel: (week: number) => `Showing week ${week}`,
+
+  shownWeekTitle: (week: number) => `Week ${week}`,
 
   thisWeekLabel: (highlight: string) => `This week: ${highlight}`,
 
