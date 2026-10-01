@@ -706,7 +706,7 @@ script is left over from the template.
 ```sh
 npm run typecheck  # tsc --noEmit, under strict mode
 npm run lint       # ESLint, via eslint-config-expo's flat config
-npm test           # Jest — 211 suites, 6,389 tests
+npm test           # Jest — 212 suites, 6,396 tests
 npm run test:watch # watch mode
 ```
 

@@ -11,6 +11,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useFontScale } from '@/hooks/use-font-scale';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
@@ -86,6 +87,24 @@ function markerFor(state: DayState, messages: HomeMessages): string {
 const PREDICTED_MARKER = '≈';
 
 /**
+ * What one square needs to hold its three lines at the default font setting.
+ *
+ * The day number, the marker row and the "today" label, plus the gaps between
+ * them. A square is `aspectRatio: 1` on a seventh of the screen, which on a
+ * normal phone comes out close to this number - so at the default setting this
+ * changes nothing.
+ *
+ * It matters when the system font setting is turned up. The three lines scale
+ * and the square does not, because its height comes from the screen's width, so
+ * at the largest Android setting roughly 68dp of text was being asked to fit in
+ * about 50dp of cell. Multiplying this by the font scale lets the square grow
+ * instead, which is the only answer that keeps the calendar readable rather than
+ * merely un-clipped - capping the text would have left the person who turned the
+ * setting up unable to read the one screen they open most.
+ */
+const CELL_CONTENT_HEIGHT = 48;
+
+/**
  * Renders a prepared month grid. Nothing is computed here.
  *
  * Which day falls in which column, how many rows there are and what the domain
@@ -142,11 +161,18 @@ function GridCell({
   selectedDate?: ISODate | null;
   onSelectDay?: (day: CycleCalendarDay) => void;
 }) {
+  const fontScale = useFontScale();
+
   if (cell.kind === 'empty') {
     // Holds the column open and nothing else: no number, and no accessible node
     // for a screen reader to stop on. Padding is never today, never selected and
     // never pressable.
-    return <View testID={`calendar-empty-${index}`} style={styles.dayCell} />;
+    return (
+      <View
+        testID={`calendar-empty-${index}`}
+        style={[styles.dayCell, { minHeight: CELL_CONTENT_HEIGHT * fontScale }]}
+      />
+    );
   }
 
   return (
@@ -172,6 +198,7 @@ function DayCell({
 }) {
   const theme = useTheme();
   const home = useMessages(homeMessages);
+  const fontScale = useFontScale();
   const language = useLanguage();
   const labels = useMessages(cycleLabels);
   const state = resolveDayState(day);
@@ -227,6 +254,7 @@ function DayCell({
   // day that is both stays readable as both.
   const outerStyle = [
     styles.dayCell,
+    { minHeight: CELL_CONTENT_HEIGHT * fontScale },
     isToday && { borderWidth: 1, borderColor: theme.textSecondary },
     isSelected && { borderWidth: 2, borderColor: theme.text },
   ];
@@ -275,6 +303,8 @@ const styles = StyleSheet.create({
   dayCell: {
     width: COLUMN_WIDTH,
     aspectRatio: 1,
+    // Grown past the square by `cellMinHeight` when the system font setting is
+    // turned up; see the note beside that constant.
     padding: Spacing.half,
     // Reserved so the today ring does not shrink that one cell's contents.
     borderWidth: 1,
