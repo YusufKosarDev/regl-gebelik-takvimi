@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { PregnancyDashboard } from '../application/get-pregnancy-dashboard';
 import type { PregnancyWeeklyContent } from '../domain/types';
+import { stageFromWeek } from '../domain/pregnancy-stage';
 import { MAX_PREGNANCY_WEEK, MIN_PREGNANCY_WEEK } from '../domain/weekly-content';
 import {
   dueDateSourceLabelIn,
@@ -94,6 +95,38 @@ export function PregnancySection({
           {dueDateSourceLabelIn(pregnancy1, pregnancy.dueDateSource)}
         </ThemedText>
       </View>
+
+      {/* Past the fortieth week there is nothing written to show, and until
+          now the section simply ended there - a due date, a week number and
+          then silence, with no way of telling whether the app had broken or
+          had nothing left to say. This says which, and offers the way out
+          without taking it: stopping deletes the pregnancy record, so it stays
+          something the person chooses on the screen built for it. */}
+      {stageFromWeek(pregnancy.pregnancyWeek) === 'past-due' && (
+        <View style={[styles.pastDue, { backgroundColor: theme.backgroundElement }]}>
+          <ThemedText accessibilityRole="header" type="smallBold">
+            {pregnancy1.pastDueTitle}
+          </ThemedText>
+
+          <ThemedText type="small" themeColor="textSecondary">
+            {pregnancy1.pastDueBody}
+          </ThemedText>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={pregnancy1.pastDueReturnLabel}
+            onPress={() => router.push('/(app)/pregnancy-settings')}
+            style={({ pressed }) => [
+              styles.pastDueLink,
+              { borderColor: theme.primary },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText type="smallBold" themeColor="primary">
+              {pregnancy1.pastDueReturnText}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
 
       {/* Absent before the pregnancy starts and past week 40, where
           there is nothing written to show. */}
@@ -314,5 +347,18 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
+  },
+  pastDue: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+  },
+  pastDueLink: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
   },
 });

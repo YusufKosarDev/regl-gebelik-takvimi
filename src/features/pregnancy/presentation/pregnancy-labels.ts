@@ -20,6 +20,29 @@ import type { Messages } from '@/i18n';
 const pregnancyLabelsTr = {
   notStartedMessage: 'Gebelik başlangıç tarihi henüz gelmedi.',
 
+  /* ------------------------------------------- past the fortieth week -- */
+
+  /**
+   * What is said once the week count has gone past the last week there is
+   * content for.
+   *
+   * Carefully not a congratulation and not a condolence. The app does not know
+   * whether a birth happened, whether the pregnancy ended earlier, or how; all
+   * it knows is that the count it was given has run out of weeks. So the words
+   * describe the app's own state - "there is nothing further written" - and
+   * offer the one thing the person might want, which is the way back to cycle
+   * tracking.
+   *
+   * Nothing here says "tebrikler", "tamamlandı" or "doğum". Every one of those
+   * would be the calendar making a claim about somebody's body.
+   */
+  pastDueTitle: 'Takip 40. haftayı geçti',
+  pastDueBody:
+    'Bu haftadan sonrası için yazılı bir içerik yok. Hazır olduğunda gebelik takibini '
+    + 'sonlandırıp döngü takibine dönebilirsin; kayıtlarına dokunulmaz.',
+  pastDueReturnText: 'Gebelik ayarlarına git',
+  pastDueReturnLabel: 'Gebelik ayarlarını aç ve takibi sonlandırmayı seç',
+
   /** How far along, once there is something to report. */
   progress: (week: number, day: number) => `${week}. hafta ${day}. gün`,
 
@@ -154,6 +177,13 @@ export type PregnancyLabels = typeof pregnancyLabelsTr;
 
 const pregnancyLabelsEn: PregnancyLabels = {
   notStartedMessage: 'That pregnancy has not started yet.',
+
+  pastDueTitle: 'Tracking has passed week 40',
+  pastDueBody:
+    'There is nothing written for the weeks after this one. When you are ready you can '
+    + 'stop following the pregnancy and go back to cycle tracking; your records are left alone.',
+  pastDueReturnText: 'Open pregnancy settings',
+  pastDueReturnLabel: 'Open pregnancy settings and choose to stop following',
 
   progress: (week: number, day: number) => `Week ${week}, day ${day}`,
 

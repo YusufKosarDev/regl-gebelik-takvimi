@@ -74,6 +74,69 @@ async function renderSection(shownWeek: number) {
   );
 }
 
+describe('past the fortieth week', () => {
+  /** The same pregnancy, counted far enough forward to run out of content. */
+  const pastDue: PregnancyDashboard = {
+    ...dashboard,
+    pregnancyDay: 295,
+    pregnancyWeek: { week: 43, day: 1 },
+    weeklyContent: null,
+  };
+
+  function renderPastDue() {
+    return render(
+      <PregnancySection
+        pregnancy={pastDue}
+        shownWeek={null}
+        shownContent={null}
+        currentWeek={null}
+        stepWeek={jest.fn()}
+        openSource={jest.fn(async () => undefined)}
+        hasSourceError={false}
+        setPreviewWeek={jest.fn()}
+        setHasSourceError={jest.fn()}
+      />
+    );
+  }
+
+  it('says there is nothing further written, in English', async () => {
+    // Before this, the section simply ended after the due date: no content, no
+    // explanation, no way to tell whether the app had broken.
+    const screen = await renderPastDue();
+
+    expect(screen.getByText(pregnancyLabels.en.pastDueTitle)).toBeTruthy();
+    expect(screen.getByText(pregnancyLabels.en.pastDueBody)).toBeTruthy();
+  });
+
+  it('offers the way back without taking it', async () => {
+    // The link goes to the settings screen, where stopping is behind its own
+    // confirmation. Nothing here calls `stopPregnancyTracking`: that function
+    // deletes the record and throws when there is nothing to delete, so firing
+    // it on a date boundary would destroy somebody's pregnancy record silently.
+    const screen = await renderPastDue();
+
+    expect(screen.getByLabelText(pregnancyLabels.en.pastDueReturnLabel)).toBeTruthy();
+  });
+
+  it('says nothing about a birth, a completion or a congratulation', async () => {
+    // The app does not know whether a birth happened, whether the pregnancy
+    // ended earlier, or how. Asserted rather than left to the wording, because
+    // the wording is the only thing stopping it.
+    const screen = await renderPastDue();
+    const text = JSON.stringify(screen.toJSON());
+
+    for (const word of ['congratulat', 'born', 'birth', 'complete', 'finished']) {
+      expect(text.toLowerCase()).not.toContain(word);
+    }
+  });
+
+  it('is absent while the pregnancy is still inside the weeks it has content for', async () => {
+    const screen = await renderSection(9);
+
+    expect(screen.queryByText(pregnancyLabels.en.pastDueTitle)).toBeNull();
+  });
+});
+
 describe('the week stepper on an English phone', () => {
   it('names the shown week in English', async () => {
     const screen = await renderSection(9);
