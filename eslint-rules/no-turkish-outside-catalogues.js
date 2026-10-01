@@ -28,20 +28,31 @@
 //
 // ## Where Turkish is allowed
 //
-// Presentation catalogues, the Turkish half of a translated pair, and the
-// handful of files below that have not been converted yet. The temporary ones
-// are marked; each comes off this list as its feature converts, and the last
-// removal is what proves the migration finished.
+// The Turkish half of a translated pair, and nowhere else.
+//
+// This list used to carry four entries marked TEMPORARY, with a note saying the
+// last removal would prove the migration finished. Only one of them left: the
+// avatar option names. The other three hold a Turkish half that is meant to
+// stay — a month table, and two files of health content whose sentences cannot
+// be separated from the citations beside them — so they were reclassified
+// rather than removed, with the reason written where each entry is.
+//
+// What proves it finished is therefore not an empty list. It is that every file
+// on this list exports a `Messages<T>` pair and has a parity test holding the
+// two halves to each other. Adding an entry without one would re-open exactly
+// the hole this rule closes, which is why each entry says why it is here.
 
 const TURKISH_LETTERS = /[ğüşıöçĞÜŞİÖÇ]/;
 
 /**
  * Files allowed to contain Turkish, as substrings of a POSIX-style path.
  *
- * Permanent entries are the Turkish catalogues themselves and the developer
- * documentation that happens to be written in Turkish. Temporary entries are
- * marked `TEMPORARY` and must be deleted as each file converts — leaving one
- * behind silently re-opens the hole this rule closes.
+ * Every entry is permanent and says why. Two kinds: the Turkish catalogues
+ * themselves, and the developer documentation that happens to be written in
+ * Turkish and is never rendered.
+ *
+ * A new entry needs a reason and a parity test. One added without either is how
+ * this rule quietly stops working.
  */
 const ALLOWED = [
   // Permanent: the Turkish catalogues. This is where Turkish lives.
@@ -53,9 +64,11 @@ const ALLOWED = [
   // translating it would mean translating the document it documents.
   'src/features/privacy/domain/data-category.ts',
 
-  // TEMPORARY — the health content, converted in the content stage.
+  // Permanent: the health content, in both languages. It stayed in data/
+  // rather than moving to presentation/ because each claim travels with the
+  // page it came from, and separating a sentence from its citation is the one
+  // thing these two files exist to prevent.
   'src/features/pregnancy/data/pregnancy-weekly-content.ts',
-  // TEMPORARY — the daily support lines, converted with the health content.
   'src/features/cycle/data/cycle-daily-support.ts',
   // Permanent: the avatar option names, in both languages. They stayed beside
   // their ids rather than moving to presentation/ because `avatar-option.ts`

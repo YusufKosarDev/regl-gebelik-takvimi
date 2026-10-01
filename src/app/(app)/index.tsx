@@ -155,14 +155,14 @@ export default function HomeScreen() {
     const db = await openAppDatabase();
 
     const [cycle, pregnancyDashboard, avatarConfig, daily] = await Promise.all([
-      getCycleHomeData(db, forDate),
-      getPregnancyDashboard(db, forDate),
+      getCycleHomeData(db, forDate, language),
+      getPregnancyDashboard(db, forDate, language),
       loadAvatarConfig(db),
       loadDailyEntry(db, forDate),
     ]);
 
     return { db, cycle, pregnancy: pregnancyDashboard, avatar: avatarConfig, daily };
-  }, []);
+  }, [language]);
 
   // On focus rather than on mount, so coming back from a screen that changed
   // the data shows the change instead of what was read before leaving — and
@@ -343,7 +343,7 @@ export default function HomeScreen() {
   // due date are untouched by this — only the reading below them changes.
   const currentWeek = canBrowseWeeks ? (pregnancy?.pregnancyWeek?.week ?? null) : null;
   const shownWeek = canBrowseWeeks ? (previewWeek ?? currentWeek) : null;
-  const shownContent = shownWeek === null ? null : getWeeklyContentForWeek(shownWeek);
+  const shownContent = shownWeek === null ? null : getWeeklyContentForWeek(shownWeek, language);
 
   const stepWeek = (delta: number) => {
     if (shownWeek === null) {

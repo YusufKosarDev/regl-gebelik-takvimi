@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { CYCLE_DAILY_SUPPORT } from '../data/cycle-daily-support';
+import { cycleDailySupport } from '../data/cycle-daily-support';
 import { loadCycleProfile } from '../data/cycle-repository';
 import type { CycleDailySupport } from '../domain/daily-support';
 import { getCycleDailySupport } from '../domain/daily-support';
@@ -9,6 +9,8 @@ import type { CycleProfile } from '../domain/types';
 import type { CycleDashboard } from './get-cycle-dashboard';
 import { buildCycleDashboard } from './get-cycle-dashboard';
 
+import { currentLanguage } from '@/i18n';
+import type { Language } from '@/i18n/language';
 import type { ISODate } from '@/types/iso-date';
 
 /**
@@ -31,9 +33,18 @@ export type CycleHomeData = {
 };
 
 /** Returns `null` when nothing has been saved yet. */
+/**
+ * @param language which half of the written content to read.
+ *
+ * Defaults to the language as it is now rather than to Turkish, because one of
+ * the two callers is the widget snapshot, which runs outside any render and has
+ * no language to pass. The home screen passes the one it is showing, which is
+ * the same answer a moment later.
+ */
 export async function getCycleHomeData(
   db: SQLiteDatabase,
-  today: ISODate
+  today: ISODate,
+  language: Language = currentLanguage()
 ): Promise<CycleHomeData | null> {
   const profile = await loadCycleProfile(db);
 
@@ -49,6 +60,6 @@ export async function getCycleHomeData(
     dailySupport:
       dashboard.phase === null
         ? null
-        : getCycleDailySupport(CYCLE_DAILY_SUPPORT, dashboard.phase),
+        : getCycleDailySupport(cycleDailySupport[language], dashboard.phase),
   };
 }

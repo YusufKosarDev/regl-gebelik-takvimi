@@ -1,11 +1,13 @@
 import type { CycleDailySupport, CycleSupportSource } from '../domain/daily-support';
 
+import type { Messages } from '@/i18n';
+
 /**
  * Written content for the four cycle phases.
  *
- * Every phase cites where its text comes from, and the Turkish is written from
- * the sources rather than copied out of them. Nothing is stated that the cited
- * pages do not support.
+ * Every phase cites where its text comes from, and both languages are written
+ * from the sources rather than one being translated out of the other. Nothing
+ * is stated that the cited pages do not support.
  *
  * The sources describe the cycle in halves and in weeks, not in the four phases
  * this app names, so the mapping is stated here rather than left implicit: the
@@ -26,6 +28,20 @@ import type { CycleDailySupport, CycleSupportSource } from '../domain/daily-supp
  * The luteal text is hedged for the same reason the NHS hedges it: PMS symptoms
  * differ between people and between months, so they are offered as things some
  * people notice and never as a description of the reader.
+ *
+ * ## Why the sources are shared rather than translated
+ *
+ * The cited pages are the same pages in both languages — they are English-
+ * language health bodies, and their titles are what somebody would search for.
+ * Translating a source's name would make the citation harder to check, which is
+ * the one thing a citation is for. A test holds the two halves to identical
+ * sources.
+ *
+ * ## The hedges are the content
+ *
+ * Every label in both languages is a "may" or a "might". A phase label that
+ * read as a statement would be the app telling somebody how they feel, which is
+ * exactly what these pages refuse to do. A test holds the English to it.
  */
 
 const OWH_CYCLE_HEALTH: CycleSupportSource = {
@@ -43,7 +59,7 @@ const NHS_PMS: CycleSupportSource = {
   url: 'https://www.nhs.uk/conditions/pre-menstrual-syndrome/',
 };
 
-export const CYCLE_DAILY_SUPPORT: readonly CycleDailySupport[] = [
+const cycleDailySupportTr: readonly CycleDailySupport[] = [
   {
     phase: 'menstrual',
     // Both labels are the source's own hedges. The physical activity page puts
@@ -98,3 +114,58 @@ export const CYCLE_DAILY_SUPPORT: readonly CycleDailySupport[] = [
     sources: [NHS_PMS, OWH_CYCLE_HEALTH, OWH_PHYSICAL_ACTIVITY],
   },
 ] as const;
+
+const cycleDailySupportEn: readonly CycleDailySupport[] = [
+  {
+    phase: 'menstrual',
+    moodLabels: [
+      'Cramps are possible',
+      'Moving may feel easier than it did the week before',
+    ],
+    supportMessage:
+      'A gentle walk suits some people on these days. How you feel varies from person to ' +
+      'person; give yourself room.',
+    sources: [OWH_PHYSICAL_ACTIVITY, OWH_CYCLE_HEALTH],
+  },
+  {
+    phase: 'follicular',
+    moodLabels: [
+      'Energy may be a little higher',
+      'Memory may feel clearer',
+      'Pain may be easier to tolerate',
+    ],
+    supportMessage:
+      'If your energy is there, this may be a good stretch for the things you enjoy. It is ' +
+      'not like this for everybody.',
+    sources: [OWH_CYCLE_HEALTH, OWH_PHYSICAL_ACTIVITY],
+  },
+  {
+    phase: 'ovulatory',
+    supportMessage:
+      'The sources say nothing definite about how mood goes around ovulation. However you ' +
+      'feel is what counts.',
+    sources: [OWH_CYCLE_HEALTH, OWH_PHYSICAL_ACTIVITY],
+  },
+  {
+    phase: 'luteal',
+    moodLabels: [
+      'Tiredness or heaviness is possible',
+      'Forgetfulness is possible',
+      'Mood may swing',
+      'Cravings for sweet or starchy food may rise',
+      'Falling asleep may get harder',
+    ],
+    supportMessage:
+      'In the days before a period, symptoms are not the same for everybody and can differ ' +
+      'from month to month. Moving, sleeping and being kind to yourself help some people.',
+    sources: [NHS_PMS, OWH_CYCLE_HEALTH, OWH_PHYSICAL_ACTIVITY],
+  },
+] as const;
+
+export const cycleDailySupport: Messages<readonly CycleDailySupport[]> = {
+  tr: cycleDailySupportTr,
+  en: cycleDailySupportEn,
+};
+
+/** The Turkish content under its original name, for the assertions that read it. */
+export const CYCLE_DAILY_SUPPORT = cycleDailySupportTr;

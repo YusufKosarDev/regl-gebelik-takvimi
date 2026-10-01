@@ -1,5 +1,7 @@
 import type { PregnancyContentSource, PregnancyWeeklyContent } from '../domain/types';
 
+import type { Messages } from '@/i18n';
+
 /**
  * Written content for the weeks of a pregnancy.
  *
@@ -50,7 +52,7 @@ function nhsWeek(week: number): PregnancyContentSource {
   };
 }
 
-export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
+const pregnancyWeeklyContentTr: readonly PregnancyWeeklyContent[] = [
   {
     week: 1,
     developmentSummary:
@@ -561,3 +563,520 @@ export const PREGNANCY_WEEKLY_CONTENT: readonly PregnancyWeeklyContent[] = [
     sources: [nhsWeek(40), CLEVELAND_CLINIC],
   },
 ] as const;
+
+const pregnancyWeeklyContentEn: readonly PregnancyWeeklyContent[] = [
+  {
+    week: 1,
+    developmentSummary:
+      'Gestational age is counted from the first day of your last period. So in the first ' +
+      'week fertilisation has not happened yet; the body begins preparing for a possible ' +
+      'pregnancy.',
+    developingFeatures: [
+      'Gestational age is counted from the first day of the last period',
+      'Hormone levels rise gradually',
+      'The womb prepares for a possible pregnancy',
+    ],
+    sources: [CLEVELAND_CLINIC],
+  },
+  {
+    week: 2,
+    developmentSummary:
+      'The body goes on preparing. Towards the middle of the cycle a ripened follicle ' +
+      'opens and releases an egg from the ovary; this is ovulation.',
+    developingFeatures: [
+      'The womb goes on preparing',
+      'A ripened follicle releases an egg',
+      'Ovulation usually happens near the middle of the cycle',
+    ],
+    sources: [CLEVELAND_CLINIC],
+  },
+  {
+    week: 3,
+    developmentSummary:
+      'Fertilisation usually happens around now. A sperm and an egg join to form a ' +
+      'zygote, which divides as it travels towards the womb.',
+    developingFeatures: [
+      'A sperm and an egg join to form a zygote',
+      'The zygote begins to divide',
+      'The zygote travels towards the womb',
+    ],
+    sources: [CLEVELAND_CLINIC],
+  },
+  {
+    week: 4,
+    size: { label: 'about 2 mm', comparison: 'a poppy seed' },
+    developmentSummary:
+      'The embryo develops inside a fluid-filled amniotic sac and is fed by the yolk sac. ' +
+      'The inner cells separate into layers, each of which will become a different organ ' +
+      'system later on.',
+    developingFeatures: [
+      'The embryo develops inside the amniotic sac',
+      'Nourishment comes from the yolk sac',
+      'The inner cells separate into three layers',
+    ],
+    sources: [nhsWeek(4), CLEVELAND_CLINIC],
+  },
+  {
+    week: 5,
+    size: { label: 'about 2 mm', comparison: 'a sesame seed' },
+    developmentSummary:
+      'The nervous system starts to develop; the brain and spinal cord take shape. A tiny ' +
+      'heart begins to form and beats for the first time around now.',
+    developingFeatures: [
+      'The brain and spinal cord begin to take shape',
+      'The heart forms and beats for the first time',
+      'The blood vessels that become the umbilical cord appear',
+    ],
+    sources: [nhsWeek(5), CLEVELAND_CLINIC],
+  },
+  {
+    week: 6,
+    size: { label: 'about 6 mm', comparison: 'a pea' },
+    developmentSummary:
+      'Development speeds up: limb buds appear where the arms and legs will be, and small ' +
+      'dips form where the ears will be. The liver, brain and musculoskeletal system go on ' +
+      'developing.',
+    developingFeatures: [
+      'Arm and leg buds appear',
+      'Small dips form where the ears will be',
+      'The liver, brain and musculoskeletal system develop',
+    ],
+    sources: [nhsWeek(6), CLEVELAND_CLINIC],
+  },
+  {
+    week: 7,
+    size: { label: 'about 10 mm', comparison: 'a grape' },
+    developmentSummary:
+      'The brain grows faster than the rest of the body. The eyelids start to form, and ' +
+      'cartilage appears in the limb buds that will become the bones of the arms and legs.',
+    developingFeatures: [
+      'The brain grows faster than the body',
+      'The eyelids start to form',
+      'Cartilage forms in the limb buds',
+    ],
+    sources: [nhsWeek(7), CLEVELAND_CLINIC],
+  },
+  {
+    week: 8,
+    size: { label: 'about 16 mm', comparison: 'a raspberry' },
+    developmentSummary:
+      'Around now the embryo is called a fetus. The upper body grows faster than the lower ' +
+      'body, so the arms are longer than the legs.',
+    developingFeatures: [
+      'The embryo is now called a fetus',
+      'The arms lengthen faster than the legs',
+      'The placenta grows branches to anchor into the womb wall',
+    ],
+    sources: [nhsWeek(8), CLEVELAND_CLINIC],
+  },
+  {
+    week: 9,
+    size: { label: 'about 22 mm', comparison: 'a strawberry' },
+    developmentSummary:
+      'The face becomes more familiar: eyes protected by eyelids, a small mouth and a ' +
+      'tongue with taste buds. The main internal organs develop and bones begin to form.',
+    developingFeatures: [
+      'The features of the face sharpen and taste buds form in the mouth',
+      'Grooves appear on the hands and feet where the fingers and toes will be',
+      'The main internal organs develop and bones begin to form',
+    ],
+    sources: [nhsWeek(9), CLEVELAND_CLINIC],
+  },
+  {
+    week: 10,
+    size: { label: 'about 30 mm', comparison: 'a small apricot' },
+    developmentSummary:
+      'The head is still large compared with the body, but the face looks more in ' +
+      'proportion. The eyes are half shut and can respond to light; the jaw takes shape ' +
+      'and the buds of the milk teeth form.',
+    developingFeatures: [
+      'The features of the face become more in proportion',
+      'The eyes respond to light',
+      'The jaw and the buds of the milk teeth form',
+    ],
+    sources: [nhsWeek(10), CLEVELAND_CLINIC],
+  },
+  {
+    week: 11,
+    size: { label: 'about 41 mm', comparison: 'a fig' },
+    developmentSummary:
+      'The fingers and toes separate; tiny nails and ears appear. The head is still large ' +
+      'compared with the body, but the body is growing quickly.',
+    developingFeatures: [
+      'The fingers and toes separate',
+      'Tiny nails and ears appear',
+      'The placenta is about to take over feeding from the yolk sac',
+    ],
+    sources: [nhsWeek(11), CLEVELAND_CLINIC],
+  },
+  {
+    week: 12,
+    size: { label: 'about 5.4 cm', comparison: 'a plum' },
+    developmentSummary:
+      'The internal organs and muscles have developed; the heartbeat can be heard on an ' +
+      'ultrasound scan. The skeleton hardens as tissue turns to bone.',
+    developingFeatures: [
+      'The internal organs and muscles develop',
+      'The heartbeat can be heard on an ultrasound',
+      'The skeleton hardens into bone',
+    ],
+    sources: [nhsWeek(12), CLEVELAND_CLINIC],
+  },
+  {
+    week: 13,
+    size: { label: 'about 7.4 cm', comparison: 'a peach' },
+    developmentSummary:
+      'The ovaries or testicles are fully formed inside. The baby moves; what begins as ' +
+      'random movement gradually looks more deliberate.',
+    developingFeatures: [
+      'The ovaries or testicles are fully formed inside',
+      'Movements go from random to gradually more deliberate',
+      'Some babies suck a thumb and develop the sucking reflex',
+    ],
+    sources: [nhsWeek(13), CLEVELAND_CLINIC],
+  },
+  {
+    week: 14,
+    size: { label: 'about 8.5 cm', comparison: 'a kiwi' },
+    developmentSummary:
+      'The head rounds out and comes more into proportion with the body. A little ' +
+      'swallowed amniotic fluid passes through the kidneys and is passed back as urine.',
+    developingFeatures: [
+      'The head comes more into proportion with the body',
+      'Amniotic fluid is swallowed and the kidneys start working',
+      'The heartbeat can be heard with a handheld device',
+    ],
+    sources: [nhsWeek(14), CLEVELAND_CLINIC],
+  },
+  {
+    week: 15,
+    size: { label: 'about 10.1 cm', comparison: 'an apple' },
+    developmentSummary:
+      'The body is covered in a fine layer of hair called lanugo. Eyebrows and eyelashes ' +
+      'start to form; the eyes become sensitive to light and hearing begins.',
+    developingFeatures: [
+      'The body is covered in fine hair called lanugo',
+      'Eyebrows and eyelashes start to form',
+      'The eyes are sensitive to light and hearing begins',
+    ],
+    sources: [nhsWeek(15), CLEVELAND_CLINIC],
+  },
+  {
+    week: 16,
+    size: { label: 'about 11.6 cm', comparison: 'an avocado' },
+    developmentSummary:
+      'Facial expressions begin to form, but they are entirely random because there is no ' +
+      'muscle control yet. The developing nervous system makes arm and leg movements ' +
+      'possible.',
+    developingFeatures: [
+      'Facial expressions form, with no muscle control yet',
+      'The nervous system makes arm and leg movements possible',
+      'The hands can make a fist',
+    ],
+    sources: [nhsWeek(16), CLEVELAND_CLINIC],
+  },
+  {
+    week: 17,
+    size: { label: 'about 12 cm', comparison: 'a pomegranate' },
+    developmentSummary:
+      'The eyes stay shut but can move; loud sounds get a response and the mouth opens and ' +
+      'closes. The nails grow and unique fingerprints form.',
+    developingFeatures: [
+      'The eyes can move even though they stay shut',
+      'Loud sounds get a response',
+      'The nails grow and fingerprints form',
+    ],
+    sources: [nhsWeek(17), CLEVELAND_CLINIC],
+  },
+  {
+    week: 18,
+    size: { label: 'about 14.2 cm', comparison: 'a bell pepper' },
+    developmentSummary:
+      'Hearing, feeling, swallowing and sucking reflexes develop this week. The baby ' +
+      'wriggles a great deal and moves its arms and legs.',
+    developingFeatures: [
+      'Hearing and feeling develop',
+      'The swallowing and sucking reflexes develop',
+      'The arms and legs move',
+    ],
+    sources: [nhsWeek(18), CLEVELAND_CLINIC],
+  },
+  {
+    week: 19,
+    size: { label: 'about 15.3 cm', comparison: 'a beefsteak tomato' },
+    developmentSummary:
+      'The permanent teeth begin to line up behind the milk teeth. The baby goes on ' +
+      'putting on weight, getting ready to be born.',
+    developingFeatures: [
+      'The permanent teeth line up behind the milk teeth',
+      'Weight gain continues',
+    ],
+    sources: [nhsWeek(19), CLEVELAND_CLINIC],
+  },
+  {
+    week: 20,
+    size: { label: 'about 25.6 cm', comparison: 'a banana' },
+    developmentSummary:
+      'Movement increases by the day: kicking, turning and thumb-sucking. The body is ' +
+      'covered in a white, greasy layer called vernix.',
+    developingFeatures: [
+      'Movements such as kicking and turning increase',
+      'Thumb-sucking develops the sucking reflex',
+      'The body is covered in a white greasy layer called vernix',
+    ],
+    sources: [nhsWeek(20), CLEVELAND_CLINIC],
+  },
+  {
+    week: 21,
+    size: { label: 'about 26.7 cm', comparison: 'a carrot' },
+    developmentSummary:
+      'The baby can now hear sounds and conversations outside the womb. Hair and eyebrows ' +
+      'go on developing; the baby becomes heavier than the placenta.',
+    developingFeatures: [
+      'Sounds and conversations outside the womb can be heard',
+      'Hair and eyebrows develop',
+      'The baby is now heavier than the placenta',
+    ],
+    sources: [nhsWeek(21), CLEVELAND_CLINIC],
+  },
+  {
+    week: 22,
+    size: { label: 'about 27.8 cm', comparison: 'a sweet potato' },
+    developmentSummary:
+      'The lungs develop and the baby practises breathing inside the womb. A little ' +
+      'amniotic fluid is swallowed; the taste buds go on developing.',
+    developingFeatures: [
+      'The lungs develop and breathing is practised',
+      'A little amniotic fluid is swallowed',
+      'The taste buds develop',
+    ],
+    sources: [nhsWeek(22), CLEVELAND_CLINIC],
+  },
+  {
+    week: 23,
+    size: { label: 'about 28.9 cm', comparison: 'a large mango' },
+    developmentSummary:
+      'The baby goes on practising breathing and a pattern of sleeping and waking starts ' +
+      'to form. The arms and legs are now in proportion with the body.',
+    developingFeatures: [
+      'Practice breathing continues',
+      'A pattern of sleeping and waking forms',
+      'The arms and legs come into proportion with the body',
+    ],
+    sources: [nhsWeek(23), CLEVELAND_CLINIC],
+  },
+  {
+    week: 24,
+    size: { label: 'about 30 cm', comparison: 'an ear of corn' },
+    developmentSummary:
+      'From this week the baby is considered "viable": born now, it would have a chance of ' +
+      'surviving outside the womb with the right support.',
+    developingFeatures: ['Born now, there is a chance of surviving with the right support'],
+    sources: [nhsWeek(24), CLEVELAND_CLINIC],
+  },
+  {
+    week: 25,
+    size: { label: 'about 34.6 cm', comparison: 'a courgette' },
+    developmentSummary:
+      'A lively stretch: a loud noise can make the baby jump and kick, and hiccups can ' +
+      'sometimes be felt. Most of the fluid around the baby is now its own urine.',
+    developingFeatures: [
+      'Loud sounds get a jump and a kick in response',
+      'Hiccups can be felt',
+      'Most of the amniotic fluid is now the baby’s urine',
+    ],
+    sources: [nhsWeek(25), CLEVELAND_CLINIC],
+  },
+  {
+    week: 26,
+    size: { label: 'about 35.6 cm', comparison: 'a cucumber' },
+    developmentSummary:
+      'The eyes open for the first time around now; learning to blink comes next. There is ' +
+      'a great deal of movement inside the womb.',
+    developingFeatures: [
+      'The eyes open for the first time',
+      'Blinking starts to be learned',
+      'Movement is frequent',
+    ],
+    sources: [nhsWeek(26), CLEVELAND_CLINIC],
+  },
+  {
+    week: 27,
+    size: { label: 'about 36.6 cm', comparison: 'a cauliflower' },
+    developmentSummary:
+      'The lungs are now developed enough to breathe. Folds of skin fill out with fat ' +
+      'while all the organs mature, getting ready for life outside the womb.',
+    developingFeatures: [
+      'The lungs reach the point of being able to breathe',
+      'Fat under the skin increases',
+      'The organs go on maturing',
+    ],
+    sources: [nhsWeek(27), CLEVELAND_CLINIC],
+  },
+  {
+    week: 28,
+    size: { label: 'about 37.6 cm', comparison: 'an aubergine' },
+    developmentSummary:
+      'The heart rate changes through the pregnancy: after the high rate of the early ' +
+      'weeks it drops to about 140 beats a minute around now, and will be about 130 at ' +
+      'birth.',
+    developingFeatures: [
+      'The heart rate drops to about 140 beats a minute',
+      'About 130 beats a minute is expected at birth',
+    ],
+    sources: [nhsWeek(28), CLEVELAND_CLINIC],
+  },
+  {
+    week: 29,
+    size: { label: 'about 38.6 cm', comparison: 'a butternut squash' },
+    developmentSummary:
+      'The baby is now fully formed; over the coming weeks it will mature its organs and ' +
+      'store fat. The vernix covering the skin starts to thin.',
+    developingFeatures: [
+      'The organs go on maturing',
+      'Fat keeps being stored',
+      'The vernix layer starts to thin',
+    ],
+    sources: [nhsWeek(29), CLEVELAND_CLINIC],
+  },
+  {
+    week: 30,
+    size: { label: 'about 39.9 cm', comparison: 'a cabbage' },
+    developmentSummary:
+      'The eyes can now focus. Sight will go on developing both inside the womb and after ' +
+      'birth.',
+    developingFeatures: ['The eyes can focus', 'Sight goes on developing'],
+    sources: [nhsWeek(30), CLEVELAND_CLINIC],
+  },
+  {
+    week: 31,
+    size: { label: 'about 41.1 cm', comparison: 'a coconut' },
+    developmentSummary:
+      'The baby fills out by the day and looks less wrinkled. It starts to recognise ' +
+      'sounds from outside the womb, and is lively enough to suck its fingers and ' +
+      'somersault. If you notice your baby moving less or differently, contact your ' +
+      'doctor or midwife.',
+    developingFeatures: [
+      'Filling out makes the skin look less wrinkled',
+      'Sounds from outside the womb start to be recognised',
+      'Fingers are sucked and somersaults happen',
+    ],
+    sources: [nhsWeek(31), CLEVELAND_CLINIC],
+  },
+  {
+    week: 32,
+    size: { label: 'about 42.4 cm', comparison: 'a bunch of celery' },
+    developmentSummary:
+      'The baby puts on weight by storing fat, which will help it keep warm after birth. ' +
+      'Around now it usually turns head down ready to be born.',
+    developingFeatures: [
+      'Weight is put on by storing fat',
+      'The baby usually turns head down',
+      'The stored fat helps with warmth after birth',
+    ],
+    sources: [nhsWeek(32), CLEVELAND_CLINIC],
+  },
+  {
+    week: 33,
+    size: { label: 'about 43.7 cm', comparison: 'a pineapple' },
+    developmentSummary:
+      'The brain and nervous system are fully developed. The bones harden; the skull bones ' +
+      'stay soft and separate until the baby is about 12 to 18 months old.',
+    developingFeatures: [
+      'The brain and nervous system are complete',
+      'The bones harden',
+      'The skull bones stay soft and separate',
+    ],
+    sources: [nhsWeek(33), CLEVELAND_CLINIC],
+  },
+  {
+    week: 34,
+    size: { label: 'about 45 cm', comparison: 'a cantaloupe melon' },
+    developmentSummary:
+      'In boys, the testicles begin to move down from the abdomen into the scrotum.',
+    developingFeatures: ['In boys, the testicles move down into the scrotum'],
+    sources: [nhsWeek(34), CLEVELAND_CLINIC],
+  },
+  {
+    week: 35,
+    size: { label: 'about 46.2 cm', comparison: 'a honeydew melon' },
+    developmentSummary:
+      'The baby goes on filling out, which will make it easier to keep warm once it is ' +
+      'born.',
+    developingFeatures: [
+      'Filling out continues',
+      'The fat helps with warmth after birth',
+    ],
+    sources: [nhsWeek(35), CLEVELAND_CLINIC],
+  },
+  {
+    week: 36,
+    size: { label: 'about 47.4 cm', comparison: 'a lettuce' },
+    developmentSummary:
+      'The lungs are most likely mature enough to breathe outside the womb without help. ' +
+      'The baby can suck and digest breast milk.',
+    developingFeatures: [
+      'The lungs may be mature enough to breathe without help',
+      'Breast milk can be sucked and digested',
+    ],
+    sources: [nhsWeek(36), CLEVELAND_CLINIC],
+  },
+  {
+    week: 37,
+    size: { label: 'about 48.6 cm', comparison: 'a leek' },
+    developmentSummary:
+      'The baby tries out different facial expressions, such as frowning and smiling. Most ' +
+      'babies turn head down around these weeks. Your doctor will check the baby’s ' +
+      'position.',
+    developingFeatures: [
+      'Different facial expressions are tried out',
+      'Most babies are head down ready to be born',
+    ],
+    sources: [nhsWeek(37), CLEVELAND_CLINIC],
+  },
+  {
+    week: 38,
+    size: { label: 'about 49.8 cm', comparison: 'a stick of rhubarb' },
+    developmentSummary:
+      'Most of the fine lanugo hair covering the body has been shed. Meconium builds up in ' +
+      'the bowels, which will be passed as the first stool after birth.',
+    developingFeatures: [
+      'Most of the lanugo hair is shed',
+      'Meconium builds up in the bowels',
+    ],
+    sources: [nhsWeek(38), CLEVELAND_CLINIC],
+  },
+  {
+    week: 39,
+    size: { label: 'about 50.7 cm', comparison: 'a watermelon' },
+    developmentSummary:
+      'The almost transparent skin gains a thicker layer that protects the organs better ' +
+      'and helps with warmth. The skin is covered in a white waxy layer called vernix.',
+    developingFeatures: [
+      'Thicker skin protects the organs better',
+      'The vernix layer protects the skin and eases the birth',
+    ],
+    sources: [nhsWeek(39), CLEVELAND_CLINIC],
+  },
+  {
+    week: 40,
+    size: { label: 'about 51.2 cm', comparison: 'a pumpkin' },
+    developmentSummary:
+      'There is very little room left in the womb and the baby is cramped. Keep track of ' +
+      'how your baby is moving. If you notice it moving less, or differently from usual, ' +
+      'contact your doctor or midwife without waiting.',
+    developingFeatures: [
+      'The baby is cramped as room in the womb runs out',
+      'Keeping track of movements matters',
+    ],
+    sources: [nhsWeek(40), CLEVELAND_CLINIC],
+  },
+] as const;
+
+export const pregnancyWeeklyContent: Messages<readonly PregnancyWeeklyContent[]> = {
+  tr: pregnancyWeeklyContentTr,
+  en: pregnancyWeeklyContentEn,
+};
+
+/** The Turkish content under its original name, for the assertions that read it. */
+export const PREGNANCY_WEEKLY_CONTENT = pregnancyWeeklyContentTr;

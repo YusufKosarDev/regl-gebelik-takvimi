@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { PREGNANCY_WEEKLY_CONTENT } from '../data/pregnancy-weekly-content';
+import { pregnancyWeeklyContent } from '../data/pregnancy-weekly-content';
 import { getPregnancyDay, getPregnancyWeek } from '../domain/pregnancy-progress';
 import type {
   PregnancyDueDateSource,
@@ -15,6 +15,8 @@ import {
 
 import { getPregnancyProfile } from './get-pregnancy-profile';
 
+import { currentLanguage } from '@/i18n';
+import type { Language } from '@/i18n/language';
 import type { ISODate } from '@/types/iso-date';
 
 /**
@@ -44,17 +46,30 @@ export type PregnancyDashboard = {
  * reasonable question, and "nothing written for that one" is the answer. The
  * bounds come from the domain rather than being repeated here.
  */
-export function getWeeklyContentForWeek(week: number): PregnancyWeeklyContent | null {
+/**
+ * @param language which half of the written content to read.
+ *
+ * Defaults to the language as it is now rather than to Turkish, because the
+ * widget snapshot reads this outside any render. A screen passes the one it is
+ * showing, which is the same answer a moment later.
+ */
+export function getWeeklyContentForWeek(
+  week: number,
+  language: Language = currentLanguage()
+): PregnancyWeeklyContent | null {
   if (!Number.isInteger(week) || week < MIN_PREGNANCY_WEEK || week > MAX_PREGNANCY_WEEK) {
     return null;
   }
 
-  return getPregnancyWeeklyContent(PREGNANCY_WEEKLY_CONTENT, week);
+  return getPregnancyWeeklyContent(pregnancyWeeklyContent[language], week);
 }
 
 /** The same question, asked about the week a pregnancy is currently in. */
-function weeklyContentFor(week: PregnancyWeek | null): PregnancyWeeklyContent | null {
-  return week === null ? null : getWeeklyContentForWeek(week.week);
+function weeklyContentFor(
+  week: PregnancyWeek | null,
+  language: Language
+): PregnancyWeeklyContent | null {
+  return week === null ? null : getWeeklyContentForWeek(week.week, language);
 }
 
 /**
@@ -69,7 +84,8 @@ function weeklyContentFor(week: PregnancyWeek | null): PregnancyWeeklyContent | 
  */
 export async function getPregnancyDashboard(
   db: SQLiteDatabase,
-  today: ISODate
+  today: ISODate,
+  language: Language = currentLanguage()
 ): Promise<PregnancyDashboard | null> {
   const profile = await getPregnancyProfile(db);
 
@@ -86,6 +102,6 @@ export async function getPregnancyDashboard(
     pregnancyWeek,
     estimatedDueDate: profile.estimatedDueDate,
     dueDateSource: profile.dueDateSource,
-    weeklyContent: weeklyContentFor(pregnancyWeek),
+    weeklyContent: weeklyContentFor(pregnancyWeek, language),
   };
 }
