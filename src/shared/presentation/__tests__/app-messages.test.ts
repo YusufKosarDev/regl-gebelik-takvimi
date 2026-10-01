@@ -57,9 +57,18 @@ describe('key parity', () => {
   });
 });
 
+/**
+ * The two language names are the one pair that is meant to be identical, and
+ * they carry a Turkish letter on purpose: somebody looking for their own
+ * language should find it written the way they write it.
+ */
+const IDENTICAL = ['languageNameTurkish', 'languageNameEnglish'];
+
 describe('no Turkish left in the English', () => {
   it('has none in any value', () => {
     for (const [key, value] of Object.entries(appMessages.en)) {
+      if (IDENTICAL.includes(key)) continue;
+
       expect([key, value]).toEqual([key, expect.not.stringMatching(/[ğüşıöçĞÜŞİÖÇ]/)]);
     }
   });
@@ -69,6 +78,8 @@ describe('no Turkish left in the English', () => {
     // differs between the two languages, so an English value equal to its
     // Turkish counterpart is a value somebody forgot.
     for (const key of Object.keys(appMessages.tr) as (keyof typeof appMessages.tr)[]) {
+      if (IDENTICAL.includes(key)) continue;
+
       expect([key, appMessages.en[key]]).not.toEqual([key, appMessages.tr[key]]);
     }
   });
@@ -98,9 +109,27 @@ describe('the crutch exports', () => {
     expect(value).toBe(appMessages.tr[key]);
   });
 
-  it('covers every key in the catalogue', () => {
-    // So that adding a string without its crutch export is caught here rather
-    // than by a screen test that cannot find a label any more.
+  /**
+   * Keys that deliberately have no crutch export.
+   *
+   * The crutch exists for strings that predate the second language, because a
+   * few hundred assertions name them. A string added afterwards has no such
+   * assertions, so giving it one would be adding a second way to reach it for
+   * nobody's benefit.
+   *
+   * Listing them rather than dropping the check keeps the decision explicit: a
+   * string added without an export has to be named here, which is the moment to
+   * ask whether anything already names it.
+   */
+  const NO_CRUTCH_EXPORT = [
+    'languageSectionTitle',
+    'languageSectionDescription',
+    'languageSystemLabel',
+    'languageNameTurkish',
+    'languageNameEnglish',
+  ];
+
+  it('covers every key that predates the second language', () => {
     const exported = [
       BACK_LABEL,
       LOADING_MESSAGE,
@@ -115,6 +144,18 @@ describe('the crutch exports', () => {
       NOT_FOUND_HOME_LABEL,
     ];
 
-    expect(exported).toHaveLength(Object.keys(appMessages.tr).length);
+    const expected = Object.keys(appMessages.tr).filter(
+      (key) => !NO_CRUTCH_EXPORT.includes(key)
+    );
+
+    expect(exported).toHaveLength(expected.length);
+  });
+
+  it('has every listed exception actually in the catalogue', () => {
+    // An exception for a key that no longer exists is an exception excusing
+    // nothing, and the next person reads it as a rule.
+    for (const key of NO_CRUTCH_EXPORT) {
+      expect(Object.keys(appMessages.tr)).toContain(key);
+    }
   });
 });

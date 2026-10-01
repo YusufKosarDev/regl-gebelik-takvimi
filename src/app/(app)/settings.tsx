@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
+import { ConnectedLanguagePicker } from '@/components/language-picker';
 import { LengthStepper } from '@/features/cycle/components/length-stepper';
 import { NotificationsSection } from '@/features/notifications/components/notifications-section';
 import { ThemedText } from '@/components/themed-text';
@@ -657,6 +658,12 @@ export default function SettingsScreen() {
                 {appLockEnabled ? lock.appLockStatusOn : lock.appLockStatusOff}
               </ThemedText>
             </View>
+
+            {/* Above the about link and below the lock: it belongs with the
+                settings that are about the app rather than about the records,
+                and somebody who has landed in a language they cannot read is
+                looking for this before they look for anything else. */}
+            <ConnectedLanguagePicker />
 
             {/* Above the destructive section, because somebody looking for what
                 this app claims about itself should find it before they find the

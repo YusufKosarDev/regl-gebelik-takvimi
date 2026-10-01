@@ -69,6 +69,34 @@ const appMessagesTr = {
   notFoundBody:
     'Açmaya çalıştığın bağlantı uygulamadaki hiçbir ekrana gitmiyor. Kayıtların yerinde.',
   notFoundHomeLabel: 'Ana ekrana dön',
+
+  /**
+   * The language setting.
+   *
+   * App-wide by definition: it is the one setting that changes every other
+   * screen, so it belongs to no feature.
+   *
+   * Only the word for "follow the phone" is translated. The two languages name
+   * themselves - Türkçe and English - because somebody looking for their own
+   * language should find it written the way they write it, not translated into
+   * one they cannot read. That is also what makes the setting usable to
+   * somebody who has landed in the wrong language by accident.
+   */
+  languageSectionTitle: 'Dil',
+  languageSectionDescription:
+    'Uygulamanın dili. Telefonunu takip edebilir ya da kendin seçebilirsin.',
+  languageSystemLabel: 'Telefonun dili',
+
+  /**
+   * The two languages, named the way they name themselves.
+   *
+   * Identical in both halves, and here rather than written into the picker so
+   * that the rule forbidding Turkish outside a catalogue stays absolute. A
+   * component that may write 'Türkçe' inline is a component the next person
+   * copies.
+   */
+  languageNameTurkish: 'Türkçe',
+  languageNameEnglish: 'English',
 };
 
 export type AppMessages = typeof appMessagesTr;
@@ -90,6 +118,14 @@ const appMessagesEn: AppMessages = {
   notFoundBody:
     'The link you followed does not lead to any screen in this app. Your records are where you left them.',
   notFoundHomeLabel: 'Back to the home screen',
+
+  languageSectionTitle: 'Language',
+  languageSectionDescription:
+    'The language the app is in. It can follow your phone, or you can choose.',
+  languageSystemLabel: 'Your phone’s language',
+
+  languageNameTurkish: 'Türkçe',
+  languageNameEnglish: 'English',
 };
 
 export const appMessages: Messages<AppMessages> = { tr: appMessagesTr, en: appMessagesEn };
@@ -110,3 +146,6 @@ export const ERROR_RETRY_LABEL = appMessagesTr.errorRetryLabel;
 export const NOT_FOUND_TITLE = appMessagesTr.notFoundTitle;
 export const NOT_FOUND_BODY = appMessagesTr.notFoundBody;
 export const NOT_FOUND_HOME_LABEL = appMessagesTr.notFoundHomeLabel;
+export const LANGUAGE_SECTION_TITLE = appMessagesTr.languageSectionTitle;
+export const LANGUAGE_SECTION_DESCRIPTION = appMessagesTr.languageSectionDescription;
+export const LANGUAGE_SYSTEM_LABEL = appMessagesTr.languageSystemLabel;
