@@ -48,6 +48,43 @@
 const TURKISH_LETTERS = /[ğüşıöçĞÜŞİÖÇ]/;
 
 /**
+ * Turkish spelled entirely in ASCII, which the letter test above cannot see.
+ *
+ * ## Why this exists
+ *
+ * The letter test is the rule's main instrument and it has a stated blind spot:
+ * a Turkish string with no Turkish-specific letter does not match. That was
+ * accepted as rare enough to be worth missing. It is not rare enough. Two
+ * escaped into the shipped app and both were found by looking at a phone, not
+ * by any test:
+ *
+ *   - `{shownWeek}. hafta` in the pregnancy section, which showed "9. hafta"
+ *     under an English heading.
+ *   - `{isDeleting ? 'Siliniyor...' : 'Sil'}` in the history screen, which put
+ *     "Sil" on the delete button in English.
+ *
+ * ## Why these markers and not a word list
+ *
+ * A general Turkish word list would be enormous and would collide with English
+ * constantly. These are chosen because they are shapes rather than words, and
+ * because each one has no English counterpart:
+ *
+ *   - `iyor` is the Turkish present-progressive infix. It appears inside no
+ *     English word, and it catches the whole family that busy labels are made
+ *     of - Siliniyor, Kaydediliyor, Yukleniyor, Baslatiliyor.
+ *   - `iniz` and `lari` are suffixes with the same property.
+ *   - The five bare words are the ones this interface actually uses on buttons.
+ *
+ * Deliberately NOT included: `gun` and `ay`. `gun` is an English word, and `ay`
+ * is two letters. A rule that cries wolf on English prose opens more than it
+ * closes - the next person turns it off, and then the letter test goes with it.
+ *
+ * This list is meant to stay short. It is a net under the known failure, not an
+ * attempt to detect Turkish in general; that remains the letter test's job.
+ */
+const TURKISH_ASCII_MARKERS = /\b\w*(?:iyor|iniz|lari)\b|\b(?:Sil|Kaydet|hafta|Ekle|Geri)\b/;
+
+/**
  * Files allowed to contain Turkish, as substrings of a POSIX-style path.
  *
  * Every entry is permanent and says why. Two kinds: the Turkish catalogues
@@ -129,9 +166,19 @@ module.exports = {
           return {};
         }
 
-        /** Reports a node whose text contains a Turkish-specific letter. */
+        /**
+         * Reports a node whose text reads as Turkish.
+         *
+         * Two instruments, one message. The letter test is the general one; the
+         * ASCII markers are the net under its stated blind spot. A string only
+         * has to trip either.
+         */
         const check = (node, value) => {
-          if (typeof value === 'string' && TURKISH_LETTERS.test(value)) {
+          if (typeof value !== 'string') {
+            return;
+          }
+
+          if (TURKISH_LETTERS.test(value) || TURKISH_ASCII_MARKERS.test(value)) {
             context.report({ node, messageId: 'turkishOutsideCatalogue' });
           }
         };

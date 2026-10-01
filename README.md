@@ -706,7 +706,7 @@ script is left over from the template.
 ```sh
 npm run typecheck  # tsc --noEmit, under strict mode
 npm run lint       # ESLint, via eslint-config-expo's flat config
-npm test           # Jest — 199 suites, 6,296 tests
+npm test           # Jest — 201 suites, 6,302 tests
 npm run test:watch # watch mode
 ```
 
@@ -718,6 +718,19 @@ ESLint is configured in `eslint.config.js`, which composes the base config from
 `eslint-config-expo/flat` and ignores everything generated — `android/`, `ios/`,
 `.expo/`, build output, and the Kotlin half of the native modules. The two
 project-specific rules it adds are described under [Languages](#languages).
+
+**After editing anything in `eslint-rules/`, delete `.expo/cache/eslint` before
+trusting `npm run lint`.** `expo lint` passes `--cache`, and ESLint's cache is
+invalidated by a change to the config file — not by a change to a rule module
+the config `require`s. So a rule edit leaves every file's previous result cached
+and the run reports clean. This is not theoretical: the marker list in
+`no-turkish-outside-catalogues` was added, `npm run lint` said zero errors, and
+`npx eslint "src/app/(app)/history.tsx"` said two. Clearing the cache made the
+same two appear.
+
+```sh
+rm -rf .expo/cache/eslint && npm run lint
+```
 
 Beyond ordinary unit tests there are a few contract tests worth knowing about:
 

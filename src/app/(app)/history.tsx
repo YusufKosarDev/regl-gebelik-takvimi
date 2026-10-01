@@ -464,7 +464,7 @@ export default function HistoryScreen() {
                             <ThemedText
                               type="smallBold"
                               style={{ color: theme.onPrimary }}>
-                              {isDeleting ? 'Siliniyor...' : 'Sil'}
+                              {isDeleting ? history.deleteBusyLabel : history.deleteConfirmLabel}
                             </ThemedText>
                           </Pressable>
                         </View>

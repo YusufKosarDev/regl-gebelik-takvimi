@@ -64,6 +64,17 @@ const historyMessagesTr = {
   deleteConsequence: 'Bu işlem geri alınamaz.',
   deleteConfirmLabel: 'Sil',
 
+  /**
+   * The same button while the delete is running.
+   *
+   * It exists because the screen used to write the pair inline as
+   * `{isDeleting ? 'Siliniyor...' : 'Sil'}`. Neither word carries a
+   * Turkish-specific letter, so the lint rule's letter test could not see them
+   * and an English phone showed "Sil" on the button. The rule now also matches
+   * the `-iyor` family for exactly this reason.
+   */
+  deleteBusyLabel: 'Siliniyor...',
+
   /* ----------------------------------------------------- editing the dates -- */
 
   editStartPanelTitle: 'Başlangıç tarihini düzenle',
@@ -133,6 +144,7 @@ const historyMessagesEn: HistoryMessages = {
   deleteQuestion: 'Delete this period record?',
   deleteConsequence: 'This cannot be undone.',
   deleteConfirmLabel: 'Delete',
+  deleteBusyLabel: 'Deleting…',
 
   editStartPanelTitle: 'Change the start date',
   editEndPanelTitle: 'Change the end date',
