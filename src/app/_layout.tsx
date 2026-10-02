@@ -1,7 +1,9 @@
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { FONT_ASSETS } from '@/constants/fonts';
 import { useAppLock } from '@/features/app-lock/application/use-app-lock';
 import { applyScreenPrivacy } from '@/features/app-lock/infrastructure/screen-privacy';
 import { registerForegroundNotificationHandler } from '@/features/notifications/infrastructure/foreground-notification-handler';
@@ -29,6 +31,21 @@ export { ErrorBoundary } from '@/components/error-boundary';
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  /**
+   * The app's two typefaces, loaded at runtime.
+   *
+   * `useFonts` rather than the `expo-font` config plugin: the plugin embeds the
+   * files during a native build and would have made a new typeface require a
+   * prebuild and a rebuild. This loads them over the bundle, so the whole of
+   * this work stays in JavaScript.
+   *
+   * The second element of the tuple is the load error, deliberately ignored.
+   * `useFonts` reports loaded on failure too, and a missing typeface is not a
+   * reason to hold somebody out of their own records - React Native falls back
+   * to the system font and the app reads exactly as it did before.
+   */
+  const [fontsLoaded] = useFonts(FONT_ASSETS);
 
   const hydrate = useAppStore((state) => state.hydrate);
   const hydrated = useAppStore((state) => state.hydrated);
@@ -96,7 +113,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!hydrated || !lockHydrated) {
+  if (!hydrated || !lockHydrated || !fontsLoaded) {
     return (
       <View style={styles.center}>
         <ActivityIndicator testID="app-hydration-loading" />

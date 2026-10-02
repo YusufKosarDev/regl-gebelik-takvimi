@@ -37,7 +37,7 @@ export function CycleSummary({
           <ThemedText type="small" themeColor="textSecondary">
             {row.label}
           </ThemedText>
-          <ThemedText style={styles.rowValue}>{row.value}</ThemedText>
+          <ThemedText type="display">{row.value}</ThemedText>
           {row.note !== undefined && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
               {row.note}
@@ -58,11 +58,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     gap: Spacing.half,
-  },
-  rowValue: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
   },
   rowNote: {
     marginTop: Spacing.one,

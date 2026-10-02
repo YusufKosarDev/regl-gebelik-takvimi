@@ -1,6 +1,6 @@
 import { Platform, type TextStyle } from 'react-native';
 
-import { Fonts } from './theme';
+import type { FontRole } from './fonts';
 
 /**
  * Every size of text this app uses, in one table.
@@ -48,7 +48,14 @@ export type TextScaleEntry = {
   /** Taken from React Native rather than widened to `number`: the platform
       accepts a fixed set of weights and a stray 450 should not compile. */
   readonly fontWeight?: TextStyle['fontWeight'];
-  readonly fontFamily?: string;
+  /**
+   * Which typeface, not which file.
+   *
+   * The file is resolved from the weight the style finally ends up with - see
+   * `fontFamilyFor` in `./fonts` for why that has to happen after flattening
+   * rather than here.
+   */
+  readonly role: FontRole;
   readonly maxFontSizeMultiplier?: number;
 };
 
@@ -60,7 +67,16 @@ export type TextType =
   | 'subtitle'
   | 'link'
   | 'linkPrimary'
-  | 'code';
+  | 'code'
+  /**
+   * The serif, at the size a number is read at rather than a headline.
+   *
+   * Added for the places that were already writing their own 20/28 - the cycle
+   * day, the next period date, the pregnancy week. Those are what the screen
+   * exists to say, and they are the only text in the app set in the serif
+   * outside a heading.
+   */
+  | 'display';
 
 /** How far the display sizes may grow before they stop being readable. */
 export const MAX_DISPLAY_FONT_SCALE = 1.4;
@@ -70,22 +86,25 @@ export const TEXT_SCALE: Readonly<Record<TextType, TextScaleEntry>> = {
     fontSize: 48,
     lineHeight: 52,
     fontWeight: 600,
+    role: 'serif',
     maxFontSizeMultiplier: MAX_DISPLAY_FONT_SCALE,
   },
   subtitle: {
     fontSize: 32,
     lineHeight: 44,
     fontWeight: 600,
+    role: 'serif',
     maxFontSizeMultiplier: MAX_DISPLAY_FONT_SCALE,
   },
-  default: { fontSize: 16, lineHeight: 24, fontWeight: 500 },
-  small: { fontSize: 14, lineHeight: 20, fontWeight: 500 },
-  smallBold: { fontSize: 14, lineHeight: 20, fontWeight: 700 },
-  link: { fontSize: 14, lineHeight: 30 },
-  linkPrimary: { fontSize: 14, lineHeight: 30 },
+  display: { fontSize: 20, lineHeight: 28, fontWeight: 600, role: 'serif' },
+  default: { fontSize: 16, lineHeight: 24, fontWeight: 500, role: 'sans' },
+  small: { fontSize: 14, lineHeight: 20, fontWeight: 500, role: 'sans' },
+  smallBold: { fontSize: 14, lineHeight: 20, fontWeight: 700, role: 'sans' },
+  link: { fontSize: 14, lineHeight: 30, role: 'sans' },
+  linkPrimary: { fontSize: 14, lineHeight: 30, role: 'sans' },
   code: {
     fontSize: 12,
-    fontFamily: Fonts.mono,
+    role: 'mono',
     fontWeight: Platform.select({ android: 700 }) ?? 500,
   },
 };

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { ThemeColor } from '@/constants/theme';
+import { fontFamilyFor } from '@/constants/fonts';
 import { TEXT_SCALE, type TextType } from '@/constants/typography';
 import { useFontScale } from '@/hooks/use-font-scale';
 import { useTheme } from '@/hooks/use-theme';
@@ -57,19 +58,29 @@ export function ThemedText({
     {
       fontSize: scale.fontSize,
       fontWeight: scale.fontWeight,
-      fontFamily: scale.fontFamily,
       lineHeight: scale.lineHeight,
     },
     style,
   ]);
 
+  // Resolved from the weight the style finally ended up with, not from the
+  // table. Android does not synthesise across separately registered font files,
+  // and twenty-three screen stylesheets set their own `fontWeight` on top of a
+  // type - picking the file before flattening would leave every one of them
+  // drawn at the table's weight. A caller that names its own `fontFamily` keeps
+  // it; nothing in the app does today, but the override should still win.
+  const resolved = {
+    ...flattened,
+    fontFamily: flattened.fontFamily ?? fontFamilyFor(scale.role, flattened.fontWeight),
+  };
+
   return (
     <Text
       maxFontSizeMultiplier={maxFontSizeMultiplier ?? scale.maxFontSizeMultiplier}
       style={
-        flattened.lineHeight === undefined
-          ? flattened
-          : { ...flattened, lineHeight: flattened.lineHeight * fontScale }
+        resolved.lineHeight === undefined
+          ? resolved
+          : { ...resolved, lineHeight: resolved.lineHeight * fontScale }
       }
       {...rest}
     />

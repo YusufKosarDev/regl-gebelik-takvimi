@@ -53,7 +53,7 @@ export function PeriodActionCard({
         {isEnding ? home.periodEndQuestion : home.periodStartQuestion}
       </ThemedText>
 
-      <ThemedText style={styles.rowValue}>
+      <ThemedText type="display">
         {formatDisplayDate(today, language)}
       </ThemedText>
 
@@ -128,11 +128,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     gap: Spacing.half,
-  },
-  rowValue: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
   },
   rowNote: {
     marginTop: Spacing.one,
