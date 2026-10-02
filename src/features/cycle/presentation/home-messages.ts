@@ -135,6 +135,10 @@ const homeMessagesTr = {
   historyLinkLabel: 'Geçmiş regl kayıtlarını görüntüle',
   historyLinkText: 'Geçmiş kayıtlar',
 
+  /** The daily log, as against the period records the link above goes to. */
+  logHistoryLinkLabel: 'Günlük kayıt geçmişini görüntüle',
+  logHistoryLinkText: 'Kayıt geçmişin',
+
   avatarCreateLabel: 'Avatar oluştur',
   avatarEditLabel: 'Avatarı düzenle',
   avatarLinkText: 'Avatarım',
@@ -265,6 +269,9 @@ const homeMessagesEn: HomeMessages = {
 
   historyLinkLabel: 'See your past period records',
   historyLinkText: 'Past records',
+
+  logHistoryLinkLabel: 'See your daily log history',
+  logHistoryLinkText: 'Your log history',
 
   avatarCreateLabel: 'Create an avatar',
   avatarEditLabel: 'Edit your avatar',

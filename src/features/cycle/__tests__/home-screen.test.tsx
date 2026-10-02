@@ -482,12 +482,12 @@ describe('HomeScreen scope', () => {
 
     const { queryAllByRole } = await renderScreen();
 
-    // The record action, the two ways into a daily entry, the two month steps
-    // and one button per real day of the month, and nothing else: no summary
-    // rows, no padding cells.
+    // The record action, the two ways into a daily entry, the log history
+    // link, the two month steps and one button per real day of the month, and
+    // nothing else: no summary rows, no padding cells.
     const labels = queryAllByRole('button').map((node) => node.props.accessibilityLabel as string);
 
-    expect(labels).toHaveLength(39);
+    expect(labels).toHaveLength(40);
     expect(
       labels.filter(
         (label) =>
@@ -636,9 +636,9 @@ describe('HomeScreen calendar section', () => {
     }
 
     // 30 days, the two month steps, the record action, the two ways into a
-    // daily entry, the history link, the avatar link, the settings link and
-    // the pregnancy link.
-    expect(queryAllByRole('button')).toHaveLength(39);
+    // daily entry, the period history link, the log history link, the avatar
+    // link, the settings link and the pregnancy link.
+    expect(queryAllByRole('button')).toHaveLength(40);
   });
 });
 

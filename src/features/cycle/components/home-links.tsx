@@ -44,6 +44,19 @@ export function HomeLinks({
         </ThemedText>
       </Pressable>
 
+      {/* Next to the period records rather than anywhere else, because the two
+          are the same errand from the person's side: looking back at what was
+          written down. One holds periods, the other holds days. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={home.logHistoryLinkLabel}
+        onPress={() => router.push('/(app)/daily-log-history')}
+        style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {home.logHistoryLinkText}
+        </ThemedText>
+      </Pressable>
+
       {/* The preview only once there is an avatar, and the label
           says which of the two errands the link is on. */}
       <Pressable
