@@ -131,11 +131,27 @@ export const Colors = {
   },
   dark: {
     text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-    /** The same accent lifted for a dark background: 9.71:1 on it, 7.35:1 on an element. */
+    /**
+     * Plum-black, not black.
+     *
+     * The dark scheme was `#000000` with three neutral greys on it, so the
+     * app that is lavender in daylight had no colour at all at night - and the
+     * splash screen, which is `#241C3D`, dropped straight into pure black on
+     * launch. These four are the same family as the splash and the icon.
+     *
+     * The greys were not simply tinted. Lifting the page off black costs the
+     * cards their separation from it: `#212225` on `#000000` read at 1.320,
+     * and the plum equivalent of it on `#141019` read at 1.135 - cards
+     * flatter into the page than before, which is a real loss dressed as a
+     * colour change. Both surfaces were lifted to put the three ratios back
+     * where they were: 1.311 element to page, 1.249 selected to element.
+     */
+    background: '#141019',
+    backgroundElement: '#2E2739',
+    backgroundSelected: '#3E3550',
+    /** Plum-grey rather than blue-grey, to match. 8.76:1 on the page. */
+    textSecondary: '#B5AEC2',
+    /** The same accent lifted for a dark background: 8.68:1 on it, 6.62:1 on an element. */
     primary: '#B6A9DD',
     /** What goes on top of `primary`. 7.42:1. Plum, not black, to stay in the family. */
     onPrimary: '#241C3D',

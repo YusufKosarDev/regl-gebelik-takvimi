@@ -88,6 +88,33 @@ describe.each([
     expect(contrast(palette.text, palette.background)).toBeGreaterThanOrEqual(AA_TEXT);
     expect(contrast(palette.textSecondary, palette.background)).toBeGreaterThanOrEqual(AA_TEXT);
   });
+
+  it('lets a card read as a card', () => {
+    // Not a WCAG floor - a card is not text and not a control boundary, so
+    // nothing above catches this. It is here because lifting the dark page off
+    // pure black nearly cost it: the plum surface on the plum page read at
+    // 1.135 where the old grey on black read at 1.320, and a palette change
+    // that flattens every card into the page is a regression wearing a new
+    // colour. Both surfaces were lifted instead. Light mode is the looser of
+    // the two at 1.137, so the floor is set under it rather than at it.
+    const SURFACE_SEPARATION = 1.1;
+
+    expect(contrast(palette.backgroundElement, palette.background)).toBeGreaterThan(
+      SURFACE_SEPARATION
+    );
+    expect(contrast(palette.backgroundSelected, palette.backgroundElement)).toBeGreaterThan(
+      SURFACE_SEPARATION
+    );
+  });
+
+  it('draws a primary link in the accent rather than in a colour of its own', () => {
+    // `ThemedText` used to hardcode '#3c87f7' for the linkPrimary type: a blue
+    // from no palette, identical in both schemes. The ratios it needs are the
+    // accent's own, asserted above; this is the reminder of why they have to
+    // hold on both the page and a card.
+    expect(contrast(palette.primary, palette.background)).toBeGreaterThanOrEqual(AA_TEXT);
+    expect(contrast(palette.primary, palette.backgroundElement)).toBeGreaterThanOrEqual(AA_TEXT);
+  });
 });
 
 describe('the brand palette', () => {

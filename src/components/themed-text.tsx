@@ -54,7 +54,13 @@ export function ThemedText({
   const scale = TEXT_SCALE[type];
 
   const flattened = StyleSheet.flatten([
-    { color: type === 'linkPrimary' ? '#3c87f7' : theme[themeColor ?? 'text'] },
+    // `linkPrimary` is the one type that names its own colour, and for a long
+    // time that colour was a hardcoded `#3c87f7` - a blue that appears nowhere
+    // in the palette, ignores the theme entirely and stayed the same shade in
+    // dark mode. It is the accent, which is what every other link-coloured
+    // thing in the app already uses and is held to 4.5:1 in both schemes by
+    // `theme-contrast.test.ts`.
+    { color: type === 'linkPrimary' ? theme.primary : theme[themeColor ?? 'text'] },
     {
       fontSize: scale.fontSize,
       fontWeight: scale.fontWeight,
