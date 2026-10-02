@@ -393,13 +393,26 @@ export function selectedDayRowsIn(
  * method of contraception. It travels with the row rather than being placed
  * near it, so the number and the warning about it cannot be separated.
  */
+export type SummaryRow = { label: string; value: string; note?: string };
+
+/**
+ * A tuple rather than an array, and the length is load-bearing.
+ *
+ * The home screen destructures the first two rows out of this and hands them to
+ * the ring, leaving the rest as rows. Typed as `SummaryRow[]` that destructure
+ * compiles whatever the length is - including zero - and a change here would
+ * surface as the ring rendering `undefined.label` on the screen a person opens
+ * most. Four, stated, so shortening this list fails at the call site instead.
+ */
+export type SummaryRows = readonly [SummaryRow, SummaryRow, SummaryRow, SummaryRow];
+
 export function summaryRowsIn(
   messages: HomeMessages,
   labels: CycleLabels,
   dashboard: CycleDashboard,
   language: Language,
   outlook?: CycleOutlook
-): { label: string; value: string; note?: string }[] {
+): SummaryRows {
   return [
     {
       label: messages.rowCycleDay,
@@ -446,7 +459,7 @@ function nextPeriodRowIn(
   dashboard: CycleDashboard,
   language: Language,
   outlook?: CycleOutlook
-): { label: string; value: string; note?: string } {
+): SummaryRow {
   if (outlook?.predictionConfidence === 'stale') {
     return {
       label: messages.rowNextPeriod,
@@ -535,9 +548,6 @@ export function selectedDayRows(day: CycleCalendarDay): { label: string; value: 
   return selectedDayRowsIn(homeMessagesTr, cycleLabels.tr, day);
 }
 
-export function summaryRows(
-  dashboard: CycleDashboard,
-  language: Language
-): { label: string; value: string; note?: string }[] {
+export function summaryRows(dashboard: CycleDashboard, language: Language): SummaryRows {
   return summaryRowsIn(homeMessagesTr, cycleLabels.tr, dashboard, language);
 }

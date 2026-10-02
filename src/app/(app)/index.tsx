@@ -17,6 +17,7 @@ import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
 import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
+import { buildCycleDayRing } from '@/features/cycle/application/build-cycle-day-ring';
 import { buildCycleOutlook } from '@/features/cycle/application/build-cycle-outlook';
 import { endCurrentPeriod } from '@/features/cycle/application/end-current-period';
 import { withoutPrediction } from '@/features/cycle/application/without-prediction';
@@ -26,6 +27,7 @@ import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-da
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
 import { CycleLengthSuggestionCard } from '@/features/cycle/components/cycle-length-suggestion-card';
 import { HomeModeSwitch } from '@/features/cycle/components/home-mode-switch';
+import { CycleDayRing } from '@/features/cycle/components/cycle-day-ring';
 import { CycleSummary } from '@/features/cycle/components/cycle-summary';
 import { HomeLinks } from '@/features/cycle/components/home-links';
 import { PeriodActionCard } from '@/features/cycle/components/period-action-card';
@@ -554,6 +556,13 @@ export default function HomeScreen() {
 
   const rows = summaryRowsIn(home, labels, dashboard, language, outlook);
 
+  // The first two rows are the ring's, the rest stay rows. Split here rather
+  // than inside either component so the wording still comes from one builder
+  // and the two cannot start describing different days.
+  const [dayRow, phaseRow, ...remainingRows] = rows;
+
+  const ring = buildCycleDayRing(profile, dashboard.today);
+
   // Absent until the records have something to say, and gone once it has been
   // acted on or waved away. The suggestion itself is null whenever there is
   // nothing worth asking about, so this is only the session's half of it.
@@ -584,7 +593,18 @@ export default function HomeScreen() {
 
             {isPregnancyView ? null : (
               <>
-              <CycleSummary rows={rows} />
+              <CycleDayRing
+                dots={ring.dots}
+                phase={dashboard.phase}
+                dayLabel={dayRow.label}
+                dayValue={dayRow.value}
+                dayAccessibilityLabel={home.labelledValue(dayRow.label, dayRow.value)}
+                phaseLabel={phaseRow.label}
+                phaseValue={phaseRow.value}
+                phaseAccessibilityLabel={home.labelledValue(phaseRow.label, phaseRow.value)}
+              />
+
+              <CycleSummary rows={remainingRows} />
 
               {/* Under the four facts rather than above them. The facts are
                   what the screen is for; this is a question about one of the
