@@ -682,6 +682,9 @@ describe('SettingsScreen scope', () => {
       // After the account, because whether there is one decides whether a
       // forgotten PIN can be recovered at all. Opens a screen; sets nothing.
       'Uygulama kilidini kur',
+      // Directly above the section that empties the phone: somebody about to
+      // delete everything should pass the way to take it with them first.
+      'Verilerini dışa aktar',
       'Hakkında',
       // Opens the confirmation panel; it deletes nothing on its own.
       'Tüm verilerimi sil',

@@ -51,6 +51,7 @@ import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messa
 import { useAuthState } from '@/features/auth/application/use-auth-state';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
+import { exportMessages } from '@/features/export/presentation/export-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 import { appMessages } from '@/shared/presentation/app-messages';
@@ -92,6 +93,7 @@ export default function SettingsScreen() {
   const reminderStrings = useMessages(reminderMessages);
   const cycleSettings = useMessages(settingsMessages);
   const disclaimer = useMessages(disclaimerMessages);
+  const exportStrings = useMessages(exportMessages);
   const common = useMessages(appMessages);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -664,6 +666,32 @@ export default function SettingsScreen() {
                 and somebody who has landed in a language they cannot read is
                 looking for this before they look for anything else. */}
             <ConnectedLanguagePicker />
+
+            {/* Directly above the section that empties the phone, because the
+                two are the same question from opposite ends: somebody about to
+                delete everything should pass the way to take it with them
+                first. */}
+            <View style={styles.fields}>
+              <ThemedText accessibilityRole="header" type="smallBold">
+                {exportStrings.exportTitle}
+              </ThemedText>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                {exportStrings.exportDescription}
+              </ThemedText>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={exportStrings.exportTitle}
+                onPress={() => router.push('/(app)/export')}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">{exportStrings.exportTitle}</ThemedText>
+              </Pressable>
+            </View>
 
             {/* Above the destructive section, because somebody looking for what
                 this app claims about itself should find it before they find the
