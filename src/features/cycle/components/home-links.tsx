@@ -5,6 +5,7 @@ import { useMessages } from '@/i18n';
 
 import { homeMessages } from '../presentation/home-messages';
 
+import { Icon } from '@/components/icon';
 import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -134,6 +135,10 @@ function LinkRow({
         <ThemedText type="small" themeColor="textSecondary">
           {text}
         </ThemedText>
+
+        {/* The one thing the list could not say about itself: that a row goes
+            somewhere. A word would not have said it any better. */}
+        <Icon name="chevron-right" />
       </Pressable>
     </Surface>
   );
@@ -147,7 +152,12 @@ const styles = StyleSheet.create({
   },
   link: {
     minHeight: 48,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    // The chevron to the far edge, the label at the near one, which is what
+    // makes the five rows scan as a column rather than as five sentences.
+    justifyContent: 'space-between',
+    gap: Spacing.three,
     paddingVertical: Spacing.three,
   },
   pressed: {

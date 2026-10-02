@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useMessages } from '@/i18n';
@@ -40,6 +41,8 @@ export function BackButton() {
       onPress={() => router.back()}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
     >
+      <Icon name="chevron-left" size={16} />
+
       <ThemedText type="small" themeColor="textSecondary">
         {strings.backLabel}
       </ThemedText>
@@ -50,6 +53,9 @@ export function BackButton() {
 const styles = StyleSheet.create({
   backButton: {
     minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
     justifyContent: 'center',
     alignSelf: 'flex-start',
     paddingRight: Spacing.three,

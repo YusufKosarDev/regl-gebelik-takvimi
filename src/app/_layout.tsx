@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { ICON_FONT } from '@/components/icon';
 import { FONT_ASSETS } from '@/constants/fonts';
 import { useAppLock } from '@/features/app-lock/application/use-app-lock';
 import { applyScreenPrivacy } from '@/features/app-lock/infrastructure/screen-privacy';
@@ -45,7 +46,7 @@ export default function RootLayout() {
    * reason to hold somebody out of their own records - React Native falls back
    * to the system font and the app reads exactly as it did before.
    */
-  const [fontsLoaded] = useFonts(FONT_ASSETS);
+  const [fontsLoaded] = useFonts({ ...FONT_ASSETS, ...ICON_FONT });
 
   const hydrate = useAppStore((state) => state.hydrate);
   const hydrated = useAppStore((state) => state.hydrated);

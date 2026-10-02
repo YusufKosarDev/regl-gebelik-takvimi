@@ -9,6 +9,7 @@ import { CycleCalendar } from './cycle-calendar';
 import { CycleCalendarLegend } from './cycle-calendar-legend';
 
 import { Surface } from '@/components/surface';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
@@ -81,7 +82,7 @@ export function CycleCalendarSection({
             !canGoBack && styles.monthButtonDisabled,
             pressed && canGoBack && styles.pressed,
           ]}>
-          <ThemedText style={styles.monthButtonLabel}>‹</ThemedText>
+          <Icon name="chevron-left" />
         </Pressable>
 
         <ThemedText
@@ -101,7 +102,7 @@ export function CycleCalendarSection({
             !canGoForward && styles.monthButtonDisabled,
             pressed && canGoForward && styles.pressed,
           ]}>
-          <ThemedText style={styles.monthButtonLabel}>›</ThemedText>
+          <Icon name="chevron-right" />
         </Pressable>
       </View>
 
