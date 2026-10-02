@@ -27,6 +27,80 @@ export const Brand = {
   deep: '#4A3D78',
 } as const;
 
+/**
+ * A colour for each phase of the cycle.
+ *
+ * ## Why the cycle gets a colour at all
+ *
+ * It had none. The calendar told four phases apart with two greys and two
+ * border widths, which is the subject of this whole app rendered as the
+ * quietest thing on the screen.
+ *
+ * ## Why two tones each
+ *
+ * One would not do. The strong tone is what a dot or a mark is drawn in, and it
+ * has to hold against the page - but a calendar square has a day number sitting
+ * on it, and black on garnet is unreadable. So each phase has a fill light
+ * enough to carry text and an accent dark enough to be seen on its own.
+ *
+ * ## Why these four
+ *
+ * A cycle is a loop, so the colours are a loop: garnet through periwinkle and
+ * teal and back to the brand's lavender, which is the longest phase and the
+ * one the app is already dressed in. They differ in lightness as well as hue,
+ * so they are told apart without relying on colour vision - and in any case the
+ * calendar keeps its letters and shapes, so colour is the third channel rather
+ * than the only one.
+ *
+ * Every value below is held to WCAG by `theme-contrast.test.ts`: a fill against
+ * the text that sits on it, an accent against the page it is drawn on.
+ */
+export const CyclePhaseColors = {
+  light: {
+    menstrualAccent: '#8E2F4E',
+    menstrualSoft: '#F7E4EA',
+    follicularAccent: '#4F64A3',
+    follicularSoft: '#E6EAF5',
+    /** Darker than it looks like it wants to be: the lighter teal missed 3:1. */
+    ovulatoryAccent: '#4E938B',
+    ovulatorySoft: '#E0F0EE',
+    /**
+     * In the brand family without being `Brand.main`.
+     *
+     * The loop was meant to close on the icon's own lavender exactly, and it
+     * cannot: `Brand.main` is light enough (luminance 0.232) that it lands
+     * within 0.011 of the teal above, so two of the four phases stop being
+     * tellable apart by lightness. This is the same lavender pulled down far
+     * enough to leave the teal room - between the interface accent
+     * `Colors.light.primary` (0.148) and `Brand.main` (0.232).
+     */
+    lutealAccent: '#8172B8',
+    lutealSoft: '#EEEAF8',
+  },
+  dark: {
+    /**
+     * Not the light accents lightened, and not a blend toward white.
+     *
+     * Mixing each light accent with white reaches the lightness but leaves the
+     * hue washed out, and four pale greys on a dark page are harder to tell
+     * apart than the originals. These are saturated at their target lightness
+     * instead, in the same order and with a wider spread than light mode has
+     * room for - a dark page has no 3:1 ceiling to crowd them against.
+     */
+    menstrualAccent: '#CE5C77',
+    menstrualSoft: '#3A1F29',
+    follicularAccent: '#7F93DC',
+    follicularSoft: '#1E2535',
+    ovulatoryAccent: '#85D6C6',
+    ovulatorySoft: '#16302D',
+    lutealAccent: '#B8A9E8',
+    lutealSoft: '#271F3B',
+  },
+} as const;
+
+export type CyclePhaseColor = keyof typeof CyclePhaseColors.light &
+  keyof typeof CyclePhaseColors.dark;
+
 export const Colors = {
   light: {
     text: '#000000',

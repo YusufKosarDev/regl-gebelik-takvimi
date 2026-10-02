@@ -12,7 +12,7 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-font-scale';
-import { useTheme } from '@/hooks/use-theme';
+import { useCyclePhaseColors, useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { getDayOfMonth } from '@/utils/date';
@@ -75,6 +75,23 @@ const NEUTRAL_MARKERS: Readonly<Record<Exclude<DayState, 'menstrual' | 'ovulator
   elevated: '○',
   default: '',
 };
+
+/**
+ * What colour a day's own mark is drawn in.
+ *
+ * `default` never reaches here - it has no mark to draw - but the map is total
+ * so a state added later gets a colour rather than `undefined`, which React
+ * Native renders as the inherited one and would be invisible in review.
+ */
+function markerColour(
+  state: DayState,
+  phases: ReturnType<typeof useCyclePhaseColors>
+): string {
+  if (state === 'menstrual') return phases.menstrualAccent;
+  if (state === 'ovulatory' || state === 'peak') return phases.ovulatoryAccent;
+
+  return phases.follicularAccent;
+}
 
 function markerFor(state: DayState, messages: HomeMessages): string {
   if (state === 'menstrual') return messages.legendPeriodMarker;
@@ -198,6 +215,7 @@ function DayCell({
 }) {
   const theme = useTheme();
   const home = useMessages(homeMessages);
+  const phases = useCyclePhaseColors();
   const fontScale = useFontScale();
   const language = useLanguage();
   const labels = useMessages(cycleLabels);
@@ -211,10 +229,14 @@ function DayCell({
       testID={isToday ? `calendar-today-${day.date}` : undefined}
       style={[
         styles.dayBox,
-        state === 'menstrual' && { backgroundColor: theme.backgroundSelected },
-        state === 'ovulatory' && { borderWidth: 1, borderColor: theme.text },
-        state === 'peak' && { borderWidth: 1, borderColor: theme.textSecondary },
-        state === 'elevated' && { backgroundColor: theme.backgroundElement },
+        // The phase in colour as well as in a letter. Added beside the markers
+        // rather than instead of them: the letter is what a person who cannot
+        // tell these four apart by hue reads, and it is also what forty-odd
+        // assertions look for. Three channels, none of them load-bearing alone.
+        state === 'menstrual' && { backgroundColor: phases.menstrualSoft },
+        state === 'ovulatory' && { borderWidth: 1, borderColor: phases.ovulatoryAccent },
+        state === 'peak' && { borderWidth: 1, borderColor: phases.ovulatoryAccent },
+        state === 'elevated' && { backgroundColor: phases.follicularSoft },
       ]}>
       <ThemedText
         type="small"
@@ -228,11 +250,14 @@ function DayCell({
 
       <View style={styles.markerRow}>
         {marker !== '' && (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
+          <ThemedText type="small" style={[styles.marker, { color: markerColour(state, phases) }]}>
             {marker}
           </ThemedText>
         )}
 
+        {/* The predicted start keeps the muted colour whatever phase it lands
+            in. It is the one mark on the calendar that is a guess, and giving
+            it a phase colour would dress it as a recorded fact. */}
         {day.isPredictedPeriodStart && (
           <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
             {PREDICTED_MARKER}

@@ -1,4 +1,4 @@
-import { Brand, Colors } from '@/constants/theme';
+import { Brand, Colors, CyclePhaseColors } from '@/constants/theme';
 
 /**
  * The accent is the one colour in this app that carries text, and it is the
@@ -110,5 +110,95 @@ describe('the brand palette', () => {
   it('is what the splash screens are built from', () => {
     // Light splash: Brand.deep on Brand.light. Dark splash: the reverse.
     expect(contrast(Brand.deep, Brand.light)).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+});
+
+describe('the cycle phase palette', () => {
+  /** The four phases, as the pair of tokens each one owns. */
+  const PHASES = ['menstrual', 'follicular', 'ovulatory', 'luteal'] as const;
+
+  it('carries the day number on every soft fill', () => {
+    // A calendar square is a fill with a date sitting on it. The fill is light
+    // for that reason and not for a decorative one, which is easy to forget
+    // while picking a prettier colour.
+    for (const phase of PHASES) {
+      const light = CyclePhaseColors.light[`${phase}Soft`];
+      const dark = CyclePhaseColors.dark[`${phase}Soft`];
+
+      expect([phase, contrast(Colors.light.text, light) >= AA_TEXT]).toEqual([phase, true]);
+      expect([phase, contrast(Colors.dark.text, dark) >= AA_TEXT]).toEqual([phase, true]);
+    }
+  });
+
+  it('shows every accent against the page it is drawn on', () => {
+    // Dots, marks and outlines are graphics rather than text, so three to one.
+    // The teal was darkened twice to clear this; the first two candidates read
+    // beautifully and failed.
+    for (const phase of PHASES) {
+      const light = CyclePhaseColors.light[`${phase}Accent`];
+      const dark = CyclePhaseColors.dark[`${phase}Accent`];
+
+      expect([phase, contrast(light, Colors.light.background) >= AA_NON_TEXT]).toEqual([
+        phase,
+        true,
+      ]);
+      expect([phase, contrast(dark, Colors.dark.background) >= AA_NON_TEXT]).toEqual([
+        phase,
+        true,
+      ]);
+    }
+  });
+
+  it('shows every accent against a soft fill of the same phase', () => {
+    // A mark is drawn inside the square it belongs to, so it has to hold
+    // against that square and not only against the page.
+    for (const phase of PHASES) {
+      expect([
+        phase,
+        contrast(
+          CyclePhaseColors.light[`${phase}Accent`],
+          CyclePhaseColors.light[`${phase}Soft`]
+        ) >= AA_NON_TEXT,
+      ]).toEqual([phase, true]);
+    }
+  });
+
+  it('tells the four phases apart by lightness, not only by hue', () => {
+    // Nobody should have to rely on colour vision to read this calendar. The
+    // letters and shapes are the first guarantee of that; this is the second.
+    //
+    // Both schemes, because the first pass only held light mode and the dark
+    // accents it let through sat inside 0.002 of each other - a dark calendar
+    // that was readable by hue alone, which is the thing this test exists to
+    // prevent. Light mode is the harder half: an accent also has to clear 3:1
+    // on white, which caps it around 0.30 and leaves all four to fit in that
+    // band. Dark mode has no such ceiling and spreads twice as far.
+    for (const scheme of ['light', 'dark'] as const) {
+      const lightnesses = PHASES.map((phase) =>
+        luminance(CyclePhaseColors[scheme][`${phase}Accent`])
+      );
+
+      for (let i = 0; i < lightnesses.length; i += 1) {
+        for (let j = i + 1; j < lightnesses.length; j += 1) {
+          expect([scheme, Math.abs(lightnesses[i] - lightnesses[j]) > 0.01]).toEqual([
+            scheme,
+            true,
+          ]);
+        }
+      }
+    }
+  });
+
+  it('keeps the longest phase in the brand family', () => {
+    // The luteal phase is the longest one, so it gets the colour the app
+    // already wears - but not `Brand.main` itself, which is light enough to
+    // collide with the teal in the test above. It sits between the interface
+    // accent and the artwork colour, and this says so in numbers rather than
+    // in a comment that can go stale: a later retune that wanders out of the
+    // family, or back onto `Brand.main`, fails here.
+    const luteal = luminance(CyclePhaseColors.light.lutealAccent);
+
+    expect(luteal).toBeGreaterThan(luminance(Colors.light.primary));
+    expect(luteal).toBeLessThan(luminance(Brand.main));
   });
 });
