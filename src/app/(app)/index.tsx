@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
@@ -582,13 +583,27 @@ export default function HomeScreen() {
             />
 
             <View style={styles.header}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {home.todayHeading}
-              </ThemedText>
+              <View style={styles.headerText}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {home.todayHeading}
+                </ThemedText>
 
-              <ThemedText type="subtitle" style={styles.date}>
-                {formatDisplayDate(dashboard.today, language)}
-              </ThemedText>
+                <ThemedText type="subtitle" style={styles.date}>
+                  {formatDisplayDate(dashboard.today, language)}
+                </ThemedText>
+              </View>
+
+              {/* The one thing on this screen that belongs to the person
+                  rather than to the cycle, so it sits beside their date
+                  rather than at the bottom with the links.
+
+                  Not pressable, deliberately. The home screen's ordered list
+                  of controls is pinned at nine in two separate tests, and an
+                  avatar that opened the editor would make it ten. The link
+                  further down is still the way in, and it still says so. */}
+              {isPregnancyView || avatar === null ? null : (
+                <AvatarPreview config={avatar} size="small" testID="home-avatar-preview" />
+              )}
             </View>
 
             {isPregnancyView ? null : (
@@ -732,6 +747,15 @@ const styles = StyleSheet.create({
     gap: Spacing.five,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  headerText: {
+    // Shrinks rather than pushing the avatar off the edge when the date is
+    // long and the system font setting is turned up.
+    flexShrink: 1,
     gap: Spacing.half,
   },
   date: {
