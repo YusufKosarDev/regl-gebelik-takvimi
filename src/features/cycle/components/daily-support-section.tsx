@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { CycleDailySupport } from '../domain/daily-support';
 import { homeMessages } from '../presentation/home-messages';
 
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
-import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 
 /**
@@ -30,7 +30,6 @@ export function DailySupportSection({
   readonly openSource: (url: string) => Promise<void>;
   readonly hasSourceError: boolean;
 }) {
-  const theme = useTheme();
   const home = useMessages(homeMessages);
   const disclaimer = useMessages(disclaimerMessages);
 
@@ -40,7 +39,7 @@ export function DailySupportSection({
           ovulatory phase today. The heading goes with the list, so
           neither appears without the other. */}
       {dailySupport.moodLabels !== undefined && (
-        <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+        <Surface level="lined">
           <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
             {home.supportMoodTitle}
           </ThemedText>
@@ -50,10 +49,10 @@ export function DailySupportSection({
               • {mood}
             </ThemedText>
           ))}
-        </View>
+        </Surface>
       )}
 
-      <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+      <Surface level="filled">
         <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
           {home.supportMessageTitle}
         </ThemedText>
@@ -65,13 +64,13 @@ export function DailySupportSection({
         <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
           {home.supportDisclaimer}
         </ThemedText>
-      </View>
+      </Surface>
 
       {/* The domain requires at least one source, but the section is
           still conditional: an empty heading would be worse than no
           heading. */}
       {dailySupport.sources.length > 0 && (
-        <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+        <Surface level="lined">
           <ThemedText accessibilityRole="header" type="small" themeColor="textSecondary">
             {home.supportSourcesTitle}
           </ThemedText>
@@ -99,7 +98,7 @@ export function DailySupportSection({
               </ThemedText>
             </Pressable>
           ))}
-        </View>
+        </Surface>
       )}
 
       {/* Closes the section rather than sitting inside one card: it
@@ -115,12 +114,6 @@ export function DailySupportSection({
 const styles = StyleSheet.create({
   supportSection: {
     gap: Spacing.two,
-  },
-  row: {
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
   },
   rowNote: {
     marginTop: Spacing.one,

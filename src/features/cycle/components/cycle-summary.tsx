@@ -2,9 +2,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { homeMessages } from '../presentation/home-messages';
 
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 
 /**
@@ -23,17 +23,16 @@ export function CycleSummary({
 }: {
   readonly rows: readonly { label: string; value: string; note?: string }[];
 }) {
-  const theme = useTheme();
   const home = useMessages(homeMessages);
 
   return (
     <View style={styles.summary}>
       {rows.map((row) => (
-        <View
+        <Surface
           key={row.label}
+          level="lined"
           accessible
-          accessibilityLabel={home.labelledValue(row.label, row.value)}
-          style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+          accessibilityLabel={home.labelledValue(row.label, row.value)}>
           <ThemedText type="small" themeColor="textSecondary">
             {row.label}
           </ThemedText>
@@ -43,7 +42,7 @@ export function CycleSummary({
               {row.note}
             </ThemedText>
           )}
-        </View>
+        </Surface>
       ))}
     </View>
   );
@@ -52,12 +51,6 @@ export function CycleSummary({
 const styles = StyleSheet.create({
   summary: {
     gap: Spacing.two,
-  },
-  row: {
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
   },
   rowNote: {
     marginTop: Spacing.one,

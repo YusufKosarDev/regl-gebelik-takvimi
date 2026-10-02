@@ -8,6 +8,7 @@ import { homeMessages, selectedDayRowsIn } from '../presentation/home-messages';
 import { CycleCalendar } from './cycle-calendar';
 import { CycleCalendarLegend } from './cycle-calendar-legend';
 
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
@@ -119,7 +120,7 @@ export function CycleCalendarSection({
         {selectedDay === null ? (
           <ThemedText themeColor="textSecondary">{home.selectedDayEmptyMessage}</ThemedText>
         ) : (
-          <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+          <Surface level="filled">
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
               {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>
@@ -165,7 +166,7 @@ export function CycleCalendarSection({
                   : dailyLog.calendarDayAddLabel}
               </ThemedText>
             </Pressable>
-          </View>
+          </Surface>
         )}
       </View>
 
@@ -212,12 +213,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
     fontWeight: '600',
-  },
-  row: {
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
   },
   dayEntryLink: {
     minHeight: 48,

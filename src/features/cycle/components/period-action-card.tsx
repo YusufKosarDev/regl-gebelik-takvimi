@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { homeMessages } from '../presentation/home-messages';
 
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -48,7 +49,7 @@ export function PeriodActionCard({
   const language = useLanguage();
 
   return isConfirming ? (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+    <Surface level="filled">
       <ThemedText type="small" themeColor="textSecondary">
         {isEnding ? home.periodEndQuestion : home.periodStartQuestion}
       </ThemedText>
@@ -104,7 +105,7 @@ export function PeriodActionCard({
           </ThemedText>
         </Pressable>
       </View>
-    </View>
+    </Surface>
   ) : (
     <Pressable
       accessibilityRole="button"
@@ -123,12 +124,6 @@ export function PeriodActionCard({
 }
 
 const styles = StyleSheet.create({
-  row: {
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
-  },
   rowNote: {
     marginTop: Spacing.one,
   },
