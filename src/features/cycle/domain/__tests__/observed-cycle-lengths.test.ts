@@ -5,7 +5,6 @@ import {
 } from '../observed-cycle-lengths';
 import type { CycleProfile, PeriodRecord } from '../types';
 
-import type { ISODate } from '@/types/iso-date';
 import { addDays, toISODate } from '@/utils/date';
 
 /**
