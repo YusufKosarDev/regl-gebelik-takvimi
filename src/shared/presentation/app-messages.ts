@@ -65,6 +65,22 @@ const appMessagesTr = {
   errorBody: 'Kayıtların telefonunda duruyor, silinmedi.',
   errorRetryLabel: 'Yeniden dene',
 
+  /**
+   * The earliest failure there is: the app could not read its own saved state.
+   *
+   * Its own sentence rather than `errorTitle`, because this one happens before
+   * any screen exists to have broken, and there is nothing to retry from - the
+   * app has not started. Saying the records are still there is the whole
+   * message.
+   *
+   * It lived in `app/_layout.tsx` as a hardcoded English string for as long as
+   * that screen existed, on a Turkish-first app, and it is the one screen
+   * somebody cannot navigate away from. Nothing stopped it being translated:
+   * the language resolver falls back to the device's own language without
+   * needing the store that just failed.
+   */
+  hydrationErrorMessage: 'Uygulama açılamadı. Kayıtların telefonunda duruyor, silinmedi.',
+
   notFoundTitle: 'Bu sayfa yok',
   notFoundBody:
     'Açmaya çalıştığın bağlantı uygulamadaki hiçbir ekrana gitmiyor. Kayıtların yerinde.',
@@ -113,6 +129,9 @@ const appMessagesEn: AppMessages = {
   errorTitle: 'Something went wrong',
   errorBody: 'Your records are still on this phone. Nothing was deleted.',
   errorRetryLabel: 'Try again',
+
+  hydrationErrorMessage:
+    'The app could not start. Your records are still on this phone. Nothing was deleted.',
 
   notFoundTitle: 'This page does not exist',
   notFoundBody:

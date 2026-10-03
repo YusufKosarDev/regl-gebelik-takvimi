@@ -142,7 +142,7 @@ describe('RootLayout hydration', () => {
     expect(queryByText('screen:(onboarding)')).toBeNull();
   });
 
-  it('shows a developer-visible error instead of spinning forever', async () => {
+  it('says what happened, in the language of the phone, rather than spinning forever', async () => {
     primeStore({
       hydrated: false,
       onboardingCompleted: false,
@@ -151,7 +151,14 @@ describe('RootLayout hydration', () => {
 
     const { findByText, queryByTestId } = await render(<RootLayout />);
 
-    expect(await findByText('App state could not be loaded.')).toBeTruthy();
+    // This read 'App state could not be loaded.' - hardcoded English on a
+    // Turkish-first app, on the one screen somebody cannot navigate away from,
+    // and this assertion is what held it there. The name above called it
+    // developer-visible, which is how it survived: it was never a developer who
+    // would see it.
+    expect(
+      await findByText('Uygulama açılamadı. Kayıtların telefonunda duruyor, silinmedi.')
+    ).toBeTruthy();
     expect(queryByTestId('app-hydration-loading')).toBeNull();
   });
 });

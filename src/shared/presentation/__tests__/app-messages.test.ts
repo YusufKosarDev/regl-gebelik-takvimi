@@ -127,6 +127,11 @@ describe('the crutch exports', () => {
     'languageSystemLabel',
     'languageNameTurkish',
     'languageNameEnglish',
+
+    // Added with the second language already in place: the hydration error was
+    // a hardcoded English sentence until then, so nothing in the suite names a
+    // Turkish constant for it.
+    'hydrationErrorMessage',
   ];
 
   it('covers every key that predates the second language', () => {

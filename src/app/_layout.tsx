@@ -9,7 +9,9 @@ import { useAppLock } from '@/features/app-lock/application/use-app-lock';
 import { applyScreenPrivacy } from '@/features/app-lock/infrastructure/screen-privacy';
 import { registerForegroundNotificationHandler } from '@/features/notifications/infrastructure/foreground-notification-handler';
 import { useAutomaticSync } from '@/features/sync/application/use-automatic-sync';
+import { useMessages } from '@/i18n';
 import { logEvent } from '@/shared/logging';
+import { appMessages } from '@/shared/presentation/app-messages';
 import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 
@@ -32,6 +34,10 @@ export { ErrorBoundary } from '@/components/error-boundary';
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  // Resolved from the device's own language when the store has nothing to
+  // say, which is exactly the case the hydration error below is for.
+  const common = useMessages(appMessages);
 
   /**
    * The app's two typefaces, loaded at runtime.
@@ -109,7 +115,7 @@ export default function RootLayout() {
   if (hasHydrationError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>App state could not be loaded.</Text>
+        <Text style={styles.errorText}>{common.hydrationErrorMessage}</Text>
       </View>
     );
   }
