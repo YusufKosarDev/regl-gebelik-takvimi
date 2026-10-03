@@ -389,35 +389,67 @@ If push notifications are ever genuinely needed, the policy and
 
 ## Android permissions
 
-A release build's merged manifest carries ten `<uses-permission>` entries.
-Eight of them are capabilities the app asks the person for, and each is here
-because something needs it:
+A release build's merged manifest carries **ten** `<uses-permission>` entries.
 
-| Permission | Why |
+**Observed, not derived.** The merger considers 34 entries across the app and
+every library it links, and removes 24, and the ten below are what
+`:app:processReleaseManifestForPackage` actually produced — read out of
+`packaged_manifests/release/` by the command under
+[Checking a build](#checking-a-build). Every figure here comes from that run and
+from the merger's own report, which names the library each entry arrived from.
+Before that run this section's ten was reasoned from the *debug* report, which
+is a different merge: see the warning at the end of that section.
+
+Six are capabilities this app's own features need:
+
+| Permission | Why | Declared by |
+| --- | --- | --- |
+| `INTERNET` | The Firebase JS SDK, for accounts, backup and sync | the app's own manifest |
+| `POST_NOTIFICATIONS` | Reminders, on Android 13 and newer | `expo-notifications` |
+| `RECEIVE_BOOT_COMPLETED` | So a scheduled reminder survives a restart | `expo-notifications` |
+| `VIBRATE` | A reminder's own notification | the app's own manifest |
+| `USE_BIOMETRIC` / `USE_FINGERPRINT` | Opening the app lock with a fingerprint or a face | the app's manifest and `expo-local-authentication` |
+
+### Three arrive with Cloud Messaging, which this app does not use
+
+This is the part the derived list had wrong, and it is worth stating plainly
+because it is three entries rather than one.
+
+`expo-notifications` depends on `com.google.firebase:firebase-messaging`, and
+**that dependency — not any feature of this app — is what declares these:**
+
+| Permission | Declared by |
 | --- | --- |
-| `INTERNET` | The Firebase SDK, for accounts, backup and sync |
-| `ACCESS_NETWORK_STATE` | Same — the SDK checks whether it can reach the server |
-| `POST_NOTIFICATIONS` | Reminders, on Android 13 and newer |
-| `RECEIVE_BOOT_COMPLETED` | So a scheduled reminder survives a restart |
-| `VIBRATE` | A reminder's own notification |
-| `WAKE_LOCK` | Delivering one while the screen is off |
-| `USE_BIOMETRIC` / `USE_FINGERPRINT` | Opening the app lock with a fingerprint or a face |
+| `ACCESS_NETWORK_STATE` | `firebase-messaging`, also merged from `firebase-installations`, `play-services-cloud-messaging` and `transport-backend-cct` |
+| `WAKE_LOCK` | `firebase-messaging`, also merged from `play-services-cloud-messaging` |
+| `com.google.android.c2dm.permission.RECEIVE` | `firebase-messaging`, also merged from `play-services-cloud-messaging` |
 
-The other two are not capability requests and are not what a person sees on a
-store listing:
+An earlier version of this table credited `ACCESS_NETWORK_STATE` to the Firebase
+SDK checking whether it can reach the server, and `WAKE_LOCK` to delivering a
+reminder while the screen is off. Both readings are wrong, and the first could
+not have been right: this app talks to Firebase through the **JavaScript** SDK,
+which has no Android manifest and cannot contribute a permission to one. Neither
+entry appears anywhere in `expo-notifications`' own manifest — local
+notifications need neither.
 
-- `com.yusufkosardev.regltakvimi.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is
-  namespaced to this app's own package. AndroidX declares it and holds it
-  itself, so that a dynamically registered receiver is reachable by nothing
-  else. It grants this app nothing it did not already have.
-- `com.google.android.c2dm.permission.RECEIVE` arrives from
-  `com.google.firebase:firebase-messaging`, by way of `expo-notifications`.
-  **This app sends no push messages** — every reminder is scheduled locally on
-  the device — so the permission is unused. It is left in rather than blocked
-  because it is what `expo-notifications` registers its receiver against, and
-  removing it is a change to that library's wiring rather than a line in
-  `app.json`. Worth revisiting before a store release: if it can go, the app
-  asks for nothing it does not use.
+**This app sends no push messages.** Every reminder is scheduled locally on the
+device with a `DATE` trigger. So all three are unused, and the honest figure is
+that **three of the ten exist because of a push stack that never runs.**
+
+They are left in rather than blocked because they come from a library's own
+manifest and `expo-notifications` registers its receiver against the c2dm one;
+removing them means excluding the dependency, not adding a line to
+`blockedPermissions`. Worth doing before a store release, and worth more than it
+looked: it would take the list from ten to seven, and `WAKE_LOCK` in particular
+is not a thing a period tracker should appear to want.
+
+### And one that is not a request at all
+
+`com.yusufkosardev.regltakvimi.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is
+namespaced to this app's own package and declared by `androidx.core:core:1.18.0`,
+which holds it itself so that a dynamically registered receiver is reachable by
+nothing else. It grants this app nothing it did not already have, and it is not
+what a person sees on a store listing.
 
 There is no location, no camera, no contacts, no storage and no calendar
 permission, because there is no feature that would use one.
@@ -467,7 +499,8 @@ grep -oE '<uses-permission[^>]*android:name="[^"]+"' \
   | grep -oE 'android:name="[^"]+"' | sort -u
 ```
 
-Ten lines is the expected answer.
+Ten lines is the expected answer, and ten lines is what it gave on
+2026-10-03 — the list is in the table above.
 
 Match the whole name rather than a `permission\.[A-Z_]+` tail. Two of the ten
 do not have that shape — `com.google.android.c2dm.permission.RECEIVE` has a
