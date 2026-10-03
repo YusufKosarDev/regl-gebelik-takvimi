@@ -16,10 +16,23 @@ import type { Messages } from '@/i18n';
  *
  * ## The English is a translation, not a rewrite
  *
- * Same claims, same order, same three points, and the emergency number stays
- * 112 - it is the number where this app is used, and localising it to a
- * reader's assumed country would be inventing advice. The rule above applies
- * to both halves: neither may be shortened to fit.
+ * Same claims, same order, same three points. The rule above applies to both
+ * halves: neither may be shortened to fit.
+ *
+ * ## The emergency line is the one place the two halves differ
+ *
+ * Turkish says 112, which is correct in Turkey and is where this app is used.
+ * English says "contact your local emergency services" and names no number.
+ *
+ * A language is not a country. Somebody installing from an English listing may
+ * be anywhere, and 112 reaches help in Turkey and the EU while the US dials 911
+ * and the UK 999. A precise number that is wrong for a large share of readers is
+ * worse on this line than a vague instruction that is right for all of them -
+ * this is the sentence somebody reads while deciding whether to call, and it has
+ * to work wherever they are standing.
+ *
+ * This is a deliberate asymmetry, not a translation that drifted. Do not
+ * "restore parity" by putting a number back into the English.
  */
 
 const disclaimerMessagesTr = {
@@ -154,7 +167,7 @@ const disclaimerMessagesEn: DisclaimerMessages = {
     'It is not a substitute for medical advice, diagnosis or treatment.',
     'It must not be used on its own as a method of contraception or to conceive.',
     'If you have any concern about your health, speak to a healthcare professional. ' +
-      'In an emergency, call 112.',
+      'In an emergency, contact your local emergency services.',
   ],
 
   aboutScreenTitle: 'About',
@@ -172,7 +185,8 @@ const disclaimerMessagesEn: DisclaimerMessages = {
     'This app is not a method of contraception. It must not be used on its own to avoid ' +
       'pregnancy or to conceive.',
     'Keep up with your regular check-ups throughout a pregnancy. If you have any concern ' +
-      'about your health, speak to a healthcare professional. In an emergency, call 112.',
+      'about your health, speak to a healthcare professional. In an emergency, contact your ' +
+      'local emergency services.',
   ],
 
   aboutAppName: 'Regl & Gebelik Takvimi',

@@ -49,13 +49,36 @@ describe('the claims survive translation', () => {
     expect(everything).toMatch(pattern);
   });
 
-  it('keeps the emergency number as 112 in both languages', () => {
-    // The number where this app is used. Localising it to a reader's assumed
-    // country would be inventing advice.
-    for (const catalogue of [disclaimerMessages.tr, disclaimerMessages.en]) {
-      expect(catalogue.disclaimerPoints.join(' ')).toContain('112');
-      expect(catalogue.aboutImportantParagraphs.join(' ')).toContain('112');
+  it('keeps 112 in the Turkish, where it is the right number', () => {
+    expect(disclaimerMessages.tr.disclaimerPoints.join(' ')).toContain('112');
+    expect(disclaimerMessages.tr.aboutImportantParagraphs.join(' ')).toContain('112');
+  });
+
+  /**
+   * The one place the two halves deliberately differ.
+   *
+   * A language is not a country: 112 reaches help in Turkey and the EU, 911 in
+   * the US, 999 in the UK, and an English listing says nothing about where the
+   * reader is. So the English names no number. Asserted as the absence of a
+   * digit rather than the presence of a phrase, because the failure this guards
+   * against is somebody "restoring parity" by copying the Turkish number across.
+   */
+  it.each<[string, readonly string[]]>([
+    ['onboarding points', disclaimerMessages.en.disclaimerPoints],
+    ['about paragraphs', disclaimerMessages.en.aboutImportantParagraphs],
+  ])('names no emergency number in the English %s', (_where, strings) => {
+    for (const value of strings) {
+      expect([value, /\b(112|911|999|000|119)\b/.test(value)]).toEqual([value, false]);
     }
+  });
+
+  it('sends an English reader to their own emergency services', () => {
+    const everything = [
+      ...disclaimerMessages.en.disclaimerPoints,
+      ...disclaimerMessages.en.aboutImportantParagraphs,
+    ].join(' ');
+
+    expect(everything).toMatch(/in an emergency, contact your local emergency services/i);
   });
 
   it('keeps the app name untranslated', () => {
