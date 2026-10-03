@@ -87,6 +87,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bc7e091f-dd70-4e6e-a308-884bf24b3bf0"
+      }
+    },
+    "owner": "yusuf-kosar"
   }
 }
