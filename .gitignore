@@ -19,6 +19,18 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# App signing credentials, as `eas credentials` writes them when downloading
+# the keystore from EAS for backup.
+#
+# `*.jks` above already catches the keystore itself. These two do not:
+# credentials.json holds the keystore password, the key alias and the key
+# password in plain text, which is everything needed to sign a release as this
+# app. Losing the keystore means never updating the app again; committing it
+# means somebody else can ship as us. The directory is ignored as a whole so a
+# future `eas credentials` writing a differently-named file is covered too.
+credentials.json
+credentials/
+
 # Metro
 .metro-health-check*
 
