@@ -1,7 +1,5 @@
 import type { CycleLengthSuggestion } from '../domain/cycle-length-suggestion';
 import { suggestCycleLength } from '../domain/cycle-length-suggestion';
-import type { CycleRegularity } from '../domain/cycle-regularity';
-import { assessCycleRegularity } from '../domain/cycle-regularity';
 import type { CycleLengthObservations } from '../domain/observed-cycle-lengths';
 import { observeCycleLengths } from '../domain/observed-cycle-lengths';
 import type { PredictedPeriodRange } from '../domain/predicted-period-range';
@@ -39,9 +37,21 @@ import type { ISODate } from '@/types/iso-date';
 export type CycleOutlook = {
   /** What the gaps between recorded starts measure. */
   readonly observations: CycleLengthObservations;
-  /** Whether those gaps agree with each other. */
-  readonly regularity: CycleRegularity;
-  /** How much the app should claim about the next period. */
+  /**
+   * How much the app should claim about the next period.
+   *
+   * This is where regularity ends up. `assessCycleRegularity` is not on this
+   * type: it was, nothing ever read it, and a field nobody reads is a field
+   * somebody later reads by mistake.
+   *
+   * Dropping it rather than surfacing it is the deliberate half. The honest
+   * consequence of varying cycles is already on screen - the prediction becomes
+   * a range instead of a day, and the calendar stops marking one. A label
+   * reading "irregular" beside it would be the app telling somebody something
+   * about their body, which is the one thing it does not do; the threshold's own
+   * comment says the number is a display decision and not a diagnosis, and a
+   * label would quietly make it the second thing.
+   */
   readonly predictionConfidence: PredictionConfidence;
   /**
    * The range to show instead of a single day.
@@ -65,12 +75,10 @@ export type CycleOutlook = {
  */
 export function buildCycleOutlook(profile: CycleProfile, today: ISODate): CycleOutlook {
   const observations = observeCycleLengths(profile);
-  const regularity = assessCycleRegularity(observations);
   const predictionConfidence = assessPredictionConfidence(profile, observations, today);
 
   return {
     observations,
-    regularity,
     predictionConfidence,
     nextPeriodRange:
       predictionConfidence === 'ranged' ? predictNextPeriodRange(profile, observations) : null,

@@ -108,10 +108,15 @@ describe('the pieces agree with each other', () => {
     const outlook = outlookOf(28, [24, 30, 36]);
 
     expect(outlook.observations.lengths).toEqual([24, 30, 36]);
-    expect(outlook.regularity).toBe('irregular');
     expect(outlook.cycleLengthSuggestion?.observationCount).toBe(
       outlook.observations.lengths.length
     );
+
+    // Regularity is not a field on the outlook. It is read inside
+    // prediction-confidence and comes out as this, which is the only form of it
+    // anybody is ever shown.
+    expect(outlook.predictionConfidence).toBe('ranged');
+    expect(outlook.nextPeriodRange).not.toBeNull();
   });
 
   it('keeps the stored setting inside the range it shows', () => {
