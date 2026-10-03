@@ -1,4 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+
+import { renderSettled, settle } from '../../../../jest/render-settled';
 import { useRouter } from 'expo-router';
 
 import AccountScreen from '@/app/(app)/account';
@@ -256,7 +258,7 @@ beforeEach(() => {
 
 /** Renders and settles the screen into the signed-out form. */
 async function renderSignedOut() {
-  const screen = await render(<AccountScreen />);
+  const screen = await renderSettled(<AccountScreen />);
 
   await waitFor(() => {
     notify(null);
@@ -271,7 +273,7 @@ async function renderSignedOut() {
 
 /** Renders and settles the screen into the signed-in state. */
 async function renderSignedIn(user: AuthUser = USER) {
-  const screen = await render(<AccountScreen />);
+  const screen = await renderSettled(<AccountScreen />);
 
   await waitFor(() => {
     notify(user);
@@ -295,7 +297,7 @@ async function fill(
 
 describe('AccountScreen while the session is being read', () => {
   it('shows a spinner rather than a sign-in form', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     expect(screen.getByTestId('account-loading')).toBeTruthy();
     expect(screen.queryByLabelText('E-posta')).toBeNull();
@@ -303,7 +305,7 @@ describe('AccountScreen while the session is being read', () => {
   });
 
   it('says what it is waiting for', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     expect(screen.getByText('Hesap bilgileri yükleniyor')).toBeTruthy();
   });
@@ -647,13 +649,13 @@ describe('AccountScreen in a build with no Firebase project', () => {
   });
 
   it('says so instead of crashing', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     expect(await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.')).toBeTruthy();
   });
 
   it('says the rest of the app is unaffected', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     expect(
       await screen.findByText('Uygulamanın geri kalanı hesapsız da tam olarak çalışır.')
@@ -661,7 +663,7 @@ describe('AccountScreen in a build with no Firebase project', () => {
   });
 
   it('offers nothing to sign in with', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
 
@@ -671,13 +673,13 @@ describe('AccountScreen in a build with no Firebase project', () => {
   });
 
   it('watches no session', async () => {
-    await render(<AccountScreen />);
+    await renderSettled(<AccountScreen />);
 
     expect(repository.observeAuthUser).not.toHaveBeenCalled();
   });
 
   it('still offers a way back', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await fireEvent.press(screen.getByLabelText('Geri'));
 
@@ -716,6 +718,11 @@ describe('what the account screen never touches', () => {
     await waitFor(() => {
       notify(USER);
     });
+
+    // Signing in starts this screen's storage reads again. Letting them finish
+    // is not what is being tested, but leaving them in flight puts their
+    // `setState` after the assertion below and outside `act`.
+    await settle();
 
     expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
   });
@@ -764,7 +771,7 @@ describe('what the account screen never touches', () => {
 
 describe('AccountScreen stops watching when it goes away', () => {
   it('unsubscribes on unmount', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await screen.unmount();
 
@@ -1046,7 +1053,7 @@ describe('AccountScreen reset form in the other states', () => {
   it('is not offered in a build with no Firebase project', async () => {
     firebase.isFirebaseConfigured.mockReturnValue(false);
 
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
 
@@ -1061,7 +1068,7 @@ describe('AccountScreen reset form in the other states', () => {
   });
 
   it('is not offered while the session is still being read', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     expect(screen.queryByLabelText('Şifremi unuttum')).toBeNull();
   });
@@ -1296,7 +1303,7 @@ describe('AccountScreen backup in the other states', () => {
   it('is not offered in a build with no Firebase project', async () => {
     firebase.isFirebaseConfigured.mockReturnValue(false);
 
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
 
@@ -1304,7 +1311,7 @@ describe('AccountScreen backup in the other states', () => {
   });
 
   it('is not offered while the session is still being read', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     expect(screen.queryByLabelText('Yedek oluştur')).toBeNull();
   });
@@ -1395,7 +1402,7 @@ describe('AccountScreen restore, before anything is shown', () => {
   it('is not offered in a build with no Firebase project', async () => {
     firebase.isFirebaseConfigured.mockReturnValue(false);
 
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await screen.findByText('Bulut hesabı şu anda yapılandırılmamış.');
 
@@ -1997,7 +2004,7 @@ describe('syncing now', () => {
   });
 
   it('does not sync by somebody signing in', async () => {
-    const screen = await render(<AccountScreen />);
+    const screen = await renderSettled(<AccountScreen />);
 
     await waitFor(() => {
       notify(null);

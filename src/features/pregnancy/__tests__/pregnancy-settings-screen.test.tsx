@@ -425,8 +425,13 @@ describe('PregnancySettingsScreen when saving fails', () => {
     ).toBe(true);
     expect(screen.getByLabelText('Önceki gün').props.accessibilityState.disabled).toBe(true);
 
-    finishWrite();
-    await press;
+    // Inside `act`: resolving the write runs the screen's own `finally`,
+    // and the `setState` that clears the busy flag would otherwise land
+    // outside it - after this test has already moved on.
+    await act(async () => {
+      finishWrite();
+      await press;
+    });
 
     expect(repository.savePregnancyProfile).toHaveBeenCalledTimes(1);
   });
@@ -633,8 +638,13 @@ describe('PregnancySettingsScreen when stopping fails', () => {
     ).toBe(true);
     expect(screen.getByLabelText('Vazgeç').props.accessibilityState.disabled).toBe(true);
 
-    finishDelete();
-    await press;
+    // Inside `act`: resolving the write runs the screen's own `finally`,
+    // and the `setState` that clears the busy flag would otherwise land
+    // outside it - after this test has already moved on.
+    await act(async () => {
+      finishDelete();
+      await press;
+    });
 
     expect(repository.clearPregnancyProfile).toHaveBeenCalledTimes(1);
     expect(back).toHaveBeenCalledTimes(1);

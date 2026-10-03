@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import PregnancyStartScreen from '@/app/(app)/pregnancy-start';
@@ -235,8 +235,13 @@ describe('PregnancyStartScreen save', () => {
     expect(screen.getByLabelText('Önceki gün').props.accessibilityState.disabled).toBe(true);
     expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(true);
 
-    finishWrite();
-    await press;
+    // Inside `act`: resolving the write runs the screen's own `finally`,
+    // and the `setState` that clears the busy flag would otherwise land
+    // outside it - after this test has already moved on.
+    await act(async () => {
+      finishWrite();
+      await press;
+    });
 
     expect(repository.savePregnancyProfile).toHaveBeenCalledTimes(1);
     expect(back).toHaveBeenCalledTimes(1);

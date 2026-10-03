@@ -103,7 +103,14 @@ describe('useMessages', () => {
  * wider than the language that gets shown.
  */
 describe('useLanguage, against the stored preference', () => {
-  afterEach(() => {
+  // Put back before the next test rather than after this one.
+  //
+  // As an `afterEach` this ran while the hook from the test that just finished
+  // was still mounted - the library unmounts after the describe's own hooks -
+  // so resetting the preference was a state update on a live subscriber,
+  // outside `act`, and React said so. Here nothing is mounted yet and there is
+  // nothing to update.
+  beforeEach(() => {
     useAppStore.setState({ languagePreference: 'system' });
   });
 

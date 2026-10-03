@@ -576,8 +576,13 @@ describe('SettingsScreen save', () => {
       screen.getByLabelText('Ortalama regl süresini azalt').props.accessibilityState.disabled
     ).toBe(true);
 
-    finishWrite();
-    await press;
+    // Inside `act`: resolving the write runs the screen's own `finally`,
+    // and the `setState` that clears the busy flag would otherwise land
+    // outside it - after this test has already moved on.
+    await act(async () => {
+      finishWrite();
+      await press;
+    });
 
     expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
     expect(back).toHaveBeenCalledTimes(1);
