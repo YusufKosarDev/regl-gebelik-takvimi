@@ -205,7 +205,17 @@ const disclaimerMessagesEn: DisclaimerMessages = {
   aboutLinksSectionTitle: 'Documents',
 
   aboutPrivacyLabel: 'Privacy policy',
-  aboutKvkkLabel: 'KVKK information notice',
+
+  /**
+   * The one row that opens a document the reader may not be able to read.
+   *
+   * KVKK is the notice required by Turkish Law No. 6698 and is published in
+   * Turkish only, because a translation would read like the instrument without
+   * being it. The label says so, so that somebody tapping it has been told
+   * before the browser opens rather than after.
+   */
+  aboutKvkkLabel: 'KVKK notice (Turkish)',
+
   aboutDeletionLabel: 'Deleting your data',
 
   aboutSupportSectionTitle: 'Support',

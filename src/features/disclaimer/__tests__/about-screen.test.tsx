@@ -23,6 +23,7 @@ import {
   ABOUT_PRIVACY_LABEL,
   ABOUT_VERSION_UNKNOWN,
   aboutSupportLabel,
+  disclaimerMessages,
   linkOpenFailedMessage,
   mailOpenFailedMessage,
 } from '@/features/disclaimer/presentation/disclaimer-messages';
@@ -214,7 +215,7 @@ describe('the public pages', () => {
     await fireEvent.press(screen.getByLabelText(label));
 
     await waitFor(() => {
-      expect(openURLMock).toHaveBeenCalledWith(legalPageUrl(page));
+      expect(openURLMock).toHaveBeenCalledWith(legalPageUrl(page, 'tr'));
     });
   });
 
@@ -263,7 +264,9 @@ describe('when the phone will not open a link', () => {
     await fireEvent.press(screen.getByLabelText(ABOUT_PRIVACY_LABEL));
 
     await waitFor(() => {
-      expect(screen.getByText(linkOpenFailedMessage(legalPageUrl('privacy')))).toBeTruthy();
+      expect(
+        screen.getByText(linkOpenFailedMessage(legalPageUrl('privacy', 'tr')))
+      ).toBeTruthy();
     });
   });
 
@@ -306,22 +309,42 @@ describe('when the phone will not open a link', () => {
 });
 
 describe('the addresses themselves', () => {
-  it('points at the four pages that exist', () => {
-    expect(legalPageUrl('privacy')).toBe(`${LEGAL_BASE_URL}gizlilik.html`);
-    expect(legalPageUrl('kvkk')).toBe(`${LEGAL_BASE_URL}kvkk.html`);
-    expect(legalPageUrl('deletion')).toBe(`${LEGAL_BASE_URL}veri-silme.html`);
+  it('points at the Turkish pages for a Turkish reader', () => {
+    expect(legalPageUrl('privacy', 'tr')).toBe(`${LEGAL_BASE_URL}gizlilik.html`);
+    expect(legalPageUrl('kvkk', 'tr')).toBe(`${LEGAL_BASE_URL}kvkk.html`);
+    expect(legalPageUrl('deletion', 'tr')).toBe(`${LEGAL_BASE_URL}veri-silme.html`);
+  });
+
+  it('points at the English pages for an English reader', () => {
+    expect(legalPageUrl('privacy', 'en')).toBe(`${LEGAL_BASE_URL}en/privacy.html`);
+    expect(legalPageUrl('deletion', 'en')).toBe(
+      `${LEGAL_BASE_URL}en/data-deletion.html`
+    );
+  });
+
+  /**
+   * The one page that is the same file in both languages.
+   *
+   * It is the notice required by Turkish Law No. 6698. A translation would read
+   * like the instrument without being it, so the English UI opens the Turkish
+   * page - and the label says so before anybody taps it, which is the half of
+   * this decision that is easy to lose.
+   */
+  it('sends both languages to the same KVKK page, and says so in the label', () => {
+    expect(legalPageUrl('kvkk', 'en')).toBe(legalPageUrl('kvkk', 'tr'));
+    expect(disclaimerMessages.en.aboutKvkkLabel).toContain('Turkish');
   });
 
   it('survives a base somebody pasted without a trailing slash', () => {
     // .../regl-gebelik-takvimigizlilik.html is the kind of broken link nobody
     // notices until they need the privacy policy.
-    expect(legalPageUrl('privacy', 'https://example.com/app')).toBe(
+    expect(legalPageUrl('privacy', 'tr', 'https://example.com/app')).toBe(
       'https://example.com/app/gizlilik.html'
     );
   });
 
   it('keeps one already there', () => {
-    expect(legalPageUrl('kvkk', 'https://example.com/app/')).toBe(
+    expect(legalPageUrl('kvkk', 'tr', 'https://example.com/app/')).toBe(
       'https://example.com/app/kvkk.html'
     );
   });

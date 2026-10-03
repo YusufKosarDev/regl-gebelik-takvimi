@@ -220,6 +220,36 @@ outside `presentation/`, each for a reason written where its entry sits. One
 entry is not interface text at all: `data-category.ts` holds the Turkish prose
 that `docs/data-privacy.md` mirrors, and a test binds the two.
 
+### The public pages are in both languages too
+
+The privacy policy and the deletion page are published twice: Turkish at the
+root of `docs/` and English under `docs/en/`. `legalPageUrl` takes the
+language as a **required** argument for the same reason `formatDisplayDate`
+does - a default would be Turkish, and a screen that forgot to pass it would
+show an English label over a Turkish document.
+
+| Page | Turkish | English |
+| --- | --- | --- |
+| Privacy policy | `gizlilik.html` | `en/privacy.html` |
+| Account and data deletion | `veri-silme.html` | `en/data-deletion.html` |
+| KVKK information notice | `kvkk.html` | *(the same Turkish file)* |
+
+**KVKK is deliberately not translated.** It is the notice required by Turkish
+Law No. 6698, addressed to a Turkish regulator, and a translation would read
+like the instrument without being it. The English UI links to the Turkish page
+and the label says `KVKK notice (Turkish)`, so somebody has been told before
+the browser opens rather than after. A test asserts both halves of that: that
+the two languages resolve to one file, and that the English label still says
+which language it is in.
+
+`src/features/disclaimer/domain/__tests__/legal-pages-exist.test.ts` reads
+`docs/` and checks that every URL the app can build names a file that exists,
+that the English pages reach the stylesheet one directory up, that each page
+declares the `lang` it is written in, and that no English page names an
+emergency number. Nothing else connects `legal-links.ts` to `docs/`: a page
+renamed in one and not the other typechecks, lints and passes every other test
+while shipping a 404 behind "Privacy policy".
+
 ### What proves the migration finished
 
 Not an empty allow-list. The claim rests on two things instead.

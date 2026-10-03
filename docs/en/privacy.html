@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Regl &amp; Gebelik Takvimi</title>
+    <meta
+      name="description"
+      content="Regl &amp; Gebelik Takvimi privacy policy: what data is processed, where it is stored, and how to delete it."
+    />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <p class="app-name">Regl &amp; Gebelik Takvimi</p>
+        <h1>Privacy Policy</h1>
+      </header>
+
+      <p class="lead">
+        In short: your health data stays on your phone, and leaves the device only for
+        your own account — when you take a backup, when you sync, or when you turn
+        automatic sync on. Automatic sync is off by default, and nothing is sent while the
+        app is closed. No ads, no analytics, no tracking; your data is not sold.
+      </p>
+
+      <h2>Data controller</h2>
+
+      <p>
+        The data controller for this app is <strong>Yusuf Koşar</strong> (individual
+        developer, Türkiye). For any question, request or deletion enquiry:
+        <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+      </p>
+
+      <p>
+        If you need a postal address for a formal application, write to that address and
+        one will be sent to you.
+      </p>
+
+      <h2>Where your data is kept</h2>
+
+      <p>
+        Your period records, cycle settings, pregnancy details, avatar choices and
+        reminder preferences are kept <strong>on your phone only, by default</strong>, in
+        the app's own database. The whole app works without an account.
+      </p>
+
+      <p>
+        This data leaves the device for exactly one destination:
+        <strong>your own Firebase account</strong>. It is sent nowhere else.
+      </p>
+
+      <p>
+        If you turn on the app lock, <strong>your PIN itself is never stored</strong>:
+        only a hash derived from it and a random salt, held in the phone's own secure key
+        store. That information is sent nowhere and is not synced with your account — the
+        lock, like the theme, is a preference belonging to that phone.
+      </p>
+
+      <p>
+        The app lock covers the app's screen; it
+        <strong>does not encrypt the files on your phone</strong>. The real protection on
+        your device is the phone's own screen lock and Android's own encryption.
+      </p>
+
+      <h2>Reminder notifications and the lock screen</h2>
+
+      <p>
+        Android shows a notification's title and text on the lock screen, and
+        <strong>apps cannot turn that off</strong>. The setting that appears to do so (the
+        notification channel's lock screen visibility) is silently ignored by Android;
+        this was measured and confirmed in this app. So while you have a reminder on, its
+        text can be read even when your phone is locked.
+      </p>
+
+      <p>
+        The only thing the app can change is the text itself. When
+        <strong>Settings &gt; Notifications &gt; "Don't show details in
+        notifications"</strong> is on, reminders do not mention periods or pregnancy; they
+        say only that you have a reminder and that you can open the app. Setting up the app
+        lock turns this on too, because somebody who set up a lock wanted exactly this; you
+        can turn it back off in the same place.
+      </p>
+
+      <p>
+        This setting stays on your phone and is not synced with your account: who sees your
+        lock screen depends on the phone in your hand and the people around you. The app's
+        icon still appears on the notification — this setting
+        <strong>removes the sentence, it does not hide the app</strong>.
+      </p>
+
+      <h2>When data leaves the device</h2>
+
+      <p>There are two ways your health data leaves your phone:</p>
+
+      <ol>
+        <li>
+          <strong>You press a button:</strong> "Create backup" or "Sync now".
+        </li>
+        <li>
+          <strong>You turn on the "Automatic sync" switch.</strong> This switch is
+          <strong>off by default.</strong> If you turn it on, a send is triggered in five
+          cases: when you turn the switch on, when you sign in to your account, when you
+          bring the app to the foreground, when you change a record, and when you send the
+          app to the background with a pending change outstanding.
+        </li>
+      </ol>
+
+      <div class="card">
+        <p>
+          <strong>Nothing is sent while the app is closed.</strong> There is no background
+          task, no periodic job and no scheduled send. Every send is the continuation of
+          something you just did.
+        </p>
+      </div>
+
+      <h2>Android's automatic backup</h2>
+
+      <p>
+        Android backs up app data to the user's Google Drive account by default.
+        <strong>This app is excluded from that backup.</strong> Your period records, cycle
+        settings, pregnancy details and the contents of the home screen widget are not
+        copied to Google Drive — they are included neither in the cloud backup nor in the
+        device-to-device transfer performed when you move to a new phone.
+      </p>
+
+      <p>
+        So the two ways above remain the only ways your health data leaves the device.
+        There is no other.
+      </p>
+
+      <div class="card">
+        <p>
+          <strong>There is a cost to this: if you change phones.</strong> When you move to
+          a new phone, or delete and reinstall the app, your records will not come back by
+          themselves. If you want to move your history, take a backup to your own account
+          from inside the app first — <a href="data-deletion.html">here is how</a>.
+        </p>
+      </div>
+
+      <p>
+        The flow, symptoms and mood you record for a day follow the same rule: they stay on
+        your phone and reach your account only by one of the two ways above. The app makes
+        no comment about these records, does not compare them with other days, and says
+        nothing about what is normal.
+      </p>
+
+      <h2>Data that is processed</h2>
+
+      <table>
+        <tr>
+          <th>Data</th>
+          <th>When it is processed</th>
+        </tr>
+        <tr>
+          <td>Email address</td>
+          <td>
+            Only if you create an account. Used to create your account and verify your
+            sign-in through Firebase Authentication.
+          </td>
+        </tr>
+        <tr>
+          <td>Period records</td>
+          <td rowspan="6">
+            Copied to your account only if you use backup or sync. If you do not, it does
+            not leave your phone.
+          </td>
+        </tr>
+        <tr>
+          <td>Cycle settings (average cycle and period length)</td>
+        </tr>
+        <tr>
+          <td>Pregnancy details (last period date, estimated due date)</td>
+        </tr>
+        <tr>
+          <td>Avatar choices</td>
+        </tr>
+        <tr>
+          <td>Reminder preferences</td>
+        </tr>
+        <tr>
+          <td>Daily records (flow, symptoms, mood)</td>
+        </tr>
+      </table>
+
+      <p>
+        Nothing beyond this is sent. What the app calculates (cycle day, phase, fertility
+        estimate, mood suggestions, the calendar), the home screen widget, the notification
+        queue and the interface state all stay on your phone.
+      </p>
+
+      <h2>Data that is not collected</h2>
+
+      <ul>
+        <li><strong>No ads.</strong> No advertising is shown in the app.</li>
+        <li>
+          <strong>No analytics.</strong> Google Analytics, Firebase Analytics and any other
+          usage analysis tool are not used.
+        </li>
+        <li><strong>No crash reporting.</strong> There is no Crashlytics or similar tool.</li>
+        <li><strong>The Advertising ID is not read.</strong></li>
+        <li><strong>There is no third-party tracking.</strong></li>
+        <li>
+          <strong>Location, contacts, camera, microphone and your files are not
+          accessed.</strong>
+        </li>
+      </ul>
+
+      <p>
+        Your data is <strong>not sold</strong>, <strong>not shared</strong> for marketing
+        purposes and not used to show advertising. Your health data is under no
+        circumstances used for recruitment or insurance eligibility assessment.
+      </p>
+
+      <h2>Service provider and where data is stored</h2>
+
+      <p>
+        <strong>Google</strong>'s Firebase services are used for the account and backup
+        features: Firebase Authentication for sign-in, Cloud Firestore for the backup.
+        Google acts as a data processor in this respect. No other Firebase product
+        (Analytics, Crashlytics, Messaging, Storage, Functions) is used.
+      </p>
+
+      <p>
+        Your backups are stored in Cloud Firestore's <code>eur3</code> multi-region, on
+        <strong>Google servers inside the European Union</strong>.
+      </p>
+
+      <p>
+        Your backup is held under your account alone, in a single document. The server
+        rules permit only your own account to read and write that document; no other user
+        can reach it.
+      </p>
+
+      <h2>Security</h2>
+
+      <p>
+        All communication between the device and the server is encrypted with
+        <strong>HTTPS/TLS</strong>. The data on your phone is kept in app-specific storage
+        that the operating system isolates from other apps.
+      </p>
+
+      <p>
+        No raw health data is written to the app's logs: only general event names from a
+        closed list are written; no date, record or avatar information is written.
+      </p>
+
+      <h2>Retention</h2>
+
+      <p>
+        Your data is kept until you delete it. It is not deleted automatically after a set
+        period, because it is your own history.
+      </p>
+
+      <p>
+        What happens when you delete, and how to do it, is described on the
+        <a href="data-deletion.html">Account and data deletion</a> page.
+      </p>
+
+      <h2>Children</h2>
+
+      <p>
+        This app <strong>is not directed at children under 13</strong>, and data is not
+        knowingly collected from anybody under 13. If we become aware that data belonging
+        to a child under 13 is being processed, we delete it. A parent or guardian who
+        becomes aware of such a case can reach us at
+        <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>.
+      </p>
+
+      <h2>Exercising your rights</h2>
+
+      <p>
+        You have the right to access, correct and delete your personal data and to object
+        to its processing. For the detailed equivalent of these rights under Turkish Law
+        No. 6698, see the
+        <a href="../kvkk.html">KVKK information notice</a>, which is published in Turkish
+        only because it is a Turkish legal instrument.
+      </p>
+
+      <p>
+        You can view, change and delete most of your data directly from inside the app. You
+        can also write to
+        <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a> with
+        a request; applications are answered <strong>within 30 days at the latest</strong>.
+      </p>
+
+      <h2>About these pages</h2>
+
+      <p>
+        The pages you are reading are published on <strong>GitHub Pages</strong>. GitHub may
+        keep technical access records in order to serve the site; according to GitHub's own
+        documentation, when a GitHub Pages site is visited the visitor's IP address is
+        recorded and retained for security purposes.
+      </p>
+
+      <p>
+        These pages <strong>use no cookies, run no scripts, and contain no analytics or
+        tracking tools.</strong> We have no access to those technical records about
+        visitors; no visitor data from these pages reaches us or is used by us.
+      </p>
+
+      <h2>Changes to this text</h2>
+
+      <p>
+        This text is updated as the app changes. The current version is always published at
+        this address, with the date of the last update at the foot of the page.
+      </p>
+
+      <a class="back" href="index.html">← All documents</a>
+
+      <footer class="site">
+        <p>Last updated: 3 October 2026</p>
+        <p>
+          English translation of the Turkish text of 24 September 2026
+          (<a href="../gizlilik.html">Türkçe</a>). Where the two differ, the Turkish is the
+          original.
+        </p>
+        <p>Data controller: Yusuf Koşar (individual developer, Türkiye)</p>
+        <p>
+          Contact:
+          <a href="mailto:regltakvimi.destek@gmail.com">regltakvimi.destek@gmail.com</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

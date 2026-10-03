@@ -15,7 +15,8 @@ import { getAppVersion } from '@/features/disclaimer/infrastructure/app-version'
 import type { DisclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useTheme } from '@/hooks/use-theme';
-import { useMessages } from '@/i18n';
+import { useLanguage, useMessages } from '@/i18n';
+import type { Language } from '@/i18n/language';
 import { logEvent } from '@/shared/logging';
 
 /**
@@ -39,18 +40,19 @@ type AboutLink = {
  * Derived rather than written out, so moving the site to another host is one
  * edit in `legal-links` and cannot leave a single row pointing at the old one.
  */
-function aboutLinks(strings: DisclaimerMessages): readonly AboutLink[] {
+function aboutLinks(strings: DisclaimerMessages, language: Language): readonly AboutLink[] {
   return [
-    { label: strings.aboutPrivacyLabel, url: legalPageUrl('privacy') },
-    { label: strings.aboutKvkkLabel, url: legalPageUrl('kvkk') },
-    { label: strings.aboutDeletionLabel, url: legalPageUrl('deletion') },
+    { label: strings.aboutPrivacyLabel, url: legalPageUrl('privacy', language) },
+    { label: strings.aboutKvkkLabel, url: legalPageUrl('kvkk', language) },
+    { label: strings.aboutDeletionLabel, url: legalPageUrl('deletion', language) },
   ];
 }
 
 export default function AboutScreen() {
   const theme = useTheme();
   const disclaimer = useMessages(disclaimerMessages);
-  const links = aboutLinks(disclaimer);
+  const language = useLanguage();
+  const links = aboutLinks(disclaimer, language);
 
   const version = getAppVersion();
 
