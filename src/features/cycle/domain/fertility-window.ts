@@ -1,6 +1,6 @@
 import { getCycleDay } from './cycle-day';
-import { getEstimatedOvulationCycleDay } from './ovulation';
-import type { CycleProfile } from './types';
+import { estimatedOvulationCycleDay } from './ovulation';
+import type { CycleProfile, CycleSettings } from './types';
 
 import type { ISODate } from '@/types/iso-date';
 
@@ -9,6 +9,22 @@ const FERTILE_DAYS_BEFORE_OVULATION = 5;
 
 /** Days after the estimated ovulation day that count as fertile. */
 const FERTILE_DAYS_AFTER_OVULATION = 1;
+
+/**
+ * The rule itself: whether a cycle day falls inside the estimated window.
+ *
+ * Separate from the lookup below for the reason given beside
+ * `isMenstrualCycleDay`: the rule needs a cycle day, not the record list.
+ *
+ * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
+ */
+export function isFertileCycleDay(settings: CycleSettings, cycleDay: number): boolean {
+  const estimatedOvulationDay = estimatedOvulationCycleDay(settings);
+  const effectiveStartDay = Math.max(1, estimatedOvulationDay - FERTILE_DAYS_BEFORE_OVULATION);
+  const fertilityEndDay = estimatedOvulationDay + FERTILE_DAYS_AFTER_OVULATION;
+
+  return cycleDay >= effectiveStartDay && cycleDay <= fertilityEndDay;
+}
 
 /**
  * Tells whether `targetDate` falls inside the *estimated* fertility window.
@@ -37,12 +53,5 @@ export function isInEstimatedFertilityWindow(
     return false;
   }
 
-  const estimatedOvulationDay = getEstimatedOvulationCycleDay(profile);
-  const effectiveStartDay = Math.max(
-    1,
-    estimatedOvulationDay - FERTILE_DAYS_BEFORE_OVULATION
-  );
-  const fertilityEndDay = estimatedOvulationDay + FERTILE_DAYS_AFTER_OVULATION;
-
-  return cycleDay >= effectiveStartDay && cycleDay <= fertilityEndDay;
+  return isFertileCycleDay(profile.settings, cycleDay);
 }

@@ -1,7 +1,24 @@
 import { getCycleDay } from './cycle-day';
-import type { CycleProfile } from './types';
+import type { CycleProfile, CycleSettings } from './types';
 
 import type { ISODate } from '@/types/iso-date';
+
+/**
+ * The rule itself: whether a cycle day falls inside the expected period.
+ *
+ * ## Why the rule is separate from the lookup
+ *
+ * The rule needs a cycle day and the settings. It does not need the record
+ * list - working out *which* cycle day a date falls on is the part that reads
+ * the records, and `getCyclePhase` was redoing that once per phase to answer a
+ * single question. The rule is stated once, here, and the function below is a
+ * thin lookup in front of it.
+ *
+ * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
+ */
+export function isMenstrualCycleDay(settings: CycleSettings, cycleDay: number): boolean {
+  return cycleDay >= 1 && cycleDay <= settings.averagePeriodLengthDays;
+}
 
 /**
  * Tells whether `targetDate` falls inside the *expected* menstrual phase.
@@ -26,8 +43,5 @@ export function getMenstrualPhase(
     return null;
   }
 
-  const isWithinExpectedPeriod =
-    cycleDay >= 1 && cycleDay <= profile.settings.averagePeriodLengthDays;
-
-  return isWithinExpectedPeriod ? 'menstrual' : null;
+  return isMenstrualCycleDay(profile.settings, cycleDay) ? 'menstrual' : null;
 }

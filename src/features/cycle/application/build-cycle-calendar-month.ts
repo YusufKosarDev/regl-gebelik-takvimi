@@ -1,6 +1,6 @@
 import { getCycleDay } from '../domain/cycle-day';
-import { getCyclePhase } from '../domain/cycle-phase';
-import { getEstimatedFertilityLevel } from '../domain/fertility-level';
+import { resolveCyclePhase } from '../domain/cycle-phase';
+import { resolveFertilityLevel } from '../domain/fertility-level';
 import type { FertilityLevel } from '../domain/fertility-level';
 import type { CyclePhase } from '../domain/phases';
 import { predictNextPeriodStart } from '../domain/predictions';
@@ -75,11 +75,20 @@ export function buildCycleCalendarMonth(
   for (let dayOfMonth = 1; dayOfMonth <= dayCount; dayOfMonth += 1) {
     const date = formatLocalDate(year, month, dayOfMonth);
 
+    // Once per day, not three times. The phase and the fertility level are both
+    // functions of the cycle day, and the date-shaped versions of them each
+    // worked that day out again from the record list - the fertility one twice
+    // more inside itself. A month cost thirty-one dates times five walks of
+    // every period ever recorded, which is unnoticeable with a handful of them
+    // and the slowest thing on the screen with five years of them.
+    const cycleDay = getCycleDay(profile, date);
+
     days.push({
       date,
-      cycleDay: getCycleDay(profile, date),
-      phase: getCyclePhase(profile, date),
-      fertilityLevel: getEstimatedFertilityLevel(profile, date),
+      cycleDay,
+      phase: cycleDay === null ? null : resolveCyclePhase(profile.settings, cycleDay),
+      fertilityLevel:
+        cycleDay === null ? null : resolveFertilityLevel(profile.settings, cycleDay),
       isPredictedPeriodStart: predictedPeriodStart !== null && predictedPeriodStart === date,
     });
   }

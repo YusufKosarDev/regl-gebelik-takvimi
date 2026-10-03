@@ -1,8 +1,27 @@
 import { getCycleDay } from './cycle-day';
-import { getEstimatedOvulationCycleDay } from './ovulation';
-import type { CycleProfile } from './types';
+import { estimatedOvulationCycleDay } from './ovulation';
+import type { CycleProfile, CycleSettings } from './types';
 
 import type { ISODate } from '@/types/iso-date';
+
+/**
+ * The rule itself: whether a cycle day falls in the follicular window.
+ *
+ * Separate from the lookup below for the reason given beside
+ * `isMenstrualCycleDay`: the rule needs a cycle day, not the record list.
+ *
+ * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
+ */
+export function isFollicularCycleDay(settings: CycleSettings, cycleDay: number): boolean {
+  const follicularStartDay = settings.averagePeriodLengthDays + 1;
+  const estimatedOvulationDay = estimatedOvulationCycleDay(settings);
+
+  if (estimatedOvulationDay <= follicularStartDay) {
+    return false;
+  }
+
+  return cycleDay >= follicularStartDay && cycleDay < estimatedOvulationDay;
+}
 
 /**
  * Tells whether `targetDate` falls inside the *expected* follicular phase.
@@ -30,15 +49,5 @@ export function getFollicularPhase(
     return null;
   }
 
-  const follicularStartDay = profile.settings.averagePeriodLengthDays + 1;
-  const estimatedOvulationDay = getEstimatedOvulationCycleDay(profile);
-
-  if (estimatedOvulationDay <= follicularStartDay) {
-    return null;
-  }
-
-  const isWithinFollicularWindow =
-    cycleDay >= follicularStartDay && cycleDay < estimatedOvulationDay;
-
-  return isWithinFollicularWindow ? 'follicular' : null;
+  return isFollicularCycleDay(profile.settings, cycleDay) ? 'follicular' : null;
 }

@@ -1,8 +1,28 @@
 import { getCycleDay } from './cycle-day';
-import { getEstimatedOvulationCycleDay } from './ovulation';
-import type { CycleProfile } from './types';
+import { estimatedOvulationCycleDay } from './ovulation';
+import type { CycleProfile, CycleSettings } from './types';
 
 import type { ISODate } from '@/types/iso-date';
+
+/**
+ * The rule itself: whether a cycle day is the estimated ovulation day.
+ *
+ * Separate from the lookup below for the reason given beside
+ * `isMenstrualCycleDay`: the rule needs a cycle day, not the record list.
+ *
+ * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
+ */
+export function isOvulatoryCycleDay(settings: CycleSettings, cycleDay: number): boolean {
+  const estimatedOvulationDay = estimatedOvulationCycleDay(settings);
+
+  // Defensive: settings validation keeps the cycle length at 15 or more, so this
+  // cannot be reached today, but the rule does not depend on that holding.
+  if (estimatedOvulationDay < 1) {
+    return false;
+  }
+
+  return cycleDay === estimatedOvulationDay;
+}
 
 /**
  * Tells whether `targetDate` falls on the *expected* ovulation day.
@@ -27,13 +47,5 @@ export function getOvulatoryPhase(
     return null;
   }
 
-  const estimatedOvulationDay = getEstimatedOvulationCycleDay(profile);
-
-  // Defensive: settings validation keeps the cycle length at 15 or more, so this
-  // cannot be reached today, but the rule does not depend on that holding.
-  if (estimatedOvulationDay < 1) {
-    return null;
-  }
-
-  return cycleDay === estimatedOvulationDay ? 'ovulatory' : null;
+  return isOvulatoryCycleDay(profile.settings, cycleDay) ? 'ovulatory' : null;
 }

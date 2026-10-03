@@ -1,11 +1,36 @@
 import { getCycleDay } from './cycle-day';
-import { isInEstimatedFertilityWindow } from './fertility-window';
-import { getEstimatedOvulationCycleDay } from './ovulation';
-import type { CycleProfile } from './types';
+import { isFertileCycleDay } from './fertility-window';
+import { estimatedOvulationCycleDay } from './ovulation';
+import type { CycleProfile, CycleSettings } from './types';
 
 import type { ISODate } from '@/types/iso-date';
 
 export type FertilityLevel = 'low' | 'elevated' | 'peak';
+
+/**
+ * Grades a cycle day that has already been worked out.
+ *
+ * ## Why this is exported
+ *
+ * The same reason as `resolveCyclePhase`: the calendar month grades a run of
+ * consecutive days and already knows the cycle day of each, so it can ask this
+ * directly instead of sending every day back through the record list. This
+ * function used to be reached only through the lookup below, which derived the
+ * cycle day three times over to answer once — once for itself, once inside the
+ * ovulation estimate, and once more inside the window check.
+ *
+ * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
+ */
+export function resolveFertilityLevel(
+  settings: CycleSettings,
+  cycleDay: number
+): FertilityLevel {
+  if (cycleDay === estimatedOvulationCycleDay(settings)) {
+    return 'peak';
+  }
+
+  return isFertileCycleDay(settings, cycleDay) ? 'elevated' : 'low';
+}
 
 /**
  * Grades `targetDate` against the *estimated* fertility window.
@@ -34,9 +59,5 @@ export function getEstimatedFertilityLevel(
     return null;
   }
 
-  if (cycleDay === getEstimatedOvulationCycleDay(profile)) {
-    return 'peak';
-  }
-
-  return isInEstimatedFertilityWindow(profile, targetDate) ? 'elevated' : 'low';
+  return resolveFertilityLevel(profile.settings, cycleDay);
 }

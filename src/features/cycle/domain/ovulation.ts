@@ -1,5 +1,5 @@
-import type { CycleProfile } from './types';
-import { validateCycleProfile } from './validation';
+import type { CycleProfile, CycleSettings } from './types';
+import { validateCycleProfile, validateCycleSettings } from './validation';
 
 /**
  * Luteal phase length assumed when estimating ovulation.
@@ -8,6 +8,25 @@ import { validateCycleProfile } from './validation';
  * than rebuild the arithmetic from the constant.
  */
 const ASSUMED_LUTEAL_LENGTH_DAYS = 14;
+
+/**
+ * The same estimate, from the settings alone.
+ *
+ * The arithmetic never needed the record list - only `averageCycleLengthDays` -
+ * but the profile-shaped function below validates the whole profile, which
+ * walks every recorded period. Three of the four phase rules call it, so
+ * answering one phase question used to validate the records seven times over.
+ *
+ * The settings are still validated: this is a domain function and a caller may
+ * hold settings that never went through a repository.
+ *
+ * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
+ */
+export function estimatedOvulationCycleDay(settings: CycleSettings): number {
+  validateCycleSettings(settings);
+
+  return settings.averageCycleLengthDays - ASSUMED_LUTEAL_LENGTH_DAYS;
+}
 
 /**
  * The cycle day ovulation is expected to fall on, counting the period start as
@@ -22,5 +41,5 @@ const ASSUMED_LUTEAL_LENGTH_DAYS = 14;
 export function getEstimatedOvulationCycleDay(profile: CycleProfile): number {
   validateCycleProfile(profile);
 
-  return profile.settings.averageCycleLengthDays - ASSUMED_LUTEAL_LENGTH_DAYS;
+  return estimatedOvulationCycleDay(profile.settings);
 }
