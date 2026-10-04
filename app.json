@@ -20,7 +20,6 @@
       "allowBackup": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.yusufkosardev.regltakvimi",
-      "versionCode": 1,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
