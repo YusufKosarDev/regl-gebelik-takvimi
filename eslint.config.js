@@ -6,6 +6,7 @@
 // of it is about what to *skip*, not what to enforce.
 
 const expoConfig = require('eslint-config-expo/flat');
+const globals = require('globals');
 const { defineConfig, globalIgnores } = require('eslint/config');
 
 // The two rules this project adds. Neither is style: with the suite pinned to
@@ -43,6 +44,30 @@ module.exports = defineConfig([
   ]),
 
   expoConfig,
+
+  // The Jest setup files run inside Jest, not inside the app, so `jest`,
+  // `beforeEach` and `afterEach` are globals there. Without this every mock
+  // file reports a handful of `no-undef` errors that say nothing, and real
+  // errors sit in the same list waiting to be scrolled past.
+  {
+    files: ['jest/**/*.{js,ts}'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.jest },
+    },
+  },
+
+  // The icon generator is a Node script run by hand, and `sharp` is installed
+  // with `--no-save` on purpose - it is a build tool for this one file, not
+  // something the app or CI needs - so it is never resolvable from here.
+  {
+    files: ['assets/icon-source/*.mjs'],
+    languageOptions: {
+      globals: globals.node,
+    },
+    rules: {
+      'import/no-unresolved': 'off',
+    },
+  },
 
   {
     files: ['src/**/*.{ts,tsx}'],
