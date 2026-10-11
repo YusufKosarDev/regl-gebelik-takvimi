@@ -8,6 +8,7 @@ import { dailyLogMessages } from '../presentation/daily-log-messages';
 
 import { useMessages } from '@/i18n';
 
+import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -46,7 +47,14 @@ export function DailyEntryCard({
   );
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+    // A block with an action inside it, which is what `filled` is for. It
+    // used to paint `backgroundElement` itself, and on the sky that is a grey
+    // hole in the light scheme and a near-black one in the dark - the card
+    // ended up further from the field than anything else on the screen.
+    //
+    // Going through `Surface` is also what makes the glass reach it: a block
+    // that paints its own background is a block the field cannot get into.
+    <Surface level="filled" style={styles.card}>
       <View style={styles.text}>
         <ThemedText accessibilityRole="header" type="smallBold">
           {filled ? strings.cardFilledTitle : strings.cardEmptyTitle}
@@ -70,14 +78,14 @@ export function DailyEntryCard({
           {filled ? strings.cardEditLabel : strings.cardAddLabel}
         </ThemedText>
       </Pressable>
-    </View>
+    </Surface>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Spacing.three,
-    padding: Spacing.four,
+    // The radius and the padding come from `Surface`; only the rhythm inside
+    // is this card's own.
     gap: Spacing.three,
   },
   text: {

@@ -4145,3 +4145,82 @@ describe('every word on the sky is drawn in the sky ink', () => {
     expect([...new Set(textColours(screen.toJSON()))]).toEqual([INK]);
   });
 });
+
+/**
+ * No block on the field paints itself a page colour.
+ *
+ * ## Why the ink test does not cover this
+ *
+ * That one reads the colour off words. A card draws no words of its own, so a
+ * card that painted itself `backgroundElement` - a flat grey in the light
+ * scheme, a near-black in the dark - passed it while being the single most
+ * out-of-place thing on the screen: further from the field than anything
+ * around it, and read as a hole punched in the sky rather than a layer on it.
+ *
+ * `Surface` knows about the field and turns `filled` into glass. A block that
+ * paints its own background is a block the field cannot reach, and the only
+ * way to see that from here is to look at what the tree actually renders.
+ */
+describe('nothing on the sky paints itself a page colour', () => {
+  const PAGE_SURFACES: readonly string[] = [
+    Colors.light.backgroundElement,
+    Colors.light.background,
+    Colors.light.backgroundSelected,
+  ];
+
+  function backgroundColours(tree: unknown): string[] {
+    const found: string[] = [];
+
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+
+        return;
+      }
+
+      if (node === null || typeof node !== 'object') {
+        return;
+      }
+
+      const { props, children } = node as { props?: { style?: unknown }; children?: unknown };
+
+      const flat = StyleSheet.flatten(props?.style as never) as
+        | { backgroundColor?: unknown }
+        | undefined;
+
+      if (typeof flat?.backgroundColor === 'string') {
+        found.push(flat.backgroundColor);
+      }
+
+      walk(children);
+    };
+
+    walk(tree);
+
+    return found;
+  }
+
+  it('uses none of the page surfaces anywhere in the tree', async () => {
+    getTodayMock.mockReturnValue('2026-09-09' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    const borrowed = [
+      ...new Set(backgroundColours(screen.toJSON()).filter((c) => PAGE_SURFACES.includes(c))),
+    ];
+
+    expect(borrowed).toEqual([]);
+  });
+
+  it('does fill something with the sky glass', async () => {
+    // So the rule above cannot be satisfied by a screen that stopped drawing
+    // blocks at all.
+    getTodayMock.mockReturnValue('2026-09-09' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    expect(backgroundColours(screen.toJSON())).toContain(Sky.light.glass);
+  });
+});

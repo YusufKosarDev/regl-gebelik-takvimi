@@ -1,7 +1,8 @@
 import { StyleSheet, View, type ViewProps } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useOnSky } from '@/features/cycle/components/on-sky';
+import { useSky, useTheme } from '@/hooks/use-theme';
 
 /**
  * How much weight a block of content carries on the page.
@@ -36,6 +37,26 @@ import { useTheme } from '@/hooks/use-theme';
  * `accessible` and `accessibilityLabel` pass through, because several callers
  * compose one spoken sentence for a whole row rather than letting a screen
  * reader read a label and a value as two stops.
+ *
+ * ## On a sky field it is made of the field
+ *
+ * `backgroundElement` is a page colour. Laid on a coloured field it reads as
+ * a hole punched in the sky rather than a layer on top of it - a grey
+ * rectangle on a pink dawn in the light scheme, and a near-black one on a
+ * violet night in the dark, which is worse because the card ends up further
+ * from the field than anything else on the screen.
+ *
+ * On a field, `filled` becomes glass: the ink at a few percent, so the sky
+ * shows through and the block drifts when the field drifts, with one lit
+ * edge along the top so it has a thickness. The glass always *deepens* the
+ * field in both schemes - lightening a dark sky is what walks into the
+ * contrast ceiling described in `constants/sky.ts`.
+ *
+ * `lined` takes its hairline from the same place, because a rule in a page
+ * colour is a rule borrowed from another surface.
+ *
+ * Nothing at a call site changes. `useOnSky` answers from the tree, so a
+ * screen cannot forget to say where it is.
  */
 export type SurfaceLevel = 'bare' | 'lined' | 'filled';
 
@@ -47,13 +68,27 @@ export function Surface({
   readonly level: SurfaceLevel;
 }) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
 
   return (
     <View
       style={[
         styles.surface,
-        level === 'lined' && [styles.lined, { borderTopColor: theme.backgroundSelected }],
-        level === 'filled' && [styles.filled, { backgroundColor: theme.backgroundElement }],
+        level === 'lined' && [
+          styles.lined,
+          { borderTopColor: onSky ? sky.glass : theme.backgroundSelected },
+        ],
+        level === 'filled' && [
+          styles.filled,
+          onSky
+            ? {
+                backgroundColor: sky.glass,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: sky.glassEdge,
+              }
+            : { backgroundColor: theme.backgroundElement },
+        ],
         style,
       ]}
       {...rest}
