@@ -11,7 +11,8 @@ import { useMessages } from '@/i18n';
 import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useOnSky } from '@/features/cycle/components/on-sky';
+import { useSky, useTheme } from '@/hooks/use-theme';
 
 /**
  * Today, on the home screen.
@@ -35,6 +36,17 @@ export function DailyEntryCard({
   readonly onOpen: () => void;
 }) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
+
+  // Outlined rather than filled. The screen already has one solid object -
+  // the period action - and a second says the two carry the same weight,
+  // which they do not. The alpha on `inkLine` is measured: an outline is the
+  // only thing telling this apart from a sentence, so it is information and
+  // has to clear 3:1.
+  const action = onSky
+    ? { borderWidth: 1, borderColor: sky.inkLine }
+    : { backgroundColor: theme.primary };
   const strings = useMessages(dailyLogMessages);
   const labels = useMessages(dailyLogCatalogueLabels);
 
@@ -71,10 +83,10 @@ export function DailyEntryCard({
         onPress={onOpen}
         style={({ pressed }) => [
           styles.action,
-          { backgroundColor: theme.primary },
+          action,
           pressed && styles.pressed,
         ]}>
-        <ThemedText type="smallBold" themeColor="onPrimary">
+        <ThemedText type="smallBold" style={onSky ? undefined : { color: theme.onPrimary }}>
           {filled ? strings.cardEditLabel : strings.cardAddLabel}
         </ThemedText>
       </Pressable>

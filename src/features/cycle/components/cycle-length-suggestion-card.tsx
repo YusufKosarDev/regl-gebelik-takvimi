@@ -5,7 +5,9 @@ import { homeMessages } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useSky, useTheme } from '@/hooks/use-theme';
+
+import { useOnSky } from './on-sky';
 import { useMessages } from '@/i18n';
 
 /**
@@ -43,6 +45,17 @@ export function CycleLengthSuggestionCard({
   readonly onDismiss: () => void;
 }) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
+
+  // Outlined rather than filled. The screen already has one solid object -
+  // the period action - and a second says the two carry the same weight,
+  // which they do not. The alpha on `inkLine` is measured: an outline is the
+  // only thing telling this apart from a sentence, so it is information and
+  // has to clear 3:1.
+  const accept = onSky
+    ? { borderWidth: 1, borderColor: sky.inkLine }
+    : { backgroundColor: theme.primary };
   const home = useMessages(homeMessages);
 
   return (
@@ -77,7 +90,7 @@ export function CycleLengthSuggestionCard({
             isBusy && styles.disabled,
             pressed && !isBusy && styles.pressed,
           ]}>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="small">
             {home.cycleLengthSuggestionDismissText}
           </ThemedText>
         </Pressable>
@@ -90,11 +103,11 @@ export function CycleLengthSuggestionCard({
           onPress={onAccept}
           style={({ pressed }) => [
             styles.accept,
-            { backgroundColor: theme.primary },
+            accept,
             isBusy && styles.disabled,
             pressed && !isBusy && styles.pressed,
           ]}>
-          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+          <ThemedText type="smallBold" style={onSky ? undefined : { color: theme.onPrimary }}>
             {home.cycleLengthSuggestionAcceptText(suggestion.observedMedianDays)}
           </ThemedText>
         </Pressable>

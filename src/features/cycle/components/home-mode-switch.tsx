@@ -5,7 +5,9 @@ import { homeMessages } from '../presentation/home-messages';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
-import { useTheme } from '@/hooks/use-theme';
+import { useSky, useTheme } from '@/hooks/use-theme';
+
+import { useOnSky } from './on-sky';
 import { useMessages } from '@/i18n';
 
 /**
@@ -15,6 +17,23 @@ import { useMessages } from '@/i18n';
  * and the same selected and disabled states announced the same way. Gebelik is
  * still unreachable until there is a pregnancy to show, which is what its
  * disabled state says.
+ *
+ * ## Why it stopped being a filled capsule
+ *
+ * It was a violet pill with white text beside a plain grey word - a
+ * segmented control, which is a page idiom. On a full-bleed field the fill
+ * was the loudest thing above the day number and the second loudest on the
+ * screen, which is a strange amount of noise for a switch most people will
+ * never touch: one of the two tabs is unreachable until there is a pregnancy
+ * to show.
+ *
+ * Both labels are the ink now. The selected one is heavier and carries a
+ * short rule beneath it; the other is lighter and nothing else. Weight and a
+ * line are enough to say which of two words is on, and they leave the day
+ * number as the thing the eye lands on.
+ *
+ * The `accessibilityState` is untouched: a screen reader was never reading
+ * the fill, and nothing about what it announces has changed.
  *
  * Choosing a mode stays with the screen. Which view is on is stored, and the
  * screen reconciles it against whether there is still a pregnancy to show, so
@@ -30,6 +49,8 @@ export function HomeModeSwitch({
   readonly chooseMode: (mode: 'cycle' | 'pregnancy') => void;
 }) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
   const home = useMessages(homeMessages);
 
   return (
@@ -41,16 +62,18 @@ export function HomeModeSwitch({
         onPress={() => chooseMode('cycle')}
         style={({ pressed }) => [
           styles.modeOption,
-          !isPregnancyView && { backgroundColor: theme.primary },
+          !isPregnancyView &&
+            (onSky
+              ? { borderBottomWidth: 2, borderBottomColor: sky.ink }
+              : { backgroundColor: theme.primary }),
           pressed && styles.pressed,
         ]}>
-        {/* The selected tab paints itself, so its label is not on the field and
-            has to say so: on a sky `ThemedText` draws in the sky's ink, which
-            over this fill would be dark on dark. An explicit colour wins, and
-            that is the documented way for a control to opt out. */}
+        {/* Off a field this is still a filled capsule, and a label on a fill
+            has to name its own colour - on a sky `ThemedText` draws in the
+            ink, which over the violet would be dark on dark. */}
         <ThemedText
           type={isPregnancyView ? 'small' : 'smallBold'}
-          style={isPregnancyView ? undefined : { color: theme.onPrimary }}>
+          style={!isPregnancyView && !onSky ? { color: theme.onPrimary } : undefined}>
           {home.cycleTabLabel}
         </ThemedText>
       </Pressable>
@@ -63,13 +86,16 @@ export function HomeModeSwitch({
         onPress={() => chooseMode('pregnancy')}
         style={({ pressed }) => [
           styles.modeOption,
-          isPregnancyView && { backgroundColor: theme.primary },
+          isPregnancyView &&
+            (onSky
+              ? { borderBottomWidth: 2, borderBottomColor: sky.ink }
+              : { backgroundColor: theme.primary }),
           pregnancy === null && styles.disabled,
           pressed && pregnancy !== null && styles.pressed,
         ]}>
         <ThemedText
           type={isPregnancyView ? 'smallBold' : 'small'}
-          style={isPregnancyView ? { color: theme.onPrimary } : undefined}>
+          style={isPregnancyView && !onSky ? { color: theme.onPrimary } : undefined}>
           {home.pregnancyTabLabel}
         </ThemedText>
       </Pressable>

@@ -4012,6 +4012,21 @@ describe('HomeScreen pregnancy weekly reminder sync', () => {
  * arithmetic could not have caught it: it knows which colours the palette
  * offers and nothing at all about which one a component reached for.
  *
+ * ## The bug that paid for this file
+ *
+ * The chevrons. Every link row on the home screen ended in one, drawn in
+ * `textSecondary` because that is what `Icon` defaults to, measuring between
+ * 1.97:1 and 3.38:1 on the light fields. A chevron is the only thing saying
+ * that a row goes anywhere - its own file says so - so it carries meaning
+ * and 3:1 is a floor.
+ *
+ * Nothing else would have found it. The arithmetic does not know what a
+ * component reached for. A snapshot would have recorded it as correct. A
+ * query-by-text test cannot see it, because under Jest the glyph renders as
+ * empty text and carries no string to match on. And on a device it is small,
+ * grey, and exactly the kind of thing an eye forgives - which is to say it
+ * would have shipped, and been wrong for the people who needed it most.
+ *
  * So this renders the screen and reads the colour off each `Text`. It is the
  * half of the guarantee that can only be had by rendering, and it is here
  * rather than in its own file because the harness above - fourteen mocks, a
@@ -4030,12 +4045,16 @@ describe('every word on the sky is drawn in the sky ink', () => {
   /**
    * Labels that sit on an opaque control rather than on the field.
    *
-   * The field is not behind them, so the sky's ink is not their contrast
-   * partner and `theme-contrast.test.ts` is what holds them. They are due to
-   * be reworked when the controls are, and this list is what will say whether
-   * that actually happened.
+   * One entry, and it is the label on the primary action - the single thing
+   * on the screen still filled solid. The field is not behind it, so the sky's
+   * ink is not its contrast partner; `onInk` is, at 14.98:1.
+   *
+   * It used to be `onPrimary` on the brand violet, and there used to be two
+   * of them - the mode tab was filled as well. That it is down to one is the
+   * controls pass landing, and if it ever goes back up this list is where the
+   * argument has to be made.
    */
-  const OFF_FIELD: readonly string[] = [Colors.light.onPrimary];
+  const OFF_FIELD: readonly string[] = [Sky.light.onInk];
 
   /**
    * Every colour the rendered tree draws a word in.
@@ -4103,24 +4122,25 @@ describe('every word on the sky is drawn in the sky ink', () => {
     );
   });
 
-  it('leaves the label inside a filled control alone', async () => {
-    // The rule is about words on the field, and the selected tab is not on
-    // it - it paints itself. This went wrong once in exactly the direction
-    // the rule pushes: the tab label followed the sky ink onto its own violet
-    // fill and came out dark on dark. A control that fills itself has to name
-    // its own colour, and this is what says whether it still does.
+  it('leaves the label inside the filled control alone', async () => {
+    // The rule is about words on the field, and a label on a solid fill is
+    // not on it. This went wrong once in exactly the direction the rule
+    // pushes: a label followed the sky ink onto its own fill and came out
+    // dark on dark. A control that fills itself has to name its own colour,
+    // and this is what says whether it still does.
+    //
+    // It used to be the mode tab. The tab is a segment now and carries no
+    // fill, so the assertion moved to the thing that still has one rather
+    // than being deleted with the fill that prompted it.
     getTodayMock.mockReturnValue('2026-09-09' as ISODate);
     repository.loadCycleProfile.mockResolvedValue(profile());
 
     const screen = await renderScreen();
 
-    const selected = screen.getAllByRole('tab').find(
-      (tab) => tab.props.accessibilityState?.selected === true
-    );
+    const action = screen.getByLabelText('Regl başlangıcını kaydet');
 
-    expect(textColours(selected)).toEqual([Colors.light.onPrimary]);
+    expect(textColours(action)).toEqual([Sky.light.onInk]);
   });
-
   it('draws plenty of it, so the rule cannot pass on an empty tree', async () => {
     // Without this, a screen that rendered no text at all would satisfy the
     // assertion above by having no colours to disagree about.
@@ -4162,10 +4182,24 @@ describe('every word on the sky is drawn in the sky ink', () => {
  * way to see that from here is to look at what the tree actually renders.
  */
 describe('nothing on the sky paints itself a page colour', () => {
+  /**
+   * Fills that belong to a page rather than to a field.
+   *
+   * `primary` is in the list with the greys, and it is the interesting one.
+   * It is the brand violet, it is not wrong anywhere else in the app, and on a
+   * field it was the loudest thing on the screen: a filled capsule above the
+   * day number and a solid slab below it, both in a colour from another
+   * system. Solid is now the ink, and the violet goes back to being the dusk
+   * in the palette - which is what the palette always said it was.
+   *
+   * Listed here rather than left to the eye because it is exactly the kind of
+   * thing that comes back one call site at a time.
+   */
   const PAGE_SURFACES: readonly string[] = [
     Colors.light.backgroundElement,
     Colors.light.background,
     Colors.light.backgroundSelected,
+    Colors.light.primary,
   ];
 
   function backgroundColours(tree: unknown): string[] {

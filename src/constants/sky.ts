@@ -117,6 +117,31 @@ export type SkyScheme = {
    */
   readonly inkMark: string;
   /**
+   * The label on a control that is filled with the ink.
+   *
+   * It is the other scheme's ink, which is not a flourish: the two were
+   * chosen as the darkest and lightest things in the app, so each is already
+   * the other's best partner. 14.98:1 either way.
+   *
+   * The filled control used to be the brand violet with `onPrimary` on it.
+   * That is a colour from another system, and on a full-bleed field it read
+   * as a button someone had pasted on - the one object on the screen that
+   * belonged to a different app. The violet goes back to being the dusk in
+   * the palette, which is what the header above already says it is.
+   */
+  readonly onInk: string;
+  /**
+   * A line that carries meaning: the outline of a secondary control, the
+   * rule under the selected tab. Not a divider - see `glass` for those.
+   *
+   * The ink at 0.8, and the alpha is measured rather than chosen. An outline
+   * is the only thing telling a secondary button apart from a sentence, so
+   * it is information and needs 3:1 against everything behind it. At 0.45 it
+   * reaches 2.10:1 and at 0.65 the dark scheme still misses; 0.8 clears both
+   * with room (3.95:1 light, 3.58:1 dark) over field, drift and glass.
+   */
+  readonly inkLine: string;
+  /**
    * What a block of content is made of when it sits on a field.
    *
    * The ink again, at a few percent, so the sky shows through and the card
@@ -156,6 +181,8 @@ export const Sky: Readonly<Record<'light' | 'dark', SkyScheme>> = {
     },
     ink: '#241B33',
     inkMark: 'rgba(36, 27, 51, 0.45)',
+    onInk: '#F7F3FB',
+    inkLine: 'rgba(36, 27, 51, 0.8)',
     glass: 'rgba(36, 27, 51, 0.06)',
     glassEdge: 'rgba(255, 255, 255, 0.45)',
     // Raised from 0.38 once the drift was measured and found invisible. Safe
@@ -182,6 +209,8 @@ export const Sky: Readonly<Record<'light' | 'dark', SkyScheme>> = {
     },
     ink: '#F7F3FB',
     inkMark: 'rgba(247, 243, 251, 0.45)',
+    onInk: '#241B33',
+    inkLine: 'rgba(247, 243, 251, 0.8)',
     glass: 'rgba(10, 7, 20, 0.22)',
     glassEdge: 'rgba(247, 243, 251, 0.10)',
     // Lower than the light scheme's, and that is a ceiling rather than a

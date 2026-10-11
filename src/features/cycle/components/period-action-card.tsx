@@ -5,7 +5,9 @@ import { homeMessages } from '../presentation/home-messages';
 import { Surface } from '@/components/surface';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useSky, useTheme } from '@/hooks/use-theme';
+
+import { useOnSky } from './on-sky';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
@@ -45,6 +47,21 @@ export function PeriodActionCard({
   readonly handleSavePeriod: () => Promise<void>;
 }) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
+
+  // One strong object per screen, and on a field it is filled with the ink
+  // rather than with the brand violet - the reasoning is on `onInk` in
+  // `constants/sky.ts`.
+  const filled = onSky
+    ? { backgroundColor: sky.ink }
+    : { backgroundColor: theme.primary };
+  const filledLabel = { color: onSky ? sky.onInk : theme.onPrimary };
+  // The secondary loses its fill entirely: two filled buttons side by side say
+  // the choice is even, and it is not.
+  const outlined = onSky
+    ? { borderWidth: 1, borderColor: sky.inkLine, borderRadius: Spacing.three }
+    : null;
   const home = useMessages(homeMessages);
   const language = useLanguage();
 
@@ -80,10 +97,11 @@ export function PeriodActionCard({
           }}
           style={({ pressed }) => [
             styles.secondaryButton,
+            outlined,
             isSaving && styles.disabled,
             pressed && !isSaving && styles.pressed,
           ]}>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="small">
             {home.periodCancelLabel}
           </ThemedText>
         </Pressable>
@@ -96,11 +114,11 @@ export function PeriodActionCard({
           onPress={handleSavePeriod}
           style={({ pressed }) => [
             styles.primaryButton,
-            { backgroundColor: theme.primary },
+            filled,
             isSaving && styles.disabled,
             pressed && !isSaving && styles.pressed,
           ]}>
-          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+          <ThemedText type="smallBold" style={filledLabel}>
             {isSaving ? home.periodSavingLabel : home.periodSaveLabel}
           </ThemedText>
         </Pressable>
@@ -113,10 +131,10 @@ export function PeriodActionCard({
       onPress={() => setIsConfirming(true)}
       style={({ pressed }) => [
         styles.primaryButton,
-        { backgroundColor: theme.primary },
+        filled,
         pressed && styles.pressed,
       ]}>
-      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+      <ThemedText type="smallBold" style={filledLabel}>
         {isEnding ? home.periodEndButtonText : home.periodStartButtonText}
       </ThemedText>
     </Pressable>
