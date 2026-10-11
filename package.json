@@ -12,6 +12,8 @@
     "expo-crypto": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
     "expo-local-authentication": "~57.0.3",
     "expo-localization": "~57.0.2",
@@ -63,7 +65,9 @@
     },
     "setupFiles": [
       "<rootDir>/jest/expo-localization-mock.js",
-      "<rootDir>/jest/async-storage-mock.js"
+      "<rootDir>/jest/async-storage-mock.js",
+      "react-native-gesture-handler/jestSetup",
+      "<rootDir>/jest/native-ui-mocks.js"
     ],
     "setupFilesAfterEnv": [
       "<rootDir>/jest/fail-on-act-warning.js"
