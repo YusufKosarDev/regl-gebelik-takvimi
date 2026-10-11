@@ -10,6 +10,7 @@ import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
+import { HISTORY_DESCRIPTION, HISTORY_TITLE } from '@/features/cycle/presentation/history-messages';
 
 // The database is faked. The use case, the repository contract and the ordering
 // rule stay real, so what the screen lists is what the app would really read.
@@ -21,6 +22,13 @@ jest.mock('@/storage/db', () => ({
 jest.mock('@/features/cycle/data/cycle-repository', () => ({
   loadCycleProfile: jest.fn(),
   saveCycleProfile: jest.fn(),
+}));
+
+// The tab reads the daily log as well as the period records now: the counts
+// and the distribution it opens with come from there. Empty by default, so
+// every assertion about records is unchanged by it.
+jest.mock('@/features/daily-log/data/daily-log-repository', () => ({
+  loadAllDailyEntries: jest.fn(async () => []),
 }));
 
 // Screens re-read on focus now, so the mock has to behave like the real
@@ -130,7 +138,7 @@ describe('HistoryScreen header', () => {
     const { getByText } = await renderScreen();
 
     expect(getByText('Geçmiş kayıtlar')).toBeTruthy();
-    expect(getByText('Kaydettiğin regl dönemlerini burada görebilirsin.')).toBeTruthy();
+    expect(getByText(HISTORY_DESCRIPTION)).toBeTruthy();
   });
 });
 
@@ -2097,5 +2105,42 @@ describe('HistoryScreen under the floating tab bar', () => {
     const screen = await renderScreen();
 
     expectClearsTabBar(screen.toJSON());
+  });
+});
+
+/**
+ * The tab leads with the answer.
+ *
+ * The correlation engine has been written and tested since before this stage,
+ * and it was rendering - on `daily-log-history`, a screen reached from a link
+ * on the home screen. The tab called "Geçmiş" showed period records and
+ * nothing else, so the thing somebody opens an insights tab for was two taps
+ * away behind a word that did not promise it.
+ *
+ * Cycles opens its insights with counts rather than with a chart. That order
+ * is what this takes: what gets written down most, then where it falls across
+ * the cycle, then the records themselves.
+ */
+describe('HistoryScreen insights', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-02' }]));
+  });
+
+  it('opens with what gets written down most', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('En çok kaydettiklerin')).toBeTruthy();
+  });
+
+  it('shows the distribution underneath it, not instead of it', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText('Evrelere göre dağılım')).toBeTruthy();
+  });
+
+  it('still lists the period records it always did', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText(HISTORY_TITLE)).toBeTruthy();
   });
 });

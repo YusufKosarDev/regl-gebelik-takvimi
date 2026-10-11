@@ -43,6 +43,18 @@ const dailyLogHistoryMessagesTr = {
 
   /* -------------------------------------------------------- the summary -- */
 
+  /**
+   * The answer the insights screen opens with, before any distribution.
+   *
+   * The number is days written down, and the words say days. It is not how
+   * often something happened - this app cannot know that - and the wording is
+   * the only thing standing between a count and a claim.
+   */
+  mostLoggedTitle: 'En çok kaydettiklerin',
+  mostLoggedEmpty: 'Henüz kayıt yok.',
+  mostLoggedDays: (count: number) => `${count} gün`,
+  mostLoggedRowLabel: (label: string, count: number) => `${label}: ${count} gün`,
+
   summaryTitle: 'Evrelere göre dağılım',
 
   /**
@@ -89,6 +101,12 @@ const dailyLogHistoryMessagesEn: DailyLogHistoryMessages = {
   unmarkedDayLabel: (readableDate: string) => `${readableDate}: nothing logged`,
 
   markedDayMarker: '•',
+
+  mostLoggedTitle: 'What you log most',
+  mostLoggedEmpty: 'Nothing logged yet.',
+  mostLoggedDays: (count: number) => `${count} ${count === 1 ? 'day' : 'days'}`,
+  mostLoggedRowLabel: (label: string, count: number) =>
+    `${label}: ${count} ${count === 1 ? 'day' : 'days'}`,
 
   summaryTitle: 'Across the cycle',
 

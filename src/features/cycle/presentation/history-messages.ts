@@ -25,7 +25,15 @@ const historyMessagesTr = {
   /* ---------------------------------------------------------- the screen -- */
 
   historyTitle: 'Geçmiş kayıtlar',
-  historyDescription: 'Kaydettiğin regl dönemlerini burada görebilirsin.',
+  /**
+   * The whole screen, not its last third.
+   *
+   * This used to say only that the recorded periods were here, which was
+   * true of everything on the screen until the counts and the distribution
+   * moved onto it. A description that names one of three blocks is worse
+   * than none: it tells somebody they have found the wrong screen.
+   */
+  historyDescription: 'Ne kaydettiğin, bunların evrelere nasıl dağıldığı ve regl dönemlerin.',
 
   historyLoadFailedMessage: 'Kayıtlar yüklenemedi.',
   historyDeleteFailedMessage: 'Kayıt silinemedi.',
@@ -113,7 +121,7 @@ export type HistoryMessages = typeof historyMessagesTr;
 
 const historyMessagesEn: HistoryMessages = {
   historyTitle: 'Past records',
-  historyDescription: 'The periods you have recorded are here.',
+  historyDescription: 'What you have logged, how it falls across the cycle, and your periods.',
 
   historyLoadFailedMessage: 'Those records could not be loaded.',
   historyDeleteFailedMessage: 'That record could not be deleted.',

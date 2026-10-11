@@ -51,10 +51,22 @@ export async function getDailyLogHistory(
   db: SQLiteDatabase,
   today: ISODate
 ): Promise<DailyLogHistory> {
-  const [entries, profile] = await Promise.all([
-    loadAllDailyEntries(db),
-    loadCycleProfile(db),
-  ]);
+  const entries = await loadAllDailyEntries(db);
+
+  /**
+   * Read second, and not at all when there is nothing to place.
+   *
+   * These two used to go together in a `Promise.all`, which is the faster
+   * shape and reads one thing it does not need: with no days logged the
+   * function returns early and the profile is never looked at.
+   *
+   * It stopped being free when the insights moved onto the history tab. That
+   * screen reads the period records and this in one trip, and both of them
+   * load the profile - so an empty log cost two reads of the same row for one
+   * screen, and the tests that script that mock call by call said so plainly
+   * by failing.
+   */
+  const profile = entries.length === 0 ? null : await loadCycleProfile(db);
 
   if (entries.length === 0 || profile === null) {
     const unplaced = entries.map((entry) => ({ entry, phase: null }));

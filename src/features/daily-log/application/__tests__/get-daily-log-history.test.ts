@@ -128,12 +128,55 @@ describe('with a cycle and some days', () => {
     expect(history.symptomCorrelations[0].placedCount).toBe(1);
   });
 
-  it('reads both sides in one go', async () => {
-    // Two awaited reads could land either side of a write - the entries from
-    // before a period was recorded and the profile from after it.
+  it('reads each side exactly once', async () => {
+    // This used to say "in one go" and the two reads went through a
+    // `Promise.all`, on the reasoning that two awaited reads could land either
+    // side of a write - the entries from before a period was recorded and the
+    // profile from after it.
+    //
+    // The reads are sequential now, and the reasoning does not survive the
+    // change as well as it reads: `Promise.all` starts both at once but
+    // settles them independently, so it never made the pair atomic. It
+    // narrowed a window it could not close, and the window is still open.
+    //
+    // What it did cost was a read nobody needed. The insights tab shares one
+    // trip to the database with the period history and both halves load the
+    // profile, so an empty log read the same row twice for one screen. The
+    // count below is what is actually worth holding.
+    // With a day to place, so the profile is actually wanted - the case where
+    // it is not has its own test below.
+    dailyLog.loadAllDailyEntries.mockResolvedValue([entry('2026-03-03', ['cramps'])]);
+
     await getDailyLogHistory(db, TODAY);
 
     expect(dailyLog.loadAllDailyEntries).toHaveBeenCalledTimes(1);
+    expect(cycle.loadCycleProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('what it reads', () => {
+  it('does not read the cycle profile when there are no days to place', async () => {
+    // Nothing to place means the profile is never looked at: the function
+    // returns early with empty correlations either way. Reading it anyway
+    // doubled the profile reads on the insights tab, which shares one trip to
+    // the database with the period history - and six tests that script that
+    // mock call by call said so.
+    dailyLog.loadAllDailyEntries.mockResolvedValue([]);
+    cycle.loadCycleProfile.mockResolvedValue(null);
+
+    await getDailyLogHistory(db, '2026-10-11' as ISODate);
+
+    expect(cycle.loadCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('still reads it once there are days', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue([
+      { date: '2026-10-11' as ISODate, flowId: null, moodId: null, symptomIds: ['cramps'] },
+    ]);
+    cycle.loadCycleProfile.mockResolvedValue(null);
+
+    await getDailyLogHistory(db, '2026-10-11' as ISODate);
+
     expect(cycle.loadCycleProfile).toHaveBeenCalledTimes(1);
   });
 });

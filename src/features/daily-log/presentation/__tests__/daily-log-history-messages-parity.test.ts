@@ -8,6 +8,8 @@ describe('parity', () => {
       ['markedDayLabel', ['17 September 2026', 'Cramps']],
       ['unmarkedDayLabel', ['17 September 2026']],
       ['summaryLine', ['Cramps', 12, 15, 'luteal']],
+      ['mostLoggedDays', [11]],
+      ['mostLoggedRowLabel', ['Cramps', 11]],
     ],
     // A date joined to a summary that both arrived already translated, and a
     // bullet, which is a shape rather than a word.

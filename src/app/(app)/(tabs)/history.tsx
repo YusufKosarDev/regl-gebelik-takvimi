@@ -32,6 +32,11 @@ import {
 
 import { logEvent } from '@/shared/logging';
 import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
+import { getDailyLogHistory } from '@/features/daily-log/application/get-daily-log-history';
+import type { DailyLogHistory } from '@/features/daily-log/application/get-daily-log-history';
+import { mostLogged } from '@/features/daily-log/domain/most-logged';
+import { MostLoggedList } from '@/features/daily-log/components/most-logged-list';
+import { PhaseCorrelationSummary } from '@/features/daily-log/components/phase-correlation-summary';
 
 /**
  * The recorded periods, and the corrections that can be made to them.
@@ -49,6 +54,7 @@ export default function HistoryScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [records, setRecords] = useState<readonly PeriodRecord[] | null>(null);
+  const [log, setLog] = useState<DailyLogHistory | null>(null);
   const [hasError, setHasError] = useState(false);
 
   // Set only when a sync closed a panel that was open, so the panel does not
@@ -100,11 +106,33 @@ export default function HistoryScreen() {
   const [today] = useState<ISODate>(() => getTodayLocalISODate());
 
   /** Stable, so the mount effect can depend on it and the mutations can reuse it. */
+  /**
+   * Both halves of this screen, in one trip.
+   *
+   * The records are what it always showed. The log history is what the tab was
+   * missing: the counts and the distribution were being computed and rendered
+   * on another screen, reached from a link on the home screen, while the tab
+   * somebody would open for them showed a list of periods.
+   *
+   * Read together rather than in two effects - one open of the database, and
+   * the screen cannot end up showing an answer from before the last sync
+   * beside records from after it.
+   */
   const readHistory = useCallback(async () => {
     const db = await openAppDatabase();
 
-    return getPeriodHistory(db);
-  }, []);
+    const [records, log] = await Promise.all([getPeriodHistory(db), getDailyLogHistory(db, today)]);
+
+    return { records, log };
+  }, [today]);
+
+  /** Re-reads both halves after a write, so neither goes stale on its own. */
+  const refresh = useCallback(async () => {
+    const history = await readHistory();
+
+    setRecords(history.records);
+    setLog(history.log);
+  }, [readHistory]);
 
   /**
    * Re-reads the history, and closes any panel a sync has invalidated.
@@ -127,7 +155,8 @@ export default function HistoryScreen() {
             return;
           }
 
-          setRecords(history);
+          setRecords(history.records);
+          setLog(history.log);
           setHasError(false);
 
           if (origin === 'remote' && panelOpenRef.current) {
@@ -223,7 +252,7 @@ export default function HistoryScreen() {
       await syncWidgetSnapshotQuietly(db, today);
       await syncPeriodReminderQuietly(db, today);
 
-      setRecords(await readHistory());
+      await refresh();
       setRecordPendingDelete(null);
     } catch (error) {
       logEvent('period record delete failed', error);
@@ -256,7 +285,7 @@ export default function HistoryScreen() {
       await syncWidgetSnapshotQuietly(db, today);
       await syncPeriodReminderQuietly(db, today);
 
-      setRecords(await readHistory());
+      await refresh();
       closePanels();
     } catch (error) {
       logEvent('period record update failed', error);
@@ -296,7 +325,7 @@ export default function HistoryScreen() {
       await syncWidgetSnapshotQuietly(db, today);
       await syncPeriodReminderQuietly(db, today);
 
-      setRecords(await readHistory());
+      await refresh();
       closePanels();
     } catch (error) {
       logEvent('period record update failed', error);
@@ -345,6 +374,35 @@ export default function HistoryScreen() {
                 </ThemedText>
               )}
             </View>
+
+            {/* The answer first, then the working, then the records.
+
+                These two were being computed and drawn on another screen, one
+                reached from a link on the home screen, while this tab - the
+                one somebody opens to find out what has been happening - showed
+                a list of period dates and nothing else.
+
+                The order is Cycles': counts, then the distribution they came
+                out of. A chart first hands somebody the working and asks them
+                to do the answering. */}
+            {log !== null && (
+              <>
+                <MostLoggedList
+                  symptoms={mostLogged(log.entries, (entry) => entry.symptomIds, 3)}
+                  moods={mostLogged(
+                    log.entries,
+                    (entry) => (entry.moodId === null ? [] : [entry.moodId]),
+                    1
+                  )}
+                />
+
+                <PhaseCorrelationSummary
+                  symptoms={log.symptomCorrelations}
+                  moods={log.moodCorrelations}
+                  hasPlacedDays={log.phased.some((day) => day.phase !== null)}
+                />
+              </>
+            )}
 
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">

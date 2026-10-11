@@ -43,6 +43,11 @@ jest.mock('@/storage/db', () => ({
   DATABASE_NAME: 'regl-gebelik.db',
 }));
 
+// The tab reads the daily log as well as the period records now.
+jest.mock('@/features/daily-log/data/daily-log-repository', () => ({
+  loadAllDailyEntries: jest.fn(async () => []),
+}));
+
 jest.mock('@/features/cycle/data/cycle-repository', () => ({
   loadCycleProfile: jest.fn(),
   saveCycleProfile: jest.fn(),
