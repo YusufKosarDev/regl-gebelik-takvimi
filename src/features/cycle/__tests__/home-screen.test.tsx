@@ -2,7 +2,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Linking, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import HomeScreen from '@/app/(app)/index';
+import HomeScreen from '@/app/(app)/(tabs)/index';
 import { Sky } from '@/constants/sky';
 import { Colors } from '@/constants/theme';
 import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
@@ -513,13 +513,17 @@ describe('HomeScreen scope', () => {
     expect(labels).toEqual([
       'Ekle',
       'Regl başlangıcını kaydet',
-      'Takvimi aç',
-      'Geçmiş regl kayıtlarını görüntüle',
       'Günlük kayıt geçmişini görüntüle',
       'Avatar oluştur',
-      'Döngü ayarlarını düzenle',
       'Gebelik takibini başlat',
     ]);
+
+    // Three of the eight left for the bar at the bottom. A tab and a link to
+    // the same screen on the screen above it are the same errand twice, and
+    // the one that is on every screen wins.
+    expect(labels).not.toContain('Takvimi aç');
+    expect(labels).not.toContain('Geçmiş regl kayıtlarını görüntüle');
+    expect(labels).not.toContain('Döngü ayarlarını düzenle');
 
     // No calendar cell, because there is no calendar here any more.
     expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(0);
@@ -1183,12 +1187,11 @@ describe('HomeScreen straight after onboarding', () => {
     expect(queryByText('Regl bitti')).toBeNull();
   });
 
-  it('still shows the summary and the calendar', async () => {
+  it('still shows the summary', async () => {
     const { getByText, getByLabelText } = await renderScreen();
 
     expect(getByLabelText('Döngü günü: 16. gün')).toBeTruthy();
     expect(getByText('Yumurtlama')).toBeTruthy();
-    expect(getByText('Takvim')).toBeTruthy();
   });
 });
 
@@ -1289,52 +1292,6 @@ describe('HomeScreen through a whole period', () => {
       startDate: '2026-09-02',
       isOngoing: false,
     });
-  });
-});
-
-describe('HomeScreen history link', () => {
-  beforeEach(() => {
-    repository.loadCycleProfile.mockResolvedValue(profile());
-  });
-
-  it('offers the link', async () => {
-    const { getByLabelText, getByText } = await renderScreen();
-
-    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-    expect(getByText('Geçmiş kayıtlar')).toBeTruthy();
-  });
-
-  it('opens the history route', async () => {
-    const screen = await renderScreen();
-
-    await fireEvent.press(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle'));
-
-    expect(push).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledWith('/(app)/history');
-  });
-
-  it('navigates nothing on its own', async () => {
-    await renderScreen();
-
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it('leaves the rest of the screen in place', async () => {
-    const screen = await renderScreen();
-
-    expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
-    expect(screen.getByText('Takvim')).toBeTruthy();
-    // The calendar assertion that was here moved with the calendar, to
-    // `calendar-screen.test.tsx`. What this test is about stays.
-    expect(screen.getByText('Regl başladı')).toBeTruthy();
-  });
-
-  it('is absent without a profile', async () => {
-    repository.loadCycleProfile.mockResolvedValue(null);
-
-    const { queryByLabelText } = await renderScreen();
-
-    expect(queryByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeNull();
   });
 });
 
@@ -1439,7 +1396,6 @@ describe('HomeScreen focus refresh', () => {
     expect(screen.getByText('Henüz hesaplanamıyor')).toBeTruthy();
     expect(screen.getByText('Regl başladı')).toBeTruthy();
     // The calendar is still there, just with nothing marked.
-    expect(screen.getByText('Takvim')).toBeTruthy();
   });
 
   it('clears a stale error once a later read succeeds', async () => {
@@ -1455,64 +1411,6 @@ describe('HomeScreen focus refresh', () => {
 
     expect(screen.queryByText('Bilgiler yüklenemedi.')).toBeNull();
     expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
-  });
-});
-
-describe('HomeScreen settings link', () => {
-  beforeEach(() => {
-    repository.loadCycleProfile.mockResolvedValue(profile());
-  });
-
-  it('offers the link', async () => {
-    const { getByLabelText, getByText } = await renderScreen();
-
-    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
-    expect(getByText('Ayarlar')).toBeTruthy();
-  });
-
-  it('opens the settings route', async () => {
-    const screen = await renderScreen();
-
-    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını düzenle'));
-
-    expect(push).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledWith('/(app)/settings');
-  });
-
-  it('leaves the history link alone', async () => {
-    const screen = await renderScreen();
-
-    expect(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-
-    await fireEvent.press(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle'));
-
-    expect(push).toHaveBeenCalledWith('/(app)/history');
-  });
-
-  it('writes nothing', async () => {
-    const screen = await renderScreen();
-
-    await fireEvent.press(screen.getByLabelText('Döngü ayarlarını düzenle'));
-
-    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
-  });
-
-  it('leaves the rest of the screen in place', async () => {
-    const screen = await renderScreen();
-
-    expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
-    expect(screen.getByText('Takvim')).toBeTruthy();
-    // The calendar assertion that was here moved with the calendar, to
-    // `calendar-screen.test.tsx`. What this test is about stays.
-    expect(screen.getByText('Regl başladı')).toBeTruthy();
-  });
-
-  it('is absent without a profile', async () => {
-    repository.loadCycleProfile.mockResolvedValue(null);
-
-    const { queryByLabelText } = await renderScreen();
-
-    expect(queryByLabelText('Döngü ayarlarını düzenle')).toBeNull();
   });
 });
 
@@ -1557,8 +1455,7 @@ describe('HomeScreen pregnancy link', () => {
 
     const { getByLabelText } = await renderScreen();
 
-    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+    expect(getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
   });
 
   it('stops offering it after a pregnancy is started elsewhere', async () => {
@@ -1903,10 +1800,9 @@ describe('HomeScreen cycle dashboard alongside a pregnancy', () => {
     expect(getByText('Doğurganlık tahmini')).toBeTruthy();
   });
 
-  it('still shows the calendar and its legend', async () => {
+  it('still shows the cycle summary', async () => {
     const { getByText } = await renderScreen();
 
-    expect(getByText('Takvim')).toBeTruthy();
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
   });
@@ -1917,11 +1813,10 @@ describe('HomeScreen cycle dashboard alongside a pregnancy', () => {
     expect(getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
   });
 
-  it('still offers the history and settings links', async () => {
+  it('still offers the links that are not tabs', async () => {
     const { getByLabelText } = await renderScreen();
 
-    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+    expect(getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
   });
 
   /**
@@ -2252,8 +2147,7 @@ describe('HomeScreen pregnancy settings link', () => {
 
     expect(getByLabelText('Gebelik ayarlarını düzenle')).toBeTruthy();
     // The cycle links belong to the cycle view and are not mixed in here.
-    expect(queryByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeNull();
-    expect(queryByLabelText('Döngü ayarlarını düzenle')).toBeNull();
+    expect(queryByLabelText('Günlük kayıt geçmişini görüntüle')).toBeNull();
   });
 });
 
@@ -2381,18 +2275,16 @@ describe('HomeScreen after the pregnancy tracking is stopped', () => {
     expect(screen.queryByLabelText('Gebelik ayarlarını düzenle')).toBeNull();
   });
 
-  it('leaves the cycle summary and calendar untouched', async () => {
+  it('leaves the cycle summary untouched', async () => {
     const screen = await renderScreen();
 
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
     await refocus();
 
     expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
-    expect(screen.getByText('Takvim')).toBeTruthy();
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
-    expect(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-    expect(screen.getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+    expect(screen.getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
   });
 
   it('reads no cycle profile again than it would have anyway', async () => {
@@ -2527,8 +2419,7 @@ describe('HomeScreen mode switch without a pregnancy', () => {
   it('keeps the cycle view usable', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByText('Takvim')).toBeTruthy();
-    expect(screen.getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(screen.getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
     expect(screen.getByLabelText('Gebelik takibini başlat')).toBeTruthy();
   });
 });
@@ -2636,11 +2527,8 @@ describe('HomeScreen views stay separate', () => {
       'Döngü günü',
       'Döngü evresi',
       'Doğurganlık tahmini',
-      'Takvim',
       'Seçilen gün',
       'Regl günü',
-      'Geçmiş kayıtlar',
-      'Ayarlar',
     ]) {
       expect(screen.queryByText(cycleOnly)).toBeNull();
     }
@@ -2685,7 +2573,6 @@ describe('HomeScreen views stay separate', () => {
     await fireEvent.press(screen.getByLabelText('Döngü'));
 
     expect(screen.getByText('Döngü günü')).toBeTruthy();
-    expect(screen.getByText('Takvim')).toBeTruthy();
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
     expect(screen.getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
@@ -2970,7 +2857,6 @@ describe('HomeScreen week navigation leaves the rest alone', () => {
     await fireEvent.press(screen.getByLabelText('Döngü'));
 
     expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
-    expect(screen.getByText('Takvim')).toBeTruthy();
     expect(screen.queryByLabelText('Sonraki hafta')).toBeNull();
   });
 
@@ -3247,12 +3133,11 @@ describe('HomeScreen cycle daily support', () => {
 
     const { getByText, getByLabelText } = await renderScreen();
 
-    expect(getByText('Takvim')).toBeTruthy();
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
     expect(getByText(FERTILITY_DISCLAIMER)).toBeTruthy();
     expect(getByLabelText('Regl başlangıcını kaydet')).toBeTruthy();
-    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
+    expect(getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
   });
 });
 
@@ -3349,7 +3234,6 @@ describe('HomeScreen cycle daily support sources', () => {
     });
 
     expect(screen.getByText('Bugünün mesajı')).toBeTruthy();
-    expect(screen.getByText('Takvim')).toBeTruthy();
   });
 
   it('clears the refusal once a source opens', async () => {
@@ -3556,9 +3440,7 @@ describe('HomeScreen avatar link with one saved', () => {
   it('keeps the rest of the cycle screen where it was', async () => {
     const { getByText, getByLabelText } = await renderScreen();
 
-    expect(getByText('Takvim')).toBeTruthy();
-    expect(getByLabelText('Geçmiş regl kayıtlarını görüntüle')).toBeTruthy();
-    expect(getByLabelText('Döngü ayarlarını düzenle')).toBeTruthy();
+    expect(getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
   });
 });
 

@@ -202,12 +202,12 @@ beforeEach(() => {
  * and "the sweep is broken".
  */
 const SCREENS: readonly [string, () => React.ComponentType][] = [
-  ['the home screen', () => require('@/app/(app)/index').default],
-  ['the history screen', () => require('@/app/(app)/history').default],
-  ['the settings screen', () => require('@/app/(app)/settings').default],
+  ['the home screen', () => require('@/app/(app)/(tabs)/index').default],
+  ['the history screen', () => require('@/app/(app)/(tabs)/history').default],
+  ['the settings screen', () => require('@/app/(app)/(tabs)/settings').default],
   ['the account screen', () => require('@/app/(app)/account').default],
   ['the about screen', () => require('@/app/(app)/about').default],
-  ['the calendar screen', () => require('@/app/(app)/calendar').default],
+  ['the calendar screen', () => require('@/app/(app)/(tabs)/calendar').default],
   ['the app lock screen', () => require('@/app/(app)/app-lock').default],
   ['the avatar screen', () => require('@/app/(app)/avatar').default],
   ['the daily entry screen', () => require('@/app/(app)/daily-entry').default],
@@ -311,12 +311,23 @@ describe('no screen shows Turkish on an English phone', () => {
 
     const appDir = join(__dirname, '..');
 
+    // Route groups nest: the four tabs live in `(app)/(tabs)`, and the walk
+    // has to follow that or a whole tab's worth of screens drops out of the
+    // sweep without the count noticing. Anything in brackets is a group, so
+    // descending into them is the same rule the router itself follows.
+    const screensIn = (group: string): string[] =>
+      readdirSync(join(appDir, group), { withFileTypes: true }).flatMap((entry: any) => {
+        if (entry.isDirectory()) {
+          return entry.name.startsWith('(') ? screensIn(`${group}/${entry.name}`) : [];
+        }
+
+        if (!entry.name.endsWith('.tsx') || entry.name.startsWith('_')) return [];
+
+        return [`${group}/${entry.name}`];
+      });
+
     const routes = ['(app)', '(lock)', '(onboarding)']
-      .flatMap((group) =>
-        readdirSync(join(appDir, group))
-          .filter((file: string) => file.endsWith('.tsx') && !file.startsWith('_'))
-          .map((file: string) => `${group}/${file}`)
-      )
+      .flatMap(screensIn)
       .concat(['+not-found.tsx']);
 
     expect(routes).toHaveLength(SCREENS.length);
@@ -398,7 +409,7 @@ describe('no screen shows Turkish once something is recorded', () => {
   it('the home screen in pregnancy mode', async () => {
     useAppStore.setState({ mode: 'pregnancy', onboardingCompleted: true, hydrated: true });
 
-    const HomeScreen = require('@/app/(app)/index').default;
+    const HomeScreen = require('@/app/(app)/(tabs)/index').default;
 
     const screen = await renderSettled(<HomeScreen />);
 

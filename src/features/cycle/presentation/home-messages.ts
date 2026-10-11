@@ -130,21 +130,15 @@ const homeMessagesTr = {
   /** The month on screen, as something to read aloud. */
   calendarMonthLabel: (monthHeading: string) => `${monthHeading} takvimi`,
 
-  /* ------------------------------------------------------ the four links -- */
+  /* ----------------------------------------- the links that are not tabs -- */
 
-  historyLinkLabel: 'Geçmiş regl kayıtlarını görüntüle',
-  historyLinkText: 'Geçmiş kayıtlar',
-
-  /** The daily log, as against the period records the link above goes to. */
+  /** The daily log, as against the period records that live in a tab now. */
   logHistoryLinkLabel: 'Günlük kayıt geçmişini görüntüle',
   logHistoryLinkText: 'Kayıt geçmişin',
 
   avatarCreateLabel: 'Avatar oluştur',
   avatarEditLabel: 'Avatarı düzenle',
   avatarLinkText: 'Avatarım',
-
-  settingsLinkLabel: 'Döngü ayarlarını düzenle',
-  settingsLinkText: 'Ayarlar',
 
   pregnancyStartLinkLabel: 'Gebelik takibini başlat',
 
@@ -201,9 +195,6 @@ const homeMessagesTr = {
    */
   scrubHeading: 'Bu döngü',
 
-  /** The way to the month calendar, now that it is a screen of its own. */
-  calendarLinkLabel: 'Takvimi aç',
-  calendarLinkText: 'Takvim',
 };
 
 export type HomeMessages = typeof homeMessagesTr;
@@ -279,18 +270,12 @@ const homeMessagesEn: HomeMessages = {
 
   calendarMonthLabel: (monthHeading: string) => `Calendar for ${monthHeading}`,
 
-  historyLinkLabel: 'See your past period records',
-  historyLinkText: 'Past records',
-
   logHistoryLinkLabel: 'See your daily log history',
   logHistoryLinkText: 'Your log history',
 
   avatarCreateLabel: 'Create an avatar',
   avatarEditLabel: 'Edit your avatar',
   avatarLinkText: 'My avatar',
-
-  settingsLinkLabel: 'Edit your cycle settings',
-  settingsLinkText: 'Settings',
 
   pregnancyStartLinkLabel: 'Start following a pregnancy',
 
@@ -318,8 +303,6 @@ const homeMessagesEn: HomeMessages = {
 
   scrubHeading: 'This cycle',
 
-  calendarLinkLabel: 'Open the calendar',
-  calendarLinkText: 'Calendar',
 };
 
 export const homeMessages: Messages<HomeMessages> = { tr: homeMessagesTr, en: homeMessagesEn };
@@ -540,13 +523,9 @@ export const CALENDAR_TODAY_LABEL = homeMessagesTr.calendarTodayLabel;
 export const SELECTED_DAY_TITLE = homeMessagesTr.selectedDayTitle;
 export const SELECTED_DAY_EMPTY_MESSAGE = homeMessagesTr.selectedDayEmptyMessage;
 export const PREDICTED_PERIOD_START_NOTE = homeMessagesTr.predictedPeriodStartNote;
-export const HISTORY_LINK_LABEL = homeMessagesTr.historyLinkLabel;
-export const HISTORY_LINK_TEXT = homeMessagesTr.historyLinkText;
 export const AVATAR_CREATE_LABEL = homeMessagesTr.avatarCreateLabel;
 export const AVATAR_EDIT_LABEL = homeMessagesTr.avatarEditLabel;
 export const AVATAR_LINK_TEXT = homeMessagesTr.avatarLinkText;
-export const SETTINGS_LINK_LABEL = homeMessagesTr.settingsLinkLabel;
-export const SETTINGS_LINK_TEXT = homeMessagesTr.settingsLinkText;
 export const PREGNANCY_START_LINK_LABEL = homeMessagesTr.pregnancyStartLinkLabel;
 export const CALENDAR_ESTIMATE_NOTICE = homeMessagesTr.calendarEstimateNotice;
 export const TODAY_HEADING = homeMessagesTr.todayHeading;

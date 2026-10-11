@@ -13,7 +13,18 @@ import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { PregnancyDashboard } from '@/features/pregnancy/application/get-pregnancy-dashboard';
 
 /**
- * The four ways out of the cycle home screen.
+ * What is left of the ways out of the cycle home screen.
+ *
+ * ## Three of them left for the bar
+ *
+ * The calendar, the period history and the settings are tabs now. A tab is the
+ * same destination offered from every screen in the app, so a row on this one
+ * saying the same thing is the second way to the same place - and the one that
+ * is only on the home screen is the one worth losing.
+ *
+ * What stays is what has no tab: the daily log history, which lives under the
+ * history tab's question but not yet under its screen; the avatar, which is
+ * only here until there is one; and the way into pregnancy tracking.
  *
  * The same links in the same order with the same labels, and the same two
  * things that vary - the avatar link, which reads differently once there is an
@@ -68,24 +79,10 @@ export function HomeLinks({
     // hairlines separate these, and a gap as well would leave each line
     // floating between two rows instead of sitting under one.
     <View>
-      {/* First, because it is the one that left the home screen. The grid used
-          to be underneath the ring and is now a tap away; if that tap is hard
-          to find, moving it was a loss rather than a trade. */}
-      <LinkRow
-        label={home.calendarLinkLabel}
-        text={home.calendarLinkText}
-        onPress={() => router.push('/(app)/calendar')}
-      />
-
-      <LinkRow
-        label={home.historyLinkLabel}
-        text={home.historyLinkText}
-        onPress={() => router.push('/(app)/history')}
-      />
-
-      {/* Next to the period records rather than anywhere else, because the two
-          are the same errand from the person's side: looking back at what was
-          written down. One holds periods, the other holds days. */}
+      {/* The calendar and the period history used to head this list. They are
+          tabs now, which is the same destination reached from every screen
+          instead of from this one - so a row here as well would be the same
+          errand twice, and the row is the copy that loses. */}
       <LinkRow
         label={home.logHistoryLinkLabel}
         text={home.logHistoryLinkText}
@@ -105,12 +102,6 @@ export function HomeLinks({
           onPress={() => router.push('/(app)/avatar')}
         />
       )}
-
-      <LinkRow
-        label={home.settingsLinkLabel}
-        text={home.settingsLinkText}
-        onPress={() => router.push('/(app)/settings')}
-      />
 
       {/* The way in to pregnancy tracking, and the only way to enable
           the view that shows it. */}

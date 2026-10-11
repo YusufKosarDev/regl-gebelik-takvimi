@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 import React from 'react';
 
-import HomeScreen from '@/app/(app)/index';
+import HomeScreen from '@/app/(app)/(tabs)/index';
 import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import { homeMessages } from '@/features/cycle/presentation/home-messages';
 import { useAppStore } from '@/store/app-store';

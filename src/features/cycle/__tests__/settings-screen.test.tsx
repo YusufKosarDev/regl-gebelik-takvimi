@@ -2,7 +2,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import SettingsScreen from '@/app/(app)/settings';
+import SettingsScreen from '@/app/(app)/(tabs)/settings';
 import { LOCAL_WIPE_OPEN_LABEL } from '@/features/deletion/presentation/deletion-messages';
 import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import {
@@ -248,14 +248,6 @@ describe('SettingsScreen header', () => {
     expect(
       getByText('Döngü ve regl süresi tahminlerini buradan güncelleyebilirsin.')
     ).toBeTruthy();
-  });
-
-  it('offers a way back', async () => {
-    const screen = await renderLoaded();
-
-    await fireEvent.press(screen.getByLabelText('Geri'));
-
-    expect(back).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -657,27 +649,23 @@ describe('SettingsScreen when saving fails', () => {
   });
 });
 
-describe('SettingsScreen back', () => {
-  it('writes nothing, even after the values were changed', async () => {
+describe('SettingsScreen leaving without saving', () => {
+  it('writes nothing until the save button is pressed', async () => {
     const screen = await renderLoaded(28, 5);
 
     await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini artır'));
     await fireEvent.press(screen.getByLabelText('Ortalama regl süresini artır'));
-    await fireEvent.press(screen.getByLabelText('Geri'));
-
     expect(repository.saveCycleProfile).not.toHaveBeenCalled();
-    expect(back).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('SettingsScreen scope', () => {
-  it('offers back, both steppers, save, the account and lock links, and nothing else', async () => {
+  it('offers both steppers, save, the account and lock links, and nothing else', async () => {
     const { queryAllByRole } = await renderLoaded(28, 5);
 
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
-      'Geri',
       'Ortalama döngü süresini azalt',
       'Ortalama döngü süresini artır',
       'Ortalama regl süresini azalt',

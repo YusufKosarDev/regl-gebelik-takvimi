@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 
-import SettingsScreen from '@/app/(app)/settings';
+import SettingsScreen from '@/app/(app)/(tabs)/settings';
 import { appMessages } from '@/shared/presentation/app-messages';
 import { useAppStore } from '@/store/app-store';
 

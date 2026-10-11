@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 import React from 'react';
 
-import HistoryScreen from '@/app/(app)/history';
+import HistoryScreen from '@/app/(app)/(tabs)/history';
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import { historyMessages } from '@/features/cycle/presentation/history-messages';
 import type { ISODate } from '@/types/iso-date';

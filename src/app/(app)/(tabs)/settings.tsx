@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BackButton } from '@/components/back-button';
 import { ConnectedLanguagePicker } from '@/components/language-picker';
 import { LengthStepper } from '@/features/cycle/components/length-stepper';
 import { NotificationsSection } from '@/features/notifications/components/notifications-section';
@@ -487,11 +486,6 @@ export default function SettingsScreen() {
     }
   };
 
-  // The stack hides its header, so back has to be offered here.
-  const backButton = (
-    <BackButton />
-  );
-
   if (isLoading) {
     return (
       <ThemedView style={styles.screen}>
@@ -512,7 +506,6 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            {backButton}
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>

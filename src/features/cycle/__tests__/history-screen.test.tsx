@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
-import HistoryScreen from '@/app/(app)/history';
+import HistoryScreen from '@/app/(app)/(tabs)/history';
 import {
   notifyLocalDataChanged,
   resetLocalDataChangeListenersForTests,
@@ -130,14 +130,6 @@ describe('HistoryScreen header', () => {
 
     expect(getByText('Geçmiş kayıtlar')).toBeTruthy();
     expect(getByText('Kaydettiğin regl dönemlerini burada görebilirsin.')).toBeTruthy();
-  });
-
-  it('offers a way back', async () => {
-    const screen = await renderScreen();
-
-    await fireEvent.press(screen.getByLabelText('Geri'));
-
-    expect(back).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -319,14 +311,13 @@ describe('HistoryScreen scope', () => {
     );
   });
 
-  it('offers back, and both edits plus delete per record, and nothing else', async () => {
+  it('offers both edits plus delete per record, and nothing else', async () => {
     const { queryAllByRole } = await renderScreen();
 
     // The fixture's newest record is ongoing, so it offers neither edit.
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
-      'Geri',
       '17 Eylül 2026 regl kaydını sil',
       '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
       '2 Eylül 2026 regl kaydının bitiş tarihini düzenle',

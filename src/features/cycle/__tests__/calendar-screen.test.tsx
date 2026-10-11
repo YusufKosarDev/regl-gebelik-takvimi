@@ -18,7 +18,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import CalendarScreen from '@/app/(app)/calendar';
+import CalendarScreen from '@/app/(app)/(tabs)/calendar';
 import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useAppStore } from '@/store/app-store';
 import type { AppMode } from '@/types/app-state';
@@ -397,14 +397,16 @@ describe('CalendarScreen calendar section', () => {
     // 30 days, the two month steps, the record action, the two ways into a
     // daily entry, the period history link, the log history link, the avatar
     // link, the settings link and the pregnancy link.
-    // Thirty-three calendar days plus the two month arrows plus the back
-    // button. It was forty when this ran on the home screen, where the grid
-    // shared a screen with the mode switch, the links and the period card.
+    // Thirty-one calendar days plus the two month arrows. It was forty when
+    // this ran on the home screen, where the grid shared a screen with the
+    // mode switch, the links and the period card, and thirty-four until this
+    // became a tab: a tab root has no back button, because the bar at the
+    // bottom is how you leave it.
     //
     // This number is recorded, not enforced: the previous version of this
     // assertion is the one the old ring was kept unpressable for, which is a
     // fixture deciding a design. If a change to this screen moves it, move it.
-    expect(queryAllByRole('button')).toHaveLength(34);
+    expect(queryAllByRole('button')).toHaveLength(33);
   });
 });
 

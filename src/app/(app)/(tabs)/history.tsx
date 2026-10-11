@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BackButton } from '@/components/back-button';
 import { EndDateEditor } from '@/features/cycle/components/end-date-editor';
 import { StartDateEditor } from '@/features/cycle/components/start-date-editor';
 import { ThemedText } from '@/components/themed-text';
@@ -308,11 +307,6 @@ export default function HistoryScreen() {
     }
   };
 
-  // The stack hides its header, so back has to be offered here.
-  const backButton = (
-    <BackButton />
-  );
-
   if (isLoading) {
     return (
       <ThemedView style={styles.screen}>
@@ -333,7 +327,6 @@ export default function HistoryScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            {backButton}
 
             <View style={styles.header}>
               <ThemedText accessibilityRole="header" type="subtitle" style={styles.title}>
