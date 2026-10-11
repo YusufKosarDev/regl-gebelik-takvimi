@@ -5,7 +5,6 @@ import {
   Linking,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -13,7 +12,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
@@ -54,7 +52,7 @@ import { cycleDailySupport } from '@/features/cycle/data/cycle-daily-support';
 import { getCycleDailySupport } from '@/features/cycle/domain/daily-support';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useMotionAllowed } from '@/hooks/use-motion-allowed';
-import { useSky, useTheme } from '@/hooks/use-theme';
+import { useSky } from '@/hooks/use-theme';
 import { appMessages } from '@/shared/presentation/app-messages';
 import { useLanguage, useMessages } from '@/i18n';
 import { useAppStore } from '@/store/app-store';
@@ -83,10 +81,8 @@ import { logEvent } from '@/shared/logging';
  */
 export default function HomeScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const sky = useSky();
   const motionAllowed = useMotionAllowed();
-  const { height: windowHeight } = useWindowDimensions();
 
   /**
    * The height of the scroll viewport, measured rather than derived.

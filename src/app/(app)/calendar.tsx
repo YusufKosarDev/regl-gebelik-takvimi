@@ -13,14 +13,12 @@ import { withoutPrediction } from '@/features/cycle/application/without-predicti
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
-import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
 import { homeMessages } from '@/features/cycle/presentation/home-messages';
 import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
-import { appMessages } from '@/shared/presentation/app-messages';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
@@ -47,8 +45,6 @@ export default function CalendarScreen() {
   const theme = useTheme();
   const language = useLanguage();
   const home = useMessages(homeMessages);
-  const labels = useMessages(cycleLabels);
-  const common = useMessages(appMessages);
 
   const [data, setData] = useState<CycleHomeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
