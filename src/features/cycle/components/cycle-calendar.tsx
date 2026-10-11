@@ -93,6 +93,40 @@ function markerColour(
   return phases.follicularAccent;
 }
 
+/**
+ * The band along the foot of a square, and the colour it is drawn in.
+ *
+ * ## Why a band and not a fill
+ *
+ * A fill belongs to one square. Five period days filled are five boxes in a
+ * row, and a person reading a calendar is looking for a *period* - one thing
+ * with a start and an end - not for five things that happen to be adjacent.
+ * A band runs to both edges of its square, so a run of them meets across the
+ * boundaries and reads as the single stretch it is. It breaks at the end of a
+ * week because the row does, which is the one place a calendar is allowed to
+ * cut a range in half.
+ *
+ * This is the part of Cycles' grid worth taking and it is taken whole. What is
+ * not taken is doing it in colour alone: the letter under the number stays,
+ * because the colour here is data and `theme-contrast.test.ts` holds a rule
+ * about never needing hue to read it.
+ *
+ * ## It is the same colour as the letter above it
+ *
+ * Deliberately. Two marks on one square saying one thing should not be two
+ * colours saying it, and the accents are already held at 3:1 against the page
+ * by their own test - which is the floor a band needs, being a graphic rather
+ * than a word.
+ */
+function bandColour(
+  state: DayState,
+  phases: ReturnType<typeof useCyclePhaseColors>
+): string | undefined {
+  if (state === 'default') return undefined;
+
+  return markerColour(state, phases);
+}
+
 function markerFor(state: DayState, messages: HomeMessages): string {
   if (state === 'menstrual') return messages.legendPeriodMarker;
   if (state === 'ovulatory') return messages.legendOvulationMarker;
@@ -120,6 +154,27 @@ const PREDICTED_MARKER = '≈';
  * setting up unable to read the one screen they open most.
  */
 const CELL_CONTENT_HEIGHT = 48;
+
+/**
+ * The band's own share of the square, kept out of the three lines above it.
+ *
+ * `CELL_CONTENT_HEIGHT` is the room the number, the marker and the "today"
+ * label need. The band is drawn inside the square rather than under it, so
+ * without this it takes that room instead of being given its own - on the
+ * device the label was clipped on today's square, which is the one square with
+ * all three lines and a ring around them.
+ */
+const CELL_BAND_ALLOWANCE = 6;
+
+/**
+ * How thick the band along the foot of a square is.
+ *
+ * Thick enough to read as a band rather than as a rule - a hairline between
+ * two squares is a divider, which is the opposite of what this says - and thin
+ * enough that the square above it keeps its three lines of text at the default
+ * font setting.
+ */
+const BAND_HEIGHT = 4;
 
 /**
  * Renders a prepared month grid. Nothing is computed here.
@@ -187,7 +242,7 @@ function GridCell({
     return (
       <View
         testID={`calendar-empty-${index}`}
-        style={[styles.dayCell, { minHeight: CELL_CONTENT_HEIGHT * fontScale }]}
+        style={[styles.dayCell, { minHeight: CELL_CONTENT_HEIGHT * fontScale + CELL_BAND_ALLOWANCE }]}
       />
     );
   }
@@ -229,14 +284,13 @@ function DayCell({
       testID={isToday ? `calendar-today-${day.date}` : undefined}
       style={[
         styles.dayBox,
-        // The phase in colour as well as in a letter. Added beside the markers
-        // rather than instead of them: the letter is what a person who cannot
-        // tell these four apart by hue reads, and it is also what forty-odd
-        // assertions look for. Three channels, none of them load-bearing alone.
-        state === 'menstrual' && { backgroundColor: phases.menstrualSoft },
-        state === 'ovulatory' && { borderWidth: 1, borderColor: phases.ovulatoryAccent },
-        state === 'peak' && { borderWidth: 1, borderColor: phases.ovulatoryAccent },
-        state === 'elevated' && { backgroundColor: phases.follicularSoft },
+        // Both rings live here now rather than on the cell around it. The band
+        // runs to the cell's own edges so that a run of days meets, and a ring
+        // drawn out there would be a box cutting across every band it touches.
+        // Round the number is also where the app this follows structurally
+        // puts its one circled day.
+        isToday && { borderWidth: 1, borderColor: theme.textSecondary },
+        isSelected && { borderWidth: 2, borderColor: theme.text },
       ]}>
       <ThemedText
         type="small"
@@ -273,16 +327,28 @@ function DayCell({
     </View>
   );
 
-  // Both rings sit on the outer cell so neither competes with the fill or border
-  // the day's cycle state already uses on the box inside. Selection is the
-  // heavier of the two and wins the ring; today keeps its written label, so a
-  // day that is both stays readable as both.
-  const outerStyle = [
-    styles.dayCell,
-    { minHeight: CELL_CONTENT_HEIGHT * fontScale },
-    isToday && { borderWidth: 1, borderColor: theme.textSecondary },
-    isSelected && { borderWidth: 2, borderColor: theme.text },
-  ];
+  const band = bandColour(state, phases);
+
+  const outerStyle = [styles.dayCell, { minHeight: CELL_CONTENT_HEIGHT * fontScale + CELL_BAND_ALLOWANCE }];
+
+  // The band is a sibling of the box rather than a child of it, because it is
+  // laid on the cell's own edges and the box is inside the cell's padding.
+  //
+  // Not hidden from assistive technology, and that is a decision rather than
+  // an omission: the cell around it already carries the whole day as one
+  // spoken label, so nothing inside it is a stop of its own - the letters and
+  // the day number are not hidden either. Marking it hidden would also take it
+  // out of reach of the tests that hold its colour, which is a high price for
+  // an attribute that changes nothing on a device.
+  const contents = (
+    <>
+      {box}
+
+      {band !== undefined && (
+        <View testID={`calendar-band-${day.date}`} style={[styles.band, { backgroundColor: band }]} />
+      )}
+    </>
+  );
 
   if (onSelectDay === undefined) {
     return (
@@ -291,7 +357,7 @@ function DayCell({
         accessibilityLabel={label}
         testID={`calendar-day-${day.date}`}
         style={outerStyle}>
-        {box}
+        {contents}
       </View>
     );
   }
@@ -304,7 +370,7 @@ function DayCell({
       testID={`calendar-day-${day.date}`}
       onPress={() => onSelectDay(day)}
       style={({ pressed }) => [...outerStyle, pressed && styles.pressed]}>
-      {box}
+      {contents}
     </Pressable>
   );
 }
@@ -331,10 +397,17 @@ const styles = StyleSheet.create({
     // Grown past the square by `cellMinHeight` when the system font setting is
     // turned up; see the note beside that constant.
     padding: Spacing.half,
-    // Reserved so the today ring does not shrink that one cell's contents.
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: Spacing.two + Spacing.half,
+    // The band sits here, and the box above it must not run into it. No
+    // horizontal padding to match: the band is meant to reach both edges so a
+    // run of days meets across the squares.
+    paddingBottom: CELL_BAND_ALLOWANCE,
+  },
+  band: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: BAND_HEIGHT,
   },
   dayBox: {
     flex: 1,

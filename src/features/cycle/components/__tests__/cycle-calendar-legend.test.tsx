@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { CycleCalendarLegend } from '../cycle-calendar-legend';
 
@@ -107,5 +108,68 @@ describe('CycleCalendarLegend scope', () => {
     for (const forbidden of ['yüzde', 'olasılık', 'hamile kal', 'garanti']) {
       expect(visibleText).not.toContain(forbidden);
     }
+  });
+});
+
+/**
+ * The key is drawn the way the thing it explains is drawn.
+ *
+ * This file's component already carries a note about the one time they drifted
+ * - the grid showing R and Y under a legend explaining P and O. The squares
+ * are bands under a letter now, so the swatches are too; a legend still
+ * showing filled and outlined boxes would be explaining a calendar that no
+ * longer exists.
+ */
+describe('CycleCalendarLegend swatches match the squares', () => {
+  const ACCENTS = ['#8E2F4E', '#4E938B', '#4F64A3'];
+  const SOFT_FILLS = ['#F7E4EA', '#E6EAF5', '#E0F0EE'];
+
+  function stylesIn(tree: unknown): Record<string, unknown>[] {
+    const found: Record<string, unknown>[] = [];
+
+    const walk = (node: any): void => {
+      if (node === null || typeof node !== 'object') return;
+
+      const flat = StyleSheet.flatten(node.props?.style);
+
+      if (flat !== undefined) found.push(flat as Record<string, unknown>);
+
+      (node.children ?? []).forEach(walk);
+    };
+
+    walk(tree);
+
+    return found;
+  }
+
+  it('draws a band under each mark, in the colour the square uses', async () => {
+    const { toJSON } = await render(<CycleCalendarLegend />);
+
+    const bands = stylesIn(toJSON()).filter(
+      (style) => typeof style.backgroundColor === 'string'
+    );
+
+    expect(bands.map((style) => style.backgroundColor).sort()).toEqual([...ACCENTS].sort());
+  });
+
+  it('fills nothing', async () => {
+    // The soft fills were the swatch's whole body. Nothing wears them now.
+    const { toJSON } = await render(<CycleCalendarLegend />);
+
+    const drawn = stylesIn(toJSON()).map((style) => style.backgroundColor);
+
+    for (const fill of SOFT_FILLS) {
+      expect([fill, drawn.includes(fill)]).toEqual([fill, false]);
+    }
+  });
+
+  it('draws no band for the predicted start, which is a guess', async () => {
+    const { toJSON } = await render(<CycleCalendarLegend />);
+
+    // Four items, three of them a phase. The predicted start keeps its muted
+    // glyph and gets no band, on the calendar and here alike.
+    expect(
+      stylesIn(toJSON()).filter((style) => typeof style.backgroundColor === 'string')
+    ).toHaveLength(3);
   });
 });

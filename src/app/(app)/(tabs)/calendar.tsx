@@ -16,7 +16,7 @@ import { homeMessages } from '@/features/cycle/presentation/home-messages';
 import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
-import { useTheme } from '@/hooks/use-theme';
+import { useSky, useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
@@ -43,6 +43,7 @@ import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
  */
 export default function CalendarScreen() {
   const theme = useTheme();
+  const sky = useSky();
   const language = useLanguage();
   const home = useMessages(homeMessages);
 
@@ -218,6 +219,7 @@ export default function CalendarScreen() {
               calendarGrid={derived.grid}
               selectedDay={findDay(pickedDate) ?? findDay(data.dashboard.today)}
               setPickedDate={setPickedDate}
+              headerField={sky.fields[data.dashboard.phase ?? 'luteal']}
               pickedEntry={pickedDate === null ? todayEntry : pickedEntry}
             />
           </View>

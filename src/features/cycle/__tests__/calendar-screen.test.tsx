@@ -26,6 +26,9 @@ import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
+import { StyleSheet } from 'react-native';
+import { Colors } from '@/constants/theme';
+import { Sky } from '@/constants/sky';
 
 // The database and the clock are faked. The use case, the repository contract
 // and every domain rule stay real, so what the screen prints is what the domain
@@ -991,5 +994,88 @@ describe('CalendarScreen under the floating tab bar', () => {
     const screen = await renderScreen();
 
     expectClearsTabBar(screen.toJSON());
+  });
+});
+
+/**
+ * No grey cards.
+ *
+ * The screen was a grid, a grey panel under it and a legend: three blocks of
+ * which the middle one was the only thing with a colour, so the eye went to
+ * the panel rather than to the month. `Surface` says a fill is spent only
+ * where there is an action inside, and reading a day is not one.
+ */
+describe('CalendarScreen has no card colour on it', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('draws nothing in the element colour', async () => {
+    const screen = await renderScreen();
+
+    const found: unknown[] = [];
+
+    const walk = (node: any): void => {
+      if (node === null || typeof node !== 'object') return;
+
+      const flat = StyleSheet.flatten(node.props?.style);
+
+      if (flat?.backgroundColor !== undefined) found.push(flat.backgroundColor);
+
+      (node.children ?? []).forEach(walk);
+    };
+
+    walk(screen.toJSON());
+
+    expect(found).not.toContain(Colors.light.backgroundElement);
+    expect(found).not.toContain(Colors.light.backgroundSelected);
+  });
+});
+
+/**
+ * The strip of sky at the top.
+ *
+ * The grid cannot sit on a field - every phase accent fails 3:1 against every
+ * sky, measured, worst 1.19:1 - so the colour that carries data stays on the
+ * page. The header is not data: it is the month's name and two arrows, and it
+ * is where the screen can say which phase today is in without putting a single
+ * readable thing at risk.
+ *
+ * The ink rule applies to it exactly as it does to the home screen, because it
+ * is the same field underneath.
+ */
+describe('CalendarScreen field strip', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('carries the phase of today behind the month', async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(getByTestId('calendar-field-strip')).toBeTruthy();
+  });
+
+  it('writes the month on it in the sky ink, not a page colour', async () => {
+    const { getByTestId } = await renderScreen();
+
+    const strip = getByTestId('calendar-field-strip');
+
+    const colours: unknown[] = [];
+
+    const walk = (node: any): void => {
+      if (node === null || typeof node !== 'object') return;
+
+      if (node.type === 'Text') {
+        const flat = StyleSheet.flatten(node.props?.style);
+
+        if (flat?.color !== undefined) colours.push(flat.color);
+      }
+
+      (node.children ?? []).forEach(walk);
+    };
+
+    walk(strip);
+
+    expect([...new Set(colours)]).toEqual([Sky.light.ink]);
   });
 });

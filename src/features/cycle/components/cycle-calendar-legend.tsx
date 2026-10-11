@@ -4,7 +4,7 @@ import { homeMessages, legendItemsIn } from '../presentation/home-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useCyclePhaseColors, useTheme } from '@/hooks/use-theme';
+import { useCyclePhaseColors } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 
 /** Explains the calendar's marks. Reads nothing and computes nothing. */
@@ -35,20 +35,24 @@ export function CycleCalendarLegend() {
           style={styles.item}>
           {/* The swatch is drawn exactly as the calendar square is, so the
               key and the thing it explains cannot drift apart. They did once:
-              the grid was showing R and Y under a legend explaining P and O. */}
-          <View
-            style={[
-              styles.swatch,
-              item.style === 'filled' && { backgroundColor: phases.menstrualSoft },
-              item.style === 'outlined' && {
-                borderWidth: 1,
-                borderColor: phases.ovulatoryAccent,
-              },
-              item.style === 'soft' && { backgroundColor: phases.follicularSoft },
-            ]}>
+              the grid was showing R and Y under a legend explaining P and O.
+
+              A square is a letter with a band under it now, so this is too.
+              The fills and the outline went with the squares' - a key showing
+              a filled box for a calendar that has no filled boxes in it is
+              the same drift wearing different clothes. */}
+          <View style={styles.swatch}>
             <ThemedText type="small" style={[styles.marker, { color: swatchMarkerColour(item.style, phases) }]}>
               {item.marker}
             </ThemedText>
+
+            {/* 'plain' is the predicted start: a guess, and the one mark on
+                the calendar with no band under it. */}
+            {item.style !== 'plain' && (
+              <View
+                style={[styles.band, { backgroundColor: swatchMarkerColour(item.style, phases) }]}
+              />
+            )}
           </View>
 
           <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
@@ -77,9 +81,18 @@ const styles = StyleSheet.create({
   swatch: {
     width: 28,
     height: 28,
-    borderRadius: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
+    // The same shape the square has: the mark sitting above its own band,
+    // with the band on the bottom edge rather than inside any padding.
+    paddingBottom: 4 + Spacing.half,
+  },
+  band: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 4,
   },
   marker: {
     fontSize: 12,

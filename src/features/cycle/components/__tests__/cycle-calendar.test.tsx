@@ -1,4 +1,5 @@
 import { fireEvent, render, within } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { homeMessages } from '@/features/cycle/presentation/home-messages';
 
 import { CycleCalendar } from '../cycle-calendar';
@@ -724,5 +725,121 @@ describe('CycleCalendar selection purity', () => {
         screen.getByTestId(`calendar-day-${day.date}`).props.accessibilityState.selected
       ).toBe(false);
     }
+  });
+});
+
+/**
+ * The band under the number.
+ *
+ * The square used to be told apart by a fill behind the number or a border
+ * around it, which meant a run of period days read as five separate boxes
+ * rather than as one period. A band along the foot of each square runs into
+ * its neighbours, so a run reads as a run - which is the thing the calendar is
+ * for and the one part of Cycles' grid worth taking.
+ *
+ * The letters stay. The band is the colour channel and the letter is the other
+ * one, and nobody has to tell four phases apart by hue.
+ */
+describe('CycleCalendar bands', () => {
+  const PHASES = {
+    menstrualAccent: '#8E2F4E',
+    follicularAccent: '#4F64A3',
+    ovulatoryAccent: '#4E938B',
+  };
+
+  function bandOn(screen: Awaited<ReturnType<typeof renderCalendar>>, date: string) {
+    return screen.queryByTestId(`calendar-band-${date}`);
+  }
+
+  it('draws a period day its own band', async () => {
+    const screen = await renderCalendar();
+
+    const band = bandOn(screen, '2026-09-02');
+
+    expect(StyleSheet.flatten(band?.props.style)?.backgroundColor).toBe(PHASES.menstrualAccent);
+  });
+
+  it('draws the fertile days a band of their own', async () => {
+    const screen = await renderCalendar();
+
+    expect(StyleSheet.flatten(bandOn(screen, '2026-09-10')?.props.style)?.backgroundColor).toBe(
+      PHASES.follicularAccent
+    );
+  });
+
+  it('draws the ovulation day apart from the window around it', async () => {
+    // Cycles marks the one day differently from the run it sits inside, and
+    // that is the whole value of the day: a band in the same colour as its
+    // neighbours would say nothing.
+    const screen = await renderCalendar();
+
+    expect(StyleSheet.flatten(bandOn(screen, '2026-09-14')?.props.style)?.backgroundColor).toBe(
+      PHASES.ovulatoryAccent
+    );
+  });
+
+  it('draws no band on a day with nothing to say', async () => {
+    const screen = await renderCalendar();
+
+    expect(bandOn(screen, '2026-09-20')).toBeNull();
+  });
+
+  it('runs the band the full width of the square so neighbours touch', async () => {
+    // The square has padding, and a band inside it would leave a gap at every
+    // boundary - five period days drawn as five dashes. It is laid on the
+    // square's own edge instead.
+    const screen = await renderCalendar();
+
+    const style = StyleSheet.flatten(bandOn(screen, '2026-09-02')?.props.style);
+
+    expect(style?.position).toBe('absolute');
+    expect(style?.left).toBe(0);
+    expect(style?.right).toBe(0);
+    expect(style?.bottom).toBe(0);
+  });
+
+  it('no longer fills the square or draws a border round it', async () => {
+    // The treatment this replaces. Both are gone rather than kept alongside:
+    // a fill and a band saying the same thing is the square shouting it twice.
+    const screen = await renderCalendar();
+
+    for (const date of ['2026-09-02', '2026-09-10', '2026-09-14']) {
+      const cell = screen.getByTestId(`calendar-day-${date}`);
+
+      // The whole subtree, not the outer node: the fill this replaces was on
+      // the box *inside* the cell, so reading the cell's own style alone was
+      // an assertion that passed while the fill was still there.
+      const fills: unknown[] = [];
+
+      const walk = (node: any): void => {
+        if (node === null || typeof node !== 'object') return;
+
+        if (node.props?.testID !== `calendar-band-${date}`) {
+          const flat = StyleSheet.flatten(node.props?.style);
+
+          if (flat?.backgroundColor !== undefined) fills.push(flat.backgroundColor);
+          if (flat?.borderColor !== undefined) fills.push(flat.borderColor);
+        }
+
+        (node.children ?? []).forEach(walk);
+      };
+
+      walk(cell);
+
+      for (const colour of Object.values(PHASES)) {
+        expect([date, fills.includes(colour)]).toEqual([date, false]);
+      }
+
+      for (const soft of ['#F7E4EA', '#E6EAF5', '#E0F0EE']) {
+        expect([date, fills.includes(soft)]).toEqual([date, false]);
+      }
+    }
+  });
+
+  it('still says the phase in a letter as well as in the band', async () => {
+    const screen = await renderCalendar();
+
+    expect(markersOn(screen, '2026-09-02')).toEqual(['R']);
+    expect(markersOn(screen, '2026-09-14')).toEqual(['Y']);
   });
 });

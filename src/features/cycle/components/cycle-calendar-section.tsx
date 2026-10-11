@@ -19,6 +19,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
+import { SkyStrip } from './sky-strip';
+import type { SkyField } from '@/constants/sky';
 
 /**
  * The month grid, the day picked in it, and what is recorded on that day.
@@ -43,6 +45,7 @@ export function CycleCalendarSection({
   selectedDay,
   setPickedDate,
   pickedEntry,
+  headerField,
 }: {
   readonly today: ISODate;
   readonly monthHeading: string;
@@ -53,6 +56,8 @@ export function CycleCalendarSection({
   readonly selectedDay: CycleCalendarDay | null;
   readonly setPickedDate: (date: ISODate) => void;
   readonly pickedEntry: DailyEntry | null;
+  /** Today's sky, for the strip behind the header. */
+  readonly headerField: SkyField;
 }) {
   const router = useRouter();
   const theme = useTheme();
@@ -63,14 +68,24 @@ export function CycleCalendarSection({
 
   return (
     <View style={styles.calendarSection}>
-      <ThemedText
-        accessibilityRole="header"
-        type="small"
-        themeColor="textSecondary">
-        {home.calendarSectionTitle}
-      </ThemedText>
+      {/* The strip of sky.
 
-      <View style={styles.monthBar}>
+          The grid underneath it cannot be on a field: every phase accent
+          measures under 3:1 against every sky, worst 1.19:1, so the colour
+          that says which phase a day is in has to stay on the page where it
+          was measured. The header is the one part of this screen carrying no
+          data - a month's name and two arrows - which makes it the one part
+          that can say what phase today is in at no cost.
+
+          It bleeds past the content's padding on both sides, because a band
+          with a margin either side is a card, and a card is what this screen
+          just stopped having. */}
+      <SkyStrip field={headerField} testID="calendar-field-strip">
+        <ThemedText accessibilityRole="header" type="small">
+          {home.calendarSectionTitle}
+        </ThemedText>
+
+        <View style={styles.monthBar}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={home.calendarPreviousMonthLabel}
@@ -104,7 +119,8 @@ export function CycleCalendarSection({
           ]}>
           <Icon name="chevron-right" />
         </Pressable>
-      </View>
+        </View>
+      </SkyStrip>
 
       <CycleCalendar
         grid={calendarGrid}
@@ -121,7 +137,16 @@ export function CycleCalendarSection({
         {selectedDay === null ? (
           <ThemedText themeColor="textSecondary">{home.selectedDayEmptyMessage}</ThemedText>
         ) : (
-          <Surface level="filled">
+          // `lined` rather than `filled`. A fill is what makes a block read as
+          // an object you can act on, and `Surface` spends it only where there
+          // is an action inside - reading what a day holds is not one. The
+          // "add to this day" button below carries its own outline and is the
+          // thing on this screen worth looking like a control.
+          //
+          // It also stopped the panel competing with the grid. The month was
+          // the one thing on this screen drawn in no colour at all, sitting
+          // above the one block that had some.
+          <Surface level="lined">
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
               {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>
