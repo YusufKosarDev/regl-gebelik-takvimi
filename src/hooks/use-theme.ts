@@ -3,6 +3,7 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
+import { Sky } from '@/constants/sky';
 import { Colors, CyclePhaseColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -24,4 +25,16 @@ export function useTheme() {
  */
 export function useCyclePhaseColors() {
   return CyclePhaseColors[resolvedScheme(useColorScheme())];
+}
+
+/**
+ * The sky palette for the scheme in force.
+ *
+ * Separate from `useCyclePhaseColors` because the two are different jobs, not
+ * two spellings of one. The phase colours mark data on a calendar and have to
+ * survive colour blindness; the sky is atmosphere behind words that name the
+ * phase anyway. The long version is in `constants/sky.ts`.
+ */
+export function useSky() {
+  return Sky[resolvedScheme(useColorScheme())];
 }
