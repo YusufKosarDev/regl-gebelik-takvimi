@@ -164,6 +164,37 @@ export function hasAnything(entry: DailyEntry): boolean {
   return entry.flowId !== null || entry.moodId !== null || entry.symptomIds.length > 0;
 }
 
+/**
+ * Whether two days hold the same marks.
+ *
+ * Used by the log screen to find out whether what is on it still matches what
+ * was read for that day - which is the question the week strip has to ask
+ * before it moves, because moving replaces the lot and somebody who has ticked
+ * four symptoms without pressing save would lose them silently.
+ *
+ * The symptoms are a set. They are stored and read back in whatever order the
+ * table hands them over, so comparing them in order would report a day as
+ * changed because the same four came back the other way round - and the strip
+ * would refuse to move for a change nobody made.
+ *
+ * The date is not part of the answer. The screen asks this about one day
+ * against the stored version of that same day; two different dates holding the
+ * same marks hold the same marks.
+ */
+export function holdsSameAs(left: DailyEntry, right: DailyEntry): boolean {
+  if (left.flowId !== right.flowId || left.moodId !== right.moodId) {
+    return false;
+  }
+
+  if (left.symptomIds.length !== right.symptomIds.length) {
+    return false;
+  }
+
+  const sorted = (ids: readonly string[]) => [...ids].sort();
+
+  return sorted(left.symptomIds).every((id, index) => id === sorted(right.symptomIds)[index]);
+}
+
 /** A day with nothing recorded, which is what an unvisited date reads as. */
 export function emptyDailyEntry(date: ISODate): DailyEntry {
   return { date, flowId: null, moodId: null, symptomIds: [] };

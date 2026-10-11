@@ -15,6 +15,7 @@ import {
   MOODS,
   SYMPTOMS,
   emptyDailyEntry,
+  holdsSameAs,
   hasAnything,
 } from '@/features/daily-log/domain/catalogues';
 import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
@@ -27,6 +28,9 @@ import type { ISODate } from '@/types/iso-date';
 import { isISODate } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { WeekStrip } from '@/features/daily-log/components/week-strip';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
+import { SectionHeading } from '@/features/daily-log/components/section-heading';
 
 /**
  * One day, as the person wants to leave it.
@@ -51,13 +55,16 @@ export default function DailyEntryScreen() {
   const labels = useMessages(dailyLogCatalogueLabels);
 
   /** Turns what happened into what to say about it, in the language showing now. */
-  const noticeText = (kind: 'load-failed' | 'empty-selection' | 'save-failed' | 'cleared') =>
+  const noticeText = (kind: 'load-failed' | 'empty-selection' | 'save-failed' | 'cleared' | 'unsaved') =>
     ({
       'load-failed': strings.loadFailedMessage,
       'empty-selection': strings.emptySelectionMessage,
       'save-failed': strings.saveFailedMessage,
       cleared: strings.clearedMessage,
+      unsaved: strings.unsavedMessage,
     })[kind];
+
+  const home = useMessages(homeMessages);
 
   const params = useLocalSearchParams<{ readonly date?: string }>();
 
@@ -68,13 +75,23 @@ export default function DailyEntryScreen() {
    * is what the home screen means and the only sensible answer for a link that
    * arrived malformed.
    */
-  const [date] = useState<ISODate>(() => {
+  const [date, setDate] = useState<ISODate>(() => {
     const given = typeof params.date === 'string' && isISODate(params.date) ? params.date : null;
 
     return (given as ISODate | null) ?? getTodayLocalISODate();
   });
 
   const [entry, setEntry] = useState<DailyEntry>(() => emptyDailyEntry(date));
+
+  /**
+   * The day as it was last read from the database, or last written to it.
+   *
+   * The week strip replaces everything on screen when it moves, so the screen
+   * has to know whether what is on it is still what was stored. Held beside
+   * the entry rather than derived from it: there is nothing to derive it from
+   * once the first tap has happened.
+   */
+  const [saved, setSaved] = useState<DailyEntry>(() => emptyDailyEntry(date));
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
 
@@ -87,9 +104,17 @@ export default function DailyEntryScreen() {
    * the old one. It would also make the load effect depend on the catalogue,
    * which would re-read the database every time the language changed.
    */
-  const [notice, setNotice] = useState<'load-failed' | 'empty-selection' | 'save-failed' | 'cleared' | null>(
+  const [notice, setNotice] = useState<'load-failed' | 'empty-selection' | 'save-failed' | 'cleared' | 'unsaved' | null>(
     null
   );
+
+  /**
+   * Which section has its explanation unfolded, if any.
+   *
+   * One at a time. Three sentences open at once is the printed version this
+   * was folded up to avoid.
+   */
+  const [openSection, setOpenSection] = useState<'flow' | 'symptoms' | 'mood' | null>(null);
 
   /** Guards a second press while the first is still writing. */
   const inFlight = useRef(false);
@@ -104,6 +129,7 @@ export default function DailyEntryScreen() {
 
         if (!cancelled) {
           setEntry(stored);
+          setSaved(stored);
         }
       } catch (error) {
         logEvent('daily entry load failed', error);
@@ -140,6 +166,36 @@ export default function DailyEntryScreen() {
         : [...current.symptomIds, id],
     }));
   }, []);
+
+  /**
+   * Moving to another day in the week strip.
+   *
+   * It refuses rather than asks. A confirmation would be the right answer if
+   * there were something to weigh up, and there is not: the day on screen can
+   * be saved or cleared in one tap each, both of them visible, and either
+   * leaves the strip free. A dialog here would be a second decision about the
+   * first one.
+   *
+   * Nothing is ever lost on this path, which is the whole point of it.
+   */
+  const handlePickDay = useCallback(
+    (next: ISODate) => {
+      if (next === date) {
+        return;
+      }
+
+      if (!holdsSameAs(entry, saved)) {
+        setNotice('unsaved');
+
+        return;
+      }
+
+      setNotice(null);
+      setIsLoading(true);
+      setDate(next);
+    },
+    [date, entry, saved]
+  );
 
   const handleSave = async () => {
     if (inFlight.current) {
@@ -184,6 +240,7 @@ export default function DailyEntryScreen() {
       await clearDailyEntry(db, date);
 
       setEntry(emptyDailyEntry(date));
+      setSaved(emptyDailyEntry(date));
       setNotice('cleared');
     } catch (error) {
       logEvent('daily entry clear failed', error);
@@ -213,10 +270,43 @@ export default function DailyEntryScreen() {
               </ThemedText>
             </View>
 
-            <View style={styles.section}>
-              <ThemedText accessibilityRole="header" type="smallBold">
-                {strings.flowSectionTitle}
+            {/* The week the day sits in, so logging yesterday is a tap rather
+                than a trip back to the calendar. The weekday words come from
+                the calendar's own catalogue - a second copy in this feature is
+                how the grid ends up saying "Pzt" while the strip says "Pt". */}
+            <WeekStrip
+              date={date}
+              onSelect={handlePickDay}
+              weekdayLabels={home.weekdayLabels}
+              dayLabelFor={(day) => formatDisplayDate(day, language)}
+              disabled={isBusy}
+            />
+
+            {/* The refusal belongs here rather than with the others.
+
+                Every other notice answers a press on the save or clear button
+                and is drawn beside them. This one answers a press on the strip
+                two screens up, and drawn down there it was off-screen: the
+                strip did not move, nothing appeared to happen, and the reason
+                was somewhere nobody was looking. Found on a device. */}
+            {notice === 'unsaved' && (
+              <ThemedText
+                accessibilityRole="alert"
+                testID="strip-notice"
+                type="small"
+                themeColor="textSecondary">
+                {noticeText(notice)}
               </ThemedText>
+            )}
+
+            <View style={styles.section}>
+              <SectionHeading
+                title={strings.flowSectionTitle}
+                explanation={strings.flowExplanation}
+                toggleLabel={strings.aboutSectionLabel(strings.flowSectionTitle)}
+                isOpen={openSection === 'flow'}
+                onToggle={() => setOpenSection((current) => (current === 'flow' ? null : 'flow'))}
+              />
 
               <ChoiceGrid
                 section={strings.flowSectionTitle}
@@ -230,9 +320,13 @@ export default function DailyEntryScreen() {
             </View>
 
             <View style={styles.section}>
-              <ThemedText accessibilityRole="header" type="smallBold">
-                {strings.symptomsSectionTitle}
-              </ThemedText>
+              <SectionHeading
+                title={strings.symptomsSectionTitle}
+                explanation={strings.symptomsExplanation}
+                toggleLabel={strings.aboutSectionLabel(strings.symptomsSectionTitle)}
+                isOpen={openSection === 'symptoms'}
+                onToggle={() => setOpenSection((current) => (current === 'symptoms' ? null : 'symptoms'))}
+              />
 
               <ChoiceGrid
                 section={strings.symptomsSectionTitle}
@@ -246,9 +340,13 @@ export default function DailyEntryScreen() {
             </View>
 
             <View style={styles.section}>
-              <ThemedText accessibilityRole="header" type="smallBold">
-                {strings.moodSectionTitle}
-              </ThemedText>
+              <SectionHeading
+                title={strings.moodSectionTitle}
+                explanation={strings.moodExplanation}
+                toggleLabel={strings.aboutSectionLabel(strings.moodSectionTitle)}
+                isOpen={openSection === 'mood'}
+                onToggle={() => setOpenSection((current) => (current === 'mood' ? null : 'mood'))}
+              />
 
               <ChoiceGrid
                 section={strings.moodSectionTitle}
@@ -261,7 +359,9 @@ export default function DailyEntryScreen() {
               />
             </View>
 
-            {notice !== null && (
+            {/* Everything except the strip's refusal, which is drawn up beside
+                the strip because that is where the press was. */}
+            {notice !== null && notice !== 'unsaved' && (
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
                 {noticeText(notice)}
               </ThemedText>

@@ -13,6 +13,7 @@ import {
   FLOW_SECTION_TITLE,
   MOOD_SECTION_TITLE,
   SYMPTOMS_SECTION_TITLE,
+  DAILY_UNSAVED_MESSAGE,
   choiceAccessibilityLabel,
 } from '@/features/daily-log/presentation/daily-log-messages';
 import type { ISODate } from '@/types/iso-date';
@@ -342,5 +343,135 @@ describe('what the screen never says', () => {
     for (const word of ['normal', 'olağan', 'beklenen', 'doktor', 'tavsiye', 'öneri']) {
       expect(screen.queryByText(new RegExp(word, 'i'))).toBeNull();
     }
+  });
+});
+
+/**
+ * The week along the top.
+ *
+ * Taken from Cycles, where the day being logged is chosen on the log itself
+ * rather than in a picker reached from somewhere else. Logging a day late is
+ * most of what this screen is for, and it used to mean going back to the
+ * calendar to come in again.
+ *
+ * Today is mocked as Wednesday 14 October 2026, so the week runs Monday the
+ * 12th to Sunday the 18th.
+ */
+describe('the week strip', () => {
+  it('offers the days of the week the entry sits in', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('12 Ekim 2026')).toBeTruthy();
+    expect(screen.getByLabelText('18 Ekim 2026')).toBeTruthy();
+  });
+
+  it('marks the day being edited', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('14 Ekim 2026').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByLabelText('12 Ekim 2026').props.accessibilityState.selected).toBe(false);
+  });
+
+  it('reads another day when one is pressed', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('12 Ekim 2026'));
+
+    await waitFor(() => {
+      expect(repository.loadDailyEntry).toHaveBeenCalledWith(expect.anything(), '2026-10-12');
+    });
+  });
+
+  it('will not move away from work that is not saved, and says why', async () => {
+    // The whole reason the comparison in `holdsSameAs` exists. Moving replaces
+    // everything on screen, and doing that to somebody who has just ticked a
+    // symptom is losing their work without telling them.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(symptom('Kramp')));
+    await fireEvent.press(screen.getByLabelText('12 Ekim 2026'));
+
+    expect(screen.getByText(DAILY_UNSAVED_MESSAGE)).toBeTruthy();
+    expect(repository.loadDailyEntry).not.toHaveBeenCalledWith(expect.anything(), '2026-10-12');
+    expect(screen.getByLabelText('14 Ekim 2026').props.accessibilityState.selected).toBe(true);
+  });
+
+  it('moves once the work is put back the way it was read', async () => {
+    // Ticking and unticking is not unsaved work. Without this the strip locks
+    // for the rest of the visit after any stray tap.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(symptom('Kramp')));
+    await fireEvent.press(screen.getByLabelText(symptom('Kramp')));
+    await fireEvent.press(screen.getByLabelText('12 Ekim 2026'));
+
+    await waitFor(() => {
+      expect(repository.loadDailyEntry).toHaveBeenCalledWith(expect.anything(), '2026-10-12');
+    });
+  });
+});
+
+describe('what each section is for', () => {
+  const FLOW_EXPLANATION = 'Kanamanın o günkü yoğunluğu. Tek seçim yapabilirsin.';
+  const SYMPTOMS_EXPLANATION = 'O gün fark ettiklerin. Birden fazla seçebilirsin.';
+
+  it('says nothing until it is asked', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByText(FLOW_EXPLANATION)).toBeNull();
+  });
+
+  it('explains the section when its chevron is pressed', async () => {
+    // What this sentence is carrying is that the section takes one answer.
+    // The app says that to a screen reader and to nobody else.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${FLOW_SECTION_TITLE} hakkında`));
+
+    expect(screen.getByText(FLOW_EXPLANATION)).toBeTruthy();
+  });
+
+  it('folds the first one when a second is opened', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${FLOW_SECTION_TITLE} hakkında`));
+    await fireEvent.press(screen.getByLabelText(`${SYMPTOMS_SECTION_TITLE} hakkında`));
+
+    expect(screen.queryByText(FLOW_EXPLANATION)).toBeNull();
+    expect(screen.getByText(SYMPTOMS_EXPLANATION)).toBeTruthy();
+  });
+
+  it('folds again when its own chevron is pressed twice', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`${FLOW_SECTION_TITLE} hakkında`));
+    await fireEvent.press(screen.getByLabelText(`${FLOW_SECTION_TITLE} hakkında`));
+
+    expect(screen.queryByText(FLOW_EXPLANATION)).toBeNull();
+  });
+});
+
+describe('where the strip says no', () => {
+  it('puts the reason beside the strip, not at the foot of the form', async () => {
+    // Found on a device: the refusal was rendered above the save button, two
+    // screens below the strip that caused it. The strip did not move, nothing
+    // appeared to happen, and the explanation was off-screen.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(symptom('Kramp')));
+    await fireEvent.press(screen.getByLabelText('12 Ekim 2026'));
+
+    expect(screen.getByTestId('strip-notice')).toHaveTextContent(DAILY_UNSAVED_MESSAGE);
+  });
+
+  it('leaves the foot of the form for what happens down there', async () => {
+    // The save and clear outcomes stay where the buttons are. Only the
+    // refusal moves, because only it is answering a press at the top.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(symptom('Kramp')));
+    await fireEvent.press(screen.getByLabelText('12 Ekim 2026'));
+
+    expect(screen.queryAllByText(DAILY_UNSAVED_MESSAGE)).toHaveLength(1);
   });
 });

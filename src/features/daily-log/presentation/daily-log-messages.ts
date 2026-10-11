@@ -59,6 +59,31 @@ const dailyLogMessagesTr = {
    */
   emptySelectionMessage: 'Kaydetmek için en az bir şey seç.',
 
+  /**
+   * When the week strip is pressed with work on the screen that is not
+   * stored yet.
+   *
+   * The strip does not move and nothing is lost. It says what to do rather
+   * than what went wrong, because nothing did.
+   */
+  unsavedMessage: 'Önce bu günü kaydet ya da temizle.',
+
+  /**
+   * What each section is for, folded up behind the chevron beside its name.
+   *
+   * The job each of these has to do is say whether the section takes one
+   * answer or several. The app says that only to a screen reader - a radio
+   * against a checkbox - and three rows of identical chips behave in two
+   * different ways, which somebody otherwise finds out when a second tap
+   * undoes the first.
+   */
+  flowExplanation: 'Kanamanın o günkü yoğunluğu. Tek seçim yapabilirsin.',
+  symptomsExplanation: 'O gün fark ettiklerin. Birden fazla seçebilirsin.',
+  moodExplanation: 'Günün genel hâli. Tek seçim yapabilirsin.',
+
+  /** Names the section the chevron belongs to, which it cannot say itself. */
+  aboutSectionLabel: (section: string) => `${section} hakkında`,
+
   /* ----------------------------------------------------- the calendar day -- */
 
   calendarDayAddLabel: 'Bu güne ekle',
@@ -117,6 +142,14 @@ const dailyLogMessagesEn: DailyLogMessages = {
   /** Matches the Turkish in being a refusal, not a warning about deleting. */
   emptySelectionMessage: 'Choose at least one thing to save.',
 
+  unsavedMessage: 'Save or clear this day first.',
+
+  flowExplanation: 'How heavy the bleeding was that day. One choice.',
+  symptomsExplanation: 'What you noticed that day. You can choose more than one.',
+  moodExplanation: 'How the day felt overall. One choice.',
+
+  aboutSectionLabel: (section: string) => `About ${section}`,
+
   calendarDayAddLabel: 'Add to this day',
   calendarDayEditLabel: 'Edit this day',
 
@@ -159,6 +192,7 @@ export const DAILY_SAVE_FAILED_MESSAGE = dailyLogMessagesTr.saveFailedMessage;
 export const DAILY_LOAD_FAILED_MESSAGE = dailyLogMessagesTr.loadFailedMessage;
 
 export const DAILY_EMPTY_SELECTION_MESSAGE = dailyLogMessagesTr.emptySelectionMessage;
+export const DAILY_UNSAVED_MESSAGE = dailyLogMessagesTr.unsavedMessage;
 
 export const CALENDAR_DAY_ADD_LABEL = dailyLogMessagesTr.calendarDayAddLabel;
 export const CALENDAR_DAY_EDIT_LABEL = dailyLogMessagesTr.calendarDayEditLabel;
