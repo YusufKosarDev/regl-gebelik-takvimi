@@ -35,7 +35,15 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('@/features/auth/data/auth-repository', () => ({
   // Returns its unsubscribe, which  calls on unmount.
-  observeAuthUser: jest.fn(() => () => {}),
+  //
+  // It reports signed-out straight away, which is what Firebase does on a
+  // device with no session. Left silent, the hook sat on `loading` for the
+  // whole test and the profile block could only ever be caught mid-question.
+  observeAuthUser: jest.fn((listener) => {
+    listener(null);
+
+    return () => {};
+  }),
   signOut: jest.fn(),
   getCurrentAuthUser: jest.fn(() => null),
 }));
@@ -49,6 +57,12 @@ jest.mock('@/features/auth/infrastructure/firebase', () => ({
 jest.mock('@/storage/db', () => ({
   openAppDatabase: jest.fn(),
   DATABASE_NAME: 'regl-gebelik.db',
+}));
+
+// The profile tab shows the person at the top, so it reads the avatar too.
+jest.mock('@/features/avatar/data/avatar-repository', () => ({
+  loadAvatarConfig: jest.fn(async () => null),
+  saveAvatarConfig: jest.fn(),
 }));
 
 jest.mock('@/features/cycle/data/cycle-repository', () => ({
@@ -247,7 +261,7 @@ describe('SettingsScreen header', () => {
 
     expect(getByText('Döngü ayarları')).toBeTruthy();
     expect(
-      getByText('Döngü ve regl süresi tahminlerini buradan güncelleyebilirsin.')
+      getByText('Hesabın, döngü ayarların, hatırlatıcıların ve verilerin.')
     ).toBeTruthy();
   });
 });
@@ -661,18 +675,21 @@ describe('SettingsScreen leaving without saving', () => {
 });
 
 describe('SettingsScreen scope', () => {
-  it('offers both steppers, save, the account and lock links, and nothing else', async () => {
+  it('opens with the person, then the settings, and nothing else', async () => {
     const { queryAllByRole } = await renderLoaded(28, 5);
 
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
+      // Who this is, before any setting. The tab answers that question and
+      // it used to open with the cycle-length steppers instead.
+      'Avatar oluştur',
+      'Hesabı aç',
       'Ortalama döngü süresini azalt',
       'Ortalama döngü süresini artır',
       'Ortalama regl süresini azalt',
       'Ortalama regl süresini artır',
       'Döngü ayarlarını kaydet',
-      'Hesabı aç',
       // After the account, because whether there is one decides whether a
       // forgotten PIN can be recovered at all. Opens a screen; sets nothing.
       'Uygulama kilidini kur',
@@ -1123,17 +1140,23 @@ describe('SettingsScreen pregnancy weekly reminder sync', () => {
 
 describe('SettingsScreen account link', () => {
   it('offers a way to the account screen', async () => {
+    // The section heading went with the section. The way to the account is in
+    // the block at the top of the tab now, beside the line that already says
+    // what the account would change.
     const screen = await renderLoaded();
 
-    expect(screen.getByText('Hesap')).toBeTruthy();
     expect(screen.getByText('Hesabı aç')).toBeTruthy();
     expect(screen.getByLabelText('Hesabı aç')).toBeTruthy();
   });
 
-  it('says an account is optional and that the data stays on the phone', async () => {
+  it('says where the records are, which is what the account would change', async () => {
+    // This used to be a paragraph under a heading saying an account was
+    // optional and the data stayed on the phone. It is the state line now:
+    // the same fact, about this person rather than about accounts in general,
+    // and true of whichever state they are actually in.
     const screen = await renderLoaded();
 
-    expect(screen.getByText(/Hesap açmak isteğe bağlı/)).toBeTruthy();
+    expect(screen.getByText('Kayıtların yalnızca bu telefonda.')).toBeTruthy();
   });
 
   it('opens the account route', async () => {
@@ -1586,5 +1609,44 @@ describe('SettingsScreen under the floating tab bar', () => {
     const screen = await renderLoaded();
 
     expectClearsTabBar(screen.toJSON());
+  });
+});
+
+/**
+ * The profile tab, which is ours.
+ *
+ * The app this follows structurally has a tab for the person; its store
+ * screenshots show four words along the bottom and nothing of what any of them
+ * opens. So the architecture is taken and the screen is not - there was
+ * nothing here to copy.
+ *
+ * What was wrong: the tab opened with the cycle-length steppers, which are a
+ * setting, and the account - the one identifying thing on it - was a button
+ * somebody had to press to find out their own state.
+ */
+describe('SettingsScreen as the profile tab', () => {
+  it('says where the records are without being asked', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    expect(screen.getByText('Kayıtların yalnızca bu telefonda.')).toBeTruthy();
+  });
+
+  it('names the whole screen rather than one of its sections', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    expect(screen.getByText('Profil')).toBeTruthy();
+  });
+
+  it('keeps the cycle settings, as a section with its own heading', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    expect(screen.getByText('Döngü ayarları')).toBeTruthy();
+    expect(screen.getByLabelText('Döngü ayarlarını kaydet')).toBeTruthy();
+  });
+
+  it('offers one way to the account, not two', async () => {
+    const screen = await renderLoaded(28, 5);
+
+    expect(screen.queryAllByLabelText('Hesabı aç')).toHaveLength(1);
   });
 });

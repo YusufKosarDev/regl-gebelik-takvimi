@@ -515,7 +515,6 @@ describe('HomeScreen scope', () => {
       'Ekle',
       'Regl başlangıcını kaydet',
       'Günlük kayıt geçmişini görüntüle',
-      'Avatar oluştur',
       'Gebelik takibini başlat',
     ]);
 
@@ -525,6 +524,11 @@ describe('HomeScreen scope', () => {
     expect(labels).not.toContain('Takvimi aç');
     expect(labels).not.toContain('Geçmiş regl kayıtlarını görüntüle');
     expect(labels).not.toContain('Döngü ayarlarını düzenle');
+
+    // The avatar followed them. The profile tab opens with the person and
+    // the way to make one is there; a row here as well is the same errand
+    // from the one screen that already shows the face.
+    expect(labels).not.toContain('Avatar oluştur');
 
     // No calendar cell, because there is no calendar here any more.
     expect(labels.filter((label) => label.startsWith('1 Eylül 2026'))).toHaveLength(0);
@@ -3307,46 +3311,6 @@ describe('HomeScreen cycle daily support in the pregnancy view', () => {
 
     expect(screen.getByText('Bugünün mesajı')).toBeTruthy();
     expect(screen.getByText('Olası ruh hali')).toBeTruthy();
-  });
-});
-
-describe('HomeScreen avatar link with nothing saved', () => {
-  beforeEach(() => {
-    repository.loadCycleProfile.mockResolvedValue(profile());
-  });
-
-  it('invites one to be built', async () => {
-    const { getByText, getByLabelText } = await renderScreen();
-
-    expect(getByLabelText('Avatar oluştur')).toBeTruthy();
-    expect(getByText('Avatarım')).toBeTruthy();
-  });
-
-  it('shows no preview', async () => {
-    const { queryByTestId } = await renderScreen();
-
-    expect(queryByTestId('home-avatar-preview')).toBeNull();
-  });
-
-  it('opens the editor', async () => {
-    const screen = await renderScreen();
-
-    await fireEvent.press(screen.getByLabelText('Avatar oluştur'));
-
-    expect(push).toHaveBeenCalledWith('/(app)/avatar');
-  });
-
-  it('reads the avatar alongside the rest, in one pass', async () => {
-    await renderScreen();
-
-    expect(avatarRepository.loadAvatarConfig).toHaveBeenCalledTimes(1);
-    expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
-  });
-
-  it('writes nothing', async () => {
-    await renderScreen();
-
-    expect(avatarRepository.saveAvatarConfig).not.toHaveBeenCalled();
   });
 });
 

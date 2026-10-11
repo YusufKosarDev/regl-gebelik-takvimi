@@ -89,19 +89,10 @@ export function HomeLinks({
         onPress={() => router.push('/(app)/daily-log-history')}
       />
 
-      {/* Only when there is no avatar yet.
-
-          Once there is one it is on the home screen, at the top, and pressing
-          it opens the editor - so a row down here saying the same thing is the
-          same errand twice. Creating one still needs a way in, because there is
-          no face to press until there is a face. */}
-      {avatar === null && (
-        <LinkRow
-          label={home.avatarCreateLabel}
-          text={home.avatarLinkText}
-          onPress={() => router.push('/(app)/avatar')}
-        />
-      )}
+      {/* The avatar row has gone to the profile tab, which opens with the
+          person: the face when there is one and the way to make one when
+          there is not. A row here was the second way to the same editor from
+          the one screen that already shows the face. */}
 
       {/* The way in to pregnancy tracking, and the only way to enable
           the view that shows it. */}

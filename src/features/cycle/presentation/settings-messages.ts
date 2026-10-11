@@ -16,8 +16,17 @@ import { plural } from '@/i18n';
  */
 
 const settingsMessagesTr = {
-  settingsTitle: 'Döngü ayarları',
-  settingsDescription: 'Döngü ve regl süresi tahminlerini buradan güncelleyebilirsin.',
+  /**
+   * The tab, not one of its sections.
+   *
+   * This used to say "Döngü ayarları", which named the first block on a
+   * screen that also holds reminders, language, the lock, export, about and
+   * the way to delete everything. That heading moved down to the block it
+   * was describing.
+   */
+  settingsTitle: 'Profil',
+  cycleSectionTitle: 'Döngü ayarları',
+  settingsDescription: 'Hesabın, döngü ayarların, hatırlatıcıların ve verilerin.',
 
   settingsLoadFailedMessage: 'Ayarlar yüklenemedi.',
   settingsSaveFailedMessage: 'Ayarlar kaydedilemedi.',
@@ -55,6 +64,20 @@ const settingsMessagesTr = {
   notificationsSectionTitle: 'Bildirimler',
 
   accountSectionTitle: 'Hesap',
+  /**
+   * The line under the avatar at the top of the profile tab.
+   *
+   * Ours. Nothing was borrowed here: the app this follows structurally has a
+   * tab for the person and its store screenshots show none of what is on it.
+   *
+   *  exists so that the half-second before the answer is
+   * known says nothing rather than the wrong thing - telling somebody who is
+   * signed in that their records are on this phone only is a false statement
+   * about where their data is, and it does not stop being one for being brief.
+   */
+  identityLocalOnly: 'Kayıtların yalnızca bu telefonda.',
+  identityChecking: 'Hesap durumu kontrol ediliyor.',
+
   accountSectionDescription: 'Hesap açmak isteğe bağlı. Verilerin telefonunda kalır.',
   accountOpenLabel: 'Hesabı aç',
 };
@@ -62,8 +85,9 @@ const settingsMessagesTr = {
 export type SettingsMessages = typeof settingsMessagesTr;
 
 const settingsMessagesEn: SettingsMessages = {
-  settingsTitle: 'Cycle settings',
-  settingsDescription: 'Update what your cycle and period lengths are estimated from.',
+  settingsTitle: 'Profile',
+  cycleSectionTitle: 'Cycle settings',
+  settingsDescription: 'Your account, cycle settings, reminders and data.',
 
   settingsLoadFailedMessage: 'Those settings could not be loaded.',
   settingsSaveFailedMessage: 'Those settings could not be saved.',
@@ -82,6 +106,9 @@ const settingsMessagesEn: SettingsMessages = {
   periodLengthIncreaseLabel: 'Increase the average period length',
 
   daysUnit: (days: number) => plural(days, 'day', 'days'),
+
+  identityLocalOnly: 'Your records are on this phone only.',
+  identityChecking: 'Checking your account.',
 
   settingsSaveLabel: 'Save cycle settings',
 

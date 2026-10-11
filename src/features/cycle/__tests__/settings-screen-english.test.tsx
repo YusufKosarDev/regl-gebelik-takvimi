@@ -47,6 +47,12 @@ jest.mock('@/storage/db', () => ({
   DATABASE_NAME: 'regl-gebelik.db',
 }));
 
+// The profile tab shows the person at the top, so it reads the avatar too.
+jest.mock('@/features/avatar/data/avatar-repository', () => ({
+  loadAvatarConfig: jest.fn(async () => null),
+  saveAvatarConfig: jest.fn(),
+}));
+
 jest.mock('@/features/cycle/data/cycle-repository', () => ({
   loadCycleProfile: jest.fn(async () => null),
   saveCycleProfile: jest.fn(),

@@ -63,6 +63,10 @@ import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
 import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
+import { ProfileIdentity } from '@/features/auth/components/profile-identity';
+import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
+import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
 
 /**
  * The longest period length that makes sense alongside a given cycle length.
@@ -135,6 +139,10 @@ export default function SettingsScreen() {
   // dialog, the same way restoring a backup is: the warning needs more than one
   // line, and the cloud disclaimer has to be readable before the button is.
   const auth = useAuthState();
+  const home = useMessages(homeMessages);
+
+  /** Read here so the tab can show the person rather than a link to them. */
+  const [avatar, setAvatar] = useState<AvatarConfig | null>(null);
   const appLockEnabled = useAppLockStore((state) => state.enabled);
   const resetAppState = useAppStore((state) => state.resetAppState);
 
@@ -221,10 +229,13 @@ export default function SettingsScreen() {
     // The permission is read here too, on every load and every refocus, so
     // coming back from system settings shows the new answer without anybody
     // having to press a switch to find out. It reads; it never prompts.
-    const [stored, storedReminders, storedDiscreet, permission] = await Promise.all([
+    const [stored, storedReminders, storedDiscreet, storedAvatar, permission] = await Promise.all([
       getCycleSettings(db),
       loadNotificationPreferences(db),
       loadDiscreetNotifications(db),
+      // The person, for the block at the top. Read on the same trip as the
+      // rest rather than in an effect of its own.
+      loadAvatarConfig(db),
       getNotificationPermissionStatus().catch(
         (): NotificationPermissionStatus => 'undetermined'
       ),
@@ -234,6 +245,7 @@ export default function SettingsScreen() {
       settings: stored,
       reminders: storedReminders,
       discreet: storedDiscreet,
+      avatar: storedAvatar,
       permission,
     };
   }, []);
@@ -264,6 +276,7 @@ export default function SettingsScreen() {
           }
 
           setSettings(data.settings);
+          setAvatar(data.avatar);
           setReminders(data.reminders);
           setDiscreet(data.discreet);
           setPermission(data.permission);
@@ -518,6 +531,22 @@ export default function SettingsScreen() {
               </ThemedText>
             </View>
 
+            {/* Who this is, before any setting.
+
+                Ours: the app this follows structurally has a tab for the
+                person and shows nothing of what is on it. What this replaces
+                is a tab that opened with the cycle-length steppers and kept
+                the account behind a button somebody had to press to find out
+                their own state. */}
+            <ProfileIdentity
+              auth={auth}
+              avatar={avatar}
+              avatarLabel={avatar === null ? home.avatarCreateLabel : home.avatarEditLabel}
+              accountLabel={cycleSettings.accountOpenLabel}
+              onOpenAvatar={() => router.push('/(app)/avatar')}
+              onOpenAccount={() => router.push('/(app)/account')}
+            />
+
             {hasError ? (
               <ThemedText accessibilityRole="alert" themeColor="textSecondary">
                 {cycleSettings.settingsLoadFailedMessage}
@@ -526,6 +555,12 @@ export default function SettingsScreen() {
               <ThemedText themeColor="textSecondary">{cycleSettings.settingsEmptyMessage}</ThemedText>
             ) : (
               <View style={styles.fields}>
+                {/* A heading of its own, now that the screen is named for the
+                    whole tab rather than for this one section. */}
+                <ThemedText accessibilityRole="header" type="smallBold">
+                  {cycleSettings.cycleSectionTitle}
+                </ThemedText>
+
                 <LengthStepper
                   label={cycleSettings.cycleLengthFieldLabel}
                   note={cycleSettings.cycleLengthFieldNote}
@@ -601,27 +636,6 @@ export default function SettingsScreen() {
                 }}
               />
             )}
-            <View style={styles.fields}>
-              <ThemedText accessibilityRole="header" type="smallBold">
-                {cycleSettings.accountSectionTitle}
-              </ThemedText>
-
-              <ThemedText type="small" themeColor="textSecondary">
-                {cycleSettings.accountSectionDescription}
-              </ThemedText>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={cycleSettings.accountOpenLabel}
-                onPress={() => router.push('/(app)/account')}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  { borderColor: theme.backgroundSelected },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText type="smallBold">{cycleSettings.accountOpenLabel}</ThemedText>
-              </Pressable>
-            </View>
 
             {/* After the account, because whether there is one decides whether a
                 forgotten PIN can be recovered at all - and somebody who has
