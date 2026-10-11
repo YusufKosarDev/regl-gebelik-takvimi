@@ -275,13 +275,31 @@ const DAILY_ENTRIES = [
 ];
 
 describe('no screen shows Turkish on an English phone', () => {
-  it.each(SCREENS)('%s', async (_name, load) => {
-    const Screen = load();
+  /**
+   * Twenty seconds, not the default five.
+   *
+   * The first case in this file pays the module-load cost for the whole home
+   * screen tree - the field, the gradient, the hero, the arc, reanimated and
+   * gesture-handler - and renders every screen after it in milliseconds. Alone
+   * it takes about two seconds; under parallel workers on a busy machine it
+   * went past five and the suite started failing about one run in five, then
+   * every run once an emulator was also running.
+   *
+   * The assertion was never wrong and the screen was never slow in a way a
+   * person would feel. A limit that depends on what else the machine is doing
+   * is not measuring the code, so it is raised rather than the test weakened.
+   */
+  it.each(SCREENS)(
+    '%s',
+    async (_name, load) => {
+      const Screen = load();
 
-    const screen = await renderSettled(<Screen />);
+      const screen = await renderSettled(<Screen />);
 
-    expectNoTurkishCatalogueText(screen);
-  });
+      expectNoTurkishCatalogueText(screen);
+    },
+    20000
+  );
 
   it('covers every screen in src/app', () => {
     // The list above is written by hand, so this is what stops a screen added
@@ -350,13 +368,31 @@ describe('no screen shows Turkish once something is recorded', () => {
     });
   });
 
-  it.each(SCREENS)('%s', async (_name, load) => {
-    const Screen = load();
+  /**
+   * Twenty seconds, not the default five.
+   *
+   * The first case in this file pays the module-load cost for the whole home
+   * screen tree - the field, the gradient, the hero, the arc, reanimated and
+   * gesture-handler - and renders every screen after it in milliseconds. Alone
+   * it takes about two seconds; under parallel workers on a busy machine it
+   * went past five and the suite started failing about one run in five, then
+   * every run once an emulator was also running.
+   *
+   * The assertion was never wrong and the screen was never slow in a way a
+   * person would feel. A limit that depends on what else the machine is doing
+   * is not measuring the code, so it is raised rather than the test weakened.
+   */
+  it.each(SCREENS)(
+    '%s',
+    async (_name, load) => {
+      const Screen = load();
 
-    const screen = await renderSettled(<Screen />);
+      const screen = await renderSettled(<Screen />);
 
-    expectNoTurkishCatalogueText(screen);
-  });
+      expectNoTurkishCatalogueText(screen);
+    },
+    20000
+  );
 
   it('the home screen in pregnancy mode', async () => {
     useAppStore.setState({ mode: 'pregnancy', onboardingCompleted: true, hydrated: true });
