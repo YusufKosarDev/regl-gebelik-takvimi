@@ -14,7 +14,17 @@ import { isISODate } from '@/utils/date';
  * calculate a cycle.
  */
 export type CycleOnboardingInput = {
-  readonly lastPeriodStartDate: ISODate;
+  /**
+   * The day the last period started, or null when it was not known.
+   *
+   * Null is a real answer, not a missing one. The flow asks this once and
+   * somebody may not know; inventing a date would put a cycle day on the home
+   * screen that nobody supplied, and refusing to finish would leave them with
+   * no app at all. A profile with settings and no records is a state the rest
+   * of the app already handles - it is what every "no cycle information"
+   * branch was written for.
+   */
+  readonly lastPeriodStartDate: ISODate | null;
   readonly averageCycleLengthDays: number;
   readonly averagePeriodLengthDays: number;
 };
@@ -37,7 +47,7 @@ const INITIAL_PERIOD_RECORD_ID = 'onboarding-initial-period';
  * Pure: nothing is mutated, no clock is read and no `Date` is constructed.
  */
 export function validateCycleOnboardingInput(input: CycleOnboardingInput): void {
-  if (!isISODate(input.lastPeriodStartDate)) {
+  if (input.lastPeriodStartDate !== null && !isISODate(input.lastPeriodStartDate)) {
     throw new Error(
       `Invalid lastPeriodStartDate. ` +
         'Expected a real calendar date in YYYY-MM-DD format.'
@@ -67,15 +77,18 @@ export function createInitialCycleProfile(input: CycleOnboardingInput): CyclePro
       averageCycleLengthDays: input.averageCycleLengthDays,
       averagePeriodLengthDays: input.averagePeriodLengthDays,
     },
-    periodRecords: [
-      {
-        id: INITIAL_PERIOD_RECORD_ID,
-        startDate: input.lastPeriodStartDate,
-        // Not ongoing: this is the last period the person remembers starting,
-        // not one they are in. No end date is invented for it either — when it
-        // stopped was never asked, so it stays unknown.
-        isOngoing: false,
-      },
-    ],
+    periodRecords:
+      input.lastPeriodStartDate === null
+        ? []
+        : [
+            {
+              id: INITIAL_PERIOD_RECORD_ID,
+              startDate: input.lastPeriodStartDate,
+              // Not ongoing: this is the last period the person remembers
+              // starting, not one they are in. No end date is invented for it
+              // either - when it stopped was never asked, so it stays unknown.
+              isOngoing: false,
+            },
+          ],
   };
 }

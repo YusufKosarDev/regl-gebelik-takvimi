@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import FinishScreen from '@/app/(onboarding)/finish';
@@ -418,7 +418,7 @@ describe('FinishScreen with unusable params', () => {
     ['a missing period length', { periodLength: undefined }],
     ['a zero period length', { periodLength: '0' }],
     ['a period longer than the cycle', { cycleLength: '15', periodLength: '16' }],
-    ['a missing start date', { lastPeriodStartDate: undefined }],
+
     ['an impossible start date', { lastPeriodStartDate: '2026-02-30' }],
     ['a future start date', { lastPeriodStartDate: '2026-09-18' }],
     ['an array start date', { lastPeriodStartDate: ['2026-09-17'] }],
@@ -558,5 +558,43 @@ describe('FinishScreen says what was assumed', () => {
     const screen = await renderScreen();
 
     expect(screen.getByText(/Profil/)).toBeTruthy();
+  });
+});
+
+/**
+ * Arriving without a date.
+ *
+ * Absent means the one question was skipped, which is an answer. It used to be
+ * an error, alongside a malformed date - and those are different things: a
+ * route carrying "2026-02-30" is a bug, and a person saying they do not know
+ * is not.
+ */
+describe('FinishScreen when the date was skipped', () => {
+  it('does not treat it as broken information', async () => {
+    const screen = await renderScreen({ lastPeriodStartDate: undefined });
+
+    expect(screen.queryByText('Geçersiz döngü bilgisi.')).toBeNull();
+  });
+
+  it('still says what it assumed about the lengths', async () => {
+    const screen = await renderScreen({ lastPeriodStartDate: undefined });
+
+    expect(screen.getByText(/28/)).toBeTruthy();
+  });
+
+  it('completes with no date, which the domain turns into no records', async () => {
+    const { submit } = await renderScreen({ lastPeriodStartDate: undefined });
+
+    await fireEvent.press(submit());
+
+    await waitFor(() => {
+      expect(completeCycleOnboardingMock).toHaveBeenCalled();
+    });
+
+    expect(completeCycleOnboardingMock).toHaveBeenCalledWith(expect.anything(), {
+      averageCycleLengthDays: 28,
+      averagePeriodLengthDays: 5,
+      lastPeriodStartDate: null,
+    });
   });
 });

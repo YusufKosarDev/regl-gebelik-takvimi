@@ -335,3 +335,31 @@ describe('LastPeriodScreen scope', () => {
   });
 });
 
+
+describe('skipping the question', () => {
+  it('still carries the lengths it did not ask about', async () => {
+    // Found on a device: the skip pushed to the finish screen with no params
+    // at all, and that screen reads the lengths from the route - so skipping
+    // landed on "that cycle information is not valid". The tests missed it
+    // because the finish screen's own helper supplies those params by default.
+    const { getByLabelText } = await renderScreen({ today: '2026-09-17' });
+
+    await fireEvent.press(getByLabelText('Bilmiyorum'));
+
+    expect(push).toHaveBeenCalledWith({
+      pathname: '/(onboarding)/finish',
+      params: {
+        cycleLength: '28',
+        periodLength: '5',
+      },
+    });
+  });
+
+  it('sends no date, which is what makes it a skip', async () => {
+    const { getByLabelText } = await renderScreen({ today: '2026-09-17' });
+
+    await fireEvent.press(getByLabelText('Bilmiyorum'));
+
+    expect(push.mock.calls.at(-1)?.[0].params.lastPeriodStartDate).toBeUndefined();
+  });
+});

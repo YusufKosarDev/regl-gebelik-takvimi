@@ -18,7 +18,6 @@ describe('parity', () => {
       ['cycleLengthValueLabel', [1], [28]],
       ['periodLengthValueLabel', [1], [5]],
       ['selectedDateLabel', ['17 September 2026']],
-      ['reviewRowLabel', ['Cycle length', '28 days']],
       ['reviewDaysValue', [0], [1], [2], [28]],
     ],
   });

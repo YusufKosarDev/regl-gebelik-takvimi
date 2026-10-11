@@ -54,9 +54,17 @@ export default function FinishScreen() {
   const cycleLength = parseCycleLengthParam(params.cycleLength);
   const periodLength =
     cycleLength === null ? null : parsePeriodLengthParam(params.periodLength, cycleLength);
-  const lastPeriodStartDate = parseLastPeriodStartDateParam(params.lastPeriodStartDate, today);
+  /**
+   * Absent means skipped, which is an answer. Present but unusable is still
+   * an error: a malformed date in the route is a bug, not a person saying
+   * they do not know.
+   */
+  const wasAsked = params.lastPeriodStartDate !== undefined;
+  const lastPeriodStartDate = wasAsked
+    ? parseLastPeriodStartDateParam(params.lastPeriodStartDate, today)
+    : null;
 
-  if (cycleLength === null || periodLength === null || lastPeriodStartDate === null) {
+  if (cycleLength === null || periodLength === null || (wasAsked && lastPeriodStartDate === null)) {
     return (
       <ThemedView style={styles.screen}>
         <SafeAreaView style={styles.errorArea}>

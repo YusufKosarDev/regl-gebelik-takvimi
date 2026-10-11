@@ -131,6 +131,33 @@ export default function LastPeriodScreen() {
               {onboarding.continueLabel}
             </ThemedText>
           </Pressable>
+
+          {/* The way past the one question this flow asks.
+
+              Somebody may not know, and both other answers were bad: invent a
+              date, which puts a cycle day on the home screen that nobody
+              supplied, or refuse to finish, which leaves them with no app.
+              This saves the settings with nothing recorded, and the home
+              screen catches that with the way back to this question. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={onboarding.lastPeriodSkipLabel}
+            onPress={() =>
+              // The lengths go with it. The finish screen reads them from the
+              // route, so a skip that sent nothing landed on "that cycle
+              // information is not valid" - found on a device, because the
+              // finish screen's own test helper supplies them by default.
+              router.push({
+                pathname: '/(onboarding)/finish',
+                params: {
+                  cycleLength: String(cycleLength),
+                  periodLength: String(periodLength),
+                },
+              })
+            }
+            style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
+            <ThemedText type="smallBold">{onboarding.lastPeriodSkipLabel}</ThemedText>
+          </Pressable>
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -138,6 +165,11 @@ export default function LastPeriodScreen() {
 }
 
 const styles = StyleSheet.create({
+  skipButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   screen: {
     flex: 1,
   },

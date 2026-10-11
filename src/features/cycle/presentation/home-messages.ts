@@ -30,6 +30,16 @@ const homeMessagesTr = {
   saveErrorMessage: 'Regl başlangıcı kaydedilemedi.',
   endSaveErrorMessage: 'Regl bitişi kaydedilemedi.',
   emptyMessage: 'Döngü bilgisi bulunamadı.',
+
+  /**
+   * The way out of the empty home screen.
+   *
+   * The message above was the whole of it: a statement of the problem on a
+   * screen that offered no way to solve it. This is also where the
+   * onboarding's one question lands if somebody skips it, so it goes back to
+   * exactly that screen rather than to a second version of it.
+   */
+  emptyActionLabel: 'Son regl tarihimi gir',
   sourceErrorMessage: 'Kaynak açılamadı.',
   supportDisclaimer: 'Bu bilgiler geneldir; kişiden kişiye ve aydan aya değişebilir.',
   fertilityDisclaimer:
@@ -204,6 +214,8 @@ const homeMessagesEn: HomeMessages = {
   saveErrorMessage: 'The start of your period could not be saved.',
   endSaveErrorMessage: 'The end of your period could not be saved.',
   emptyMessage: 'No cycle information found.',
+
+  emptyActionLabel: 'Enter my last period date',
   sourceErrorMessage: 'That source would not open.',
   supportDisclaimer:
     'This is general information; it varies from person to person and month to month.',

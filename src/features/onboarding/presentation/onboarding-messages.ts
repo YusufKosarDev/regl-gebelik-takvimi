@@ -65,9 +65,6 @@ const onboardingMessagesTr = {
 
   cycleLengthTitle: 'Döngün ortalama kaç gün sürüyor?',
 
-  cycleLengthDescription:
-    'Bir regl döneminin ilk gününden, sonraki regl döneminin ilk gününe kadar geçen ' +
-    'süre.',
 
   cycleLengthDecreaseLabel: 'Döngü uzunluğunu azalt',
   cycleLengthIncreaseLabel: 'Döngü uzunluğunu artır',
@@ -80,8 +77,6 @@ const onboardingMessagesTr = {
 
   periodLengthTitle: 'Regl dönemin ortalama kaç gün sürüyor?',
 
-  periodLengthDescription:
-    'Kanamanın başladığı ilk günden tamamen bittiği güne kadar geçen ortalama süre.',
 
   periodLengthDecreaseLabel: 'Regl süresini azalt',
   periodLengthIncreaseLabel: 'Regl süresini artır',
@@ -94,6 +89,17 @@ const onboardingMessagesTr = {
   lastPeriodTitle: 'Son regl dönemin ne zaman başladı?',
   lastPeriodDescription: 'Kanamanın başladığı ilk günü seç.',
 
+  /**
+   * The way past the one question the flow asks.
+   *
+   * Somebody may not know, and the two answers to that were both bad: invent
+   * a date, which puts a cycle day on the home screen that nobody supplied,
+   * or refuse to finish, which leaves them with no app. This saves the
+   * settings with no period recorded, and the home screen catches it with the
+   * way back to this question.
+   */
+  lastPeriodSkipLabel: 'Bilmiyorum',
+
   lastPeriodPreviousDayLabel: 'Önceki günü seç',
   lastPeriodNextDayLabel: 'Sonraki günü seç',
   lastPeriodPreviousDayText: 'Önceki gün',
@@ -103,18 +109,10 @@ const onboardingMessagesTr = {
 
   /* ------------------------------------------------------------- review -- */
 
-  reviewTitle: 'Bilgilerini kontrol et',
-  reviewDescription: 'Devam etmeden önce döngü bilgilerini gözden geçir.',
 
-  reviewCycleLengthLabel: 'Döngü uzunluğu',
-  reviewPeriodLengthLabel: 'Regl süresi',
-  reviewLastPeriodLabel: 'Son regl başlangıcı',
 
-  reviewConfirmLabel: 'Bilgiler doğru',
-  reviewEditLabel: 'Bilgileri düzenle',
 
   /** A row of the summary, read as one thing. */
-  reviewRowLabel: (label: string, value: string) => `${label}: ${value}`,
 
   /** The two rows whose value is a count of days. */
   reviewDaysValue: (days: number) => `${days} gün`,
@@ -168,8 +166,6 @@ const onboardingMessagesEn: OnboardingMessages = {
 
   cycleLengthTitle: 'How many days does your cycle usually last?',
 
-  cycleLengthDescription:
-    'The time from the first day of one period to the first day of the next.',
 
   cycleLengthDecreaseLabel: 'Decrease the cycle length',
   cycleLengthIncreaseLabel: 'Increase the cycle length',
@@ -179,8 +175,6 @@ const onboardingMessagesEn: OnboardingMessages = {
 
   periodLengthTitle: 'How many days does your period usually last?',
 
-  periodLengthDescription:
-    'The average time from the first day of bleeding to the day it stops completely.',
 
   periodLengthDecreaseLabel: 'Decrease the period length',
   periodLengthIncreaseLabel: 'Increase the period length',
@@ -191,6 +185,8 @@ const onboardingMessagesEn: OnboardingMessages = {
   lastPeriodTitle: 'When did your last period start?',
   lastPeriodDescription: 'Pick the first day of bleeding.',
 
+  lastPeriodSkipLabel: 'I do not know',
+
   lastPeriodPreviousDayLabel: 'Pick the previous day',
   lastPeriodNextDayLabel: 'Pick the next day',
   lastPeriodPreviousDayText: 'Previous day',
@@ -198,17 +194,9 @@ const onboardingMessagesEn: OnboardingMessages = {
 
   selectedDateLabel: (readableDate: string) => `Selected date: ${readableDate}`,
 
-  reviewTitle: 'Check what you entered',
-  reviewDescription: 'Look over your cycle information before going on.',
 
-  reviewCycleLengthLabel: 'Cycle length',
-  reviewPeriodLengthLabel: 'Period length',
-  reviewLastPeriodLabel: 'Last period started',
 
-  reviewConfirmLabel: 'This is right',
-  reviewEditLabel: 'Change it',
 
-  reviewRowLabel: (label: string, value: string) => `${label}: ${value}`,
 
   reviewDaysValue: (days: number) => plural(days, `${days} day`, `${days} days`),
 
@@ -244,11 +232,9 @@ export const DISCLAIMER_CONTINUE_HINT = onboardingMessagesTr.disclaimerContinueH
 export const INVALID_CYCLE_INFO_MESSAGE = onboardingMessagesTr.invalidCycleInfoMessage;
 export const CONTINUE_LABEL = onboardingMessagesTr.continueLabel;
 export const CYCLE_LENGTH_TITLE = onboardingMessagesTr.cycleLengthTitle;
-export const CYCLE_LENGTH_DESCRIPTION = onboardingMessagesTr.cycleLengthDescription;
 export const CYCLE_LENGTH_DECREASE_LABEL = onboardingMessagesTr.cycleLengthDecreaseLabel;
 export const CYCLE_LENGTH_INCREASE_LABEL = onboardingMessagesTr.cycleLengthIncreaseLabel;
 export const PERIOD_LENGTH_TITLE = onboardingMessagesTr.periodLengthTitle;
-export const PERIOD_LENGTH_DESCRIPTION = onboardingMessagesTr.periodLengthDescription;
 export const PERIOD_LENGTH_DECREASE_LABEL = onboardingMessagesTr.periodLengthDecreaseLabel;
 export const PERIOD_LENGTH_INCREASE_LABEL = onboardingMessagesTr.periodLengthIncreaseLabel;
 export const LAST_PERIOD_TITLE = onboardingMessagesTr.lastPeriodTitle;
@@ -257,13 +243,6 @@ export const LAST_PERIOD_PREVIOUS_DAY_LABEL = onboardingMessagesTr.lastPeriodPre
 export const LAST_PERIOD_NEXT_DAY_LABEL = onboardingMessagesTr.lastPeriodNextDayLabel;
 export const LAST_PERIOD_PREVIOUS_DAY_TEXT = onboardingMessagesTr.lastPeriodPreviousDayText;
 export const LAST_PERIOD_NEXT_DAY_TEXT = onboardingMessagesTr.lastPeriodNextDayText;
-export const REVIEW_TITLE = onboardingMessagesTr.reviewTitle;
-export const REVIEW_DESCRIPTION = onboardingMessagesTr.reviewDescription;
-export const REVIEW_CYCLE_LENGTH_LABEL = onboardingMessagesTr.reviewCycleLengthLabel;
-export const REVIEW_PERIOD_LENGTH_LABEL = onboardingMessagesTr.reviewPeriodLengthLabel;
-export const REVIEW_LAST_PERIOD_LABEL = onboardingMessagesTr.reviewLastPeriodLabel;
-export const REVIEW_CONFIRM_LABEL = onboardingMessagesTr.reviewConfirmLabel;
-export const REVIEW_EDIT_LABEL = onboardingMessagesTr.reviewEditLabel;
 export const FINISH_TITLE = onboardingMessagesTr.finishTitle;
 export const FINISH_DESCRIPTION = onboardingMessagesTr.finishDescription;
 export const FINISH_START_LABEL = onboardingMessagesTr.finishStartLabel;
@@ -276,5 +255,4 @@ export const DAYS_UNIT = onboardingMessagesTr.daysUnit(0);
 export const cycleLengthValueLabel = onboardingMessagesTr.cycleLengthValueLabel;
 export const periodLengthValueLabel = onboardingMessagesTr.periodLengthValueLabel;
 export const selectedDateLabel = onboardingMessagesTr.selectedDateLabel;
-export const reviewRowLabel = onboardingMessagesTr.reviewRowLabel;
 export const reviewDaysValue = onboardingMessagesTr.reviewDaysValue;

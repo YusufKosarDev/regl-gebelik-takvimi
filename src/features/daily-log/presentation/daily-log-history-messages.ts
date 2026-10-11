@@ -28,6 +28,9 @@ const dailyLogHistoryMessagesTr = {
   loadFailedMessage: 'Kayıt geçmişi yüklenemedi.',
   emptyMessage: 'Henüz günlük kayıt eklemedin. Bir gün ekledikçe burada görünür.',
 
+  /** The way out of it, which the sentence alone never offered. */
+  emptyActionLabel: 'Bugünü kaydet',
+
   /* ------------------------------------------------------- the calendar -- */
 
   /** Which month is on screen, for the two arrows either side of it. */
@@ -93,6 +96,8 @@ const dailyLogHistoryMessagesEn: DailyLogHistoryMessages = {
 
   loadFailedMessage: 'Your log history could not be loaded.',
   emptyMessage: 'You have not logged a day yet. Days you add show up here.',
+
+  emptyActionLabel: 'Log today',
 
   previousMonthLabel: 'Previous month',
   nextMonthLabel: 'Next month',

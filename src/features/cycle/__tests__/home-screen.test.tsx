@@ -4113,3 +4113,31 @@ describe('HomeScreen under the floating tab bar', () => {
     expectClearsTabBar(screen.toJSON());
   });
 });
+
+/**
+ * The screen somebody lands on with nothing recorded.
+ *
+ * It said "döngü bilgisi bulunamadı" and offered nothing - a statement of the
+ * problem standing where the answer should be. It is also where the
+ * onboarding's one question lands if it is skipped, which is why that skip
+ * waited for this stage.
+ */
+describe('HomeScreen with nothing recorded', () => {
+  it('offers the way to record something', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('Son regl tarihimi gir')).toBeTruthy();
+  });
+
+  it('goes to the one question the app cannot answer itself', async () => {
+    repository.loadCycleProfile.mockResolvedValue(null);
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Son regl tarihimi gir'));
+
+    expect(push).toHaveBeenCalledWith('/(onboarding)/last-period');
+  });
+});

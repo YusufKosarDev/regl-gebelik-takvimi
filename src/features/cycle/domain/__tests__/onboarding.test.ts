@@ -190,3 +190,38 @@ describe('createInitialCycleProfile and the ongoing flag', () => {
     expect(profile.periodRecords[0].endDate).toBeUndefined();
   });
 });
+
+/**
+ * Starting without the one date.
+ *
+ * The flow asks a single question and somebody may not know the answer -
+ * which used to mean they could not finish at all. A profile with the
+ * settings and no records is a real state the rest of the app already
+ * handles: it is what every "no cycle information" branch was written for.
+ *
+ * The alternative was inventing a date, which would put a cycle day on the
+ * home screen that nobody supplied.
+ */
+describe('createInitialCycleProfile without a date', () => {
+  it('keeps the settings and records nothing', () => {
+    const profile = createInitialCycleProfile({
+      averageCycleLengthDays: 28,
+      averagePeriodLengthDays: 5,
+      lastPeriodStartDate: null,
+    });
+
+    expect(profile.settings).toEqual({ averageCycleLengthDays: 28, averagePeriodLengthDays: 5 });
+    expect(profile.periodRecords).toEqual([]);
+  });
+
+  it('still validates the lengths it was given', () => {
+    // Skipping the date does not skip the rest of the contract.
+    expect(() =>
+      createInitialCycleProfile({
+        averageCycleLengthDays: 3,
+        averagePeriodLengthDays: 5,
+        lastPeriodStartDate: null,
+      })
+    ).toThrow();
+  });
+});

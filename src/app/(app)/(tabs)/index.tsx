@@ -68,6 +68,7 @@ import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
 import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
+import { EmptyState } from '@/components/empty-state';
 
 /**
  * Today's cycle summary.
@@ -483,9 +484,15 @@ export default function HomeScreen() {
     return (
       <SkyBackdrop colors={sky.waking} testID="sky-waking">
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
-          <ThemedText type="subtitle" style={[styles.messageText, { color: sky.ink }]}>
-            {home.emptyMessage}
-          </ThemedText>
+          {/* The message used to be the whole of this screen. It is where
+              somebody lands with nothing recorded - including straight out of
+              an onboarding whose one question they skipped - so it carries the
+              way back to that question rather than describing the gap. */}
+          <EmptyState
+            message={home.emptyMessage}
+            actionLabel={home.emptyActionLabel}
+            onAction={() => router.push('/(onboarding)/last-period')}
+          />
         </SafeAreaView>
       </SkyBackdrop>
     );

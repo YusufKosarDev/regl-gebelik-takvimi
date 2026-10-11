@@ -24,6 +24,7 @@ import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { EmptyState } from '@/components/empty-state';
 
 /**
  * Everything that has been written down, month by month.
@@ -148,7 +149,11 @@ export default function DailyLogHistoryScreen() {
                 {history.loadFailedMessage}
               </ThemedText>
             ) : data === null || data.entries.length === 0 ? (
-              <ThemedText themeColor="textSecondary">{history.emptyMessage}</ThemedText>
+              <EmptyState
+                message={history.emptyMessage}
+                actionLabel={history.emptyActionLabel}
+                onAction={() => router.push('/daily-entry')}
+              />
             ) : (
               <>
                 <View style={styles.monthBar}>
