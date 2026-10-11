@@ -44,9 +44,13 @@ export function HomeModeSwitch({
           !isPregnancyView && { backgroundColor: theme.primary },
           pressed && styles.pressed,
         ]}>
+        {/* The selected tab paints itself, so its label is not on the field and
+            has to say so: on a sky `ThemedText` draws in the sky's ink, which
+            over this fill would be dark on dark. An explicit colour wins, and
+            that is the documented way for a control to opt out. */}
         <ThemedText
           type={isPregnancyView ? 'small' : 'smallBold'}
-          themeColor={isPregnancyView ? 'text' : 'onPrimary'}>
+          style={isPregnancyView ? undefined : { color: theme.onPrimary }}>
           {home.cycleTabLabel}
         </ThemedText>
       </Pressable>
@@ -65,7 +69,7 @@ export function HomeModeSwitch({
         ]}>
         <ThemedText
           type={isPregnancyView ? 'smallBold' : 'small'}
-          themeColor={isPregnancyView ? 'onPrimary' : 'text'}>
+          style={isPregnancyView ? { color: theme.onPrimary } : undefined}>
           {home.pregnancyTabLabel}
         </ThemedText>
       </Pressable>

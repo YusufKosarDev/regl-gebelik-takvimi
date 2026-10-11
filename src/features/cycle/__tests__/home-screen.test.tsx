@@ -1,8 +1,10 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/index';
+import { Sky } from '@/constants/sky';
+import { Colors } from '@/constants/theme';
 import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useAppStore } from '@/store/app-store';
 import type { AppMode } from '@/types/app-state';
@@ -3998,3 +4000,148 @@ describe('HomeScreen pregnancy weekly reminder sync', () => {
   });
 });
 
+
+/**
+ * Every word on the field, in the colour it is actually drawn in.
+ *
+ * ## Why arithmetic was not enough
+ *
+ * `sky-contrast.test.ts` holds the ink against every surface a word can land
+ * on, and it passed for weeks while the screen drew two of its lines in
+ * `textSecondary` - a page colour that measures 1.97:1 on light night. The
+ * arithmetic could not have caught it: it knows which colours the palette
+ * offers and nothing at all about which one a component reached for.
+ *
+ * So this renders the screen and reads the colour off each `Text`. It is the
+ * half of the guarantee that can only be had by rendering, and it is here
+ * rather than in its own file because the harness above - fourteen mocks, a
+ * fake clock and a fake router - is what it takes to get this screen on
+ * screen, and a second copy of that would rot.
+ *
+ * ## It fails closed
+ *
+ * Any colour that is not the ink has to be named in `OFF_FIELD` with a reason.
+ * Adding one is a deliberate act, which is the point: the failure this exists
+ * to prevent was a component quietly inheriting a colour nobody chose.
+ */
+describe('every word on the sky is drawn in the sky ink', () => {
+  const INK = Sky.light.ink;
+
+  /**
+   * Labels that sit on an opaque control rather than on the field.
+   *
+   * The field is not behind them, so the sky's ink is not their contrast
+   * partner and `theme-contrast.test.ts` is what holds them. They are due to
+   * be reworked when the controls are, and this list is what will say whether
+   * that actually happened.
+   */
+  const OFF_FIELD: readonly string[] = [Colors.light.onPrimary];
+
+  /**
+   * Every colour the rendered tree draws a word in.
+   *
+   * Read off the host tree rather than off the components, because the
+   * question is what reached a pixel. A `Text` whose style resolves to no
+   * colour inherits one, so it is not a second colour and is left out.
+   */
+  function textColours(tree: unknown): string[] {
+    const found: string[] = [];
+
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+
+        return;
+      }
+
+      if (node === null || typeof node !== 'object') {
+        return;
+      }
+
+      const { type, props, children } = node as {
+        type?: string;
+        props?: { style?: unknown };
+        children?: unknown;
+      };
+
+      if (type === 'Text') {
+        const flat = StyleSheet.flatten(props?.style as never) as
+          | { color?: unknown }
+          | undefined;
+        const colour = flat?.color;
+
+        if (typeof colour === 'string') {
+          found.push(colour);
+        }
+      }
+
+      walk(children);
+    };
+
+    walk(tree);
+
+    return found;
+  }
+
+  it('uses one colour for everything except the labels inside controls', async () => {
+    getTodayMock.mockReturnValue('2026-09-09' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    const drawn = textColours(screen.toJSON());
+
+    const onField = [...new Set(drawn.filter((colour) => !OFF_FIELD.includes(colour)))];
+
+    expect(onField).toEqual([INK]);
+
+    // And every exception is still earning its place. An allow-list nobody
+    // prunes is how the next colour gets in: one stale entry and the rule has
+    // a hole shaped like whatever used to be there.
+    expect([...new Set(drawn.filter((colour) => OFF_FIELD.includes(colour)))]).toEqual(
+      OFF_FIELD
+    );
+  });
+
+  it('leaves the label inside a filled control alone', async () => {
+    // The rule is about words on the field, and the selected tab is not on
+    // it - it paints itself. This went wrong once in exactly the direction
+    // the rule pushes: the tab label followed the sky ink onto its own violet
+    // fill and came out dark on dark. A control that fills itself has to name
+    // its own colour, and this is what says whether it still does.
+    getTodayMock.mockReturnValue('2026-09-09' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    const selected = screen.getAllByRole('tab').find(
+      (tab) => tab.props.accessibilityState?.selected === true
+    );
+
+    expect(textColours(selected)).toEqual([Colors.light.onPrimary]);
+  });
+
+  it('draws plenty of it, so the rule cannot pass on an empty tree', async () => {
+    // Without this, a screen that rendered no text at all would satisfy the
+    // assertion above by having no colours to disagree about.
+    getTodayMock.mockReturnValue('2026-09-09' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(profile());
+
+    const screen = await renderScreen();
+
+    const inked = textColours(screen.toJSON()).filter((colour) => colour === INK);
+
+    expect(inked.length).toBeGreaterThan(5);
+  });
+
+  it('keeps the loading screen on the same rule', async () => {
+    // The screen a person sees first, and the one that was a white page until
+    // recently. `textSecondary` measured 4.24:1 on the pale end of the waking
+    // field, which is how it earned a place here.
+    db.openAppDatabase.mockReturnValue(new Promise(() => {}));
+
+    const screen = await render(<HomeScreen />);
+
+    expect([...new Set(textColours(screen.toJSON()))]).toEqual([INK]);
+  });
+});

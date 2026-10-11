@@ -4,7 +4,8 @@ import { ThemeColor } from '@/constants/theme';
 import { fontFamilyFor } from '@/constants/fonts';
 import { TEXT_SCALE, type TextType } from '@/constants/typography';
 import { useFontScale } from '@/hooks/use-font-scale';
-import { useTheme } from '@/hooks/use-theme';
+import { useOnSky } from '@/features/cycle/components/on-sky';
+import { useSky, useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
   type?: TextType;
@@ -49,6 +50,8 @@ export function ThemedText({
   ...rest
 }: ThemedTextProps) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
   const fontScale = useFontScale();
 
   const scale = TEXT_SCALE[type];
@@ -60,7 +63,15 @@ export function ThemedText({
     // dark mode. It is the accent, which is what every other link-coloured
     // thing in the app already uses and is held to 4.5:1 in both schemes by
     // `theme-contrast.test.ts`.
-    { color: type === 'linkPrimary' ? theme.primary : theme[themeColor ?? 'text'] },
+    // On a field there is one ink and `themeColor` does not apply, because the
+    // theme's colours are chosen for a page and there is no page underneath.
+    // This is not a convenience: `textSecondary` measured 1.97:1 on light
+    // night, and it reached the screen through exactly this line.
+    //
+    // A caller that names its own `color` in `style` still wins, which is how
+    // the hero sets its own and how a filled button keeps a label that is not
+    // the ink.
+    { color: onSky ? sky.ink : type === 'linkPrimary' ? theme.primary : theme[themeColor ?? 'text'] },
     {
       fontSize: scale.fontSize,
       fontWeight: scale.fontWeight,

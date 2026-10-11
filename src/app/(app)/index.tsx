@@ -432,7 +432,7 @@ export default function HomeScreen() {
       <SkyBackdrop colors={sky.waking} testID="sky-waking">
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
           <ActivityIndicator testID="cycle-dashboard-loading" color={sky.ink} />
-          <ThemedText type="small" style={[styles.centeredText, { color: sky.inkSoft }]}>
+          <ThemedText type="small" style={[styles.centeredText, { color: sky.ink }]}>
             {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
@@ -703,7 +703,6 @@ export default function HomeScreen() {
                     avatar === null ? home.avatarCreateLabel : home.avatarEditLabel
                   }
                   ink={sky.ink}
-                  inkSoft={sky.inkSoft}
                   isScrubbing={isScrubbing}
                   scrubHint={home.scrubHeading}
                 />
@@ -716,7 +715,7 @@ export default function HomeScreen() {
                   onScrub={setScrubbedDay}
                   onScrubEnd={() => setScrubbedDay(null)}
                   tint={sky.ink}
-                  dimTint={sky.inkSoft}
+                  dimTint={sky.inkMark}
                   testID="cycle-arc"
                 />
               )}

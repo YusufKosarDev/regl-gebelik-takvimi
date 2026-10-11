@@ -54,7 +54,6 @@ export function SkyHero({
   onOpenAvatar,
   openAvatarLabel,
   ink,
-  inkSoft,
   isScrubbing,
   scrubHint,
 }: {
@@ -94,7 +93,6 @@ export function SkyHero({
   readonly onOpenAvatar: () => void;
   readonly openAvatarLabel: string;
   readonly ink: string;
-  readonly inkSoft: string;
   /** True while a drag is showing a day other than today. */
   readonly isScrubbing: boolean;
   /** Shown in place of the date while scrubbing, so the date cannot read as today. */
@@ -106,6 +104,11 @@ export function SkyHero({
   // uncapped 96-point number is taller than the space it is centred in.
   const numberSize = Math.round(96 * Math.min(scale, 1.35));
   const captionSize = Math.round(15 * scale);
+  // The two small labels - "Bugün", "Döngü günü". They sit back by being
+  // smaller, lighter in weight and more widely spaced; they do not sit back by
+  // being a paler colour, because on a field that is the one move that cannot
+  // be made safe. See `constants/sky.ts`.
+  const labelSize = Math.round(13 * scale);
   const phaseSize = Math.round(22 * scale);
   const sentenceSize = Math.round(16 * scale);
 
@@ -116,10 +119,11 @@ export function SkyHero({
           <Text
             style={[
               {
-                color: inkSoft,
-                fontSize: captionSize,
-                lineHeight: Math.round(captionSize * 1.4),
-                fontFamily: fontFamilyFor('sans', '500'),
+                color: ink,
+                fontSize: labelSize,
+                lineHeight: Math.round(labelSize * 1.5),
+                fontFamily: fontFamilyFor('sans', '400'),
+                letterSpacing: 0.4,
               },
             ]}>
             {isScrubbing ? scrubHint : todayHeading}
@@ -181,10 +185,11 @@ export function SkyHero({
           style={[
             styles.caption,
             {
-              color: inkSoft,
-              fontSize: captionSize,
-              lineHeight: Math.round(captionSize * 1.4),
-              fontFamily: fontFamilyFor('sans', '500'),
+              color: ink,
+              fontSize: labelSize,
+              lineHeight: Math.round(labelSize * 1.5),
+              fontFamily: fontFamilyFor('sans', '400'),
+              letterSpacing: 0.4,
             },
           ]}>
           {dayCaption}
@@ -230,7 +235,7 @@ export function SkyHero({
             style={[
               styles.sentence,
               {
-                color: inkSoft,
+                color: ink,
                 fontSize: sentenceSize,
                 lineHeight: Math.round(sentenceSize * 1.5),
                 fontFamily: fontFamilyFor('sans', '400'),

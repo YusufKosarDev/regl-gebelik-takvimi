@@ -1,6 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 
-import { useTheme } from '@/hooks/use-theme';
+import { useOnSky } from '@/features/cycle/components/on-sky';
+import { useSky, useTheme } from '@/hooks/use-theme';
 import type { ThemeColor } from '@/constants/theme';
 
 /**
@@ -23,6 +24,18 @@ import type { ThemeColor } from '@/constants/theme';
  * times and the fourth call site picks a different one, which is how an app
  * ends up wearing two icon families at once. \`IconName\` is a closed union for
  * the same reason: adding one is a decision, not an autocomplete.
+ *
+ * ## On a sky field it takes the ink
+ *
+ * The default is `textSecondary`, a page colour, which on the light fields
+ * measures between 1.97:1 and 3.38:1. A chevron is the only thing saying that
+ * a row goes somewhere - this file says so four paragraphs up - so it carries
+ * meaning, and 3:1 is a floor rather than a nicety.
+ *
+ * Found by the test that renders the home screen and reads the colour off
+ * every drawn glyph, which is the only way it could have been found: under
+ * Jest these come out as empty text, and on a device they are small, grey and
+ * exactly the kind of thing an eye forgives.
  *
  * ## It is never a stop for a screen reader
  *
@@ -53,12 +66,14 @@ export function Icon({
   readonly themeColor?: ThemeColor;
 }) {
   const theme = useTheme();
+  const sky = useSky();
+  const onSky = useOnSky();
 
   return (
     <Feather
       name={name}
       size={size}
-      color={theme[themeColor]}
+      color={onSky ? sky.ink : theme[themeColor]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />
