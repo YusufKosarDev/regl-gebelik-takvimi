@@ -141,8 +141,15 @@ function LinkRow({
   readonly text: string;
   readonly onPress: () => void;
 }) {
+  // No rule above it any more. A hairline between every row is the
+  // settings-list idiom, and five of them stacked under a sky were the
+  // strongest flat-page signal left on the screen: a column of boxes drawn on
+  // something that has no boxes in it.
+  //
+  // What separates the rows now is space, which the field was already
+  // providing for free. The chevron still says each one goes somewhere.
   return (
-    <Surface level="lined" style={styles.row}>
+    <Surface level="bare" style={styles.row}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -174,7 +181,10 @@ const styles = StyleSheet.create({
     // makes the five rows scan as a column rather than as five sentences.
     justifyContent: 'space-between',
     gap: Spacing.three,
-    paddingVertical: Spacing.three,
+    // Wider than it was, because the rule that used to hold the rows apart has
+    // gone and space is what replaces it. Below this the five rows run
+    // together into one block of words.
+    paddingVertical: Spacing.four,
   },
   pressed: {
     opacity: 0.6,

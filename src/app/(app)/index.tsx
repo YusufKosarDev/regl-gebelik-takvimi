@@ -703,6 +703,8 @@ export default function HomeScreen() {
                     avatar === null ? home.avatarCreateLabel : home.avatarEditLabel
                   }
                   ink={sky.ink}
+                  glass={sky.glass}
+                  glassEdge={sky.glassEdge}
                   isScrubbing={isScrubbing}
                   scrubHint={home.scrubHeading}
                 />

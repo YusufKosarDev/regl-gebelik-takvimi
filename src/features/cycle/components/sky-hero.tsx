@@ -54,6 +54,8 @@ export function SkyHero({
   onOpenAvatar,
   openAvatarLabel,
   ink,
+  glass,
+  glassEdge,
   isScrubbing,
   scrubHint,
 }: {
@@ -93,6 +95,9 @@ export function SkyHero({
   readonly onOpenAvatar: () => void;
   readonly openAvatarLabel: string;
   readonly ink: string;
+  /** The glass the avatar sits on, so it is in the sky rather than on it. */
+  readonly glass: string;
+  readonly glassEdge: string;
   /** True while a drag is showing a day other than today. */
   readonly isScrubbing: boolean;
   /** Shown in place of the date while scrubbing, so the date cannot read as today. */
@@ -154,7 +159,9 @@ export function SkyHero({
             onPress={onOpenAvatar}
             testID="home-avatar-button"
             style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}>
-            <AvatarPreview config={avatar} size="small" testID="home-avatar-preview" />
+            <View style={[styles.avatarDisc, { backgroundColor: glass, borderTopColor: glassEdge }]}>
+              <AvatarPreview config={avatar} size="small" testID="home-avatar-preview" />
+            </View>
           </Pressable>
         )}
       </View>
@@ -266,6 +273,20 @@ const styles = StyleSheet.create({
   date: {},
   avatar: {
     marginLeft: Spacing.three,
+  },
+  avatarDisc: {
+    // The illustration used to float with a hard edge against a field that has
+    // none, which made it look like a sticker rather than like a person who
+    // lives here. The disc is the same glass the blocks below are made of, so
+    // it belongs to the sky, and the bust is cropped to it the way a portrait
+    // is - head up, shoulders running off the bottom.
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   pressed: {
     opacity: 0.7,
