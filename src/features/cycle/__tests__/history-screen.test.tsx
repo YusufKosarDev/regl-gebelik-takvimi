@@ -9,6 +9,7 @@ import {
 import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
 
 // The database is faked. The use case, the repository contract and the ordering
 // rule stay real, so what the screen lists is what the app would really read.
@@ -2088,5 +2089,13 @@ describe('when a sync replaces the history underneath', () => {
 
     expect(screen.getByLabelText('Sil')).toBeTruthy();
     expect(screen.queryByText(/Veriler başka bir cihazdan güncellendi/)).toBeNull();
+  });
+});
+
+describe('HistoryScreen under the floating tab bar', () => {
+  it('leaves room for the bar so its last row is not hidden under it', async () => {
+    const screen = await renderScreen();
+
+    expectClearsTabBar(screen.toJSON());
   });
 });

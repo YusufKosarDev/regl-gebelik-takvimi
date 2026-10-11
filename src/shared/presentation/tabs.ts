@@ -40,11 +40,37 @@ export type Tab = {
   readonly href: Href;
   /** Its word, in `tab-messages`. */
   readonly label: keyof TabMessages;
+  /**
+   * Whether the screen behind this tab paints a sky field.
+   *
+   * The bar floats over the screen, so what it is made of depends on what is
+   * under it: glass when there is a field for the sky to show through, a card
+   * colour when there is a page. Nothing in the tree can answer that for it -
+   * `useOnSky` reads from above and the screen is below - so the answer is
+   * written here and the layout hands it down.
+   *
+   * One is true today. Each later stage that moves a screen onto a field
+   * flips its entry, and the test that counts them is the record of how far
+   * that has got.
+   */
+  readonly field: boolean;
 };
 
 export const TABS: readonly Tab[] = [
-  { name: 'index', href: '/', label: 'cycleLabel' },
-  { name: 'calendar', href: '/calendar', label: 'calendarLabel' },
-  { name: 'history', href: '/history', label: 'historyLabel' },
-  { name: 'settings', href: '/settings', label: 'profileLabel' },
+  { name: 'index', href: '/', label: 'cycleLabel', field: true },
+  { name: 'calendar', href: '/calendar', label: 'calendarLabel', field: false },
+  { name: 'history', href: '/history', label: 'historyLabel', field: false },
+  { name: 'settings', href: '/settings', label: 'profileLabel', field: false },
 ];
+
+/**
+ * Which tab a path is inside.
+ *
+ * Unknown paths answer with the first tab rather than with nothing. The bar is
+ * drawn on the first frame, before the router has settled, and it is also
+ * drawn underneath the screens pushed on top of the tabs - whose paths are
+ * none of these. Both want a bar that is drawn, not a crash on an undefined.
+ */
+export function activeTab(pathname: string): Tab {
+  return TABS.find((tab) => tab.href === pathname) ?? TABS[0];
+}

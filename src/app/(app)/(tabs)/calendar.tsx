@@ -24,6 +24,7 @@ import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
 
 /**
  * The month calendar, on its own screen.
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   message: { textAlign: 'center' },
-  scrollContent: { paddingBottom: Spacing.five },
+  scrollContent: { paddingBottom: Spacing.five + TAB_BAR_HEIGHT },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,

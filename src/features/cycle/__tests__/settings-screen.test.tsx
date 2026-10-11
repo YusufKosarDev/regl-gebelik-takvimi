@@ -25,6 +25,7 @@ import {
 } from '@/features/cycle/domain/limits';
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
+import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
 
 // The database is faked. The use cases, the repository contract and the domain
 // rules stay real, so the stepper is bounded by the limits the app really has.
@@ -1577,5 +1578,13 @@ describe('SettingsScreen discreet notifications', () => {
     });
 
     expect(permissionModule.ensureNotificationPermission).not.toHaveBeenCalled();
+  });
+});
+
+describe('SettingsScreen under the floating tab bar', () => {
+  it('leaves room for the bar so its last row is not hidden under it', async () => {
+    const screen = await renderLoaded();
+
+    expectClearsTabBar(screen.toJSON());
   });
 });

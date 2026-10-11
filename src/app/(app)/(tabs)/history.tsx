@@ -31,6 +31,7 @@ import {
 } from '@/features/cycle/presentation/history-messages';
 
 import { logEvent } from '@/shared/logging';
+import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
 
 /**
  * The recorded periods, and the corrections that can be made to them.
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.five + TAB_BAR_HEIGHT,
   },
   content: {
     width: '100%',

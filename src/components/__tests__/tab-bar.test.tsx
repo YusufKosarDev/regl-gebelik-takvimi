@@ -5,7 +5,7 @@ import { Sky } from '@/constants/sky';
 import { Colors } from '@/constants/theme';
 import { OnSkyProvider } from '@/features/cycle/components/on-sky';
 
-import { TabBar, TabBarButton } from '../tab-bar';
+import { TAB_BAR_HEIGHT, TabBar, TabBarButton } from '../tab-bar';
 
 /**
  * The one control that is on every screen.
@@ -116,14 +116,18 @@ describe('a tab in the bar', () => {
     });
   });
 
-  it('is big enough to hit', async () => {
+  it('is big enough to hit, and says how much room it takes', async () => {
     // The bar is the one control on every screen; it does not get to be the
-    // one that is 32 points tall.
+    // one that is 32 points tall. The constant is asserted against the style
+    // rather than written twice, because the screens underneath pad by it to
+    // keep their last row out from under the bar - and a constant that drifts
+    // from the real height hides a row instead of clearing it.
     const { getByRole } = await renderButton({ label: 'Geçmiş', isFocused: false });
 
     const flat = StyleSheet.flatten(getByRole('tab', { name: 'Geçmiş' }).props.style);
 
     expect(flat?.minHeight).toBeGreaterThanOrEqual(48);
+    expect(flat?.minHeight).toBe(TAB_BAR_HEIGHT);
   });
 
   it('keeps its share of the bar even when the trigger passes a style', async () => {

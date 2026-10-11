@@ -6,6 +6,26 @@ import { useOnSky } from '@/features/cycle/components/on-sky';
 import { useSky, useTheme } from '@/hooks/use-theme';
 
 /**
+ * How much of the screen the bar covers.
+ *
+ * The bar floats over the content rather than sitting under it, because that
+ * is the only way glass can have a field behind it to show through - a bar in
+ * the flow has the layout's own background there instead, which on a sky
+ * screen is the hole in it that `surface.tsx` warns about.
+ *
+ * Floating means the last row of a screen would otherwise end up underneath
+ * the bar, so the screens pad their scroll content by this. It is asserted
+ * against the real style in `__tests__/tab-bar.test.tsx`: a constant that
+ * drifts from the height hides a row rather than clearing it, and it would do
+ * it silently.
+ *
+ * The bottom safe area is not in here. The bar takes that itself, and every
+ * screen already takes its own, so each stops above the gesture bar and this
+ * is the whole of what is left to clear.
+ */
+export const TAB_BAR_HEIGHT = 48;
+
+/**
  * The bar the four words sit in.
  *
  * ## It is made of whatever is behind it
@@ -124,7 +144,7 @@ const styles = StyleSheet.create({
     flex: 1,
     // The one control on every screen does not get to be the one under the
     // touch target.
-    minHeight: 48,
+    minHeight: TAB_BAR_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.one,

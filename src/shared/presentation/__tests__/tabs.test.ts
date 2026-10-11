@@ -1,4 +1,4 @@
-import { TABS } from '../tabs';
+import { TABS, activeTab } from '../tabs';
 import { tabMessages } from '../tab-messages';
 
 /**
@@ -29,6 +29,32 @@ describe('the four tabs', () => {
       expect([tab.name, typeof tabMessages.tr[tab.label]]).toEqual([tab.name, 'string']);
       expect([tab.name, typeof tabMessages.en[tab.label]]).toEqual([tab.name, 'string']);
     }
+  });
+
+  it('says which tabs draw a sky field behind them', () => {
+    // The bar floats over the screen, so what it is made of depends on what is
+    // underneath it: glass over a field, a card colour over a page. Nothing in
+    // the tree can tell it - `useOnSky` answers from above, and the screen is
+    // below - so the tabs carry the answer themselves.
+    //
+    // One today. Each later stage that puts a screen on a field flips its
+    // entry here, and this line is the record of how far that has got.
+    expect(TABS.filter((tab) => tab.field).map((tab) => tab.name)).toEqual(['index']);
+  });
+
+  it('knows which tab a path belongs to', () => {
+    expect(activeTab('/').name).toBe('index');
+    expect(activeTab('/calendar').name).toBe('calendar');
+    expect(activeTab('/history').name).toBe('history');
+    expect(activeTab('/settings').name).toBe('settings');
+  });
+
+  it('treats a path it does not know as the first tab', () => {
+    // The bar is drawn before the router has settled on anything, and on a
+    // pushed screen the path is none of these. Falling back to the first tab
+    // keeps the bar drawn rather than crashing on an undefined.
+    expect(activeTab('/account').name).toBe('index');
+    expect(activeTab('').name).toBe('index');
   });
 
   it('gives no two tabs the same label', () => {

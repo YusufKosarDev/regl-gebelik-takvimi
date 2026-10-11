@@ -67,6 +67,7 @@ import { heroHeightFor } from '@/features/cycle/presentation/hero-height';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
+import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
 
 /**
  * Today's cycle summary.
@@ -800,18 +801,31 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
     /**
-     * Breathing room under the arc, and nothing more than that.
+     * Breathing room under the arc, plus the bar that floats over it.
      *
-     * It used to be forty-eight points and it was not breathing room - it was
-     * compensation for the hero being a whole viewport tall inside a container
-     * that had already spent `SCROLL_TOP_INSET` of it. That is fixed where it
-     * was caused, in `heroHeight`, so this is free to be a design value again.
+     * The first half of this used to be forty-eight points and was not
+     * breathing room - it was compensation for the hero being a whole viewport
+     * tall inside a container that had already spent `SCROLL_TOP_INSET` of it.
+     * That is fixed where it was caused, in `heroHeight`.
+     *
+     * The second half is not that mistake repeated, and the difference is
+     * worth stating because it looks identical. The tab bar is positioned
+     * absolutely so glass has the field behind it to show through, so it
+     * covers the foot of the viewport without taking any height from it. The
+     * hero still has to be a whole viewport - that is what keeps the next
+     * block out of sight until somebody scrolls - and its contents still have
+     * to sit above the bar. Those two can only both be true if the room for
+     * the bar comes out of the hero's padding rather than its height.
+     *
+     * Taking it off the height instead was tried, and it moved the collision
+     * rather than fixing it: the arc cleared the bar and the fertility heading
+     * underneath appeared through the glass.
      *
      * The safe-area inset is not this number's job either: `SafeAreaView`
      * already holds the gesture bar off, measured at twenty-four points on the
-     * device this was checked on.
+     * device this was checked on, and the bar takes its own.
      */
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.three + TAB_BAR_HEIGHT,
     gap: Spacing.three,
   },
   screen: {
@@ -839,7 +853,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: SCROLL_TOP_INSET,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.five + TAB_BAR_HEIGHT,
   },
   content: {
     width: '100%',

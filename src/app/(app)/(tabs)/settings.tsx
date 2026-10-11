@@ -62,6 +62,7 @@ import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
+import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
 
 /**
  * The longest period length that makes sense alongside a given cycle length.
@@ -825,7 +826,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.five + TAB_BAR_HEIGHT,
   },
   content: {
     width: '100%',

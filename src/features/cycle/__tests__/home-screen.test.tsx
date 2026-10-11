@@ -11,6 +11,7 @@ import type { AppMode } from '@/types/app-state';
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
 
 // The database and the clock are faked. The use case, the repository contract
 // and every domain rule stay real, so what the screen prints is what the domain
@@ -4138,5 +4139,13 @@ describe('nothing on the sky paints itself a page colour', () => {
     const screen = await renderScreen();
 
     expect(backgroundColours(screen.toJSON())).toContain(Sky.light.glass);
+  });
+});
+
+describe('HomeScreen under the floating tab bar', () => {
+  it('leaves room for the bar so its last row is not hidden under it', async () => {
+    const screen = await renderScreen();
+
+    expectClearsTabBar(screen.toJSON());
   });
 });
