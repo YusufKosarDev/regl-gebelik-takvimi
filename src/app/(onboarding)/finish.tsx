@@ -118,6 +118,16 @@ export default function FinishScreen() {
             <ThemedText themeColor="textSecondary" style={styles.description}>
               {onboarding.finishDescription}
             </ThemedText>
+
+            {/* What the flow assumed rather than asked.
+
+                Two screens used to collect these, each pre-filled with the
+                figure most people would give. Dropping them is only honest if
+                the app says what it put in their place and where to change
+                it. */}
+            <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
+              {onboarding.finishAssumed(cycleLength, periodLength)}
+            </ThemedText>
           </View>
         </ScrollView>
 

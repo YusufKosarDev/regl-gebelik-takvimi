@@ -535,3 +535,28 @@ describe('FinishScreen period reminder sync', () => {
     expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * What the flow stopped asking for, said out loud.
+ *
+ * Ours. Two screens used to collect the cycle and period lengths, each
+ * pre-filled with the figure most people would give. They are gone and the
+ * figures are assumed - which is only honest if the last screen of the flow
+ * says that is what happened and where to change it. An app that quietly
+ * decides somebody's cycle is twenty-eight days has not saved them a screen,
+ * it has made something up on their behalf.
+ */
+describe('FinishScreen says what was assumed', () => {
+  it('names both figures it did not ask for', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText(/28/)).toBeTruthy();
+    expect(screen.getByText(/5/)).toBeTruthy();
+  });
+
+  it('says where they can be changed', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByText(/Profil/)).toBeTruthy();
+  });
+});

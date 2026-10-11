@@ -15,6 +15,10 @@ import type { ISODate } from '@/types/iso-date';
 import { addDays, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
+import {
+  DEFAULT_CYCLE_LENGTH_DAYS,
+  DEFAULT_PERIOD_LENGTH_DAYS,
+} from '@/features/cycle/domain/limits';
 
 /**
  * Third onboarding input: when the last period started.
@@ -30,30 +34,21 @@ export default function LastPeriodScreen() {
   const theme = useTheme();
   const onboarding = useMessages(onboardingMessages);
   const language = useLanguage();
-  const params = useLocalSearchParams<{
-    cycleLength?: string | string[];
-    periodLength?: string | string[];
-  }>();
-
-  const cycleLength = parseCycleLengthParam(params.cycleLength);
-  const periodLength =
-    cycleLength === null ? null : parsePeriodLengthParam(params.periodLength, cycleLength);
+  /**
+   * The two lengths are no longer asked for, so they arrive as the defaults.
+   *
+   * The flow used to spend a screen on each, both pre-filled with the figure
+   * most people would give, before it got to the one question the app cannot
+   * guess. Those screens are gone and the figures live in the domain; the
+   * settings tab is where somebody changes them, and the last screen of this
+   * flow says so.
+   */
+  const cycleLength = DEFAULT_CYCLE_LENGTH_DAYS;
+  const periodLength = DEFAULT_PERIOD_LENGTH_DAYS;
 
   // Read once on mount so the "is today" comparison cannot shift mid-session.
   const [today] = useState<ISODate>(() => getTodayLocalISODate());
   const [selectedDate, setSelectedDate] = useState<ISODate>(today);
-
-  if (cycleLength === null || periodLength === null) {
-    return (
-      <ThemedView style={styles.screen}>
-        <SafeAreaView style={styles.errorArea}>
-          <ThemedText type="subtitle" style={styles.errorText}>
-            {onboarding.invalidCycleInfoMessage}
-          </ThemedText>
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
 
   const readableDate = formatDisplayDate(selectedDate, language);
   const canGoToNextDay = daysBetween(selectedDate, today) > 0;
@@ -119,7 +114,7 @@ export default function LastPeriodScreen() {
             accessibilityLabel={onboarding.continueLabel}
             onPress={() =>
               router.push({
-                pathname: '/(onboarding)/review',
+                pathname: '/(onboarding)/finish',
                 params: {
                   cycleLength: String(cycleLength),
                   periodLength: String(periodLength),

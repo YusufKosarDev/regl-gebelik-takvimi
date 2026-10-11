@@ -246,14 +246,14 @@ describe('LastPeriodScreen date boundaries', () => {
 });
 
 describe('LastPeriodScreen navigation', () => {
-  it('forwards all three values', async () => {
+  it('forwards the date it asked for and the two lengths it did not', async () => {
     const { submit } = await renderScreen({ today: '2026-09-17' });
 
     await fireEvent.press(submit());
 
     expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith({
-      pathname: '/(onboarding)/review',
+      pathname: '/(onboarding)/finish',
       params: {
         cycleLength: '28',
         periodLength: '5',
@@ -269,7 +269,7 @@ describe('LastPeriodScreen navigation', () => {
     await fireEvent.press(submit());
 
     expect(push).toHaveBeenCalledWith({
-      pathname: '/(onboarding)/review',
+      pathname: '/(onboarding)/finish',
       params: {
         cycleLength: '28',
         periodLength: '5',
@@ -278,7 +278,12 @@ describe('LastPeriodScreen navigation', () => {
     });
   });
 
-  it('keeps the incoming values untouched', async () => {
+  it('uses the defaults whatever the link says, because it no longer asks', async () => {
+    // This used to assert that lengths arriving in the route were passed
+    // through. Nothing sends them now - the two screens that collected them
+    // are gone and the figures come from the domain - so what is worth
+    // holding is the opposite: a link carrying lengths cannot put a profile
+    // into the app behind the flow's back.
     const { submit } = await renderScreen({
       today: '2026-09-17',
       cycleLength: '35',
@@ -288,10 +293,10 @@ describe('LastPeriodScreen navigation', () => {
     await fireEvent.press(submit());
 
     expect(push).toHaveBeenCalledWith({
-      pathname: '/(onboarding)/review',
+      pathname: '/(onboarding)/finish',
       params: {
-        cycleLength: '35',
-        periodLength: '7',
+        cycleLength: '28',
+        periodLength: '5',
         lastPeriodStartDate: '2026-09-17',
       },
     });
@@ -303,52 +308,6 @@ describe('LastPeriodScreen navigation', () => {
     await fireEvent.press(previous());
 
     expect(push).not.toHaveBeenCalled();
-  });
-});
-
-describe('LastPeriodScreen with unusable params', () => {
-  it.each<[string, unknown, unknown]>([
-    ['a missing cycle length', undefined, '5'],
-    ['a non-numeric cycle length', 'abc', '5'],
-    ['a cycle length below the minimum', '14', '5'],
-    ['a cycle length above the maximum', '91', '5'],
-    ['an array cycle length', ['28'], '5'],
-    ['a missing period length', '28', undefined],
-    ['a non-numeric period length', '28', 'abc'],
-    ['a zero period length', '28', '0'],
-    ['a period length above the maximum', '28', '21'],
-    ['a non-integer period length', '28', '5.5'],
-    ['an array period length', '28', ['5']],
-    ['a period longer than the cycle', '15', '16'],
-  ])('shows the error screen for %s', async (_label, cycleLength, periodLength) => {
-    useLocalSearchParamsMock.mockReturnValue({ cycleLength, periodLength });
-
-    const { getByText } = await render(<LastPeriodScreen />);
-
-    expect(getByText('Geçersiz döngü bilgisi.')).toBeTruthy();
-  });
-
-  it('offers no controls', async () => {
-    useLocalSearchParamsMock.mockReturnValue({ cycleLength: 'abc', periodLength: '5' });
-
-    const { queryAllByRole, queryByText } = await render(<LastPeriodScreen />);
-
-    expect(queryAllByRole('button')).toHaveLength(0);
-    expect(queryByText('Devam')).toBeNull();
-    expect(queryByText('Önceki gün')).toBeNull();
-    expect(queryByText('Sonraki gün')).toBeNull();
-  });
-
-  it('does not navigate or touch any other layer', async () => {
-    useLocalSearchParamsMock.mockReturnValue({ cycleLength: '28', periodLength: '21' });
-
-    await render(<LastPeriodScreen />);
-
-    expect(push).not.toHaveBeenCalled();
-    expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
-    expect(db.openAppDatabase).not.toHaveBeenCalled();
-    expect(repository.saveCycleProfile).not.toHaveBeenCalled();
-    expect(useCase.completeCycleOnboarding).not.toHaveBeenCalled();
   });
 });
 

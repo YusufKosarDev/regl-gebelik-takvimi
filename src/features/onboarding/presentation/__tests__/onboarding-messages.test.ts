@@ -14,6 +14,7 @@ describe('parity', () => {
   describeCatalogueParity(onboardingMessages, {
     functions: [
       ['daysUnit', [0], [1], [2], [28]],
+      ['finishAssumed', [28, 5]],
       ['cycleLengthValueLabel', [1], [28]],
       ['periodLengthValueLabel', [1], [5]],
       ['selectedDateLabel', ['17 September 2026']],

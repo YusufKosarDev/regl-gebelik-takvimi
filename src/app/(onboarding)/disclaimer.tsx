@@ -67,7 +67,7 @@ export default function OnboardingDisclaimerScreen() {
             accessibilityRole="button"
             accessibilityLabel={onboarding.disclaimerContinueLabel}
             accessibilityHint={onboarding.disclaimerContinueHint}
-            onPress={() => router.push('/(onboarding)/cycle-settings')}
+            onPress={() => router.push('/(onboarding)/last-period')}
             style={({ pressed }) => [
               styles.button,
               { backgroundColor: theme.primary },

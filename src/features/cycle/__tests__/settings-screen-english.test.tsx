@@ -31,7 +31,15 @@ import { settingsMessages } from '../presentation/settings-messages';
 jest.mock('expo-router', () => require('../../../../jest/expo-router-mock'));
 
 jest.mock('@/features/auth/data/auth-repository', () => ({
-  observeAuthUser: jest.fn(() => () => {}),
+  // Reports signed-out straight away, which is what Firebase does on a device
+  // with no session. Left silent it sat on loading for the whole file, and
+  // the profile block at the top of this screen could only ever be caught
+  // mid-question - a green sweep that never saw the state it was sweeping.
+  observeAuthUser: jest.fn((listener) => {
+    listener(null);
+
+    return () => {};
+  }),
   signOut: jest.fn(),
   getCurrentAuthUser: jest.fn(() => null),
 }));

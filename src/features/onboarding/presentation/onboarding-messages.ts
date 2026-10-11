@@ -124,6 +124,18 @@ const onboardingMessagesTr = {
   finishTitle: 'Her şey hazır',
   finishDescription: 'Bilgilerini kaydedip döngü takibine başlayabilirsin.',
 
+  /**
+   * What the flow assumed rather than asked.
+   *
+   * Two screens used to collect these, each pre-filled with the figure most
+   * people would give. Dropping the screens is only honest if the app says
+   * what it put in their place and where to change it - an app that quietly
+   * decides somebody's cycle is twenty-eight days has not saved them a
+   * screen, it has made something up on their behalf.
+   */
+  finishAssumed: (cycleLength: number, periodLength: number) =>
+    `Döngünü ${cycleLength} gün, regl süreni ${periodLength} gün varsaydık. İkisini de Profil sekmesinden değiştirebilirsin.`,
+
   finishStartLabel: 'Takibe başla',
   finishSavingLabel: 'Kaydediliyor...',
 
@@ -202,6 +214,9 @@ const onboardingMessagesEn: OnboardingMessages = {
 
   finishTitle: 'All set',
   finishDescription: 'Save what you entered and start following your cycle.',
+
+  finishAssumed: (cycleLength: number, periodLength: number) =>
+    `We have assumed a ${cycleLength}-day cycle and a ${periodLength}-day period. You can change both in the Profile tab.`,
 
   finishStartLabel: 'Start tracking',
   finishSavingLabel: 'Saving...',

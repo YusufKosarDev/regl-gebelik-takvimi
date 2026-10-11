@@ -88,7 +88,7 @@ describe('getting past it', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Devam et' }));
 
     expect(push).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledWith('/(onboarding)/cycle-settings');
+    expect(push).toHaveBeenCalledWith('/(onboarding)/last-period');
   });
 
   it('collects nothing itself', async () => {

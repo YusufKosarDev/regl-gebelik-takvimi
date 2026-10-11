@@ -12,6 +12,22 @@
  * immutable history, so their literals stay written out in the migration file.
  */
 
+/**
+ * What the app assumes when nobody has said.
+ *
+ * These lived in an onboarding screen that asked for both of them before it
+ * asked the one thing it cannot guess. The screen pre-filled each question
+ * with the figure most people would give and then asked it anyway, which is
+ * two screens somebody can quit on for an answer the app already had.
+ *
+ * Here because two places need them now: the onboarding, which no longer
+ * asks, and the settings screen, which offers them as the starting point.
+ * `limits.test.ts` holds them inside the range above - a default outside it
+ * is a profile the app writes and then refuses to load.
+ */
+export const DEFAULT_CYCLE_LENGTH_DAYS = 28;
+export const DEFAULT_PERIOD_LENGTH_DAYS = 5;
+
 export const MIN_CYCLE_LENGTH_DAYS = 15;
 export const MAX_CYCLE_LENGTH_DAYS = 90;
 

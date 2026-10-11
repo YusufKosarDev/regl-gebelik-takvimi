@@ -221,15 +221,6 @@ const SCREENS: readonly [string, () => React.ComponentType][] = [
   ['the onboarding welcome screen', () => require('@/app/(onboarding)/index').default],
   ['the onboarding disclaimer screen', () => require('@/app/(onboarding)/disclaimer').default],
   ['the onboarding last period screen', () => require('@/app/(onboarding)/last-period').default],
-  [
-    'the onboarding cycle settings screen',
-    () => require('@/app/(onboarding)/cycle-settings').default,
-  ],
-  [
-    'the onboarding period length screen',
-    () => require('@/app/(onboarding)/period-length').default,
-  ],
-  ['the onboarding review screen', () => require('@/app/(onboarding)/review').default],
   ['the onboarding finish screen', () => require('@/app/(onboarding)/finish').default],
   ['the not-found screen', () => require('@/app/+not-found').default],
 ];
