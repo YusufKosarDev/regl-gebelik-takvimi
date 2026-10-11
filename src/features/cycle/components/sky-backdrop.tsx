@@ -1,6 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
+import { OnSkyProvider } from './on-sky';
+
 import type { SkyField } from '@/constants/sky';
 
 /**
@@ -35,10 +37,12 @@ export function SkyBackdrop({
   readonly testID?: string;
 }) {
   return (
-    <View style={styles.root} testID={testID}>
+    <OnSkyProvider value>
+      <View style={styles.root} testID={testID}>
       <LinearGradient colors={[...colors]} style={StyleSheet.absoluteFill} />
-      {children}
-    </View>
+        {children}
+      </View>
+    </OnSkyProvider>
   );
 }
 

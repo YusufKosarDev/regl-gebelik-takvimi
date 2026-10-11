@@ -11,6 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { OnSkyProvider } from './on-sky';
+
 import type { SkyField as SkyFieldColors } from '@/constants/sky';
 import { BLOOM_MS, DRIFT_MS, FIELD_FADE_MS } from '@/constants/sky';
 
@@ -242,7 +244,8 @@ export function SkyField({
   }));
 
   return (
-    <View style={styles.root} testID={testID}>
+    <OnSkyProvider value>
+      <View style={styles.root} testID={testID}>
       <LinearGradient colors={[...under]} style={StyleSheet.absoluteFill} />
 
       <Animated.View style={[StyleSheet.absoluteFill, overStyle]}>
@@ -309,8 +312,9 @@ export function SkyField({
         ]}
       />
 
-      {children}
-    </View>
+        {children}
+      </View>
+    </OnSkyProvider>
   );
 }
 
