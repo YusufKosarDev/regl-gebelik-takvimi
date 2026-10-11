@@ -68,6 +68,15 @@ export function HomeLinks({
     // hairlines separate these, and a gap as well would leave each line
     // floating between two rows instead of sitting under one.
     <View>
+      {/* First, because it is the one that left the home screen. The grid used
+          to be underneath the ring and is now a tap away; if that tap is hard
+          to find, moving it was a loss rather than a trade. */}
+      <LinkRow
+        label={home.calendarLinkLabel}
+        text={home.calendarLinkText}
+        onPress={() => router.push('/(app)/calendar')}
+      />
+
       <LinkRow
         label={home.historyLinkLabel}
         text={home.historyLinkText}
@@ -83,12 +92,19 @@ export function HomeLinks({
         onPress={() => router.push('/(app)/daily-log-history')}
       />
 
-      {/* The label says which of the two errands the link is on. */}
-      <LinkRow
-        label={avatar === null ? home.avatarCreateLabel : home.avatarEditLabel}
-        text={avatar === null ? home.avatarLinkText : home.avatarEditLabel}
-        onPress={() => router.push('/(app)/avatar')}
-      />
+      {/* Only when there is no avatar yet.
+
+          Once there is one it is on the home screen, at the top, and pressing
+          it opens the editor - so a row down here saying the same thing is the
+          same errand twice. Creating one still needs a way in, because there is
+          no face to press until there is a face. */}
+      {avatar === null && (
+        <LinkRow
+          label={home.avatarCreateLabel}
+          text={home.avatarLinkText}
+          onPress={() => router.push('/(app)/avatar')}
+        />
+      )}
 
       <LinkRow
         label={home.settingsLinkLabel}

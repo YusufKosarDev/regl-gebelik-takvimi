@@ -207,6 +207,7 @@ const SCREENS: readonly [string, () => React.ComponentType][] = [
   ['the settings screen', () => require('@/app/(app)/settings').default],
   ['the account screen', () => require('@/app/(app)/account').default],
   ['the about screen', () => require('@/app/(app)/about').default],
+  ['the calendar screen', () => require('@/app/(app)/calendar').default],
   ['the app lock screen', () => require('@/app/(app)/app-lock').default],
   ['the avatar screen', () => require('@/app/(app)/avatar').default],
   ['the daily entry screen', () => require('@/app/(app)/daily-entry').default],

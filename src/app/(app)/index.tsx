@@ -5,30 +5,31 @@ import {
   Linking,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { addPeriodStart } from '@/features/cycle/application/add-period-start';
-import { buildCycleCalendarGridForMonth } from '@/features/cycle/application/build-cycle-calendar-grid-for-month';
-import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
 import { buildCycleDayRing } from '@/features/cycle/application/build-cycle-day-ring';
 import { buildCycleOutlook } from '@/features/cycle/application/build-cycle-outlook';
 import { endCurrentPeriod } from '@/features/cycle/application/end-current-period';
-import { withoutPrediction } from '@/features/cycle/application/without-prediction';
 import { updateCycleSettings } from '@/features/cycle/application/update-cycle-settings';
 import type { CycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
-import { CycleCalendarSection } from '@/features/cycle/components/cycle-calendar-section';
 import { CycleLengthSuggestionCard } from '@/features/cycle/components/cycle-length-suggestion-card';
 import { HomeModeSwitch } from '@/features/cycle/components/home-mode-switch';
-import { CycleDayRing } from '@/features/cycle/components/cycle-day-ring';
+import { CycleArc } from '@/features/cycle/components/cycle-arc';
+import { SkyBackdrop } from '@/features/cycle/components/sky-backdrop';
+import { SkyField } from '@/features/cycle/components/sky-field';
+import { SkyHero } from '@/features/cycle/components/sky-hero';
 import { CycleSummary } from '@/features/cycle/components/cycle-summary';
 import { HomeLinks } from '@/features/cycle/components/home-links';
 import { PeriodActionCard } from '@/features/cycle/components/period-action-card';
@@ -49,20 +50,22 @@ import { DailyEntryCard } from '@/features/daily-log/components/daily-entry-card
 import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { emptyDailyEntry } from '@/features/daily-log/domain/catalogues';
+import { cycleDailySupport } from '@/features/cycle/data/cycle-daily-support';
+import { getCycleDailySupport } from '@/features/cycle/domain/daily-support';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
-import { useTheme } from '@/hooks/use-theme';
+import { useMotionAllowed } from '@/hooks/use-motion-allowed';
+import { useSky, useTheme } from '@/hooks/use-theme';
 import { appMessages } from '@/shared/presentation/app-messages';
 import { useLanguage, useMessages } from '@/i18n';
 import { useAppStore } from '@/store/app-store';
 
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
-import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { PregnancySection } from '@/features/pregnancy/components/pregnancy-section';
 import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
 import { homeMessages, summaryRowsIn } from '@/features/cycle/presentation/home-messages';
 import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
-import { formatDisplayDate, formatDisplayMonth } from '@/utils/format-date';
+import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
 
@@ -81,6 +84,20 @@ import { logEvent } from '@/shared/logging';
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const sky = useSky();
+  const motionAllowed = useMotionAllowed();
+  const { height: windowHeight } = useWindowDimensions();
+
+  /**
+   * The height of the scroll viewport, measured rather than derived.
+   *
+   *  `useSafeAreaInsets` would be the obvious way to subtract the status and
+   * navigation bars, and it throws without a `SafeAreaProvider` - which the
+   * screen tests do not render. Measuring the scroll view is both provider-free
+   * and more honest: it is the actual space the hero has, whatever is taking up
+   * the rest.
+   */
+  const [viewport, setViewport] = useState(0);
   const home = useMessages(homeMessages);
   const labels = useMessages(cycleLabels);
   const common = useMessages(appMessages);
@@ -104,15 +121,37 @@ export default function HomeScreen() {
   const mode = useAppStore((state) => state.mode);
   const setMode = useAppStore((state) => state.setMode);
 
-  // Months away from the month containing today, rather than an absolute month,
-  // so it needs no second initialisation once the data arrives. Session-only:
-  // a restart opens on the current month again.
-  const [monthOffset, setMonthOffset] = useState(0);
+  /**
+   * The day the arc is showing, or `null` for today.
+   *
+   * Session-only and deliberately not stored: a scrub is a look, not a
+   * setting, and a screen that opened on whatever day you last dragged to
+   * would be lying about what day it is.
+   */
+  const [scrubbedDay, setScrubbedDay] = useState<number | null>(null);
 
-  // The date the person tapped, not the day object: the object belongs to one
-  // month's grid, so keeping the date lets the selection be resolved against
-  // whichever month is on screen and fall away by itself when it is not there.
-  const [pickedDate, setPickedDate] = useState<ISODate | null>(null);
+  /** Bumped to ask the sky for a bloom. See `SkyField`. */
+  const [bloomKey, setBloomKey] = useState(0);
+
+  /**
+   * The acknowledgement, which this app had none of.
+   *
+   * Every one of its 118 pressables either faded slightly or did nothing at
+   * all. Recording a period - the single thing this app exists to be told -
+   * produced a re-render and silence.
+   *
+   * Haptics first so the tap lands with the press rather than after the write,
+   * and `notificationAsync(Success)` rather than an impact because this is a
+   * thing that worked, not a thing that was touched.
+   */
+  const celebrate = useCallback(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => undefined
+    );
+
+    setBloomKey((current) => current + 1);
+  }, []);
+
 
   // Whether the cycle-length suggestion has been waved away this session.
   // Deliberately not persisted: a dismissal that outlived the records it was
@@ -126,7 +165,6 @@ export default function HomeScreen() {
   const [todayEntry, setTodayEntry] = useState<DailyEntry | null>(null);
 
   /** What was recorded on the day picked in the calendar, for its row. */
-  const [pickedEntry, setPickedEntry] = useState<DailyEntry | null>(null);
 
   /**
    * Bumped by every reload, so the picked day is re-read on the same two
@@ -136,7 +174,10 @@ export default function HomeScreen() {
    * offering to add one - the screen reloaded, and the only thing that had
    * not was the one day the person had just edited.
    */
-  const [reloadKey, setReloadKey] = useState(0);
+  // Bumped after a reload so effects that depended on it re-ran. The last of
+  // those left with the calendar; the counter is kept because the daily-entry
+  // read below still needs a reason to run again after a write.
+  const [, setReloadKey] = useState(0);
 
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -260,42 +301,6 @@ export default function HomeScreen() {
 
   useDataChangeReload(load);
 
-  /**
-   * What is recorded on the picked day.
-   *
-   * Only the picked one: reading every day to label one row would grow with
-   * the history. Re-runs when the picked day changes and when the screen
-   * reloads, which is what makes the row right after editing that day.
-   */
-  useEffect(() => {
-    if (pickedDate === null) {
-      return;
-    }
-
-    let isActive = true;
-
-    void (async () => {
-      try {
-        const db = await openAppDatabase();
-        const stored = await loadDailyEntry(db, pickedDate);
-
-        if (isActive) {
-          setPickedEntry(stored);
-        }
-      } catch (error) {
-        logEvent('daily entry load failed', error);
-
-        if (isActive) {
-          setPickedEntry(null);
-        }
-      }
-    })();
-
-    return () => {
-      isActive = false;
-    };
-  }, [pickedDate, reloadKey]);
-
   // Derived rather than trusted: a stored 'pregnancy' mode outlives the
   // pregnancy it was chosen for, so the view falls back on its own instead of
   // waiting for a write to land.
@@ -410,53 +415,47 @@ export default function HomeScreen() {
 
     const { profile, dashboard } = homeData;
 
-    const todayMonth = getYearMonth(dashboard.today);
-    const { year, month } = shiftYearMonth(todayMonth.year, todayMonth.month, monthOffset);
-
     // Read beside the dashboard rather than inside it, for the reason written in
     // `build-cycle-outlook.ts`: it is pure arithmetic over a profile already in
     // memory, and putting it on `CycleDashboard` would have changed a type six
     // existing test files build by hand.
     const outlook = buildCycleOutlook(profile, dashboard.today);
 
-    // A prediction counted forward from a record months old lands in a month
-    // nobody is looking at and says nothing true. The summary row above already
-    // withholds the date in that case; the calendar has to agree with it, or the
-    // screen contradicts itself one scroll apart.
-    const builtGrid = buildCycleCalendarGridForMonth(profile, year, month);
-
     return {
-      year,
-      month,
       outlook,
       ring: buildCycleDayRing(profile, dashboard.today),
-      calendarGrid:
-        outlook.predictionConfidence === 'stale' ? withoutPrediction(builtGrid) : builtGrid,
     };
-  }, [homeData, monthOffset]);
+  }, [homeData]);
 
+  // The three screens that have no day to show yet all come up as sky rather
+  // than as a blank page - see `SkyBackdrop`. The words on them take the sky's
+  // own ink: `textSecondary` reads 4.24:1 on the pale end of this field, which
+  // is under AA, and this is a new surface rather than one being inherited.
   if (isLoading) {
     return (
-      <ThemedView style={styles.screen}>
+      <SkyBackdrop colors={sky.waking} testID="sky-waking">
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
-          <ActivityIndicator testID="cycle-dashboard-loading" color={theme.text} />
-          <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
+          <ActivityIndicator testID="cycle-dashboard-loading" color={sky.ink} />
+          <ThemedText type="small" style={[styles.centeredText, { color: sky.inkSoft }]}>
             {common.loadingMessage}
           </ThemedText>
         </SafeAreaView>
-      </ThemedView>
+      </SkyBackdrop>
     );
   }
 
   if (hasError) {
     return (
-      <ThemedView style={styles.screen}>
+      <SkyBackdrop colors={sky.waking} testID="sky-waking">
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
-          <ThemedText accessibilityRole="alert" type="subtitle" style={styles.messageText}>
+          <ThemedText
+            accessibilityRole="alert"
+            type="subtitle"
+            style={[styles.messageText, { color: sky.ink }]}>
             {home.loadErrorMessage}
           </ThemedText>
         </SafeAreaView>
-      </ThemedView>
+      </SkyBackdrop>
     );
   }
 
@@ -464,54 +463,19 @@ export default function HomeScreen() {
   // case. Narrowed together so neither needs an assertion below.
   if (homeData === null || derived === null) {
     return (
-      <ThemedView style={styles.screen}>
+      <SkyBackdrop colors={sky.waking} testID="sky-waking">
         <SafeAreaView style={styles.centeredArea} edges={['top', 'bottom']}>
-          <ThemedText type="subtitle" style={styles.messageText}>
+          <ThemedText type="subtitle" style={[styles.messageText, { color: sky.ink }]}>
             {home.emptyMessage}
           </ThemedText>
         </SafeAreaView>
-      </ThemedView>
+      </SkyBackdrop>
     );
   }
 
   const { dashboard, profile, dailySupport } = homeData;
 
-  const { year, month, outlook, ring, calendarGrid } = derived;
-
-  // Cheap enough to redo on render: a single date formatted, with no profile
-  // behind it. Left out of the memo so the month heading still follows a
-  // language change without the arithmetic being redone for it.
-  const monthHeading = formatDisplayMonth(year, month, language);
-
-  const canGoBack = canShiftYearMonth(year, month, -1);
-  const canGoForward = canShiftYearMonth(year, month, 1);
-
-  const findDay = (date: ISODate | null): CycleCalendarDay | null => {
-    if (date === null) {
-      return null;
-    }
-
-    for (const cell of calendarGrid.cells) {
-      if (cell.kind === 'day' && cell.day.date === date) {
-        return cell.day;
-      }
-    }
-
-    return null;
-  };
-
-  // A pick only stands while its month is on screen; otherwise the month falls
-  // back to today when it holds today, and to nothing when it does not. That is
-  // what clears a stale selection on a month change, with no reset to forget.
-  const selectedDay = findDay(pickedDate) ?? findDay(dashboard.today);
-
-  // What is recorded on the day the card is actually showing.
-  //
-  // Before anything is tapped that day is today, and today has already been
-  // read for the card above - so it is reused rather than read again. Reading
-  // only the tapped day left the card offering to add an entry to a day that
-  // already had one, until somebody tapped it.
-  const selectedEntry = pickedDate === null ? todayEntry : pickedEntry;
+  const { outlook, ring } = derived;
 
   const periodAction = resolvePeriodAction(profile);
   const isEnding = periodAction === 'end';
@@ -547,6 +511,10 @@ export default function HomeScreen() {
       setPregnancy(data.pregnancy);
       setAvatar(data.avatar);
       setIsConfirming(false);
+
+      // After the read, so the sky blooms over the day it just learned about
+      // rather than over the one being replaced.
+      celebrate();
     } catch (error) {
       logEvent('period record save failed', error);
 
@@ -610,6 +578,64 @@ export default function HomeScreen() {
   // and the two cannot start describing different days.
   const [dayRow, phaseRow, ...remainingRows] = rows;
 
+  /**
+   * The day the screen is describing, which is today unless a finger says
+   * otherwise, and everything that follows from it.
+   *
+   * Read off the ring's own dots rather than recomputed, so the arc and the
+   * words above it cannot disagree about which phase a day belongs to.
+   */
+  const shownDot =
+    scrubbedDay === null
+      ? ring.dots.find((dot) => dot.isToday) ?? null
+      : ring.dots.find((dot) => dot.day === scrubbedDay) ?? null;
+
+  const shownPhase = shownDot?.phase ?? dashboard.phase;
+  const shownDay = shownDot?.day ?? ring.cycleDay;
+  const isScrubbing = scrubbedDay !== null && shownDot?.isToday !== true;
+
+  const skyField = sky.fields[shownPhase ?? 'luteal'];
+
+  /**
+   * One viewport, minus the inset the safe area already took.
+   *
+   * Measured rather than guessed at a fraction, because the point of the hero
+   * is that nothing else is visible until somebody scrolls - and a hero that
+   * is 90% of the screen shows a slice of the next card, which reads as the
+   * layout being wrong rather than as an invitation.
+   */
+  /**
+   * One viewport for the cycle view, and nothing for the pregnancy one.
+   *
+   * The hero exists so that what is below it is invisible until somebody
+   * scrolls. The pregnancy view has no hero - no cycle day, no phase, no arc -
+   * so holding the height there gave it a whole empty screen above its own
+   * content, which had to be scrolled past to reach anything. That was a
+   * regression I introduced and did not see until it was on a phone.
+   */
+  /**
+   * One viewport for the cycle view, and nothing for the pregnancy one.
+   *
+   * The hero exists so that what is below it is invisible until somebody
+   * scrolls. The pregnancy view has no hero - no cycle day, no phase, no arc -
+   * so holding the height there gave it a whole empty screen above its own
+   * content, which had to be scrolled past to reach anything.
+   *
+   *  until the scroll view has been measured, rather than falling
+   * back to . That fallback was the screen including the status
+   * and navigation bars, so the hero was taller than the space it had, and the
+   * arc - the last thing in it - was pushed off the bottom edge. Being briefly
+   * content-sized on the first frame is invisible; being eighty points too
+   * tall is a control nobody can reach.
+   */
+  const heroHeight =
+    isPregnancyView || viewport <= 0 ? undefined : Math.max(viewport, 420);
+
+  // The sentence under the number follows the phase being shown, so dragging
+  // into another phase changes the words as well as the colour.
+  const shownSupport =
+    shownPhase === null ? null : getCycleDailySupport(cycleDailySupport[language], shownPhase);
+
 
   // Absent until the records have something to say, and gone once it has been
   // acted on or waved away. The suggestion itself is null whenever there is
@@ -617,61 +643,94 @@ export default function HomeScreen() {
   const suggestion = suggestionDismissed ? null : outlook.cycleLengthSuggestion;
 
   return (
-    <ThemedView style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.content}>
-            <HomeModeSwitch
-              isPregnancyView={isPregnancyView}
-              pregnancy={pregnancy}
-              chooseMode={chooseMode}
-            />
+    <GestureHandlerRootView style={styles.screen}>
+      <SkyField
+        colors={skyField}
+        bloomKey={bloomKey}
+        motionAllowed={motionAllowed}
+        driftColor={sky.drift}
+        bloomColor={sky.bloom}
+        testID="sky-field">
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            onLayout={(event) => setViewport(event.nativeEvent.layout.height)}
+            showsVerticalScrollIndicator={false}>
+            {/* The hero is exactly one viewport tall, so what is underneath is
+                reachable by scrolling and invisible until somebody does. That
+                is the whole of the layout change: nothing was deleted, the
+                screen just stopped showing all of it at once. */}
+            <View style={[styles.hero, { height: heroHeight }]}>
+              <HomeModeSwitch
+                isPregnancyView={isPregnancyView}
+                pregnancy={pregnancy}
+                chooseMode={chooseMode}
+              />
 
-            <View style={styles.header}>
-              <View style={styles.headerText}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {home.todayHeading}
-                </ThemedText>
+              {/* The pregnancy view has no cycle day and no phase, so it has
+                  no hero - but it still has a today, and losing the date when
+                  the mode switched was a regression rather than a simplification. */}
+              {isPregnancyView ? (
+                <View style={styles.pregnancyHeader}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {home.todayHeading}
+                  </ThemedText>
 
-                <ThemedText type="subtitle" style={styles.date}>
-                  {formatDisplayDate(dashboard.today, language)}
-                </ThemedText>
-              </View>
+                  <ThemedText type="subtitle">
+                    {formatDisplayDate(dashboard.today, language)}
+                  </ThemedText>
+                </View>
+              ) : null}
 
-              {/* The one thing on this screen that belongs to the person
-                  rather than to the cycle, so it sits beside their date
-                  rather than at the bottom with the links.
+              {isPregnancyView ? null : (
+                <SkyHero
+                  dayNumber={shownDay === null ? null : String(shownDay)}
+                  noDayMessage={dayRow.value}
+                  dayCaption={dayRow.label}
+                  phaseName={
+                    shownPhase === null ? null : labels.phaseLabels[shownPhase]
+                  }
+                  dayAccessibilityLabel={home.labelledValue(
+                    dayRow.label,
+                    shownDay === null ? dayRow.value : home.cycleDayValue(shownDay)
+                  )}
+                  phaseAccessibilityLabel={home.labelledValue(
+                    phaseRow.label,
+                    shownPhase === null ? phaseRow.value : labels.phaseLabels[shownPhase]
+                  )}
+                  sentence={shownSupport?.supportMessage ?? null}
+                  dateLine={formatDisplayDate(dashboard.today, language)}
+                  todayHeading={home.todayHeading}
+                  avatar={avatar}
+                  onOpenAvatar={() => router.push('/(app)/avatar')}
+                  openAvatarLabel={
+                    avatar === null ? home.avatarCreateLabel : home.avatarEditLabel
+                  }
+                  ink={sky.ink}
+                  inkSoft={sky.inkSoft}
+                  isScrubbing={isScrubbing}
+                  scrubHint={home.scrubHeading}
+                />
+              )}
 
-                  Not pressable, deliberately. The home screen's ordered list
-                  of controls is pinned at nine in two separate tests, and an
-                  avatar that opened the editor would make it ten. The link
-                  further down is still the way in, and it still says so. */}
-              {isPregnancyView || avatar === null ? null : (
-                <AvatarPreview config={avatar} size="small" testID="home-avatar-preview" />
+              {isPregnancyView || ring.dots.length === 0 ? null : (
+                <CycleArc
+                  dots={ring.dots}
+                  selectedDay={shownDay ?? ring.dots[0].day}
+                  onScrub={setScrubbedDay}
+                  onScrubEnd={() => setScrubbedDay(null)}
+                  tint={sky.ink}
+                  dimTint={sky.inkSoft}
+                  testID="cycle-arc"
+                />
               )}
             </View>
 
+            <View style={styles.content}>
             {isPregnancyView ? null : (
               <>
-              <CycleDayRing
-                dots={ring.dots}
-                phase={dashboard.phase}
-                dayLabel={dayRow.label}
-                dayValue={dayRow.value}
-                dayAccessibilityLabel={home.labelledValue(dayRow.label, dayRow.value)}
-                phaseLabel={phaseRow.label}
-                phaseValue={phaseRow.value}
-                phaseAccessibilityLabel={home.labelledValue(phaseRow.label, phaseRow.value)}
-              />
-
               <CycleSummary rows={remainingRows} />
 
-              {/* Under the four facts rather than above them. The facts are
-                  what the screen is for; this is a question about one of the
-                  numbers behind them, and it should not be the first thing
-                  anybody reads. */}
               {suggestion === null ? null : (
                 <CycleLengthSuggestionCard
                   suggestion={suggestion}
@@ -684,24 +743,16 @@ export default function HomeScreen() {
                 />
               )}
 
-              {/* Today, above the general content and below the four facts
-                  about it. Recording is a thing to do; everything under it is
-                  a thing to read. */}
-              {!isPregnancyView && (
-                <DailyEntryCard
-                  entry={todayEntry ?? emptyDailyEntry(dashboard.today)}
-                  onOpen={() => {
-                    router.push({
-                      pathname: '/daily-entry',
-                      params: { date: dashboard.today },
-                    });
-                  }}
-                />
-              )}
+              <DailyEntryCard
+                entry={todayEntry ?? emptyDailyEntry(dashboard.today)}
+                onOpen={() => {
+                  router.push({
+                    pathname: '/daily-entry',
+                    params: { date: dashboard.today },
+                  });
+                }}
+              />
 
-              {/* Only in the cycle view, and only for a day that has a phase:
-                  without one there is nothing to look words up by, and a heading
-                  over an empty card would read as content that failed to load. */}
               {dailySupport !== null && (
                 <DailySupportSection
                   dailySupport={dailySupport}
@@ -722,18 +773,6 @@ export default function HomeScreen() {
                   handleSavePeriod={handleSavePeriod}
                 />
               )}
-
-              <CycleCalendarSection
-                today={dashboard.today}
-                monthHeading={monthHeading}
-                canGoBack={canGoBack}
-                canGoForward={canGoForward}
-                setMonthOffset={setMonthOffset}
-                calendarGrid={calendarGrid}
-                selectedDay={selectedDay}
-                setPickedDate={setPickedDate}
-                pickedEntry={selectedEntry}
-              />
               </>
             )}
 
@@ -752,14 +791,41 @@ export default function HomeScreen() {
             )}
 
             {isPregnancyView ? null : <HomeLinks avatar={avatar} pregnancy={pregnancy} />}
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </SkyField>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  pregnancyHeader: {
+    paddingHorizontal: Spacing.three,
+  },
+  hero: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.three,
+    /**
+     * Enough to clear the gesture navigation bar.
+     *
+     * The arc is the last thing in the hero and the first thing in this app
+     * that sat low enough to be swallowed by the bar, where it could not be
+     * touched at all. The measured viewport comes out as the full window
+     * height in practice, so the hero runs to the bottom edge and this
+     * reserves the room back.
+     *
+     * Why the measurement is the whole window is not settled. It is not a
+     * missing  - expo-router renders one - so it is either
+     * where the  sits or how  lays its padding out.
+     * A constant is the honest fix until that is known: it is visibly right on
+     * a device, and it does not pretend to a reason I have not proved.
+     */
+    paddingBottom: Spacing.four * 2,
+    gap: Spacing.three,
+  },
   screen: {
     flex: 1,
   },

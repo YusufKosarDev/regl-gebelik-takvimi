@@ -192,6 +192,18 @@ const homeMessagesTr = {
 
   /** The heading over today's date, at the top of the screen. */
   todayHeading: 'Bugün',
+
+  /**
+   * Shown where the date is while a finger is dragging the arc.
+   *
+   * The date has to go for as long as the screen is showing some other day,
+   * or the number above it reads as today's and the drag quietly lies.
+   */
+  scrubHeading: 'Bu döngü',
+
+  /** The way to the month calendar, now that it is a screen of its own. */
+  calendarLinkLabel: 'Takvimi aç',
+  calendarLinkText: 'Takvim',
 };
 
 export type HomeMessages = typeof homeMessagesTr;
@@ -303,6 +315,11 @@ const homeMessagesEn: HomeMessages = {
   weekdayLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 
   todayHeading: 'Today',
+
+  scrubHeading: 'This cycle',
+
+  calendarLinkLabel: 'Open the calendar',
+  calendarLinkText: 'Calendar',
 };
 
 export const homeMessages: Messages<HomeMessages> = { tr: homeMessagesTr, en: homeMessagesEn };
