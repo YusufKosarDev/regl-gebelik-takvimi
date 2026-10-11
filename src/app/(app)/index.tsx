@@ -63,6 +63,7 @@ import { PregnancySection } from '@/features/pregnancy/components/pregnancy-sect
 import { resolvePeriodAction } from '@/features/cycle/domain/period-action';
 import { homeMessages, summaryRowsIn } from '@/features/cycle/presentation/home-messages';
 import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
+import { heroHeightFor } from '@/features/cycle/presentation/hero-height';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
@@ -79,6 +80,15 @@ import { logEvent } from '@/shared/logging';
  * and today's date, so keeping a copy in the global store would only create a
  * second thing to keep in sync.
  */
+/**
+ * The space above the first thing on the screen.
+ *
+ * Named rather than written twice, because `heroHeight` has to subtract
+ * exactly what this adds. When the two were separate numbers they disagreed,
+ * and the arc spent three stages hanging over the bottom edge.
+ */
+const SCROLL_TOP_INSET = Spacing.six;
+
 export default function HomeScreen() {
   const router = useRouter();
   const sky = useSky();
@@ -87,13 +97,24 @@ export default function HomeScreen() {
   /**
    * The height of the scroll viewport, measured rather than derived.
    *
-   *  `useSafeAreaInsets` would be the obvious way to subtract the status and
+   * `useSafeAreaInsets` would be the obvious way to subtract the status and
    * navigation bars, and it throws without a `SafeAreaProvider` - which the
-   * screen tests do not render. Measuring the scroll view is both provider-free
-   * and more honest: it is the actual space the hero has, whatever is taking up
-   * the rest.
+   * screen tests do not render. Measuring the scroll view is both
+   * provider-free and more honest: it is the actual space the hero has,
+   * whatever is taking up the rest.
+   *
+   * It settles on the second layout, not the first. The first fires before
+   * the safe area has applied its insets and reports the whole window;
+   * instrumented on a device, 914.29 then 838.48, where 838.48 is the window
+   * less a 51.81 status bar and a 24 point gesture bar. Both values pass
+   * through this state, so anything derived from it has to be correct for
+   * the settled one and merely harmless for the first. A note here used to
+   * claim the measurement "comes out as the full window height in practice"
+   * - that was the first value mistaken for the only one, and it sent a
+   * real defect to the wrong place for three stages.
    */
   const [viewport, setViewport] = useState(0);
+
   const home = useMessages(homeMessages);
   const labels = useMessages(cycleLabels);
   const common = useMessages(appMessages);
@@ -592,40 +613,13 @@ export default function HomeScreen() {
 
   const skyField = sky.fields[shownPhase ?? 'luteal'];
 
-  /**
-   * One viewport, minus the inset the safe area already took.
-   *
-   * Measured rather than guessed at a fraction, because the point of the hero
-   * is that nothing else is visible until somebody scrolls - and a hero that
-   * is 90% of the screen shows a slice of the next card, which reads as the
-   * layout being wrong rather than as an invitation.
-   */
-  /**
-   * One viewport for the cycle view, and nothing for the pregnancy one.
-   *
-   * The hero exists so that what is below it is invisible until somebody
-   * scrolls. The pregnancy view has no hero - no cycle day, no phase, no arc -
-   * so holding the height there gave it a whole empty screen above its own
-   * content, which had to be scrolled past to reach anything. That was a
-   * regression I introduced and did not see until it was on a phone.
-   */
-  /**
-   * One viewport for the cycle view, and nothing for the pregnancy one.
-   *
-   * The hero exists so that what is below it is invisible until somebody
-   * scrolls. The pregnancy view has no hero - no cycle day, no phase, no arc -
-   * so holding the height there gave it a whole empty screen above its own
-   * content, which had to be scrolled past to reach anything.
-   *
-   *  until the scroll view has been measured, rather than falling
-   * back to . That fallback was the screen including the status
-   * and navigation bars, so the hero was taller than the space it had, and the
-   * arc - the last thing in it - was pushed off the bottom edge. Being briefly
-   * content-sized on the first frame is invisible; being eighty points too
-   * tall is a control nobody can reach.
-   */
-  const heroHeight =
-    isPregnancyView || viewport <= 0 ? undefined : Math.max(viewport, 420);
+  // One viewport, less the padding the scroll content puts above it. The
+  // arithmetic and the reason it is worth its own file are in `hero-height.ts`.
+  const heroHeight = heroHeightFor({
+    viewport,
+    topInset: SCROLL_TOP_INSET,
+    isPregnancyView,
+  });
 
   // The sentence under the number follows the phase being shown, so dragging
   // into another phase changes the words as well as the colour.
@@ -806,21 +800,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
     /**
-     * Enough to clear the gesture navigation bar.
+     * Breathing room under the arc, and nothing more than that.
      *
-     * The arc is the last thing in the hero and the first thing in this app
-     * that sat low enough to be swallowed by the bar, where it could not be
-     * touched at all. The measured viewport comes out as the full window
-     * height in practice, so the hero runs to the bottom edge and this
-     * reserves the room back.
+     * It used to be forty-eight points and it was not breathing room - it was
+     * compensation for the hero being a whole viewport tall inside a container
+     * that had already spent `SCROLL_TOP_INSET` of it. That is fixed where it
+     * was caused, in `heroHeight`, so this is free to be a design value again.
      *
-     * Why the measurement is the whole window is not settled. It is not a
-     * missing  - expo-router renders one - so it is either
-     * where the  sits or how  lays its padding out.
-     * A constant is the honest fix until that is known: it is visibly right on
-     * a device, and it does not pretend to a reason I have not proved.
+     * The safe-area inset is not this number's job either: `SafeAreaView`
+     * already holds the gesture bar off, measured at twenty-four points on the
+     * device this was checked on.
      */
-    paddingBottom: Spacing.four * 2,
+    paddingBottom: Spacing.three,
     gap: Spacing.three,
   },
   screen: {
@@ -847,7 +838,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.six,
+    paddingTop: SCROLL_TOP_INSET,
     paddingBottom: Spacing.five,
   },
   content: {
