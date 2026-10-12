@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { unbindAppLock } from '@/features/app-lock/application/remove-app-lock';
 import {
   checkAccountStillExists,
   deleteAuthUser,
@@ -88,6 +89,33 @@ function toDeletionFailure(error: unknown): DeletionFailure {
 
 /** Clears what the deleted account left on this phone. Never fatal. */
 async function forgetAccountTraces(db: SQLiteDatabase): Promise<void> {
+  // The app lock is not removed, only cut loose from the account that is now
+  // gone. It was guarding records that are still here, and somebody who
+  // deleted an account did not ask to stop having a PIN.
+  //
+  // What has to go is the binding. `boundUid` names the account that may reset
+  // the lock by password; pointing at a deleted uid it makes `isRecoverable`
+  // answer yes to a question whose answer is no, so the lock screen offers "I
+  // forgot my PIN" and the recovery screen refuses the right password for an
+  // account that does not exist. The account screen warns before this happens
+  // and offers to take the lock off first - this is what is true for everybody
+  // who read that warning and chose to keep their lock.
+  //
+  // Here rather than beside the wipe: the wipe deletes the lock along with
+  // everything it was guarding, and that is a different decision about a
+  // different situation.
+  //
+  // Wrapped like everything else in here. `unbindAppLock` swallows its own
+  // write failures, but this function's contract is that nothing in it is
+  // fatal, and a caller that relies on a callee's good manners is one
+  // refactor away from turning a deletion that happened into one that
+  // reports failure.
+  try {
+    await unbindAppLock();
+  } catch (error: unknown) {
+    logEvent('app lock save failed', error);
+  }
+
   try {
     await clearAllSyncState(db);
   } catch (error: unknown) {

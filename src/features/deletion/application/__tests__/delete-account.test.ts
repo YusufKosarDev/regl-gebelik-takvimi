@@ -16,6 +16,10 @@ jest.mock('@/features/backup/data/cloud-backup-repository', () => ({
   deleteCloudBackup: jest.fn(),
 }));
 
+jest.mock('@/features/app-lock/application/remove-app-lock', () => ({
+  unbindAppLock: jest.fn(),
+}));
+
 jest.mock('@/features/sync/data/sync-state-repository', () => ({
   clearAllSyncState: jest.fn(),
 }));
@@ -60,6 +64,9 @@ const auth = jest.requireMock('@/features/auth/data/auth-repository') as {
 const { deleteCloudBackup } = jest.requireMock(
   '@/features/backup/data/cloud-backup-repository'
 ) as { deleteCloudBackup: jest.Mock };
+const { unbindAppLock } = jest.requireMock(
+  '@/features/app-lock/application/remove-app-lock'
+) as { unbindAppLock: jest.Mock };
 const { clearAllSyncState } = jest.requireMock('@/features/sync/data/sync-state-repository') as {
   clearAllSyncState: jest.Mock;
 };
@@ -97,6 +104,7 @@ beforeEach(() => {
   auth.reauthenticateWithPassword.mockResolvedValue(undefined);
   auth.deleteAuthUser.mockResolvedValue(undefined);
   deleteCloudBackup.mockResolvedValue(undefined);
+  unbindAppLock.mockResolvedValue(undefined);
   clearAllSyncState.mockResolvedValue(undefined);
   clearSyncPreferences.mockResolvedValue(undefined);
   clearDeviceId.mockResolvedValue(undefined);
@@ -537,5 +545,62 @@ describe('a refused password while a deletion was already under way', () => {
       reason: 'too-many-requests',
     });
     expect(auth.checkAccountStillExists).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The lock the deleted account was holding the only key to.
+ *
+ * `boundUid` names the account that may reset the lock by password. Deleting
+ * the account without clearing it leaves the lock claiming it can be reset by
+ * an account that does not exist - so the lock screen offers "I forgot my
+ * PIN", the recovery screen asks for a password, and the right password is
+ * refused. Found on a device, by doing exactly that.
+ *
+ * The account screen warns before this and offers to take the lock off first.
+ * These are about the person who read the warning and kept their lock.
+ */
+describe('the app lock after the account is gone', () => {
+  it('cuts the lock loose from the account it was bound to', async () => {
+    const outcome = await deleteAccount(baseInput());
+
+    expect(outcome).toEqual({ kind: 'deleted' });
+    expect(unbindAppLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not take the lock off', async () => {
+    // The records are still on the phone and the PIN was guarding them.
+    // Deleting an account is not a request to stop having a lock, and doing
+    // it as a side effect would be the app making that decision silently.
+    await deleteAccount(baseInput());
+
+    expect(wipeLocalData).not.toHaveBeenCalled();
+  });
+
+  it('does it before the account is only a memory on this phone', async () => {
+    // Ordering, from the other end: whatever else `forgetAccountTraces`
+    // clears, the binding goes with it rather than being left for a later
+    // screen to trip over.
+    await deleteAccount(baseInput());
+
+    expect(unbindAppLock).toHaveBeenCalled();
+    expect(clearAllSyncState).toHaveBeenCalled();
+    expect(clearDeviceId).toHaveBeenCalled();
+  });
+
+  it('does not report the deletion as failed when the binding cannot be cleared', async () => {
+    // The account is already gone by this point. Nothing below that line may
+    // turn a deletion that happened into one that says it did not.
+    unbindAppLock.mockRejectedValue(new Error('secure store is unavailable'));
+
+    await expect(deleteAccount(baseInput())).resolves.toEqual({ kind: 'deleted' });
+  });
+
+  it('cuts it loose on the wipe path too', async () => {
+    wipeLocalData.mockResolvedValue({ kind: 'wiped' });
+
+    await deleteAccount(baseInput({ wipeLocalDataToo: true }));
+
+    expect(unbindAppLock).toHaveBeenCalledTimes(1);
   });
 });

@@ -149,6 +149,28 @@ const appLockMessagesTr = {
   recoveryWrongAccountMessage: 'Bu hesap bu telefondaki kilide ait değil.',
   recoveryDoneMessage: 'Kilit kaldırıldı. İstersen yeni bir PIN kurabilirsin.',
 
+  /**
+   * The lock has no account behind it any more.
+   *
+   * Reached by somebody whose account was deleted while the lock stayed on.
+   * The account screen warned them and offered to take the lock off first;
+   * this is what is true for the person who kept it.
+   *
+   * It says the thing instead of blaming a password. The old behaviour here
+   * was `router.back()` - the outcome was treated as unreachable - and before
+   * the binding was cleared at deletion it came out as "that email or password
+   * is wrong" about an account that no longer exists.
+   *
+   * No new way in is offered, because there is not one. What it names is the
+   * same route the setup warning names, and it says the PIN still works, which
+   * matters: the lock is on, not broken, and somebody who remembers the six
+   * digits has not lost anything.
+   */
+  recoveryNoAccountMessage:
+    'Bu kilidin bağlı olduğu hesap artık yok, bu yüzden PIN sıfırlanamaz. PIN’in hâlâ ' +
+    'çalışıyor; hatırlıyorsan geri dönebilirsin. Hatırlamıyorsan tek yol uygulamayı silip ' +
+    'yeniden kurmak, bu da bu telefondaki bütün kayıtlarını götürür.',
+
   /* ---------------------------------------------------- settings and removal -- */
 
   appLockSectionTitle: 'Uygulama kilidi',
@@ -285,6 +307,12 @@ const appLockMessagesEn: AppLockMessages = {
   recoveryWrongAccountMessage: 'That account is not the one this phone’s lock belongs to.',
   recoveryDoneMessage: 'The lock was removed. You can set up a new PIN if you want one.',
 
+  recoveryNoAccountMessage:
+    'The account this lock was tied to no longer exists, so the PIN cannot be reset. Your ' +
+    'PIN still works, so if you remember it you can get back in. If you do not, the only ' +
+    'way is to delete the app and install it again, and every record on this phone would ' +
+    'go with it.',
+
   appLockSectionTitle: 'App lock',
   appLockSectionDescription: 'A PIN is asked for when you open the app. It starts off.',
 
@@ -358,6 +386,7 @@ export const RECOVERY_NEEDS_INTERNET_NOTE = appLockMessagesTr.recoveryNeedsInter
 export const RECOVERY_SUBMIT_LABEL = appLockMessagesTr.recoverySubmitLabel;
 export const RECOVERY_WRONG_ACCOUNT_MESSAGE = appLockMessagesTr.recoveryWrongAccountMessage;
 export const RECOVERY_DONE_MESSAGE = appLockMessagesTr.recoveryDoneMessage;
+export const RECOVERY_NO_ACCOUNT_MESSAGE = appLockMessagesTr.recoveryNoAccountMessage;
 export const APP_LOCK_SECTION_TITLE = appLockMessagesTr.appLockSectionTitle;
 export const APP_LOCK_SECTION_DESCRIPTION = appLockMessagesTr.appLockSectionDescription;
 export const APP_LOCK_STATUS_ON = appLockMessagesTr.appLockStatusOn;

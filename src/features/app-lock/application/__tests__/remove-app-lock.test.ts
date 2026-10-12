@@ -1,10 +1,15 @@
-import { deleteLockRecord, readLockRecord } from '../../infrastructure/lock-record-store';
+import {
+  deleteLockRecord,
+  readLockRecord,
+  writeLockRecord,
+} from '../../infrastructure/lock-record-store';
 import {
   isAppLockBoundTo,
   isAppLockEnabled,
   isAppLockRecoverable,
   remainingLockWaitMs,
   removeAppLock,
+  unbindAppLock,
 } from '../remove-app-lock';
 
 /**
@@ -28,10 +33,12 @@ import {
 jest.mock('../../infrastructure/lock-record-store', () => ({
   readLockRecord: jest.fn(),
   deleteLockRecord: jest.fn(),
+  writeLockRecord: jest.fn(),
 }));
 
 const read = jest.mocked(readLockRecord);
 const remove = jest.mocked(deleteLockRecord);
+const write = jest.mocked(writeLockRecord);
 
 const NOW = 1_700_000_000_000;
 
@@ -52,7 +59,9 @@ function recordWith(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   read.mockReset();
   remove.mockReset();
+  write.mockReset();
   remove.mockResolvedValue(undefined as never);
+  write.mockResolvedValue(undefined as never);
 });
 
 describe('taking the lock off', () => {
@@ -182,5 +191,100 @@ describe('whether the lock is bound to one account', () => {
 
       expect([outcome.kind, await isAppLockBoundTo('uid-1')]).toEqual([outcome.kind, false]);
     }
+  });
+});
+
+/**
+ * Cutting the lock loose from an account that has stopped existing.
+ *
+ * `boundUid` is the account allowed to reset the lock by password, and
+ * `isRecoverable` is only `boundUid !== null`. Pointing at a deleted uid it is
+ * a yes to a question whose answer is no: the lock screen draws "I forgot my
+ * PIN", the recovery screen takes an email and a password, and signing in
+ * cannot succeed because the account is gone - so the person is told their
+ * password is wrong about an account that no longer exists.
+ *
+ * The two halves are tested separately on purpose, because the dangerous
+ * mistake is to fix this by calling `removeAppLock`. That would take the PIN
+ * off somebody's records as a side effect of deleting an account, and the
+ * records are still there.
+ */
+describe('cutting the lock loose from a deleted account', () => {
+  it('clears the binding', async () => {
+    read.mockResolvedValue(recordWith({ boundUid: 'uid-1' }) as never);
+
+    await unbindAppLock();
+
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({ boundUid: null }));
+  });
+
+  it('leaves the lock on, and everything that opens it untouched', async () => {
+    // The whole of the risk in one assertion. A hash or a salt that did not
+    // survive would be a lock nobody can open, which is worse than the defect
+    // this function exists to remove.
+    read.mockResolvedValue(
+      recordWith({
+        boundUid: 'uid-1',
+        hash: 'the-hash',
+        salt: 'the-salt',
+        biometricsEnabled: true,
+        attempts: { failedCount: 2, lockedUntil: 123 },
+      }) as never
+    );
+
+    await unbindAppLock();
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith({
+      hash: 'the-hash',
+      salt: 'the-salt',
+      biometricsEnabled: true,
+      attempts: { failedCount: 2, lockedUntil: 123 },
+      boundUid: null,
+    });
+  });
+
+  it('makes the lock stop claiming it can be reset', async () => {
+    // Read from the other end: the question the lock screen actually asks.
+    read.mockResolvedValue(recordWith({ boundUid: 'uid-1' }) as never);
+
+    await unbindAppLock();
+
+    const written = write.mock.calls[0]?.[0];
+
+    read.mockResolvedValue({ kind: 'record', record: written } as never);
+
+    expect(await isAppLockRecoverable()).toBe(false);
+  });
+
+  it('writes nothing when the lock was never bound to an account', async () => {
+    read.mockResolvedValue(recordWith({ boundUid: null }) as never);
+
+    await unbindAppLock();
+
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when there is no lock, or it cannot be read', async () => {
+    // Called after the account is already gone, where nothing may fail. An
+    // unreadable record has been deleted by the read itself, so there is no
+    // binding left to cut and nothing to rewrite.
+    for (const outcome of [{ kind: 'none' }, { kind: 'unreadable' }]) {
+      write.mockClear();
+      read.mockResolvedValue(outcome as never);
+
+      await unbindAppLock();
+
+      expect([outcome.kind, write.mock.calls.length]).toEqual([outcome.kind, 0]);
+    }
+  });
+
+  it('does not throw when the record cannot be written back', async () => {
+    // The account is already deleted by the time this runs. Throwing here
+    // would turn a deletion that happened into one that reports failure.
+    read.mockResolvedValue(recordWith({ boundUid: 'uid-1' }) as never);
+    write.mockRejectedValue(new Error('secure store is unavailable') as never);
+
+    await expect(unbindAppLock()).resolves.toBeUndefined();
   });
 });

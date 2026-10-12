@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,7 +31,6 @@ import { useAppLockStore } from '@/store/app-lock-store';
  * two sets of sentences about one thing.
  */
 export default function RecoverScreen() {
-  const router = useRouter();
   const theme = useTheme();
   const lock = useMessages(appLockMessages);
   const authStrings = useMessages(authMessages);
@@ -44,6 +42,15 @@ export default function RecoverScreen() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+
+  /**
+   * The lock turned out to have no account behind it.
+   *
+   * A terminal state rather than one more error line: there is no password
+   * that would work, so leaving the fields up would be inviting somebody to
+   * keep typing at a door with nothing behind it.
+   */
+  const [noAccount, setNoAccount] = useState(false);
 
   const submit = useCallback(async () => {
     if (email.trim() === '') {
@@ -80,7 +87,14 @@ export default function RecoverScreen() {
       }
 
       if (outcome.kind === 'not-recoverable') {
-        router.back();
+        // This was `router.back()`, on the reading that the lock screen never
+        // links here for an unbound lock, so the outcome could not happen.
+        // It can: deleting an account leaves the lock on and clears the
+        // binding with it, so this is the answer for somebody who kept their
+        // lock after being warned. Bouncing them back to the keypad with no
+        // explanation is the worst of the three available answers.
+        setNoAccount(true);
+        setMessage(null);
 
         return;
       }
@@ -92,7 +106,7 @@ export default function RecoverScreen() {
       setPassword('');
       setIsBusy(false);
     }
-  }, [authStrings, email, lock, markDisabled, password, router]);
+  }, [authStrings, email, lock, markDisabled, password]);
 
   return (
     <ThemedView style={styles.screen}>
@@ -107,85 +121,97 @@ export default function RecoverScreen() {
               {lock.recoveryTitle}
             </ThemedText>
 
-            <ThemedText type="small" themeColor="textSecondary">
-              {lock.recoveryDescription}
-            </ThemedText>
-
-            {/* Said up front rather than as a failure afterwards: there is no
-                way to do this offline, and finding that out after typing a
-                password is a worse way to learn it. */}
-            <ThemedText type="small" themeColor="textSecondary">
-              {lock.recoveryNeedsInternetNote}
-            </ThemedText>
-
-            <View style={styles.field}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {authStrings.emailLabel}
-              </ThemedText>
-
-              <TextInput
-                accessibilityLabel={authStrings.emailLabel}
-                placeholder={authStrings.emailPlaceholder}
-                placeholderTextColor={theme.textSecondary}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                editable={!isBusy}
-                value={email}
-                onChangeText={setEmail}
-                style={[
-                  styles.input,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
-                ]}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {authStrings.passwordLabel}
-              </ThemedText>
-
-              <TextInput
-                accessibilityLabel={authStrings.passwordLabel}
-                autoCapitalize="none"
-                autoCorrect={false}
-                secureTextEntry
-                textContentType="password"
-                editable={!isBusy}
-                value={password}
-                onChangeText={setPassword}
-                style={[
-                  styles.input,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
-                ]}
-              />
-            </View>
-
-            {message !== null && (
+            {noAccount ? (
+              /* Everything the form was for has stopped existing, so the form
+                 goes with it. The sentence is the whole screen: what is true,
+                 that the PIN still opens the app, and the one way left - which
+                 is the way the setup warning already names, not a new one. */
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                {message}
+                {lock.recoveryNoAccountMessage}
               </ThemedText>
-            )}
+            ) : (
+              <>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {lock.recoveryDescription}
+                </ThemedText>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={lock.recoverySubmitLabel}
-              accessibilityState={{ disabled: isBusy }}
-              disabled={isBusy}
-              onPress={() => {
-                void submit();
-              }}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                { backgroundColor: theme.primary },
-                isBusy && styles.disabled,
-                pressed && !isBusy && styles.pressed,
-              ]}>
-              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                {isBusy ? common.savingLabel : lock.recoverySubmitLabel}
+              {/* Said up front rather than as a failure afterwards: there is no
+                  way to do this offline, and finding that out after typing a
+                  password is a worse way to learn it. */}
+              <ThemedText type="small" themeColor="textSecondary">
+                {lock.recoveryNeedsInternetNote}
               </ThemedText>
-            </Pressable>
+
+              <View style={styles.field}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {authStrings.emailLabel}
+                </ThemedText>
+
+                <TextInput
+                  accessibilityLabel={authStrings.emailLabel}
+                  placeholder={authStrings.emailPlaceholder}
+                  placeholderTextColor={theme.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                  editable={!isBusy}
+                  value={email}
+                  onChangeText={setEmail}
+                  style={[
+                    styles.input,
+                    { borderColor: theme.backgroundSelected, color: theme.text },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {authStrings.passwordLabel}
+                </ThemedText>
+
+                <TextInput
+                  accessibilityLabel={authStrings.passwordLabel}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                  textContentType="password"
+                  editable={!isBusy}
+                  value={password}
+                  onChangeText={setPassword}
+                  style={[
+                    styles.input,
+                    { borderColor: theme.backgroundSelected, color: theme.text },
+                  ]}
+                />
+              </View>
+
+              {message !== null && (
+                <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                  {message}
+                </ThemedText>
+              )}
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={lock.recoverySubmitLabel}
+                accessibilityState={{ disabled: isBusy }}
+                disabled={isBusy}
+                onPress={() => {
+                  void submit();
+                }}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  { backgroundColor: theme.primary },
+                  isBusy && styles.disabled,
+                  pressed && !isBusy && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                  {isBusy ? common.savingLabel : lock.recoverySubmitLabel}
+                </ThemedText>
+              </Pressable>
+              </>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
