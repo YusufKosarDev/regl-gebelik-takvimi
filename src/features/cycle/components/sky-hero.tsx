@@ -258,7 +258,21 @@ export function SkyHero({
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
+    // `flexGrow` with an `auto` basis, not `flex: 1`.
+    //
+    // `flex: 1` is `flexBasis: 0`, which means this never asks for the height
+    // its own text needs - it takes whatever is left over and lets the rest
+    // spill. Inside a hero that was exactly one viewport tall, at 200% that
+    // spill painted over the floating tab bar: measured on a device, the
+    // sentence was still drawing at the bottom edge of a screen whose bar
+    // starts 126px above it.
+    //
+    // Growing when there is room is still wanted, which is what keeps the
+    // hero one viewport at the default size. What changes is that the content
+    // can now push instead of only being pushed.
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
     paddingHorizontal: Spacing.four,
   },
   topRow: {
@@ -292,7 +306,12 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   centre: {
-    flex: 1,
+    // Same reasoning as `root`: fill the spare room and centre the day in it,
+    // but never be squeezed below what the caption, the number, the phase and
+    // the sentence actually need. This is the block that was overflowing.
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
     justifyContent: 'center',
     alignItems: 'center',
   },

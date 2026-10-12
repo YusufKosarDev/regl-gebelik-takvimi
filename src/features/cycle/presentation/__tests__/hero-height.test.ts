@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
 import { HERO_MIN_HEIGHT, heroHeightFor } from '../hero-height';
 
 /**
@@ -65,4 +68,62 @@ describe('the pregnancy view', () => {
       heroHeightFor({ viewport: VIEWPORT, topInset: TOP_INSET, isPregnancyView: true })
     ).toBeUndefined();
   });
+});
+
+/**
+ * The floor is a floor, and the screen applies it as one.
+ *
+ * ## What this can and cannot see
+ *
+ * Nothing in Jest measures text, so whether the sentence fits inside one
+ * viewport at 200% is not checkable here - that is a device measurement and it
+ * is on the list as one. What is checkable is the thing that made the overflow
+ * paint instead of scroll: the hero declaring an exact `height`, and
+ * `sky-hero` asking for `flexBasis: 0` so its content never demanded room.
+ *
+ * Both are read out of the source, the way `no-raw-logging.test.ts` reads for
+ * a `console.log`. A behavioural test would have been greener and emptier:
+ * the element tree is identical either way and only the pixels differ, which
+ * is exactly how this shipped.
+ */
+describe('the screen applies the floor as a floor', () => {
+  const screenSource = readFileSync(
+    join(__dirname, '..', '..', '..', '..', 'app', '(app)', '(tabs)', 'index.tsx'),
+    'utf8'
+  );
+  const heroSource = readFileSync(
+    join(__dirname, '..', '..', 'components', 'sky-hero.tsx'),
+    'utf8'
+  );
+
+  it('gives the hero a minHeight', () => {
+    expect(screenSource).toMatch(/minHeight:\s*heroHeight/);
+  });
+
+  it('never gives the hero an exact height again', () => {
+    // The one-line regression. `height: heroHeight` pins the box, the content
+    // overflows it at a large font size, and React Native paints the overflow
+    // over the tab bar rather than growing the box.
+    expect(screenSource).not.toMatch(/\bheight:\s*heroHeight/);
+  });
+
+  it.each(['root', 'centre'])(
+    'lets the hero content ask for the room it needs (%s)',
+    (block) => {
+      // `flex: 1` is `flexBasis: 0`. With the floor in place but these two
+      // still refusing to demand their own height, nothing would have changed.
+      //
+      // Only these two. `dateBlock` is `flex: 1` inside a row, where it
+      // divides width rather than refusing height, and banning the shorthand
+      // everywhere would have failed on it for no reason.
+      const declaration = new RegExp(`\\b${block}:\\s*\\{[^}]*\\}`, 's');
+      // Comments stripped first: the note explaining why `flex: 1` is wrong
+      // contains the words `flex: 1`, and matched itself.
+      const body = (declaration.exec(heroSource)?.[0] ?? '').replace(/\/\/[^\n]*/g, '');
+
+      expect(body).not.toBe('');
+      expect(body).toMatch(/flexBasis:\s*'auto'/);
+      expect(body).not.toMatch(/flex:\s*1/);
+    }
+  );
 });

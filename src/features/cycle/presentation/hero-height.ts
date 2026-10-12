@@ -1,5 +1,30 @@
 /**
- * How tall the hero is, given the space the scroll view actually has.
+ * How tall the hero is *at least*, given the space the scroll view has.
+ *
+ * ## A floor, not a height
+ *
+ * The screen applies this as `minHeight`. It used to be `height`, and the
+ * difference is the whole of what the one-viewport promise means.
+ *
+ * The promise is that nothing below the hero is visible at rest - somebody
+ * opening the app sees the field, the day, and nothing competing with it. A
+ * hero at least one viewport tall keeps that completely. A hero exactly one
+ * viewport tall kept it only while the text fitted inside, and at 200% it did
+ * not keep it at all: measured on a device, the sentence under the phase was
+ * still painting at the bottom edge of the screen, over a floating tab bar
+ * whose top is 126px above it. An exact height does not stop content being
+ * too tall - it only stops the box admitting it, so the overflow is drawn
+ * instead of scrolled.
+ *
+ * At the default font size nothing changes: the content fits, the hero is one
+ * viewport, the screen is what it was. At 200% the hero becomes as tall as its
+ * content needs, the next section moves down with it, and somebody scrolls -
+ * which is what a person who set 200% font expects, and is not what text over
+ * the navigation is.
+ *
+ * `sky-hero.tsx` has the other half: `flex: 1` is `flexBasis: 0`, so its
+ * content never asked for the height it needed and this floor alone would
+ * have changed nothing.
  *
  * ## Why this is a function and not two lines in the screen
  *

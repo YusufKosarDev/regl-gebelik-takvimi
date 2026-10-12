@@ -673,7 +673,20 @@ export default function HomeScreen() {
                 reachable by scrolling and invisible until somebody does. That
                 is the whole of the layout change: nothing was deleted, the
                 screen just stopped showing all of it at once. */}
-            <View style={[styles.hero, { height: heroHeight, paddingBottom: Spacing.three + tabBarInset }]}>
+            {/* `minHeight`, not `height`. One viewport is the floor, not the
+                ceiling: the promise is that nothing below the hero is visible
+                at rest, and a hero at least a viewport tall keeps it whole.
+                Exactly a viewport kept it only while the text fitted, and at
+                200% it did not keep it at all - the overflow painted over the
+                tab bar, which is worse than the scroll it was avoiding.
+
+                Scrolling to read large text is what somebody who set 200%
+                expects. Text over the navigation is not. */}
+            <View
+              style={[
+                styles.hero,
+                { minHeight: heroHeight, paddingBottom: Spacing.three + tabBarInset },
+              ]}>
               <HomeModeSwitch
                 isPregnancyView={isPregnancyView}
                 pregnancy={pregnancy}
