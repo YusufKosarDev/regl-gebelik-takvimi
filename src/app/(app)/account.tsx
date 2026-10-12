@@ -951,13 +951,12 @@ export default function AccountScreen() {
 
                 {/* Last, and set apart: everything above this is reversible.
 
-                    Wrapped so the reveal has something to measure: the panel
-                    is a component and the ref has to go on a host view. This
-                    is the worst of the six - the panel adds a heading, two
-                    warnings, a password field and three controls below a
-                    button that was already near the bottom, so what opened on
-                    screen was the heading and nothing else. */}
-                <View {...revealDelete.targetProps}>
+                    The reveal is handed to the panel rather than wrapped
+                    around it. Wrapped, it did nothing: this component is
+                    always mounted - it draws the button when closed - so the
+                    wrapper laid out once at first mount and the reveal was
+                    spent before the panel ever opened. Found on a device,
+                    where the heading appeared and the screen did not move. */}
                 <AccountDeletionPanel
                   isConfirming={isConfirmingDelete}
                   isBusy={isBusy}
@@ -976,8 +975,8 @@ export default function AccountScreen() {
                   onPasswordChange={setDeletePassword}
                   onWipeLocalTooChange={setWipeLocalToo}
                   onOpenAppLock={() => router.push('/(app)/app-lock')}
+                  revealProps={revealDelete.targetProps}
                 />
-                </View>
               </View>
             )}
 

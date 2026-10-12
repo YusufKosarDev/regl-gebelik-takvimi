@@ -5,6 +5,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
+import type { RevealInView } from '@/hooks/use-reveal-in-view';
 
 import { deletionMessages } from '../presentation/deletion-messages';
 
@@ -38,6 +39,7 @@ export function AccountDeletionPanel({
   onPasswordChange,
   onWipeLocalTooChange,
   onOpenAppLock,
+  revealProps,
 }: {
   readonly isConfirming: boolean;
   readonly isBusy: boolean;
@@ -51,6 +53,20 @@ export function AccountDeletionPanel({
   readonly onPasswordChange: (next: string) => void;
   readonly onWipeLocalTooChange: (next: boolean) => void;
   readonly onOpenAppLock: () => void;
+  /**
+   * Spread onto the confirmation block so it brings itself into view.
+   *
+   * Passed in rather than wrapped around this component from outside, which
+   * is how it was first wired and why it did nothing. This component is
+   * always mounted - it draws the button when `isConfirming` is false - so a
+   * wrapper's `onLayout` fired at first mount, the reveal was spent, and the
+   * panel opening later was never seen. The two panels that worked were the
+   * ones rendered only while open.
+   *
+   * So the reveal belongs to the element whose existence is the event, which
+   * is the block below and not the component around it.
+   */
+  readonly revealProps?: RevealInView['targetProps'];
 }) {
   const theme = useTheme();
   const lock = useMessages(appLockMessages);
@@ -86,7 +102,7 @@ export function AccountDeletionPanel({
         )}
 
         {isConfirming && (
-          <View style={styles.fields}>
+          <View {...revealProps} style={styles.fields}>
             <ThemedText accessibilityRole="header" type="smallBold">
               {deletion.accountDeletePanelTitle}
             </ThemedText>

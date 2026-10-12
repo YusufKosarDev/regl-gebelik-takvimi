@@ -10,6 +10,7 @@ import { useSky, useTheme } from '@/hooks/use-theme';
 import { useOnSky } from './on-sky';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
+import type { RevealInView } from '@/hooks/use-reveal-in-view';
 import { formatDisplayDate } from '@/utils/format-date';
 
 /**
@@ -36,6 +37,7 @@ export function PeriodActionCard({
   hasSaveError,
   setHasSaveError,
   handleSavePeriod,
+  revealProps,
 }: {
   readonly today: ISODate;
   readonly isEnding: boolean;
@@ -45,6 +47,8 @@ export function PeriodActionCard({
   readonly hasSaveError: boolean;
   readonly setHasSaveError: (hasError: boolean) => void;
   readonly handleSavePeriod: () => Promise<void>;
+  /** Spread onto the confirmation, which is the thing whose existence is the event. */
+  readonly revealProps?: RevealInView['targetProps'];
 }) {
   const theme = useTheme();
   const sky = useSky();
@@ -66,6 +70,10 @@ export function PeriodActionCard({
   const language = useLanguage();
 
   return isConfirming ? (
+    // The reveal goes on the branch that only exists while confirming, not on
+    // this component, which is always mounted and draws the button when it is
+    // not. Wrapped from outside it laid out once at mount and was spent.
+    <View {...revealProps}>
     <Surface level="filled">
       <ThemedText type="small" themeColor="textSecondary">
         {isEnding ? home.periodEndQuestion : home.periodStartQuestion}
@@ -124,6 +132,7 @@ export function PeriodActionCard({
         </Pressable>
       </View>
     </Surface>
+    </View>
   ) : (
     <Pressable
       accessibilityRole="button"

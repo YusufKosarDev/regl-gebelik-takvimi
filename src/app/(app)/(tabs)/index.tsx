@@ -789,7 +789,6 @@ export default function HomeScreen() {
               )}
 
               {periodAction === 'none' ? null : (
-                <View {...revealPeriod.targetProps}>
                 <PeriodActionCard
                   today={dashboard.today}
                   isEnding={isEnding}
@@ -799,8 +798,8 @@ export default function HomeScreen() {
                   hasSaveError={hasSaveError}
                   setHasSaveError={setHasSaveError}
                   handleSavePeriod={handleSavePeriod}
+                  revealProps={revealPeriod.targetProps}
                 />
-                </View>
               )}
               </>
             )}
