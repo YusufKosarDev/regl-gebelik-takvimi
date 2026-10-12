@@ -796,7 +796,7 @@ script is left over from the template.
 ```sh
 npm run typecheck  # tsc --noEmit, under strict mode
 npm run lint       # ESLint, via eslint-config-expo's flat config
-npm test           # Jest — 223 suites, 6,510 tests
+npm test           # Jest — 250 suites, 6,899 tests
 npm run test:watch # watch mode
 ```
 
@@ -844,6 +844,64 @@ Both Kotlin modules have their own unit tests, under
 `modules/widget-snapshot-bridge/android/src/test/` and
 `modules/screen-privacy/android/src/test/`. They run through Gradle rather than
 Jest, so `npm test` does not cover them and neither does CI.
+
+### Mutation testing, and verifying the mutation landed
+
+A test that says a rule is held is worth only what it costs to break the rule
+and watch it fail. The practice in this repo is to break the code deliberately
+after writing a rule-carrying test, run the test, and keep the result only if
+it goes red for the reason you expected.
+
+**Check that the mutation actually applied before you trust the outcome.** A
+mutation that silently fails to apply is indistinguishable from a test that
+proves nothing: both come back green, and the second one is a lie you will
+quote later.
+
+This is not theoretical either. `themed-text.tsx` was mutated with a `node -e`
+replace that matched on `",\n"`. The files in this repo have CRLF endings, so
+the pattern never matched, nothing changed, and the suite passed. The
+conclusion drawn from that run — "the test does not hold the rule" — was
+false; applied with `sed`, the same mutation fails three of four. It was caught
+only because the result contradicted a direct measurement of
+`StyleSheet.flatten`, which is not a safety net that will be there next time.
+
+So: after applying a mutation and before running anything, confirm the change
+is in the file.
+
+```sh
+# apply, prove it landed, then run
+sed -i '/the line you are removing/d' src/path/to/file.ts
+git diff --stat src/path/to/file.ts     # or: grep -c 'the line' src/path/to/file.ts
+npx jest src/path/to/__tests__/the.test.ts
+```
+
+Prefer `sed` or the editor over a script that matches on line endings. A minute
+spent proving the mutation is real is cheaper than a result that was never
+tested.
+
+### Two scanners for defects nothing else can see
+
+Some faults are invisible to both the test suite and code review, because the
+element tree, the types and the logic are all correct and only the pixels are
+wrong. Two instruments exist for those.
+
+- `src/components/__tests__/undefined-colour-class.test.ts` runs on every
+  `npm test`. It reads the source for a colour that might be `undefined` being
+  spread into a style object — the shape that drew the calendar legend's
+  predicted-period mark black on a dark page, where it was invisible.
+  `StyleSheet.flatten` keeps a key whose value is `undefined`, so such a colour
+  overwrites the theme rather than falling through to it. `ThemedText` and
+  `ThemedView` now refuse one; this keeps the claim that nothing else does
+  true on every run.
+- `sweep/scan.ps1` is **not in this repo** — it lives beside it, with its
+  captures. It pairs a `uiautomator` dump with a screenshot and measures the
+  drawn ink of every label against the bounds of the node it was given,
+  flagging any whose ink starts at the left edge and stops short of the right.
+  That asymmetry is what a truncated label looks like; a label merely given
+  room centres its ink. It found the Turkish export button rendering
+  `Verilerini dışa` with " aktar" missing, which depends on the device's
+  system locale rather than on the app's language setting and so never appears
+  on a Turkish phone. Worth running over the app again before a store build.
 
 ### Continuous integration
 
