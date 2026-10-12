@@ -80,9 +80,32 @@ const authMessagesTr = {
 
   accountTitle: 'Hesap',
 
+  /**
+   * What this screen promises about where the data is.
+   *
+   * It used to end "hesabın olsun ya da olmasın hiçbir yere gönderilmez" -
+   * nothing is sent anywhere, account or no account - and the backup paragraph
+   * three blocks down said, correctly, that a sync copies five categories of
+   * health data to the account. Found on a device: the two sentences sit on
+   * the same screen, and under them "Son senkronizasyon: bugün 08:40".
+   *
+   * The sentence that replaces it keeps the reassurance, because the
+   * reassurance is true - the data goes to the person's own account and
+   * nowhere else, no third party, no analytics. What it stops doing is
+   * claiming that it goes nowhere at all. Local is the default and stays the
+   * default; the three things that change it are named, because "unless you
+   * turn on sync" would still be wrong: the two buttons send without the
+   * automatic switch ever being touched.
+   *
+   * This is also the sentence the Data Safety form has to agree with. A screen
+   * saying nothing leaves the phone against a form declaring data in transit
+   * is a contradiction a reviewer can see.
+   */
   accountDescription:
     'Hesap açmak isteğe bağlı. Regl, gebelik ve avatar bilgilerin telefonunda ' +
-    'kalır; hesabın olsun ya da olmasın hiçbir yere gönderilmez.',
+    'kalır; senin kendi hesabından başka hiçbir yere gitmez — oraya da yalnızca ' +
+    'yedek aldığında, senkronize ettiğinde ya da otomatik senkronizasyonu ' +
+    'açtığında gider.',
 
   accountLoadingMessage: 'Hesap bilgileri yükleniyor',
 
@@ -112,11 +135,29 @@ const authMessagesTr = {
 
   backupSectionTitle: 'Bulut yedekleme',
 
+  /**
+   * What a sync sends, and what starts one.
+   *
+   * It used to end "sen bir düğmeye basmadan hiçbir gönderim olmaz" - nothing
+   * is sent until you press a button - with the automatic sync card drawn
+   * directly beneath it saying, in as many words, that changes are synced by
+   * themselves while the app is open. The same defect as the header three
+   * blocks above and found in the same pass: a true-by-default sentence
+   * written as though the default could not be changed, on a screen that
+   * carries the switch for changing it.
+   *
+   * The first half is untouched because it was never wrong. "Bunların dışında
+   * hiçbir şey gönderilmez" is unconditional and stays unconditional - it is
+   * the claim about third parties, and it is the same sentence
+   * `docs/gizlilik.html` already uses. What changed is the clause about
+   * timing, which now names the switch as well as the buttons.
+   */
   backupSectionDescription:
     'Yedek oluşturduğunda ya da senkronize ettiğinde regl kayıtların, gebelik ' +
     'bilgin, günlük kayıtların, avatarın ve hatırlatıcı tercihlerin hesabına ' +
-    'kopyalanır. Başka hiçbir şey gönderilmez ve sen bir düğmeye basmadan ' +
-    'hiçbir gönderim olmaz.',
+    'kopyalanır. Bunların dışında hiçbir şey gönderilmez. Bir düğmeye ' +
+    'basmadığın ya da otomatik senkronizasyonu açmadığın sürece hiçbir ' +
+    'gönderim olmaz.',
 
   backupCreateLabel: 'Yedek oluştur',
   backupCheckLabel: 'Yedeği kontrol et',
@@ -213,7 +254,8 @@ const authMessagesEn: AuthMessages = {
 
   accountDescription:
     'An account is optional. Your cycle, pregnancy and avatar information stays on your ' +
-    'phone; with or without an account, none of it is sent anywhere.',
+    'phone and reaches nowhere but your own account — and only when you take a backup, ' +
+    'sync, or turn automatic sync on.',
 
   accountLoadingMessage: 'Loading your account',
 
@@ -234,7 +276,8 @@ const authMessagesEn: AuthMessages = {
   backupSectionDescription:
     'When you create a backup or sync, your period records, pregnancy information, daily ' +
     'entries, avatar and reminder preferences are copied to your account. Nothing else is ' +
-    'sent, and nothing is sent at all until you press a button.',
+    'ever sent, and nothing at all is sent until you press a button or turn on automatic ' +
+    'sync.',
 
   backupCreateLabel: 'Create a backup',
   backupCheckLabel: 'Check for a backup',

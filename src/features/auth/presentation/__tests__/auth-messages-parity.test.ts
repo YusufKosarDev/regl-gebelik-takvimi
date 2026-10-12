@@ -1,6 +1,7 @@
 import { describeCatalogueParity } from '../../../../../jest/catalogue-parity';
 import { AUTH_ERROR_CODES } from '../../domain/auth-error';
 import { MINIMUM_PASSWORD_LENGTH } from '../../domain/password-policy';
+import { syncMessages } from '../../../sync/presentation/sync-messages';
 import { authErrorMessageIn, authMessages, passwordResetErrorMessageIn } from '../auth-messages';
 
 /**
@@ -87,17 +88,147 @@ describe('the password length is stated once', () => {
 });
 
 describe('what the screen says about itself', () => {
-  it('still says an account is optional and nothing is sent without one', () => {
+  it('still says an account is optional, in both languages', () => {
     expect(authMessages.en.accountDescription).toMatch(/optional/i);
-    expect(authMessages.en.accountDescription).toMatch(/none of it is sent/i);
-  });
-
-  it('still says a backup sends nothing until a button is pressed', () => {
-    expect(authMessages.en.backupSectionDescription).toMatch(/nothing else is sent/i);
-    expect(authMessages.en.backupSectionDescription).toMatch(/until you press a button/i);
+    expect(authMessages.tr.accountDescription).toMatch(/isteğe bağlı/i);
   });
 
   it('still warns that restoring overwrites the phone', () => {
     expect(authMessages.en.restoreWarning).toMatch(/written over/i);
+  });
+});
+
+/**
+ * The header's promise about where the data is.
+ *
+ * It said "with or without an account, none of it is sent anywhere" while the
+ * backup paragraph on the same screen said, correctly, that a sync copies five
+ * categories of health data to the account - and under that, "Last sync: today
+ * at 08:40". Found on a device, not by a test, because the test that was here
+ * asserted the false half of it word for word.
+ *
+ * So these hold the rule instead of the wording. An unconditional "it goes
+ * nowhere" cannot name the three things that send, which is why naming them is
+ * the assertion: there is no way to satisfy it and still claim the data never
+ * leaves. The reassurance has its own test, because the fix for a false
+ * promise is a true one and not silence - and because this screen's sentence
+ * has to agree with the Data Safety form, which declares data in transit.
+ *
+ * Both languages, because the Turkish is the one almost everybody reads and
+ * the one nobody reviewing an English diff would notice going wrong.
+ */
+describe('where the account screen says the data goes', () => {
+  const headers = [
+    ['Turkish', authMessages.tr.accountDescription],
+    ['English', authMessages.en.accountDescription],
+  ] as const;
+
+  it.each(headers)('%s keeps the part that is true: nowhere but your own account', (_, header) => {
+    // The real reassurance, and the one claim that is unconditional: no third
+    // party, no analytics, no other destination. Deleting the promise would be
+    // a way to stop it being false, and it is not the one that was chosen.
+    expect(header).toMatch(/hesabından başka hiçbir yere|nowhere but your own account/i);
+  });
+
+  it.each(headers)('%s names taking a backup as a way the data leaves', (_, header) => {
+    expect(header).toMatch(/yedek|backup/i);
+  });
+
+  it.each(headers)('%s names syncing as a way the data leaves', (_, header) => {
+    expect(header).toMatch(/senkronize|\bsync\b/i);
+  });
+
+  it.each(headers)('%s names automatic sync as a way the data leaves', (_, header) => {
+    // The third one is its own assertion because it is the one that sends
+    // without anybody pressing anything, and so the one a shortened sentence
+    // drops first. "Nothing leaves unless you turn on sync" would pass the two
+    // above and still be wrong about the two buttons.
+    expect(header).toMatch(/otomatik senkronizasyon|automatic sync/i);
+  });
+
+  it('does not contradict the paragraph three blocks below it', () => {
+    // The two are read one after the other by the same person. If the header
+    // ever goes back to saying the data stays put, this fails on the pair
+    // rather than on either sentence alone.
+    for (const catalogue of [authMessages.tr, authMessages.en]) {
+      const bodySends = /kopyalanır|copied to your account/i.test(
+        catalogue.backupSectionDescription
+      );
+
+      expect(bodySends).toBe(true);
+      expect(catalogue.accountDescription).toMatch(
+        /senkronize ettiğinde|otomatik senkronizasyonu açtığında|when you take a backup|automatic sync on/i
+      );
+    }
+  });
+});
+
+/**
+ * The same rule, one paragraph lower.
+ *
+ * `backupSectionDescription` ended "nothing is sent at all until you press a
+ * button" - and the automatic sync card is drawn directly beneath it, saying
+ * that changes are synced by themselves while the app is open. True by
+ * default, written as though the default could not be changed, on the screen
+ * that carries the switch for changing it.
+ *
+ * It had a test of its own asserting `/until you press a button/i`, which is
+ * the second assertion in this file to have pinned a false sentence word for
+ * word. Both were written the same way: read the shipped copy, assert the
+ * copy. A test that quotes the string back cannot tell you the string is
+ * wrong, and both of these were green while the screen contradicted itself.
+ *
+ * So the split here is the same one the header got. What is unconditionally
+ * true keeps an unconditional assertion; what depends on a setting has to name
+ * the setting.
+ */
+describe('what the account screen says a sync sends', () => {
+  const paragraphs = [
+    ['Turkish', authMessages.tr.backupSectionDescription],
+    ['English', authMessages.en.backupSectionDescription],
+  ] as const;
+
+  it.each(paragraphs)('%s still says nothing beyond those categories is sent', (_, body) => {
+    // Unconditional and true: the claim about third parties. The fix for the
+    // timing clause was not allowed to cost this.
+    //
+    // Deliberately loose about which way the Turkish says it - "başka hiçbir
+    // şey" and "bunların dışında hiçbir şey" are the same claim, and pinning
+    // the one that happens to be in the file today is how the last two tests
+    // in this file ended up asserting a sentence instead of a rule.
+    expect(body).toMatch(
+      /(başka|bunların dışında) hiçbir şey gönderilmez|nothing else is (ever )?sent/i
+    );
+  });
+
+  it.each(paragraphs)('%s still names what a sync copies to the account', (_, body) => {
+    expect(body).toMatch(/hesabına.*kopyalanır|copied to your account/is);
+  });
+
+  it.each(paragraphs)('%s names a button as something that starts a send', (_, body) => {
+    expect(body).toMatch(/düğme|press a button/i);
+  });
+
+  it.each(paragraphs)('%s names automatic sync as something that starts a send', (_, body) => {
+    // The assertion the old sentence could not have passed. "Nothing is sent
+    // until you press a button" names the buttons and stops, which is exactly
+    // the half-truth that shipped; naming the switch too is what makes the
+    // sentence hold whether or not the switch is on.
+    expect(body).toMatch(/otomatik senkronizasyonu açmadığın|turn on automatic sync/i);
+  });
+
+  it('does not contradict the automatic sync card drawn directly beneath it', () => {
+    // Read as a pair, the way somebody scrolling reads them. The card says the
+    // app sends by itself; the paragraph above it may not say that nothing is
+    // sent without a press.
+    for (const [auth, sync, sendsByItself] of [
+      [authMessages.tr, syncMessages.tr, /kendiliğinden/i],
+      [authMessages.en, syncMessages.en, /by themselves/i],
+    ] as const) {
+      expect(sync.automaticSyncNote).toMatch(sendsByItself);
+      expect(auth.backupSectionDescription).toMatch(
+        /otomatik senkronizasyonu açmadığın|turn on automatic sync/i
+      );
+    }
   });
 });

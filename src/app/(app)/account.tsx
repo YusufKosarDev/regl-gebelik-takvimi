@@ -94,10 +94,16 @@ function backupOutcomeMessage(
 /**
  * The account screen.
  *
- * An account is optional and does nothing yet. Nothing about a cycle, a
- * pregnancy or an avatar is sent anywhere, signed in or not, and every other
- * screen works exactly the same either way — which is why this is a link in the
- * settings rather than a gate in front of the app.
+ * An account is optional, and every other screen works exactly the same
+ * without one — which is why this is a link in the settings rather than a gate
+ * in front of the app.
+ *
+ * This comment used to say that nothing about a cycle, a pregnancy or an
+ * avatar is sent anywhere, signed in or not. That was true when it was
+ * written, before backup and sync existed, and it stopped being true without
+ * anybody coming back to it. It is the same false claim the screen's own
+ * header carried until `accountDescription` was rewritten; the note there says
+ * what replaced it and why.
  *
  * The password is held in state while it is being typed and cleared the moment
  * it has been used. It is never written down: not to a log, not into an error,

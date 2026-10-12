@@ -333,11 +333,19 @@ describe('AccountScreen when nobody is signed in', () => {
     expect(screen.getByLabelText('E-posta').props.autoCapitalize).toBe('none');
   });
 
-  it('says an account is optional and that nothing is sent', async () => {
+  it('says an account is optional, and names what would send the data', async () => {
     const screen = await renderSignedOut();
 
+    // This asserted /hiçbir yere gönderilmez/ - "it is not sent anywhere" -
+    // which is what the header used to say and is not true of anybody who has
+    // pressed Sync. The assertion now holds the shape that replaced it: the
+    // promise that survives (nowhere but your own account) and the condition
+    // that makes it honest. `auth-messages-parity.test.ts` holds the same rule
+    // on the catalogue in both languages; this one holds that the screen is
+    // the thing drawing it.
     expect(screen.getByText(/Hesap açmak isteğe bağlı/)).toBeTruthy();
-    expect(screen.getByText(/hiçbir yere gönderilmez/)).toBeTruthy();
+    expect(screen.getByText(/hesabından başka hiçbir yere gitmez/)).toBeTruthy();
+    expect(screen.getByText(/otomatik senkronizasyonu açtığında/)).toBeTruthy();
   });
 
   it('offers a way back, so the screen is never a gate', async () => {
@@ -1089,9 +1097,17 @@ describe('AccountScreen cloud backup, signed in', () => {
     expect(
       screen.getByText(/regl kayıtların, gebelik bilgin, günlük kayıtların, avatarın/)
     ).toBeTruthy();
-    // Two buttons send now rather than one, and the sentence says so. The
-    // promise it keeps is the same: nothing leaves without a press.
-    expect(screen.getByText(/sen bir düğmeye basmadan hiçbir gönderim olmaz/)).toBeTruthy();
+    // This asserted /sen bir düğmeye basmadan hiçbir gönderim olmaz/, and its
+    // comment restated the claim as a promise - "nothing leaves without a
+    // press" - on a screen that draws the automatic sync switch two blocks
+    // down. The comment was written when that switch already existed, so the
+    // false half was carried forward on purpose by somebody who had just read
+    // the feature. Three tests across two files were holding it.
+    //
+    // What is asserted now is the pair: the unconditional claim that survives,
+    // and the condition that makes the timing clause true in both states.
+    expect(screen.getByText(/Bunların dışında hiçbir şey gönderilmez/)).toBeTruthy();
+    expect(screen.getByText(/otomatik senkronizasyonu açmadığın sürece/)).toBeTruthy();
     expect(screen.getByText(/Yedek oluşturduğunda ya da senkronize ettiğinde/)).toBeTruthy();
   });
 
@@ -1106,7 +1122,11 @@ describe('AccountScreen cloud backup, signed in', () => {
   it('tells somebody what to do about it, not only what happens', async () => {
     const screen = await renderSignedIn();
 
-    expect(screen.getByText(/yedek al/)).toBeTruthy();
+    // Anchored to the sentence rather than to "yedek al", which the header now
+    // also contains ("yedek aldığında") and which therefore matched two nodes.
+    // The looser query was never asking about the header; it was asking
+    // whether the change-of-phone line tells you where to go.
+    expect(screen.getByText(/taşımak için buradan yedek al/)).toBeTruthy();
   });
 
   it('sends nothing until a button is pressed', async () => {
