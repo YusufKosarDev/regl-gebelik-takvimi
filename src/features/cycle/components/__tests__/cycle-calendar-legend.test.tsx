@@ -36,7 +36,7 @@ describe('CycleCalendarLegend labels', () => {
     'Regl günü',
     'Tahmini yumurtlama günü',
     'Doğurganlığın yüksek olduğu tahmini gün',
-    'Sonraki regl başlangıcı tahmini',
+    'Tahmini regl günleri',
   ])('explains %s', async (label) => {
     const { getByText } = await render(<CycleCalendarLegend />);
 
@@ -77,7 +77,7 @@ describe('CycleCalendarLegend accessibility', () => {
     ['R: Regl günü'],
     ['Y: Tahmini yumurtlama günü'],
     ['Daire: Doğurganlığın yüksek olduğu tahmini gün'],
-    ['Yaklaşık işareti: Sonraki regl başlangıcı tahmini'],
+    ['Yaklaşık işareti: Tahmini regl günleri'],
   ])('reads %s as one element', async (label) => {
     const { getByLabelText } = await render(<CycleCalendarLegend />);
 

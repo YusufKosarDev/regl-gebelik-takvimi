@@ -136,6 +136,7 @@ const homeMessagesTr = {
   selectedDayTitle: 'Seçilen gün',
   selectedDayEmptyMessage: 'Bir gün seç.',
   predictedPeriodStartNote: 'Sonraki regl başlangıcı tahmini',
+  predictedPeriodDayNote: 'Tahmini regl dönemine ait bir gün',
 
   /** The month on screen, as something to read aloud. */
   calendarMonthLabel: (monthHeading: string) => `${monthHeading} takvimi`,
@@ -159,7 +160,11 @@ const homeMessagesTr = {
   legendPeriodDay: 'Regl günü',
   legendOvulationDay: 'Tahmini yumurtlama günü',
   legendRaisedFertility: 'Doğurganlığın yüksek olduğu tahmini gün',
-  legendNextPeriod: 'Sonraki regl başlangıcı tahmini',
+  /* The mark now sits on every day of the predicted period, so the legend
+     describes the period rather than only its first day. Saying "expected to
+     start" against five consecutive marks would be a legend that is wrong
+     about four of them. */
+  legendNextPeriod: 'Tahmini regl günleri',
 
   /** The letters drawn in the squares. They follow the language, not the code. */
   legendPeriodMarker: 'R',
@@ -279,6 +284,7 @@ const homeMessagesEn: HomeMessages = {
   selectedDayTitle: 'Selected day',
   selectedDayEmptyMessage: 'Pick a day.',
   predictedPeriodStartNote: 'Next period expected to start',
+  predictedPeriodDayNote: 'A day of the expected period',
 
   calendarMonthLabel: (monthHeading: string) => `Calendar for ${monthHeading}`,
 
@@ -297,7 +303,7 @@ const homeMessagesEn: HomeMessages = {
   legendPeriodDay: 'Period day',
   legendOvulationDay: 'Estimated day of ovulation',
   legendRaisedFertility: 'Estimated day of raised fertility',
-  legendNextPeriod: 'Next period expected to start',
+  legendNextPeriod: 'Expected period days',
 
   legendPeriodMarker: 'P',
   legendOvulationMarker: 'O',

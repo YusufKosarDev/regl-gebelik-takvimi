@@ -64,6 +64,7 @@ describe('a calendar day, as a screen reader reads it', () => {
       phase: null,
       fertilityLevel: null,
       isPredictedPeriodStart: false,
+      isPredictedPeriodDay: false,
       ...overrides,
     }) as CycleCalendarDay;
 

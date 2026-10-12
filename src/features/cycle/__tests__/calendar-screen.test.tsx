@@ -357,7 +357,7 @@ describe('CalendarScreen calendar section', () => {
       'Regl günü',
       'Tahmini yumurtlama günü',
       'Doğurganlığın yüksek olduğu tahmini gün',
-      'Sonraki regl başlangıcı tahmini',
+      'Tahmini regl günleri',
     ]) {
       expect(getByText(label)).toBeTruthy();
     }
@@ -800,17 +800,27 @@ describe('CalendarScreen selected day', () => {
   it('shows the predicted period note on the predicted day', async () => {
     const screen = await renderScreen();
 
-    // The legend already carries this wording for the same mark, so the detail
-    // note is the second occurrence rather than the only one.
-    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(1);
+    // The legend used to carry this exact wording, so this note was its second
+    // occurrence. The mark now sits on every day of the predicted period, so
+    // the legend describes the period ("Tahmini regl günleri") and this
+    // sentence - which is about the first day specifically - is the only one.
+    expect(screen.queryAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(0);
 
     await fireEvent.press(screen.getByTestId('calendar-day-2026-09-29'));
 
-    // Once each. On the home screen this was twice - the cycle summary named
-    // the predicted date and the selected-day card named it again. The summary
-    // is on the other screen now, so only the card says it.
     expect(screen.getAllByText('29 Eylül 2026')).toHaveLength(1);
-    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(2);
+    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(1);
+  });
+
+  it('names a later day of the predicted period as a day of it, not as its start', async () => {
+    // 29 September to 3 October at a five-day period length. Somebody
+    // selecting 30 September is not told the period begins that day as well.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-30'));
+
+    expect(screen.getAllByText('Tahmini regl dönemine ait bir gün')).toHaveLength(1);
+    expect(screen.queryAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(0);
   });
 
   it('shows no predicted note on an ordinary day', async () => {
@@ -818,8 +828,8 @@ describe('CalendarScreen selected day', () => {
 
     await fireEvent.press(screen.getByTestId('calendar-day-2026-09-20'));
 
-    // Only the legend's row remains.
-    expect(screen.getAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(1);
+    expect(screen.queryAllByText('Sonraki regl başlangıcı tahmini')).toHaveLength(0);
+    expect(screen.queryAllByText('Tahmini regl dönemine ait bir gün')).toHaveLength(0);
   });
 });
 

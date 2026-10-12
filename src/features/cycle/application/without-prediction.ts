@@ -1,7 +1,7 @@
 import type { CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
 
 /**
- * The same month with nothing marked as a predicted period start.
+ * The same month with nothing marked as predicted.
  *
  * ## Why the grid is changed rather than the calendar being told not to draw
  *
@@ -26,8 +26,15 @@ export function withoutPrediction(grid: CycleCalendarGrid): CycleCalendarGrid {
   return {
     ...grid,
     cells: grid.cells.map((cell) =>
-      cell.kind === 'day' && cell.day.isPredictedPeriodStart
-        ? { kind: 'day', day: { ...cell.day, isPredictedPeriodStart: false } }
+      // Both flags, together. A stale prediction that lost its start and kept
+      // the four days after it would be the worst of the three states: a
+      // period drawn on the calendar with no beginning, built on a record the
+      // app has already decided is too old to count from.
+      cell.kind === 'day' && (cell.day.isPredictedPeriodStart || cell.day.isPredictedPeriodDay)
+        ? {
+            kind: 'day',
+            day: { ...cell.day, isPredictedPeriodStart: false, isPredictedPeriodDay: false },
+          }
         : cell
     ),
   };

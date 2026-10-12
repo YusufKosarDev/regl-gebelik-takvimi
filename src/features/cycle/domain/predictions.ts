@@ -45,9 +45,27 @@ export function latestRecordedPeriodStart(profile: CycleProfile): ISODate | null
  * That is deliberate and it stays that way. `observeCycleLengths` can say the
  * recorded cycles average something else, and the app offers that as a
  * suggestion - but until the person accepts it, the number they entered is the
- * number they are owed. This function is the single predicted day that the
- * calendar marks, the reminder is queued from and the widget shows, and all
- * three have to agree with the setting the person can see in front of them.
+ * number they are owed. This function is the single predicted day the calendar
+ * marks and the reminder is queued from, and both have to agree with the
+ * setting the person can see in front of them.
+ *
+ * ## Two consumers, not three
+ *
+ * This said "the calendar marks, the reminder is queued from and the widget
+ * shows". The widget does not show it: `WidgetSnapshotV1` carries `cycleDay`
+ * and `phase` and no predicted date, and `buildWidgetSnapshotV1` copies only
+ * those from the dashboard. The spirit survived - the widget's cycle day is
+ * counted from the same setting - but the claim named a consumer that does not
+ * consume this, and a documented decision resting on a member that does not
+ * exist is one that gets overturned later for the wrong reason.
+ *
+ * ## What the single day does not decide
+ *
+ * It is the first day of the predicted period, not the whole of it. The
+ * calendar draws the days after it from this one plus
+ * `averagePeriodLengthDays`, which is arithmetic rather than a second
+ * prediction - see `build-cycle-calendar-month.ts`, which also has the note on
+ * why those days cannot be read off `cycleDay`.
  */
 export function predictNextPeriodStart(profile: CycleProfile): ISODate | null {
   const latestStart = latestRecordedPeriodStart(profile);

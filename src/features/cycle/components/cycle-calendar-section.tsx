@@ -159,9 +159,19 @@ export function CycleCalendarSection({
               </ThemedText>
             ))}
 
+            {/* The third of the three places `without-prediction.ts` names.
+                The start says it is the start; the days after it say they are
+                days of the same predicted period, so selecting 11 November is
+                not told the period begins that day as well. */}
             {selectedDay.isPredictedPeriodStart && (
               <ThemedText type="small" themeColor="textSecondary">
                 {home.predictedPeriodStartNote}
+              </ThemedText>
+            )}
+
+            {!selectedDay.isPredictedPeriodStart && selectedDay.isPredictedPeriodDay && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {home.predictedPeriodDayNote}
               </ThemedText>
             )}
 

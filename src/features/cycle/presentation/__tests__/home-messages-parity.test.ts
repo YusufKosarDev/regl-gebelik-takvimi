@@ -126,6 +126,7 @@ describe('the rows', () => {
       phase: 'menstrual',
       fertilityLevel: 'low',
       isPredictedPeriodStart: false,
+      isPredictedPeriodDay: false,
     } as CycleCalendarDay;
 
     const rows = selectedDayRowsIn(homeMessages.en, cycleLabels.en, day);

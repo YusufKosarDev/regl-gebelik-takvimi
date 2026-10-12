@@ -32,14 +32,17 @@ export type PredictedPeriodRange = {
  * choice is what makes it safe to ship the range alongside the suggestion:
  *
  *   - The calendar marks `predictNextPeriodStart`, which counts from the
- *     setting.
+ *     setting, and draws the rest of the predicted period from it.
  *   - The reminder is queued from the same day.
- *   - The widget shows the same day.
  *
- * If the range were built from the observations alone, all three could fall
- * outside the range the home screen is showing, and the person would be looking
- * at a marked day sitting outside its own prediction. Widening costs a day or
- * two of width and removes that possibility entirely.
+ * If the range were built from the observations alone, both could fall outside
+ * the range the home screen is showing, and the person would be looking at a
+ * marked day sitting outside its own prediction. Widening costs a day or two of
+ * width and removes that possibility entirely.
+ *
+ * This listed the widget as a third consumer. It is not one: `WidgetSnapshotV1`
+ * carries `cycleDay` and `phase` and no predicted date. The argument holds for
+ * the two that are real.
  *
  * ## Why integer offsets rather than comparing dates
  *

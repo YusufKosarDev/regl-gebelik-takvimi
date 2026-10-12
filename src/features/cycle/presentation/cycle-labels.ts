@@ -57,6 +57,8 @@ const cycleLabelsTr = {
   } as Readonly<Record<FertilityLevel, string>>,
 
   predictedPeriodStart: 'sonraki regl başlangıcı tahmini',
+  /** Days two onwards of the predicted period, which have a start to refer to. */
+  predictedPeriodDay: 'tahmini regl günü',
   today: 'bugün',
   selected: 'seçili',
 };
@@ -86,6 +88,7 @@ const cycleLabelsEn: CycleLabels = {
   },
 
   predictedPeriodStart: 'next period expected to start',
+  predictedPeriodDay: 'expected period day',
   today: 'today',
   selected: 'selected',
 };
@@ -127,8 +130,14 @@ export function getCalendarDayAccessibilityLabelIn(
     parts.push(labels.fertilityInSentence[day.fertilityLevel]);
   }
 
+  // The start is named as the start; the days after it are named as days of
+  // the same predicted period. A screen reader hearing "next period expected
+  // to start" on five consecutive days would be told the period begins five
+  // times.
   if (day.isPredictedPeriodStart) {
     parts.push(labels.predictedPeriodStart);
+  } else if (day.isPredictedPeriodDay) {
+    parts.push(labels.predictedPeriodDay);
   }
 
   // Last, so the date and what the domain says about it are heard first.

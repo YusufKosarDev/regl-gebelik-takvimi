@@ -32,6 +32,7 @@ function day(overrides: Partial<CycleCalendarDay> = {}): CycleCalendarDay {
     phase: 'menstrual',
     fertilityLevel: 'low',
     isPredictedPeriodStart: false,
+    isPredictedPeriodDay: false,
     ...overrides,
   };
 }

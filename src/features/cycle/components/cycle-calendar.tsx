@@ -309,10 +309,20 @@ function DayCell({
           </ThemedText>
         )}
 
-        {/* The predicted start keeps the muted colour whatever phase it lands
-            in. It is the one mark on the calendar that is a guess, and giving
-            it a phase colour would dress it as a recorded fact. */}
-        {day.isPredictedPeriodStart && (
+        {/* Every day of the predicted period, not only its first. The calendar
+            used to mark the start and stop, which drew a period one day long -
+            and the days after it were not unmarked for want of a prediction
+            but because `getCycleDay` never rolls over at a predicted start, so
+            they came out as day 30 and later of the recorded October cycle and
+            resolved to luteal. `build-cycle-calendar-month.ts` has the whole
+            of that note.
+
+            The muted colour is kept for all of them, for the reason it was
+            kept for the start: these are the marks on the calendar that are a
+            guess, and a phase colour would dress them as recorded fact. The
+            glyph is what distinguishes them, not the colour - a band in a
+            paler shade would have made the difference colour-only. */}
+        {day.isPredictedPeriodDay && (
           <ThemedText type="small" themeColor="textSecondary" style={styles.marker}>
             {PREDICTED_MARKER}
           </ThemedText>

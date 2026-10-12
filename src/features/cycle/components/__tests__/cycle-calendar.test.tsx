@@ -243,11 +243,26 @@ describe('CycleCalendar predicted period start', () => {
     expect(markersOn(screen, '2026-09-29')).toContain('≈');
   });
 
-  it('marks nothing else with the prediction glyph', async () => {
+  it('marks the rest of the predicted period too', async () => {
+    // The calendar used to mark the start and stop, which drew a period one
+    // day long. The days after it were not unmarked for want of a prediction:
+    // `getCycleDay` never rolls over at a predicted start, so they came out as
+    // day 30 and later of the recorded cycle and resolved to luteal.
+    const screen = await renderCalendar();
+    const predicted = september.days.filter((day) => day.isPredictedPeriodDay);
+
+    expect(predicted.length).toBeGreaterThan(1);
+
+    for (const day of predicted) {
+      expect(markersOn(screen, day.date)).toContain('≈');
+    }
+  });
+
+  it('marks nothing outside the predicted period with the prediction glyph', async () => {
     const screen = await renderCalendar();
 
     for (const day of september.days) {
-      if (day.date === '2026-09-29') continue;
+      if (day.isPredictedPeriodDay) continue;
 
       expect(markersOn(screen, day.date)).not.toContain('≈');
     }
