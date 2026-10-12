@@ -48,8 +48,6 @@ import { DailyEntryCard } from '@/features/daily-log/components/daily-entry-card
 import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import { emptyDailyEntry } from '@/features/daily-log/domain/catalogues';
-import { cycleDailySupport } from '@/features/cycle/data/cycle-daily-support';
-import { getCycleDailySupport } from '@/features/cycle/domain/daily-support';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useMotionAllowed } from '@/hooks/use-motion-allowed';
 import { useSky } from '@/hooks/use-theme';
@@ -636,12 +634,6 @@ export default function HomeScreen() {
     isPregnancyView,
   });
 
-  // The sentence under the number follows the phase being shown, so dragging
-  // into another phase changes the words as well as the colour.
-  const shownSupport =
-    shownPhase === null ? null : getCycleDailySupport(cycleDailySupport[language], shownPhase);
-
-
   // Absent until the records have something to say, and gone once it has been
   // acted on or waved away. The suggestion itself is null whenever there is
   // nothing worth asking about, so this is only the session's half of it.
@@ -724,7 +716,6 @@ export default function HomeScreen() {
                     phaseRow.label,
                     shownPhase === null ? phaseRow.value : labels.phaseLabels[shownPhase]
                   )}
-                  sentence={shownSupport?.supportMessage ?? null}
                   dateLine={formatDisplayDate(dashboard.today, language)}
                   todayHeading={home.todayHeading}
                   avatar={avatar}

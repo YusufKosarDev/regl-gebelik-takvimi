@@ -7,7 +7,27 @@ import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import { useFontScale } from '@/hooks/use-font-scale';
 
 /**
- * What a person sees before they scroll: the day, the phase, one sentence.
+ * What a person sees before they scroll: the day and the phase.
+ *
+ * ## It carried a sentence, and no longer does
+ *
+ * This said "the day, the phase, one sentence", and the sentence was the
+ * phase's support message. It is gone from here and unchanged where it
+ * already was: `DailySupportSection`, below the fold, under a heading that
+ * introduces it. The same words were on this screen twice, which
+ * `home-screen.test.tsx` had already called a known loose end.
+ *
+ * Carrying it here made the front door unreadable at large font settings.
+ * Measured on a device, Turkish, bar top at 2161px: the sentence crossed the
+ * tab bar at a scale of 1.7 for the shortest message and 1.6 for the longest,
+ * and English runs longer still. A threshold would therefore have had to
+ * depend on the phase as well as the scale - which is more machinery than any
+ * layout here has, to solve a case that existed only because the sentence was
+ * on screen twice.
+ *
+ * What is lost at the default size is a sentence a person reads one scroll
+ * further down, introduced rather than asserted. What is gained is a hero that
+ * fits at every setting Android offers.
  *
  * ## Why it is this short
  *
@@ -47,7 +67,6 @@ export function SkyHero({
   phaseName,
   dayAccessibilityLabel,
   phaseAccessibilityLabel,
-  sentence,
   dateLine,
   todayHeading,
   avatar,
@@ -87,7 +106,6 @@ export function SkyHero({
   readonly dayAccessibilityLabel: string;
   /** The phase row's whole sentence, e.g. "Döngü evresi: Luteal". */
   readonly phaseAccessibilityLabel: string | null;
-  readonly sentence: string | null;
   readonly dateLine: string;
   /** The word over the date - "Bugün". */
   readonly todayHeading: string;
@@ -115,7 +133,6 @@ export function SkyHero({
   // be made safe. See `constants/sky.ts`.
   const labelSize = Math.round(13 * scale);
   const phaseSize = Math.round(22 * scale);
-  const sentenceSize = Math.round(16 * scale);
 
   return (
     <View style={styles.root}>
@@ -235,22 +252,6 @@ export function SkyHero({
             </Text>
           </View>
         )}
-
-        {sentence === null ? null : (
-          <Text
-            testID="sky-sentence"
-            style={[
-              styles.sentence,
-              {
-                color: ink,
-                fontSize: sentenceSize,
-                lineHeight: Math.round(sentenceSize * 1.5),
-                fontFamily: fontFamilyFor('sans', '400'),
-              },
-            ]}>
-            {sentence}
-          </Text>
-        )}
       </View>
     </View>
   );
@@ -325,10 +326,5 @@ const styles = StyleSheet.create({
   phase: {
     textAlign: 'center',
     marginTop: Spacing.one,
-  },
-  sentence: {
-    textAlign: 'center',
-    marginTop: Spacing.three,
-    maxWidth: 320,
   },
 });

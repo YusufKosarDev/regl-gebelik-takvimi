@@ -4141,3 +4141,48 @@ describe('HomeScreen with nothing recorded', () => {
     expect(push).toHaveBeenCalledWith('/(onboarding)/last-period');
   });
 });
+
+/**
+ * The phase's support message is on this screen once, not twice.
+ *
+ * It used to be in two places: the hero's sentence and the support section
+ * below the fold. The duplication was recorded in this file as "a known loose
+ * end of this stage rather than an accident", and nothing asserted either
+ * copy - `sky-sentence` had no test at all, so removing it from the hero broke
+ * nothing and would have gone unnoticed in either direction.
+ *
+ * It left the hero because carrying it there made the front door unreadable at
+ * large font settings: measured on a device, the sentence crossed the tab bar
+ * at a scale of 1.7 for the shortest message and 1.6 for the longest. The copy
+ * is unchanged and still under its own heading, where it is introduced rather
+ * than asserted.
+ */
+describe('the phase support message', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+    getTodayMock.mockReturnValue('2026-09-03' as ISODate);
+  });
+
+  it('appears exactly once', async () => {
+    const screen = await renderScreen();
+
+    const message = await screen.findByText(/hafif bir yürüyüş/);
+
+    expect(message).toBeTruthy();
+    expect(screen.getAllByText(/hafif bir yürüyüş/)).toHaveLength(1);
+  });
+
+  it('is the support section copy, under its own heading', async () => {
+    // The one that stays is the introduced one. If this ever becomes the
+    // hero's copy again, the heading goes missing and this fails.
+    const screen = await renderScreen();
+
+    expect(await screen.findByText('Bugünün mesajı')).toBeTruthy();
+  });
+
+  it('is not in the hero', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.queryByTestId('sky-sentence')).toBeNull();
+  });
+});
