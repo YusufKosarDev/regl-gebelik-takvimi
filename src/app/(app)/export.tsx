@@ -46,7 +46,20 @@ export default function ExportScreen() {
   const strings = useMessages(exportMessages);
   const language = useLanguage();
 
-  const [isBusy, setIsBusy] = useState(false);
+  /**
+   * Which export is running, rather than whether one is.
+   *
+   * `isBusy` alone was a screen-wide boolean and the busy text was written
+   * onto the summary button, so pressing "Ham veriyi (CSV) paylaş" made the
+   * *other* button say "Hazırlanıyor…" while the CSV button looked idle.
+   * Found on a device.
+   *
+   * The lock below stays screen-wide for the reason written there - both
+   * reads hit the same database and both end in a share sheet. This is only
+   * about which label says so.
+   */
+  const [busyFile, setBusyFile] = useState<'summary' | 'csv' | null>(null);
+  const isBusy = busyFile !== null;
   const [notice, setNotice] = useState<string | null>(null);
   const [today] = useState<ISODate>(() => getTodayLocalISODate());
 
@@ -56,13 +69,16 @@ export default function ExportScreen() {
   const shareInFlight = useRef(false);
 
   const share = useCallback(
-    async (pick: (files: { summary: ExportFile; csv: ExportFile }) => ExportFile) => {
+    async (
+      which: 'summary' | 'csv',
+      pick: (files: { summary: ExportFile; csv: ExportFile }) => ExportFile
+    ) => {
       if (shareInFlight.current) {
         return;
       }
 
       shareInFlight.current = true;
-      setIsBusy(true);
+      setBusyFile(which);
       setNotice(null);
 
       try {
@@ -85,7 +101,7 @@ export default function ExportScreen() {
         setNotice(strings.shareFailedMessage);
       } finally {
         shareInFlight.current = false;
-        setIsBusy(false);
+        setBusyFile(null);
       }
     },
     [today, language, strings]
@@ -117,7 +133,7 @@ export default function ExportScreen() {
                 accessibilityState={{ disabled: isBusy }}
                 disabled={isBusy}
                 onPress={() => {
-                  void share((files) => files.summary);
+                  void share('summary', (files) => files.summary);
                 }}
                 style={({ pressed }) => [
                   styles.primaryButton,
@@ -126,7 +142,7 @@ export default function ExportScreen() {
                   pressed && !isBusy && styles.pressed,
                 ]}>
                 <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
-                  {isBusy ? strings.preparingMessage : strings.summaryButtonText}
+                  {busyFile === 'summary' ? strings.preparingMessage : strings.summaryButtonText}
                 </ThemedText>
               </Pressable>
 
@@ -136,7 +152,7 @@ export default function ExportScreen() {
                 accessibilityState={{ disabled: isBusy }}
                 disabled={isBusy}
                 onPress={() => {
-                  void share((files) => files.csv);
+                  void share('csv', (files) => files.csv);
                 }}
                 style={({ pressed }) => [
                   styles.secondaryButton,
@@ -144,7 +160,9 @@ export default function ExportScreen() {
                   isBusy && styles.disabled,
                   pressed && !isBusy && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{strings.csvButtonText}</ThemedText>
+                <ThemedText type="smallBold">
+                  {busyFile === 'csv' ? strings.preparingMessage : strings.csvButtonText}
+                </ThemedText>
               </Pressable>
 
               <ThemedText type="small" themeColor="textSecondary">

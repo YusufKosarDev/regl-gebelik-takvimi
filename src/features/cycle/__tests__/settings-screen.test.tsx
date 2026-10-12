@@ -1650,3 +1650,93 @@ describe('SettingsScreen as the profile tab', () => {
     expect(screen.queryAllByLabelText('Hesabı aç')).toHaveLength(1);
   });
 });
+
+/**
+ * The app-lock status sits with its section, not after its button.
+ *
+ * It rendered last in the block, so "Açık" appeared alone beneath the control
+ * with the next section's heading right after it. On a device it read as a
+ * stray word, or as a heading of its own. The order a person reads is what
+ * this is, what it does, what state it is in, and then how to change it.
+ *
+ * Asserted as order rather than as pixels: the status has to come before the
+ * button in the tree, which is the whole of the change.
+ */
+describe('the app lock section order', () => {
+  it('puts the status before the button that changes it', async () => {
+    const screen = await renderScreen();
+
+    await screen.findByText('Kapalı');
+
+    // One snapshot, walked once. `toJSON` builds a new tree per call, so
+    // nodes from a query are never the same objects as nodes in it.
+    const flat: any[] = [];
+    const walk = (current: any) => {
+      if (Array.isArray(current)) return current.forEach(walk);
+      if (current === null || typeof current !== 'object') return;
+      flat.push(current);
+      walk(current.children);
+    };
+
+    walk(screen.toJSON());
+
+    const statusAt = flat.findIndex((node) => node.children?.[0] === 'Kapalı');
+    const buttonAt = flat.findIndex(
+      (node) => node.props?.accessibilityLabel === 'Uygulama kilidini kur'
+    );
+
+    expect(statusAt).toBeGreaterThanOrEqual(0);
+    expect(buttonAt).toBeGreaterThanOrEqual(0);
+    expect(statusAt).toBeLessThan(buttonAt);
+  });
+});
+
+/**
+ * The account row says what pressing it does, for the state the person is in.
+ *
+ * One constant was used for both, so somebody signed in read "Hesabı aç" on
+ * the line directly below their own address - the screen offering to open a
+ * thing it had just told them they had.
+ *
+ * Asserted on the screen rather than on the catalogue. The catalogue test next
+ * door checks the two strings differ, and it stayed green when the screen was
+ * reverted to using one of them for both - which is the whole defect.
+ */
+describe('the account row label', () => {
+  const auth = jest.requireMock('@/features/auth/data/auth-repository') as {
+    observeAuthUser: jest.Mock;
+    getCurrentAuthUser: jest.Mock;
+  };
+
+  afterEach(() => {
+    auth.observeAuthUser.mockImplementation((listener: (user: unknown) => void) => {
+      listener(null);
+
+      return () => {};
+    });
+    auth.getCurrentAuthUser.mockReturnValue(null);
+  });
+
+  it('offers to open an account when there is not one', async () => {
+    const screen = await renderScreen();
+
+    expect(await screen.findByLabelText('Hesabı aç')).toBeTruthy();
+    expect(screen.queryByLabelText('Hesabı yönet')).toBeNull();
+  });
+
+  it('offers to manage the account when there is one', async () => {
+    const user = { uid: 'uid-1', email: 'biri@ornek.com' };
+
+    auth.observeAuthUser.mockImplementation((listener: (value: unknown) => void) => {
+      listener(user);
+
+      return () => {};
+    });
+    auth.getCurrentAuthUser.mockReturnValue(user);
+
+    const screen = await renderScreen();
+
+    expect(await screen.findByLabelText('Hesabı yönet')).toBeTruthy();
+    expect(screen.queryByLabelText('Hesabı aç')).toBeNull();
+  });
+});

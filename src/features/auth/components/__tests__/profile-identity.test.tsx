@@ -1,4 +1,5 @@
 import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { ProfileIdentity } from '../profile-identity';
 
@@ -105,5 +106,61 @@ describe('ProfileIdentity', () => {
       'Avatar oluştur',
       'Hesabı aç',
     ]);
+  });
+});
+
+/**
+ * The empty avatar fills its slot, so the row does not change height.
+ *
+ * It was a 32dp disc inside the 68dp pressable, and that pressable carries
+ * `justifyContent: 'flex-end'` so an avatar illustration is cropped head up
+ * with the shoulders running off the bottom. That rule is about a picture.
+ * Applied to a small empty disc it pinned it to the foot of the slot, so on a
+ * device the circle hung below the text beside it.
+ *
+ * Filling the slot takes the disc out of that rule's way rather than changing
+ * it, and means adding an avatar later moves nothing on the screen.
+ */
+describe('the avatar slot before there is an avatar', () => {
+  /** The empty disc: the only bordered circle this component draws. */
+  function emptyDisc(tree: unknown): Record<string, number> | undefined {
+    let found: Record<string, number> | undefined;
+
+    const walk = (current: any) => {
+      if (found !== undefined) return;
+      if (Array.isArray(current)) return current.forEach(walk);
+      if (current === null || typeof current !== 'object') return;
+
+      const flat = StyleSheet.flatten(current.props?.style) as Record<string, number> | undefined;
+
+      if (flat?.borderRadius !== undefined && flat?.borderWidth !== undefined) {
+        found = flat;
+
+        return;
+      }
+
+      walk(current.children);
+    };
+
+    walk(tree);
+
+    return found;
+  }
+
+  it('fills its 68dp slot, so nothing moves when an avatar is added', async () => {
+    const screen = await renderIdentity({ status: 'signed-out', user: null });
+    const disc = emptyDisc(screen.toJSON());
+
+    expect(disc).toBeDefined();
+    expect(disc?.width).toBe(68);
+    expect(disc?.height).toBe(68);
+  });
+
+  it('is still a circle', async () => {
+    const screen = await renderIdentity({ status: 'signed-out', user: null });
+    const disc = emptyDisc(screen.toJSON());
+
+    // Half the width, or it is a rounded rectangle.
+    expect(disc?.borderRadius).toBe((disc?.width ?? 0) / 2);
   });
 });

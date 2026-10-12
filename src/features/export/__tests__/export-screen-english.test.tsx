@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import ExportScreen from '@/app/(app)/export';
@@ -134,7 +134,7 @@ describe('sharing', () => {
   it('hands the summary over when the first button is pressed', async () => {
     const screen = await render(<ExportScreen />);
 
-    fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
 
     await waitFor(() => {
       expect(share.shareTextFile).toHaveBeenCalledTimes(1);
@@ -150,7 +150,7 @@ describe('sharing', () => {
   it('hands the CSV over when the second is pressed', async () => {
     const screen = await render(<ExportScreen />);
 
-    fireEvent.press(screen.getByLabelText(exportMessages.en.csvButtonLabel));
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.csvButtonLabel));
 
     await waitFor(() => {
       expect(share.shareTextFile).toHaveBeenCalledTimes(1);
@@ -166,7 +166,7 @@ describe('sharing', () => {
   it('builds the file in the language the app is in', async () => {
     const screen = await render(<ExportScreen />);
 
-    fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
 
     await waitFor(() => {
       expect(share.shareTextFile).toHaveBeenCalledTimes(1);
@@ -184,7 +184,7 @@ describe('when it cannot', () => {
 
     const screen = await render(<ExportScreen />);
 
-    fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
 
     await waitFor(() => {
       expect(screen.getByText(exportMessages.en.sharingUnavailableMessage)).toBeTruthy();
@@ -196,7 +196,7 @@ describe('when it cannot', () => {
 
     const screen = await render(<ExportScreen />);
 
-    fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
 
     await waitFor(() => {
       expect(screen.getByText(exportMessages.en.shareFailedMessage)).toBeTruthy();
@@ -208,12 +208,89 @@ describe('when it cannot', () => {
 
     const screen = await render(<ExportScreen />);
 
-    fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
 
     await waitFor(() => {
       expect(screen.getByText(exportMessages.en.emptyMessage)).toBeTruthy();
     });
 
     expect(share.shareTextFile).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The busy text belongs to whichever export is running.
+ *
+ * `isBusy` was one boolean for the screen and the busy text was written onto
+ * the summary button, so pressing "Share the raw data (CSV)" made the *other*
+ * button read "Preparing…" while the CSV button looked idle. Found on a
+ * device; nothing here saw it, because both buttons were present and correct
+ * and only the words on them were swapped.
+ *
+ * The lock stays screen-wide - both reads hit the same database and both end
+ * in a share sheet - so both buttons still disable together. Only the label
+ * knows which one is working.
+ */
+describe('which button says it is working', () => {
+  /** Holds the share open so the busy state can be observed mid-flight. */
+  function shareThatNeverFinishes() {
+    let release: () => void = () => {};
+
+    share.shareTextFile.mockImplementation(
+      () => new Promise<void>((resolve) => { release = () => resolve(); })
+    );
+
+    return () => release();
+  }
+
+  it('is the summary button when the summary is being prepared', async () => {
+    const release = shareThatNeverFinishes();
+    const screen = await render(<ExportScreen />);
+
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.summaryButtonLabel));
+
+    await waitFor(() => {
+      expect(screen.getByText(exportMessages.en.preparingMessage)).toBeTruthy();
+    });
+
+    // And the other button is still itself.
+    expect(screen.getByText(exportMessages.en.csvButtonText)).toBeTruthy();
+
+    await act(async () => {
+      release();
+    });
+  });
+
+  it('is the CSV button when the CSV is being prepared', async () => {
+    // The defect, exactly: this used to put "Preparing…" on the summary.
+    const release = shareThatNeverFinishes();
+    const screen = await render(<ExportScreen />);
+
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.csvButtonLabel));
+
+    await waitFor(() => {
+      expect(screen.getByText(exportMessages.en.preparingMessage)).toBeTruthy();
+    });
+
+    expect(screen.getByText(exportMessages.en.summaryButtonText)).toBeTruthy();
+
+    await act(async () => {
+      release();
+    });
+  });
+
+  it('never says it twice', async () => {
+    const release = shareThatNeverFinishes();
+    const screen = await render(<ExportScreen />);
+
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.csvButtonLabel));
+
+    await waitFor(() => {
+      expect(screen.queryAllByText(exportMessages.en.preparingMessage)).toHaveLength(1);
+    });
+
+    await act(async () => {
+      release();
+    });
   });
 });

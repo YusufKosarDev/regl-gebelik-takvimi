@@ -77,7 +77,19 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'flex-end',
+    // Centred, not pushed to the foot.
+    //
+    // `flex-end` put the headline, the description and the note just above the
+    // footer with about half the screen empty above them - the button is in
+    // its own footer outside this scroll view, so the only thing the alignment
+    // moved was the text. On a device the first screen of the app read as
+    // content that had slid to the bottom.
+    //
+    // No rationale was written for the old value, and the rest of this file
+    // explains its choices, so it is read as an oversight rather than a
+    // decision. Centring is the smaller change: the text keeps its order and
+    // the action keeps its place.
+    justifyContent: 'center',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.six,
   },

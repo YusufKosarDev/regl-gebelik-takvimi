@@ -550,7 +550,14 @@ export default function SettingsScreen() {
               auth={auth}
               avatar={avatar}
               avatarLabel={avatar === null ? home.avatarCreateLabel : home.avatarEditLabel}
-              accountLabel={cycleSettings.accountOpenLabel}
+              // What the control does for the state the person is in. One
+              // constant for both read "Hesabı aç" directly under the address
+              // of the account they were signed in to.
+              accountLabel={
+                auth.status === 'signed-in'
+                  ? cycleSettings.accountManageLabel
+                  : cycleSettings.accountOpenLabel
+              }
               onOpenAvatar={() => router.push('/(app)/avatar')}
               onOpenAccount={() => router.push('/(app)/account')}
             />
@@ -658,6 +665,18 @@ export default function SettingsScreen() {
                 {lock.appLockSectionDescription}
               </ThemedText>
 
+              {/* Above the button, not below it.
+
+                  Underneath, "Açık" sat on its own after the control with a
+                  section heading following it, so it read as a stray word
+                  belonging to neither - on a device it looked like the title
+                  of the next section. The order a person reads is what this
+                  is, what it does, what state it is in, and then how to
+                  change it. */}
+              <ThemedText type="small" themeColor="textSecondary">
+                {appLockEnabled ? lock.appLockStatusOn : lock.appLockStatusOff}
+              </ThemedText>
+
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={appLockEnabled ? lock.appLockManageLabel : lock.appLockSetLabel}
@@ -671,10 +690,6 @@ export default function SettingsScreen() {
                   {appLockEnabled ? lock.appLockManageLabel : lock.appLockSetLabel}
                 </ThemedText>
               </Pressable>
-
-              <ThemedText type="small" themeColor="textSecondary">
-                {appLockEnabled ? lock.appLockStatusOn : lock.appLockStatusOff}
-              </ThemedText>
             </View>
 
             {/* Above the about link and below the lock: it belongs with the

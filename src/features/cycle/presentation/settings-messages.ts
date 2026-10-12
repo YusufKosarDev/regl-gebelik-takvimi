@@ -80,6 +80,14 @@ const settingsMessagesTr = {
 
   accountSectionDescription: 'Hesap açmak isteğe bağlı. Verilerin telefonunda kalır.',
   accountOpenLabel: 'Hesabı aç',
+  /**
+   * What the row says once there is an account to manage.
+   *
+   *  was used in both states, so somebody signed in read
+   * "Hesabı aç" directly under their own address. The screen was offering to
+   * open a thing it had just told them they had.
+   */
+  accountManageLabel: 'Hesabı yönet',
 };
 
 export type SettingsMessages = typeof settingsMessagesTr;
@@ -121,6 +129,7 @@ const settingsMessagesEn: SettingsMessages = {
   accountSectionDescription:
     'An account is optional. Your records stay on your phone either way.',
   accountOpenLabel: 'Open an account',
+  accountManageLabel: 'Manage your account',
 };
 
 export const settingsMessages: Messages<SettingsMessages> = {

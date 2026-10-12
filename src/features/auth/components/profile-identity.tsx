@@ -116,9 +116,18 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   emptyAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    // The same 68 as the slot it sits in, so the row is the same height
+    // whether or not there is an avatar, and adding one moves nothing.
+    //
+    // It was 32 in a 68 slot whose `justifyContent: 'flex-end'` is there to
+    // crop the bust - head up, shoulders running off the bottom, which is the
+    // note below. That rule is about an illustration; applied to a small empty
+    // disc it pinned it to the bottom of the slot, so on a device it hung off
+    // the foot of the text beside it. Filling the slot takes the disc out of
+    // that rule's way without changing it.
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 1,
   },
   avatar: {

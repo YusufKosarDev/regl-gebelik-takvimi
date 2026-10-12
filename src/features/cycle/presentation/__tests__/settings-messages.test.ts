@@ -45,3 +45,32 @@ describe('the two field notes', () => {
     expect(settingsMessages.en.periodLengthFieldNote).toMatch(/stops completely/i);
   });
 });
+
+/**
+ * The account row says what it does for the state the person is in.
+ *
+ * It used one constant for both, so somebody signed in read "Hesabı aç" -
+ * open an account - on the line directly under their own address, which
+ * `ProfileIdentity` had just drawn. The screen was offering to open a thing it
+ * had told them they had.
+ */
+describe('the account row', () => {
+  it('has a different label for each state, in both languages', () => {
+    for (const catalogue of [settingsMessages.tr, settingsMessages.en]) {
+      expect(catalogue.accountOpenLabel).not.toBe(catalogue.accountManageLabel);
+    }
+  });
+
+  it('offers to open one only when there is not one', () => {
+    expect(settingsMessages.en.accountOpenLabel).toMatch(/open/i);
+    expect(settingsMessages.tr.accountOpenLabel).toMatch(/aç/i);
+  });
+
+  it('offers to manage one when there is', () => {
+    expect(settingsMessages.en.accountManageLabel).toMatch(/manage/i);
+    expect(settingsMessages.tr.accountManageLabel).toMatch(/yönet/i);
+    // The half that was wrong: the signed-in line must not say "open".
+    expect(settingsMessages.en.accountManageLabel).not.toMatch(/\bopen\b/i);
+    expect(settingsMessages.tr.accountManageLabel).not.toMatch(/\baç\b/i);
+  });
+});

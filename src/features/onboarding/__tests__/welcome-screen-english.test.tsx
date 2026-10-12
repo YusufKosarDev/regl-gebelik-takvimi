@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
 import { render } from '@testing-library/react-native';
 import React from 'react';
 
@@ -60,5 +63,42 @@ describe('the welcome screen in English', () => {
     const screen = await render(<WelcomeScreen />);
 
     expect(JSON.stringify(screen.toJSON())).not.toMatch(/[ğüşıöçĞÜŞİÖÇ]/);
+  });
+});
+
+/**
+ * The first screen does not push its text to the bottom.
+ *
+ * `scrollContent` was `justifyContent: 'flex-end'`, and the button lives in
+ * its own footer outside the scroll view, so the only thing that alignment
+ * moved was the words. On a device the headline, the description and the note
+ * sat just above the footer with roughly half the screen empty above them.
+ *
+ * No rationale was written for it, in a file that explains its other choices -
+ * the text alignment and the button's colour both have notes. So it is read as
+ * an oversight rather than a decision, and centring is the smaller change: the
+ * reading order is untouched and the action stays where it was.
+ *
+ * Asserted on the style rather than on a screenshot, because nothing in Jest
+ * has a screen height. Whether it looks right is a device check.
+ */
+describe('where the welcome text sits', () => {
+  const source = readFileSync(
+    join(__dirname, '..', '..', '..', 'app', '(onboarding)', 'index.tsx'),
+    'utf8'
+  );
+
+  it('does not pin the text to the foot of the screen', () => {
+    const block = /scrollContent:\s*\{[^}]*\}/s.exec(source)?.[0] ?? '';
+
+    expect(block).not.toBe('');
+    expect(block.replace(/\/\/[^\n]*/g, '')).not.toMatch(/justifyContent:\s*'flex-end'/);
+  });
+
+  it('keeps the action in a footer of its own, where it already was', () => {
+    // The fix must not have moved the button: it is outside the scroll view
+    // and the alignment never applied to it.
+    expect(source).toMatch(/<View style={styles\.footer}>/);
+    expect(/footer:\s*\{[^}]*\}/s.exec(source)?.[0] ?? '').not.toMatch(/justifyContent/);
   });
 });
