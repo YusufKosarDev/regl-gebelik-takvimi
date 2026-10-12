@@ -22,6 +22,7 @@ import {
 } from '@/features/pregnancy/presentation/pregnancy-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
+import { useRevealInView } from '@/hooks/use-reveal-in-view';
 import { appMessages } from '@/shared/presentation/app-messages';
 import { useLanguage, useMessages } from '@/i18n';
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
@@ -72,6 +73,9 @@ export default function PregnancySettingsScreen() {
 
   // Whether the person has asked to stop, held only while they confirm it.
   const [isConfirmingStop, setIsConfirmingStop] = useState(false);
+
+  // Pushed rather than a tab, so no bar floats over the bottom.
+  const revealStop = useRevealInView({ bottomInset: 0 });
   const [isStopping, setIsStopping] = useState(false);
   const [hasStopError, setHasStopError] = useState(false);
 
@@ -282,6 +286,7 @@ export default function PregnancySettingsScreen() {
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView
+          {...revealStop.scrollViewProps}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
@@ -331,7 +336,9 @@ export default function PregnancySettingsScreen() {
                 </View>
 
                 {isConfirmingStop ? (
-                  <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                  <View
+                    {...revealStop.targetProps}
+                    style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
                     <ThemedText type="small">
                       {pregnancy1.pregnancyStopQuestion}
                     </ThemedText>

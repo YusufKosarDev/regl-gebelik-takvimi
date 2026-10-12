@@ -32,6 +32,7 @@ import {
 
 import { logEvent } from '@/shared/logging';
 import { useTabBarInset } from '@/components/tab-bar';
+import { useRevealInView } from '@/hooks/use-reveal-in-view';
 import { getDailyLogHistory } from '@/features/daily-log/application/get-daily-log-history';
 import type { DailyLogHistory } from '@/features/daily-log/application/get-daily-log-history';
 import { mostLogged } from '@/features/daily-log/domain/most-logged';
@@ -48,6 +49,7 @@ import { PhaseCorrelationSummary } from '@/features/daily-log/components/phase-c
 export default function HistoryScreen() {
   const theme = useTheme();
   const tabBarInset = useTabBarInset();
+  const revealEditor = useRevealInView({ bottomInset: tabBarInset });
   const sync1 = useMessages(syncMessages);
   const history = useMessages(historyMessages);
   const common = useMessages(appMessages);
@@ -355,6 +357,7 @@ export default function HistoryScreen() {
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView
+          {...revealEditor.scrollViewProps}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
@@ -433,6 +436,7 @@ export default function HistoryScreen() {
                     <ThemedText type="small">{recordEndLabelIn(history, record, language)}</ThemedText>
 
                     {recordUnderStartEdit?.id === record.id ? (
+                      <View {...revealEditor.targetProps}>
                       <StartDateEditor
                         record={record}
                         today={today}
@@ -443,7 +447,9 @@ export default function HistoryScreen() {
                         onCancel={closePanels}
                         onSave={() => applyStartDate(selectedStartDate ?? record.startDate)}
                       />
+                      </View>
                     ) : recordUnderEndEdit?.id === record.id ? (
+                      <View {...revealEditor.targetProps}>
                       <EndDateEditor
                         record={record}
                         today={today}
@@ -464,8 +470,9 @@ export default function HistoryScreen() {
                         onSave={() => applyEndDate(selectedEndDate ?? record.startDate)}
                         onRemove={() => applyEndDate(undefined)}
                       />
+                      </View>
                     ) : recordPendingDelete?.id === record.id ? (
-                      <View style={styles.confirmation}>
+                      <View {...revealEditor.targetProps} style={styles.confirmation}>
                         <ThemedText type="small">{history.deleteQuestion}</ThemedText>
 
                         <ThemedText type="smallBold">

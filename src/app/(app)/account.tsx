@@ -72,6 +72,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { useTheme } from '@/hooks/use-theme';
+import { useRevealInView } from '@/hooks/use-reveal-in-view';
 import { useMessages } from '@/i18n';
 
 import { openAppDatabase } from '@/storage/db';
@@ -169,6 +170,10 @@ export default function AccountScreen() {
   // sign-in form, which is not on screen while somebody is signed in.
   const resetAppState = useAppStore((state) => state.resetAppState);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  // No tab bar on this screen: it is pushed, not a tab, so nothing floats
+  // over the bottom of the viewport and there is no inset to reserve.
+  const revealDelete = useRevealInView({ bottomInset: 0 });
 
   /**
    * Whether an app lock is bound to the signed-in account.
@@ -760,6 +765,7 @@ export default function AccountScreen() {
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView
+          {...revealDelete.scrollViewProps}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
@@ -943,7 +949,15 @@ export default function AccountScreen() {
                   </ThemedText>
                 </Pressable>
 
-                {/* Last, and set apart: everything above this is reversible. */}
+                {/* Last, and set apart: everything above this is reversible.
+
+                    Wrapped so the reveal has something to measure: the panel
+                    is a component and the ref has to go on a host view. This
+                    is the worst of the six - the panel adds a heading, two
+                    warnings, a password field and three controls below a
+                    button that was already near the bottom, so what opened on
+                    screen was the heading and nothing else. */}
+                <View {...revealDelete.targetProps}>
                 <AccountDeletionPanel
                   isConfirming={isConfirmingDelete}
                   isBusy={isBusy}
@@ -963,6 +977,7 @@ export default function AccountScreen() {
                   onWipeLocalTooChange={setWipeLocalToo}
                   onOpenAppLock={() => router.push('/(app)/app-lock')}
                 />
+                </View>
               </View>
             )}
 

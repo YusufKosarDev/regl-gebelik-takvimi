@@ -63,6 +63,7 @@ import { useAppStore } from '@/store/app-store';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
 import { useTabBarInset } from '@/components/tab-bar';
+import { useRevealInView } from '@/hooks/use-reveal-in-view';
 import { ProfileIdentity } from '@/features/auth/components/profile-identity';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
@@ -92,6 +93,11 @@ export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const tabBarInset = useTabBarInset();
+
+  // The wipe confirmation opens in place, below a button that is already near
+  // the bottom of a long screen. The inset is the bar's, because it floats
+  // over the content rather than sitting under it.
+  const revealWipe = useRevealInView({ bottomInset: tabBarInset });
   const sync1 = useMessages(syncMessages);
   const lock = useMessages(appLockMessages);
   const deletion = useMessages(deletionMessages);
@@ -518,6 +524,7 @@ export default function SettingsScreen() {
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView
+          {...revealWipe.scrollViewProps}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
@@ -754,7 +761,7 @@ export default function SettingsScreen() {
               )}
 
               {isConfirmingWipe && (
-                <View style={styles.fields}>
+                <View {...revealWipe.targetProps} style={styles.fields}>
                   <ThemedText accessibilityRole="header" type="smallBold">
                     {deletion.localWipePanelTitle}
                   </ThemedText>

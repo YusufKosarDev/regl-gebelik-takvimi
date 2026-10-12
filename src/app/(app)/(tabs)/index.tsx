@@ -68,6 +68,7 @@ import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
 import { useTabBarInset } from '@/components/tab-bar';
+import { useRevealInView } from '@/hooks/use-reveal-in-view';
 import { EmptyState } from '@/components/empty-state';
 
 /**
@@ -95,6 +96,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const sky = useSky();
   const tabBarInset = useTabBarInset();
+
+  // The period card turns into a confirmation in place, and it sits below a
+  // hero that is a whole viewport tall - so it is always reached by scrolling,
+  // and the confirmation can open against the bottom of the screen.
+  const revealPeriod = useRevealInView({ bottomInset: tabBarInset });
   const motionAllowed = useMotionAllowed();
 
   /**
@@ -652,8 +658,16 @@ export default function HomeScreen() {
         testID="sky-field">
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           <ScrollView
+            {...revealPeriod.scrollViewProps}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]}
-            onLayout={(event) => setViewport(event.nativeEvent.layout.height)}
+            // Both, explicitly. This screen already measured the viewport for
+            // the hero's height, and the spread above carries an `onLayout` of
+            // its own - written as a spread plus an override, one of them
+            // would have silently replaced the other.
+            onLayout={(event) => {
+              revealPeriod.scrollViewProps.onLayout(event);
+              setViewport(event.nativeEvent.layout.height);
+            }}
             showsVerticalScrollIndicator={false}>
             {/* The hero is exactly one viewport tall, so what is underneath is
                 reachable by scrolling and invisible until somebody does. That
@@ -762,6 +776,7 @@ export default function HomeScreen() {
               )}
 
               {periodAction === 'none' ? null : (
+                <View {...revealPeriod.targetProps}>
                 <PeriodActionCard
                   today={dashboard.today}
                   isEnding={isEnding}
@@ -772,6 +787,7 @@ export default function HomeScreen() {
                   setHasSaveError={setHasSaveError}
                   handleSavePeriod={handleSavePeriod}
                 />
+                </View>
               )}
               </>
             )}
