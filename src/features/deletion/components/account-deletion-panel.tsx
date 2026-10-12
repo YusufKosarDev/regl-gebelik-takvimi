@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -81,7 +81,7 @@ export function AccountDeletionPanel({
               isBusy && styles.disabled,
               pressed && !isBusy && styles.pressed,
             ]}>
-            <ThemedText type="smallBold">{deletion.accountDeleteOpenLabel}</ThemedText>
+            <ThemedText type="smallBold" style={ButtonLabel}>{deletion.accountDeleteOpenLabel}</ThemedText>
           </Pressable>
         )}
 
@@ -117,7 +117,7 @@ export function AccountDeletionPanel({
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{lock.removeLockFirstLabel}</ThemedText>
+                  <ThemedText type="smallBold" style={ButtonLabel}>{lock.removeLockFirstLabel}</ThemedText>
                 </Pressable>
               </View>
             )}
@@ -175,7 +175,7 @@ export function AccountDeletionPanel({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                 {isBusy ? deletion.accountDeleteBusyLabel : deletion.accountDeleteConfirmLabel}
               </ThemedText>
             </Pressable>
@@ -192,7 +192,7 @@ export function AccountDeletionPanel({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{deletion.accountDeleteCancelLabel}</ThemedText>
+              <ThemedText type="smallBold" style={ButtonLabel}>{deletion.accountDeleteCancelLabel}</ThemedText>
             </Pressable>
           </View>
         )}

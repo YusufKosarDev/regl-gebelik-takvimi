@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ConnectedLanguagePicker } from '@/components/language-picker';
 import { LengthStepper } from '@/features/cycle/components/length-stepper';
 import { NotificationsSection } from '@/features/notifications/components/notifications-section';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { getCycleSettings } from '@/features/cycle/application/get-cycle-settings';
@@ -612,7 +612,7 @@ export default function SettingsScreen() {
                     isSaving && styles.disabled,
                     pressed && !isSaving && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                  <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                     {isSaving ? common.savingLabel : common.saveLabel}
                   </ThemedText>
                 </Pressable>
@@ -660,7 +660,7 @@ export default function SettingsScreen() {
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">
+                <ThemedText type="smallBold" style={ButtonLabel}>
                   {appLockEnabled ? lock.appLockManageLabel : lock.appLockSetLabel}
                 </ThemedText>
               </Pressable>
@@ -698,7 +698,7 @@ export default function SettingsScreen() {
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{exportStrings.exportTitle}</ThemedText>
+                <ThemedText type="smallBold" style={ButtonLabel}>{exportStrings.exportTitle}</ThemedText>
               </Pressable>
             </View>
 
@@ -715,7 +715,7 @@ export default function SettingsScreen() {
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{disclaimer.aboutOpenLabel}</ThemedText>
+                <ThemedText type="smallBold" style={ButtonLabel}>{disclaimer.aboutOpenLabel}</ThemedText>
               </Pressable>
             </View>
 
@@ -749,7 +749,7 @@ export default function SettingsScreen() {
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{deletion.localWipeOpenLabel}</ThemedText>
+                  <ThemedText type="smallBold" style={ButtonLabel}>{deletion.localWipeOpenLabel}</ThemedText>
                 </Pressable>
               )}
 
@@ -788,7 +788,7 @@ export default function SettingsScreen() {
                       isWiping && styles.disabled,
                       pressed && !isWiping && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                    <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                       {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
                     </ThemedText>
                   </Pressable>
@@ -807,7 +807,7 @@ export default function SettingsScreen() {
                       isWiping && styles.disabled,
                       pressed && !isWiping && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">{deletion.localWipeCancelLabel}</ThemedText>
+                    <ThemedText type="smallBold" style={ButtonLabel}>{deletion.localWipeCancelLabel}</ThemedText>
                   </Pressable>
                 </View>
               )}

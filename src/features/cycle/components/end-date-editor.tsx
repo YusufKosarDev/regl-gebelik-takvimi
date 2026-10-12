@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { appMessages } from '@/shared/presentation/app-messages';
@@ -85,7 +85,7 @@ export function EndDateEditor({
               isUpdating && styles.disabled,
               pressed && !isUpdating && styles.pressed,
             ]}>
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
               {common.cancelLabel}
             </ThemedText>
           </Pressable>
@@ -102,7 +102,7 @@ export function EndDateEditor({
               isUpdating && styles.disabled,
               pressed && !isUpdating && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+            <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
               {isUpdating ? history.clearEndBusyLabel : history.clearEndConfirmLabel}
             </ThemedText>
           </Pressable>
@@ -174,7 +174,7 @@ export function EndDateEditor({
             isUpdating && styles.disabled,
             pressed && !isUpdating && styles.pressed,
           ]}>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
             {common.cancelLabel}
           </ThemedText>
         </Pressable>
@@ -191,7 +191,7 @@ export function EndDateEditor({
             isUpdating && styles.disabled,
             pressed && !isUpdating && styles.pressed,
           ]}>
-          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+          <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
             {isUpdating ? common.savingLabel : common.saveLabel}
           </ThemedText>
         </Pressable>

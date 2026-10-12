@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
@@ -127,7 +127,7 @@ export default function LastPeriodScreen() {
               { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
+            <ThemedText type="smallBold" style={[ButtonLabel, styles.primaryLabel, { color: theme.onPrimary }]}>
               {onboarding.continueLabel}
             </ThemedText>
           </Pressable>

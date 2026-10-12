@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { removeAppLock } from '@/features/app-lock/application/remove-app-lock';
@@ -250,7 +250,7 @@ export default function AppLockScreen() {
                     { backgroundColor: theme.primary },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                  <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                     {lock.noAccountCreateLabel}
                   </ThemedText>
                 </Pressable>
@@ -263,7 +263,7 @@ export default function AppLockScreen() {
                   accessibilityLabel={lock.noAccountContinueLabel}
                   onPress={() => setStep('choose')}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                  <ThemedText type="small" themeColor="textSecondary">
+                  <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                     {lock.noAccountContinueLabel}
                   </ThemedText>
                 </Pressable>
@@ -371,7 +371,7 @@ export default function AppLockScreen() {
                     setStep('choose');
                   }}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                  <ThemedText type="smallBold">{lock.changePinLabel}</ThemedText>
+                  <ThemedText type="smallBold" style={ButtonLabel}>{lock.changePinLabel}</ThemedText>
                 </Pressable>
 
                 <ThemedText accessibilityRole="header" type="smallBold">
@@ -396,7 +396,7 @@ export default function AppLockScreen() {
                     isSaving && styles.disabled,
                     pressed && !isSaving && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                  <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                     {lock.removeLockConfirmLabel}
                   </ThemedText>
                 </Pressable>

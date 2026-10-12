@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
@@ -273,7 +273,7 @@ export default function SyncConflictScreen() {
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{conflict1.conflictKeepLocalLabel}</ThemedText>
+                  <ThemedText type="smallBold" style={ButtonLabel}>{conflict1.conflictKeepLocalLabel}</ThemedText>
                 </Pressable>
 
                 <Pressable
@@ -285,7 +285,7 @@ export default function SyncConflictScreen() {
                     { borderColor: theme.backgroundSelected },
                     pressed && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{conflict1.conflictKeepRemoteLabel}</ThemedText>
+                  <ThemedText type="smallBold" style={ButtonLabel}>{conflict1.conflictKeepRemoteLabel}</ThemedText>
                 </Pressable>
               </View>
             )}
@@ -316,7 +316,7 @@ export default function SyncConflictScreen() {
                     isBusy && styles.disabled,
                     pressed && !isBusy && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                  <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                     {isBusy
                       ? conflict1.conflictBusyLabel
                       : confirming === 'local'
@@ -337,7 +337,7 @@ export default function SyncConflictScreen() {
                     isBusy && styles.disabled,
                     pressed && !isBusy && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">{conflict1.conflictCancelLabel}</ThemedText>
+                  <ThemedText type="smallBold" style={ButtonLabel}>{conflict1.conflictCancelLabel}</ThemedText>
                 </Pressable>
               </View>
             )}

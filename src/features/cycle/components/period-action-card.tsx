@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { homeMessages } from '../presentation/home-messages';
 
 import { Surface } from '@/components/surface';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useSky, useTheme } from '@/hooks/use-theme';
 
@@ -101,7 +101,7 @@ export function PeriodActionCard({
             isSaving && styles.disabled,
             pressed && !isSaving && styles.pressed,
           ]}>
-          <ThemedText type="small">
+          <ThemedText type="small" style={ButtonLabel}>
             {home.periodCancelLabel}
           </ThemedText>
         </Pressable>
@@ -118,7 +118,7 @@ export function PeriodActionCard({
             isSaving && styles.disabled,
             pressed && !isSaving && styles.pressed,
           ]}>
-          <ThemedText type="smallBold" style={filledLabel}>
+          <ThemedText type="smallBold" style={[ButtonLabel, filledLabel]}>
             {isSaving ? home.periodSavingLabel : home.periodSaveLabel}
           </ThemedText>
         </Pressable>

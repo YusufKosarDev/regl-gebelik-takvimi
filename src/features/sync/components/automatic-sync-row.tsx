@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
@@ -99,7 +99,7 @@ export function AutomaticSyncRow({
                   { borderColor: theme.backgroundSelected },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{sync1.conflictOpenLabel}</ThemedText>
+                <ThemedText type="smallBold" style={ButtonLabel}>{sync1.conflictOpenLabel}</ThemedText>
               </Pressable>
             </>
           )}

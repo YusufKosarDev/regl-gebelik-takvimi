@@ -14,7 +14,7 @@ import { SignedOutForm } from '@/features/auth/components/signed-out-form';
 import { AccountDeletionPanel } from '@/features/deletion/components/account-deletion-panel';
 import { RestorePreviewPanel } from '@/features/backup/components/restore-preview-panel';
 import { AutomaticSyncRow } from '@/features/sync/components/automatic-sync-row';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
@@ -894,7 +894,7 @@ export default function AccountScreen() {
                       (isBusy || automaticSync) && styles.disabled,
                       pressed && !isBusy && !automaticSync && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">{authStrings.backupCreateLabel}</ThemedText>
+                    <ThemedText type="smallBold" style={ButtonLabel}>{authStrings.backupCreateLabel}</ThemedText>
                   </Pressable>
 
                   <RestorePreviewPanel
@@ -922,7 +922,7 @@ export default function AccountScreen() {
                       isBusy && styles.disabled,
                       pressed && !isBusy && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold">{authStrings.backupCheckLabel}</ThemedText>
+                    <ThemedText type="smallBold" style={ButtonLabel}>{authStrings.backupCheckLabel}</ThemedText>
                   </Pressable>
                 </View>
 
@@ -938,7 +938,7 @@ export default function AccountScreen() {
                     isBusy && styles.disabled,
                     pressed && !isBusy && styles.pressed,
                   ]}>
-                  <ThemedText type="smallBold">
+                  <ThemedText type="smallBold" style={ButtonLabel}>
                     {isBusy ? authStrings.signingOutLabel : authStrings.signOutLabel}
                   </ThemedText>
                 </Pressable>

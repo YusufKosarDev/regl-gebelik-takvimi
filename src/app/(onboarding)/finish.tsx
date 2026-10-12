@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { completeCycleOnboarding } from '@/features/cycle/application/complete-cycle-onboarding';
@@ -162,7 +162,7 @@ export default function FinishScreen() {
               isSubmitting && styles.primaryButtonDisabled,
               pressed && !isSubmitting && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" style={[styles.primaryLabel, { color: theme.onPrimary }]}>
+            <ThemedText type="smallBold" style={[ButtonLabel, styles.primaryLabel, { color: theme.onPrimary }]}>
               {isSubmitting ? onboarding.finishSavingLabel : onboarding.finishStartLabel}
             </ThemedText>
           </Pressable>

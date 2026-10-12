@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { recoverWithAccountPassword } from '@/features/app-lock/application/recover-with-account-password';
@@ -206,7 +206,7 @@ export default function RecoverScreen() {
                   isBusy && styles.disabled,
                   pressed && !isBusy && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                   {isBusy ? common.savingLabel : lock.recoverySubmitLabel}
                 </ThemedText>
               </Pressable>

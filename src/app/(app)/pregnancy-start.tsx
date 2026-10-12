@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { startPregnancyTracking } from '@/features/pregnancy/application/start-pregnancy-tracking';
@@ -172,7 +172,7 @@ export default function PregnancyStartScreen() {
                 isSaving && styles.disabled,
                 pressed && !isSaving && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                 {isSaving ? pregnancy1.pregnancyStartStartingLabel : pregnancy1.pregnancyStartSubmitText}
               </ThemedText>
             </Pressable>

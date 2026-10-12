@@ -12,7 +12,7 @@ import {
   weeklyHighlightIn,
 } from '../presentation/pregnancy-labels';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { homeMessages } from '@/features/cycle/presentation/home-messages';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
@@ -183,7 +183,7 @@ export function PregnancySection({
                 styles.secondaryButton,
                 pressed && styles.pressed,
               ]}>
-              <ThemedText type="small" themeColor="textSecondary">
+              <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                 {pregnancy1.pregnancyBackToCurrentWeekLabel}
               </ThemedText>
             </Pressable>
@@ -274,7 +274,7 @@ export function PregnancySection({
         accessibilityLabel={pregnancy1.pregnancySettingsLinkLabel}
         onPress={() => router.push('/(app)/pregnancy-settings')}
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
           {pregnancy1.pregnancySettingsLinkText}
         </ThemedText>
       </Pressable>

@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { getPregnancyProfile } from '@/features/pregnancy/application/get-pregnancy-profile';
@@ -361,7 +361,7 @@ export default function PregnancySettingsScreen() {
                           isStopping && styles.disabled,
                           pressed && !isStopping && styles.pressed,
                         ]}>
-                        <ThemedText type="small" themeColor="textSecondary">
+                        <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                           {common.cancelLabel}
                         </ThemedText>
                       </Pressable>
@@ -378,7 +378,7 @@ export default function PregnancySettingsScreen() {
                           isStopping && styles.disabled,
                           pressed && !isStopping && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                        <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                           {isStopping ? pregnancy1.pregnancyStoppingLabel : pregnancy1.pregnancyStopConfirmText}
                         </ThemedText>
                       </Pressable>
@@ -398,7 +398,7 @@ export default function PregnancySettingsScreen() {
                         isSaving && styles.disabled,
                         pressed && !isSaving && styles.pressed,
                       ]}>
-                      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                      <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                         {pregnancy1.pregnancyEditDueDateText}
                       </ThemedText>
                     </Pressable>
@@ -422,7 +422,7 @@ export default function PregnancySettingsScreen() {
                           isSaving && styles.disabled,
                           pressed && !isSaving && styles.pressed,
                         ]}>
-                        <ThemedText type="small" themeColor="textSecondary">
+                        <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                           {isSaving ? common.savingLabel : pregnancy1.pregnancyBackToLmpText}
                         </ThemedText>
                       </Pressable>
@@ -449,7 +449,7 @@ export default function PregnancySettingsScreen() {
                         isSaving && styles.disabled,
                         pressed && !isSaving && styles.pressed,
                       ]}>
-                      <ThemedText type="small" themeColor="textSecondary">
+                      <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                         {pregnancy1.pregnancyStopConfirmLabel}
                       </ThemedText>
                     </Pressable>
@@ -521,7 +521,7 @@ export default function PregnancySettingsScreen() {
                           isSaving && styles.disabled,
                           pressed && !isSaving && styles.pressed,
                         ]}>
-                        <ThemedText type="small" themeColor="textSecondary">
+                        <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                           {common.cancelLabel}
                         </ThemedText>
                       </Pressable>
@@ -538,7 +538,7 @@ export default function PregnancySettingsScreen() {
                           isSaving && styles.disabled,
                           pressed && !isSaving && styles.pressed,
                         ]}>
-                        <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+                        <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                           {isSaving ? common.savingLabel : common.saveLabel}
                         </ThemedText>
                       </Pressable>

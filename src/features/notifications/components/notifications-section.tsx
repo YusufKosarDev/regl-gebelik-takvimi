@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -82,7 +82,7 @@ export function NotificationsSection({
                 { borderColor: theme.backgroundSelected },
                 pressed && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{reminderStrings.openSystemSettingsLabel}</ThemedText>
+              <ThemedText type="smallBold" style={ButtonLabel}>{reminderStrings.openSystemSettingsLabel}</ThemedText>
             </Pressable>
 
             {settingsLinkNotice !== null && (

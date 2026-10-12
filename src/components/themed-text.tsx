@@ -103,3 +103,61 @@ export function ThemedText({
     />
   );
 }
+
+/**
+ * The slack a button label needs so a layout pass cannot truncate it.
+ *
+ * ## The defect this removes
+ *
+ * A label that is the only child of a `Pressable` with `alignItems: 'center'`
+ * is a shrink-to-fit flex child: it is handed exactly the width it measured
+ * and not one pixel more. Measured on a device, the export button's node was
+ * 324px and the same string drawn as a heading was 323px of ink - so the
+ * measurement was right and the box was right.
+ *
+ * What was drawn in it was `Verilerini dışa` and then nothing: 228px of ink
+ * flush to the node's left edge, with the missing 96px exactly the width of
+ * " aktar", broken at the space, in a box one line tall.
+ *
+ * It depends on the **system locale**, not on the app's language setting. The
+ * same build, device and string, with the app set to Türkçe throughout:
+ *
+ *   - system locale `en-US`  ->  228px drawn of a 324px node
+ *   - system locale `tr-TR`  ->  323px drawn of a 324px node
+ *
+ * So it appears for somebody running the app in Turkish on a phone that is
+ * not - a tester, or anyone whose device is in another language - and never
+ * on a Turkish phone, which is where it would have been looked for.
+ *
+ * ## Why slack rather than a shorter string
+ *
+ * The string is incidental. The trigger is a measured width landing on the
+ * wrong side of a locale-dependent threshold, so any label can cross it when
+ * the copy, the font scale or the device font changes. One pixel of slack is
+ * demonstrably not enough - the node already had one.
+ *
+ * `alignSelf: 'stretch'` takes the label off the content-sized path
+ * altogether: it fills the button's inner width, which is hundreds of pixels
+ * wider than any label, and `textAlign: 'center'` puts the words back where
+ * `alignItems: 'center'` had them. Nothing moves on screen. If a label ever
+ * does need two lines it now wraps, which is the right answer for a control
+ * somebody has to read.
+ *
+ * Deliberately not solved by shrinking the text to fit or by capping it at one
+ * line with an ellipsis. Both trade a rendering fault for a legibility one,
+ * and these are the buttons that export and delete somebody's health records.
+ *
+ * ## What is not known
+ *
+ * Whether the engine wraps the run and clips the second line, or drops the
+ * tail of the glyph run outright. The break falls at a word boundary, the ink
+ * starts at the node's left edge rather than centred, and the box is one line
+ * tall, which all point at a wrap - but it was not confirmed inside Android's
+ * text layout, and it does not change the fix.
+ *
+ * `__tests__/button-label-slack.test.ts` holds the rule across the app: no
+ * test and no code review can see this one, only pixels.
+ */
+export const ButtonLabel = StyleSheet.create({
+  slack: { alignSelf: 'stretch', textAlign: 'center' },
+}).slack;

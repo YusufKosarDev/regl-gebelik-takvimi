@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EndDateEditor } from '@/features/cycle/components/end-date-editor';
 import { StartDateEditor } from '@/features/cycle/components/start-date-editor';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { deletePeriodRecord } from '@/features/cycle/application/delete-period-record';
@@ -497,7 +497,7 @@ export default function HistoryScreen() {
                               isDeleting && styles.disabled,
                               pressed && !isDeleting && styles.pressed,
                             ]}>
-                            <ThemedText type="small" themeColor="textSecondary">
+                            <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
                               {common.cancelLabel}
                             </ThemedText>
                           </Pressable>
@@ -516,7 +516,7 @@ export default function HistoryScreen() {
                             ]}>
                             <ThemedText
                               type="smallBold"
-                              style={{ color: theme.onPrimary }}>
+                              style={[ButtonLabel, { color: theme.onPrimary }]}>
                               {isDeleting ? history.deleteBusyLabel : history.deleteConfirmLabel}
                             </ThemedText>
                           </Pressable>

@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { ChoiceGrid } from '@/features/daily-log/components/choice-grid';
@@ -381,7 +381,7 @@ export default function DailyEntryScreen() {
                 (isLoading || isBusy) && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" themeColor="onPrimary">
+              <ThemedText type="smallBold" themeColor="onPrimary" style={ButtonLabel}>
                 {isBusy ? strings.savingLabel : strings.saveLabel}
               </ThemedText>
             </Pressable>
@@ -403,7 +403,7 @@ export default function DailyEntryScreen() {
                   (isLoading || isBusy) && styles.disabled,
                   pressed && !isBusy && styles.pressed,
                 ]}>
-                <ThemedText type="smallBold">{strings.clearLabel}</ThemedText>
+                <ThemedText type="smallBold" style={ButtonLabel}>{strings.clearLabel}</ThemedText>
               </Pressable>
             )}
           </View>

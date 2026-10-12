@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -64,7 +64,7 @@ export function RestorePreviewPanel({
               isBusy && styles.disabled,
               pressed && !isBusy && styles.pressed,
             ]}>
-            <ThemedText type="smallBold">{authStrings.restoreOpenLabel}</ThemedText>
+            <ThemedText type="smallBold" style={ButtonLabel}>{authStrings.restoreOpenLabel}</ThemedText>
           </Pressable>
         ) : (
           <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
@@ -110,7 +110,7 @@ export function RestorePreviewPanel({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                 {isBusy ? authStrings.restoringLabel : authStrings.restoreConfirmLabel}
               </ThemedText>
             </Pressable>
@@ -127,7 +127,7 @@ export function RestorePreviewPanel({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{common.cancelLabel}</ThemedText>
+              <ThemedText type="smallBold" style={ButtonLabel}>{common.cancelLabel}</ThemedText>
             </Pressable>
           </View>
   );

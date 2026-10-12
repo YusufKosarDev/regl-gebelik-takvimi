@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -143,7 +143,7 @@ export function SignedOutForm({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                 {isBusy ? authStrings.sendingLabel : authStrings.passwordResetSendLabel}
               </ThemedText>
             </Pressable>
@@ -160,7 +160,7 @@ export function SignedOutForm({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{common.cancelLabel}</ThemedText>
+              <ThemedText type="smallBold" style={ButtonLabel}>{common.cancelLabel}</ThemedText>
             </Pressable>
           </>
         ) : (
@@ -177,7 +177,7 @@ export function SignedOutForm({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                 {isBusy ? authStrings.sendingLabel : authStrings.signInLabel}
               </ThemedText>
             </Pressable>
@@ -194,7 +194,7 @@ export function SignedOutForm({
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold">{authStrings.signUpLabel}</ThemedText>
+              <ThemedText type="smallBold" style={ButtonLabel}>{authStrings.signUpLabel}</ThemedText>
             </Pressable>
 
             {/* Last, and quiet: it is the way out of a form that did
