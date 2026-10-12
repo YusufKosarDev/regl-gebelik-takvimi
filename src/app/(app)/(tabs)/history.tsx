@@ -31,7 +31,7 @@ import {
 } from '@/features/cycle/presentation/history-messages';
 
 import { logEvent } from '@/shared/logging';
-import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
+import { useTabBarInset } from '@/components/tab-bar';
 import { getDailyLogHistory } from '@/features/daily-log/application/get-daily-log-history';
 import type { DailyLogHistory } from '@/features/daily-log/application/get-daily-log-history';
 import { mostLogged } from '@/features/daily-log/domain/most-logged';
@@ -47,6 +47,7 @@ import { PhaseCorrelationSummary } from '@/features/daily-log/components/phase-c
  */
 export default function HistoryScreen() {
   const theme = useTheme();
+  const tabBarInset = useTabBarInset();
   const sync1 = useMessages(syncMessages);
   const history = useMessages(historyMessages);
   const common = useMessages(appMessages);
@@ -354,7 +355,7 @@ export default function HistoryScreen() {
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]}
           showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
 
@@ -599,7 +600,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.five + TAB_BAR_HEIGHT,
+    paddingBottom: Spacing.five,
   },
   content: {
     width: '100%',

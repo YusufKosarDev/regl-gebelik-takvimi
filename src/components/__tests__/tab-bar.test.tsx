@@ -1,11 +1,17 @@
 import { render } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { PixelRatio, StyleSheet } from 'react-native';
 
 import { Sky } from '@/constants/sky';
 import { Colors } from '@/constants/theme';
 import { OnSkyProvider } from '@/features/cycle/components/on-sky';
 
-import { TAB_BAR_HEIGHT, TabBar, TabBarButton } from '../tab-bar';
+import {
+  TAB_BAR_HEIGHT,
+  TAB_BAR_MAX_FONT_SCALE,
+  TabBar,
+  TabBarButton,
+  tabBarInsetFor,
+} from '../tab-bar';
 
 /**
  * The one control that is on every screen.
@@ -127,7 +133,9 @@ describe('a tab in the bar', () => {
     const flat = StyleSheet.flatten(getByRole('tab', { name: 'Geçmiş' }).props.style);
 
     expect(flat?.minHeight).toBeGreaterThanOrEqual(48);
-    expect(flat?.minHeight).toBe(TAB_BAR_HEIGHT);
+    // Scaled: this suite runs at a font scale of its own, so the box is
+    // whatever the inset says rather than the bare constant.
+    expect(flat?.minHeight).toBe(tabBarInsetFor(PixelRatio.getFontScale()));
   });
 
   it('keeps its share of the bar even when the trigger passes a style', async () => {
@@ -222,5 +230,50 @@ describe('a tab in the bar', () => {
     expect(drawn).not.toContain(Colors.light.backgroundElement);
     expect(drawn).not.toContain(Colors.light.primary);
     expect(drawn).not.toContain(Colors.light.textSecondary);
+  });
+});
+
+/**
+ * The bar at a large font setting.
+ *
+ * Found on a device at 200%: "Calendar" broke mid-word into "Calenda / r", and
+ * the arc on the home screen came down over the bar because the room the
+ * screens reserve for it is a constant and the bar had grown.
+ *
+ * Both halves are fixed together on purpose. `themed-text.tsx` already caps
+ * the two display sizes at 1.4 and says why - at Android's largest a 48dp
+ * title becomes 96dp, "correct and unusable" - and it warns against the other
+ * half of this: capping the box while the letters keep growing. So the label
+ * and the box are capped at the same number.
+ *
+ * The calendar's own cells are deliberately not capped, and that difference is
+ * the point: the grid is content somebody turned the setting up to read, and
+ * the bar is a control they aim at.
+ */
+describe('the bar at a large font setting', () => {
+  it('caps the label so a word cannot break in half', async () => {
+    const { getByText } = await renderButton({ label: 'Takvim', isFocused: false });
+
+    expect(getByText('Takvim').props.maxFontSizeMultiplier).toBe(TAB_BAR_MAX_FONT_SCALE);
+  });
+
+  it('reserves room in step with the cap, not with the setting', () => {
+    // The screens pad by this. Uncapped it would reserve twice what the bar
+    // takes at 200%; unscaled it reserves half.
+    expect(tabBarInsetFor(1)).toBe(TAB_BAR_HEIGHT);
+    expect(tabBarInsetFor(1.2)).toBeCloseTo(TAB_BAR_HEIGHT * 1.2, 5);
+    expect(tabBarInsetFor(2)).toBeCloseTo(TAB_BAR_HEIGHT * TAB_BAR_MAX_FONT_SCALE, 5);
+  });
+
+  it('reserves exactly what the bar takes, at whatever scale', async () => {
+    // The same number, not merely close: the screens pad by the inset and the
+    // bar is as tall as its tabs. The two are read from opposite ends here -
+    // the style the component renders, and the function the screens call - so
+    // a change to either one alone fails this.
+    const { getByRole } = await renderButton({ label: 'Geçmiş', isFocused: false });
+
+    const flat = StyleSheet.flatten(getByRole('tab', { name: 'Geçmiş' }).props.style);
+
+    expect(flat?.minHeight).toBe(tabBarInsetFor(PixelRatio.getFontScale()));
   });
 });

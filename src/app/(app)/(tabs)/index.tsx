@@ -67,7 +67,7 @@ import { heroHeightFor } from '@/features/cycle/presentation/hero-height';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
-import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
+import { useTabBarInset } from '@/components/tab-bar';
 import { EmptyState } from '@/components/empty-state';
 
 /**
@@ -94,6 +94,7 @@ const SCROLL_TOP_INSET = Spacing.six;
 export default function HomeScreen() {
   const router = useRouter();
   const sky = useSky();
+  const tabBarInset = useTabBarInset();
   const motionAllowed = useMotionAllowed();
 
   /**
@@ -651,14 +652,14 @@ export default function HomeScreen() {
         testID="sky-field">
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]}
             onLayout={(event) => setViewport(event.nativeEvent.layout.height)}
             showsVerticalScrollIndicator={false}>
             {/* The hero is exactly one viewport tall, so what is underneath is
                 reachable by scrolling and invisible until somebody does. That
                 is the whole of the layout change: nothing was deleted, the
                 screen just stopped showing all of it at once. */}
-            <View style={[styles.hero, { height: heroHeight }]}>
+            <View style={[styles.hero, { height: heroHeight, paddingBottom: Spacing.three + tabBarInset }]}>
               <HomeModeSwitch
                 isPregnancyView={isPregnancyView}
                 pregnancy={pregnancy}
@@ -828,11 +829,15 @@ const styles = StyleSheet.create({
      * rather than fixing it: the arc cleared the bar and the fertility heading
      * underneath appeared through the glass.
      *
+     * The bar's own share is added inline rather than here, because it
+     * follows the font setting and a StyleSheet cannot. This number is the
+     * breathing room; `tabBarInset` is the bar.
+     *
      * The safe-area inset is not this number's job either: `SafeAreaView`
      * already holds the gesture bar off, measured at twenty-four points on the
      * device this was checked on, and the bar takes its own.
      */
-    paddingBottom: Spacing.three + TAB_BAR_HEIGHT,
+    paddingBottom: Spacing.three,
     gap: Spacing.three,
   },
   screen: {
@@ -860,7 +865,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: SCROLL_TOP_INSET,
-    paddingBottom: Spacing.five + TAB_BAR_HEIGHT,
+    paddingBottom: Spacing.five,
   },
   content: {
     width: '100%',

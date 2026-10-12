@@ -24,7 +24,7 @@ import type { ISODate } from '@/types/iso-date';
 import { canShiftYearMonth, getYearMonth, shiftYearMonth } from '@/utils/date';
 import { formatDisplayMonth } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
-import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
+import { useTabBarInset } from '@/components/tab-bar';
 
 /**
  * The month calendar, on its own screen.
@@ -44,6 +44,7 @@ import { TAB_BAR_HEIGHT } from '@/components/tab-bar';
 export default function CalendarScreen() {
   const theme = useTheme();
   const sky = useSky();
+  const tabBarInset = useTabBarInset();
   const language = useLanguage();
   const home = useMessages(homeMessages);
 
@@ -207,7 +208,7 @@ export default function CalendarScreen() {
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
 
             <CycleCalendarSection
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   message: { textAlign: 'center' },
-  scrollContent: { paddingBottom: Spacing.five + TAB_BAR_HEIGHT },
+  scrollContent: { paddingBottom: Spacing.five },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,

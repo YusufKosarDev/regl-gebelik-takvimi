@@ -1,6 +1,8 @@
 import { StyleSheet } from 'react-native';
 
-import { TAB_BAR_HEIGHT } from '../src/components/tab-bar';
+import { PixelRatio } from 'react-native';
+
+import { tabBarInsetFor } from '../src/components/tab-bar';
 
 /**
  * A tab screen has to leave room for the bar floating over it.
@@ -41,6 +43,10 @@ export function expectClearsTabBar(tree: unknown): void {
   // A screen with no scroll view has nothing that can hide under the bar, so
   // it passes. A screen that scrolls has to clear it.
   for (const padding of paddings) {
-    expect(padding).toBeGreaterThanOrEqual(TAB_BAR_HEIGHT);
+    // Against the scaled inset, not the bare constant: the bar grows with the
+    // font setting up to its cap, and a screen that reserved the unscaled
+    // figure would hide its last row at exactly the setting somebody turned up
+    // in order to read it.
+    expect(padding).toBeGreaterThanOrEqual(tabBarInsetFor(PixelRatio.getFontScale()));
   }
 }

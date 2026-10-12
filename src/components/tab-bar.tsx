@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View, type PressableProps, type ViewProps } from
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useFontScale } from '@/hooks/use-font-scale';
 import { useOnSky } from '@/features/cycle/components/on-sky';
 import { useSky, useTheme } from '@/hooks/use-theme';
 
@@ -24,6 +25,38 @@ import { useSky, useTheme } from '@/hooks/use-theme';
  * is the whole of what is left to clear.
  */
 export const TAB_BAR_HEIGHT = 48;
+
+/**
+ * How far the bar follows the system font setting, and no further.
+ *
+ * Found on a device at 200%: "Calendar" broke mid-word into "Calenda / r".
+ * A four-item bar across a phone gives each word a quarter of the width, and
+ * at twice the size the longest of them does not fit in it.
+ *
+ * `themed-text.tsx` already caps its two display sizes at the same number and
+ * says why - at Android largest a 48dp title becomes 96dp, "correct and
+ * unusable". The calendar grid is deliberately not capped, and the difference
+ * is the point: the grid is content somebody turned the setting up to read,
+ * and this is a control they aim at.
+ */
+export const TAB_BAR_MAX_FONT_SCALE = 1.4;
+
+/**
+ * How much room a screen has to leave for the bar at a given font scale.
+ *
+ * Capped with the label rather than separately.  warns about
+ * the other arrangement in as many words, in themed-text.tsx: capping the box
+ * while the letters keep growing is the defect it removes. Both stop at 1.4,
+ * so the room reserved is the room taken.
+ */
+export function tabBarInsetFor(fontScale: number): number {
+  return TAB_BAR_HEIGHT * Math.min(fontScale, TAB_BAR_MAX_FONT_SCALE);
+}
+
+/** The inset at the setting this device is on. */
+export function useTabBarInset(): number {
+  return tabBarInsetFor(useFontScale());
+}
 
 /**
  * The bar the four words sit in.
@@ -111,6 +144,7 @@ export function TabBarButton({
   readonly isFocused?: boolean;
 }) {
   const sky = useSky();
+  const inset = useTabBarInset();
 
   return (
     // `rest` is spread first on purpose. It carries what `TabTrigger` injects,
@@ -123,8 +157,10 @@ export function TabBarButton({
       accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}
-      style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
-      <ThemedText type="small">{label}</ThemedText>
+      style={({ pressed }) => [styles.tab, { minHeight: inset }, pressed && styles.pressed]}>
+      <ThemedText type="small" maxFontSizeMultiplier={TAB_BAR_MAX_FONT_SCALE}>
+        {label}
+      </ThemedText>
 
       {/* Only when selected. A transparent rule the rest of the time would
           keep the layout from shifting, and it would also be a colour drawn
