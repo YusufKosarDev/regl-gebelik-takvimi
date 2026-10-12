@@ -56,6 +56,13 @@ export function ThemedText({
 
   const scale = TEXT_SCALE[type];
 
+  /** What this text is drawn in unless the caller names something real. */
+  const themedColour = onSky
+    ? sky.ink
+    : type === 'linkPrimary'
+      ? theme.primary
+      : theme[themeColor ?? 'text'];
+
   const flattened = StyleSheet.flatten([
     // `linkPrimary` is the one type that names its own colour, and for a long
     // time that colour was a hardcoded `#3c87f7` - a blue that appears nowhere
@@ -71,7 +78,7 @@ export function ThemedText({
     // A caller that names its own `color` in `style` still wins, which is how
     // the hero sets its own and how a filled button keeps a label that is not
     // the ink.
-    { color: onSky ? sky.ink : type === 'linkPrimary' ? theme.primary : theme[themeColor ?? 'text'] },
+    { color: themedColour },
     {
       fontSize: scale.fontSize,
       fontWeight: scale.fontWeight,
@@ -87,7 +94,29 @@ export function ThemedText({
   // drawn at the table's weight. A caller that names its own `fontFamily` keeps
   // it; nothing in the app does today, but the override should still win.
   const resolved = {
+    // `?? themed` rather than taking `flattened.color` as it comes.
+    //
+    // The themed colour is the first entry in the flatten above and `style` is
+    // the last, so a caller wins by naming its own - which is the point. But
+    // `StyleSheet.flatten` keeps a key whose value is `undefined`, so a caller
+    // that computes a colour and gets nothing does not fall through to the
+    // theme: it overwrites it with `undefined`, and React Native draws the
+    // platform default, which is black.
+    //
+    // Found in `cycle-calendar-legend.tsx`, where `swatchMarkerColour` returns
+    // `undefined` for the predicted-start row and the result was spread into
+    // the style array. In light mode black on white looked deliberate. In dark
+    // mode it was black on near-black and the mark was invisible - and no test
+    // could see it, because the element tree was correct and the colour was a
+    // real value all the way to the renderer.
+    //
+    // Fixed here rather than at that caller so the shape cannot come back. Any
+    // `{ color: maybeUndefined }` reaching any `ThemedText` now falls through
+    // to the theme instead of to black.
+    //
+    // Same idiom as `fontFamily` on the next line, which has always done this.
     ...flattened,
+    color: flattened.color ?? themedColour,
     fontFamily: flattened.fontFamily ?? fontFamilyFor(scale.role, flattened.fontWeight),
   };
 

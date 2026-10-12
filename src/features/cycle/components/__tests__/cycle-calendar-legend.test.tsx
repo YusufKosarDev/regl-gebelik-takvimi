@@ -1,6 +1,8 @@
 import { render } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 
+import { Colors } from '@/constants/theme';
+
 import { CycleCalendarLegend } from '../cycle-calendar-legend';
 
 const ESTIMATE_NOTICE = 'Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.';
@@ -171,5 +173,72 @@ describe('CycleCalendarLegend swatches match the squares', () => {
     expect(
       stylesIn(toJSON()).filter((style) => typeof style.backgroundColor === 'string')
     ).toHaveLength(3);
+  });
+});
+
+/**
+ * The predicted-period row is drawn in an ink, not in whatever is left.
+ *
+ * `swatchMarkerColour` has no colour for this row - the mark is a guess and a
+ * phase colour would dress it as a recorded fact - and it used to say so by
+ * returning `undefined`, which the caller spread into the style array.
+ * `StyleSheet.flatten` keeps a key whose value is `undefined`, so the theme's
+ * colour was overwritten with nothing and React Native drew the platform
+ * default. Black. On a dark page the mark was invisible, and nothing in this
+ * file noticed because the mark was present and correct in every other way.
+ *
+ * `ThemedText` now refuses an undefined colour, so this would be right even if
+ * the legend went back to its old shape - which is why that is tested over
+ * there, on the component that makes it impossible. What is asserted here is
+ * the thing a person looks at: the ink this row is actually drawn in.
+ */
+describe('CycleCalendarLegend colours', () => {
+  function markerColour(tree: unknown, marker: string): string | undefined {
+    let found: string | undefined;
+
+    const walk = (current: any) => {
+      if (found !== undefined) return;
+      if (Array.isArray(current)) return current.forEach(walk);
+      if (current === null || typeof current !== 'object') return;
+
+      if (current.type === 'Text' && current.children?.[0] === marker) {
+        const flat = StyleSheet.flatten(current.props?.style);
+
+        if (typeof flat?.color === 'string') {
+          found = flat.color;
+
+          return;
+        }
+      }
+
+      walk(current.children);
+    };
+
+    walk(tree);
+
+    return found;
+  }
+
+  it('draws the predicted mark in the muted ink, not in black', async () => {
+    const screen = await render(<CycleCalendarLegend />);
+
+    const colour = markerColour(screen.toJSON(), '≈');
+
+    expect(colour).toBe(Colors.light.textSecondary);
+    expect(colour).not.toBe('#000000');
+    expect(colour).not.toBe('black');
+  });
+
+  it('still gives the phase marks their own colours', async () => {
+    // The fix must not have flattened every row to the same ink.
+    const screen = await render(<CycleCalendarLegend />);
+    const tree = screen.toJSON();
+
+    const period = markerColour(tree, 'R');
+    const ovulation = markerColour(tree, 'Y');
+
+    expect(period).toBeDefined();
+    expect(ovulation).toBeDefined();
+    expect(new Set([period, ovulation, markerColour(tree, '≈')]).size).toBe(3);
   });
 });

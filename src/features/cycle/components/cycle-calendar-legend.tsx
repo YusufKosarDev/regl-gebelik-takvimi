@@ -8,17 +8,33 @@ import { useCyclePhaseColors } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 
 /** Explains the calendar's marks. Reads nothing and computes nothing. */
-/** The swatch's own mark, in the colour the calendar draws that mark in. */
+/**
+ * The swatch's own mark, in the colour the calendar draws that mark in.
+ *
+ * `null` for 'plain', not `undefined`, and the caller turns that into a
+ * `themeColor` rather than a `color`. The old version returned `undefined` and
+ * the caller spread `{ color: undefined }` into a style array, which
+ * `StyleSheet.flatten` keeps as a key - so the theme's colour was overwritten
+ * with nothing and the platform default won. On a dark page that default is
+ * black on near-black, and the predicted-period mark disappeared.
+ *
+ * `ThemedText` no longer lets an undefined colour reach the renderer, so this
+ * would be safe either way now. It is still `null`: a function that can hand
+ * back "no answer" in a type the compiler ignores is how the first one got
+ * written.
+ */
 function swatchMarkerColour(
   style: string,
   phases: ReturnType<typeof useCyclePhaseColors>
-): string | undefined {
+): string | null {
   if (style === 'filled') return phases.menstrualAccent;
   if (style === 'outlined') return phases.ovulatoryAccent;
   if (style === 'soft') return phases.follicularAccent;
 
-  // 'plain' is the predicted start, which stays muted on the calendar too.
-  return undefined;
+  // 'plain' is the predicted period, which stays muted on the calendar too -
+  // and is drawn there with `themeColor="textSecondary"`, which is what the
+  // caller gives this row so the key and the squares match.
+  return null;
 }
 
 export function CycleCalendarLegend() {
@@ -27,7 +43,10 @@ export function CycleCalendarLegend() {
 
   return (
     <View style={styles.legend}>
-      {legendItemsIn(home).map((item) => (
+      {legendItemsIn(home).map((item) => {
+        const markColour = swatchMarkerColour(item.style, phases);
+
+        return (
         <View
           key={item.marker}
           accessible
@@ -42,7 +61,15 @@ export function CycleCalendarLegend() {
               a filled box for a calendar that has no filled boxes in it is
               the same drift wearing different clothes. */}
           <View style={styles.swatch}>
-            <ThemedText type="small" style={[styles.marker, { color: swatchMarkerColour(item.style, phases) }]}>
+            {/* A themed colour when the mark has none of its own, rather than
+                a `color` that might be nothing. This row is the predicted
+                period, and `cycle-calendar.tsx` draws those squares with
+                `themeColor="textSecondary"` for the same reason: they are a
+                guess, and a phase colour would dress them as recorded fact. */}
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              style={[styles.marker, markColour === null ? null : { color: markColour }]}>
               {item.marker}
             </ThemedText>
 
@@ -50,7 +77,7 @@ export function CycleCalendarLegend() {
                 the calendar with no band under it. */}
             {item.style !== 'plain' && (
               <View
-                style={[styles.band, { backgroundColor: swatchMarkerColour(item.style, phases) }]}
+                style={[styles.band, markColour === null ? null : { backgroundColor: markColour }]}
               />
             )}
           </View>
@@ -59,7 +86,8 @@ export function CycleCalendarLegend() {
             {item.label}
           </ThemedText>
         </View>
-      ))}
+        );
+      })}
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.notice}>
         {home.calendarEstimateNotice}
