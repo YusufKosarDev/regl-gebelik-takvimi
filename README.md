@@ -875,9 +875,24 @@ git diff --stat src/path/to/file.ts     # or: grep -c 'the line' src/path/to/fil
 npx jest src/path/to/__tests__/the.test.ts
 ```
 
-Prefer `sed` or the editor over a script that matches on line endings. A minute
-spent proving the mutation is real is cheaper than a result that was never
-tested.
+**Use `sed` or the editor. Do not use a `node -e` string replacement.** Every
+file in this repo has CRLF endings, so a pattern written with `\n` matches
+nothing and the script exits quietly having changed not one byte. That has now
+happened three times, in three separate rounds, each time producing a green run
+that was read as "the test does not hold the rule" and each time wrong.
+
+A minute spent proving the mutation is real is cheaper than a result that was
+never tested. The two rules together:
+
+1. mutate with `sed`, not with a script that matches on line endings;
+2. read the file afterwards — `git diff`, or a `grep -c` of the text you
+   removed — before running anything.
+
+The second rule is not satisfied by the tool reporting success. One of the
+three near-misses was a `String.replace` call given a counter as a third
+argument, which JavaScript ignores: the script printed `replacements: 0` while
+both replacements had in fact applied. A script's own summary is not evidence
+about the file. Read the file.
 
 ### Two scanners for defects nothing else can see
 
