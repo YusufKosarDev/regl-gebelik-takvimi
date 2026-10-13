@@ -191,29 +191,36 @@ const homeMessagesTr = {
   predictedPeriodDayNote: 'Tahmini regl dönemine ait bir gün',
 
   /**
-   * Said on the card for a day past the predicted period, in place of the
-   * three rows.
+   * Said on the card for a day past the predicted period, under the cycle day
+   * and in place of the phase and fertility rows.
    *
-   * The rows used to read "Döngü günü: 81. gün, Döngü evresi: Luteal,
-   * Doğurganlık tahmini: Düşük" for a day in January, because `getCycleDay`
-   * counts from the last recorded start and never rolls over. All three were
-   * confident and none of them was true.
+   * Those two rows used to read "Döngü evresi: Luteal, Doğurganlık tahmini:
+   * Düşük" for a day in January, because `getCycleDay` counts from the last
+   * recorded start and never rolls over - so the count climbed into the
+   * eighties and `cycle-phase.ts` gives the luteal window no upper bound. Both
+   * were confident and neither was true.
    *
-   * One sentence rather than three rows of "Bilinmiyor": three unknowns say
-   * less than one line that explains the limit, which is what the History
-   * tab's two empty lines were about.
+   * The count itself stays and is said first. Somebody whose period is overdue
+   * is looking at this screen for a reason, and the number of days since it
+   * started is the one thing they came for; it is arithmetic from a record
+   * rather than a guess about a cycle that has not happened. Leading with what
+   * is there is also what keeps this from reading as an error.
    *
-   * It names which nothing and then why, the same frame as the empty hero and
-   * the History tab - and unlike those two it points at no action, on purpose.
-   * What moves this horizon is a period arriving and being recorded, which is
-   * not something anybody does on a Tuesday; a line inviting somebody to
-   * record a period that has not happened would be worse than saying nothing.
+   * One sentence rather than two rows of "Bilinmiyor": two unknowns say less
+   * than one line that explains the limit, which is what the History tab's
+   * empty lines were about.
    *
-   * Not reused for a day *before* the first record. That one still says
-   * "Henüz başlamadı", which is true there and false here.
+   * "Gün sayısı" is the hero's word for the same thing - `noCycleDayMessage`
+   * says "Gün sayısı ilk reglinle başlar" on somebody's first screen. The same
+   * thing is called the same name here.
+   *
+   * It points at no action on purpose. What moves this horizon is a period
+   * arriving and being recorded, which is nothing anybody does on a Tuesday,
+   * and a line inviting somebody to record a period that has not happened
+   * would be worse than saying nothing.
    */
-  noEstimateMessage:
-    'Bu gün için tahmin yok; tahminler bir sonraki reglinden öteye geçmiyor.',
+  countContinuesMessage:
+    'Gün sayısı sürüyor; tahminler bir sonraki reglinden öteye geçmiyor.',
 
   /** The month on screen, as something to read aloud. */
   calendarMonthLabel: (monthHeading: string) => `${monthHeading} takvimi`,
@@ -365,8 +372,8 @@ const homeMessagesEn: HomeMessages = {
   predictedPeriodStartNote: 'Next period expected to start',
   predictedPeriodDayNote: 'A day of the expected period',
 
-  noEstimateMessage:
-    'No estimate for this day; predictions do not reach past your next period.',
+  countContinuesMessage:
+    'The day count continues; estimates do not reach past your next period.',
 
   calendarMonthLabel: (monthHeading: string) => `Calendar for ${monthHeading}`,
 
@@ -465,18 +472,34 @@ export function legendItemsIn(messages: HomeMessages): readonly LegendItem[] {
  *
  * No domain function is called again here: `CycleCalendarDay` carries everything
  * this card shows, so the card and the square it came from cannot disagree.
+ *
+ * ## Past the horizon it returns one row, not three
+ *
+ * The cycle day survives there and the phase and fertility do not, so asking
+ * for all three would produce two rows of "Bilinmiyor" - honest and useless.
+ * The caller says the rest in one sentence, `countContinuesMessage`.
+ *
+ * Dropped here rather than sliced off by the caller. A component that knows
+ * which row index means what is a component that breaks when a row is added,
+ * and this function exists precisely so one place decides what a day says.
  */
 export function selectedDayRowsIn(
   messages: HomeMessages,
   labels: CycleLabels,
   day: CycleCalendarDay
 ): { label: string; value: string }[] {
+  const cycleDayRow = {
+    label: messages.rowCycleDay,
+    value:
+      day.cycleDay === null ? messages.cycleNotStarted : messages.cycleDayValue(day.cycleDay),
+  };
+
+  if (day.isBeyondHorizon) {
+    return [cycleDayRow];
+  }
+
   return [
-    {
-      label: messages.rowCycleDay,
-      value:
-        day.cycleDay === null ? messages.cycleNotStarted : messages.cycleDayValue(day.cycleDay),
-    },
+    cycleDayRow,
     { label: messages.rowCyclePhase, value: getCyclePhaseLabelIn(labels, day.phase) },
     {
       label: messages.rowFertility,

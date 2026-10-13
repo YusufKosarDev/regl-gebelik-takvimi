@@ -182,11 +182,18 @@ describe('what the predicted period does not touch', () => {
     // `isBeyondHorizon` is in the comparison rather than blanked out of it:
     // stripping the prediction must not move the horizon either, or the card
     // for a day in the far future would start disagreeing with itself.
+    //
+    // The cycle day is unconditional - it is counted from a record and
+    // survives the horizon - while the phase is not, which is the split the
+    // horizon exists to draw.
     for (const day of buildCycleCalendarMonth(LATE, 2026, 10).days) {
       expect({ ...day, isPredictedPeriodDay: undefined }).toEqual({
         date: day.date,
-        cycleDay: day.isBeyondHorizon ? null : getCycleDay(LATE, day.date),
-        phase: day.cycleDay === null ? null : resolveCyclePhase(LATE.settings, day.cycleDay),
+        cycleDay: getCycleDay(LATE, day.date),
+        phase:
+          day.cycleDay === null || day.isBeyondHorizon
+            ? null
+            : resolveCyclePhase(LATE.settings, day.cycleDay),
         fertilityLevel: day.fertilityLevel,
         isBeyondHorizon: day.isBeyondHorizon,
         isPredictedPeriodStart: day.isPredictedPeriodStart,

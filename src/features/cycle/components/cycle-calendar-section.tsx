@@ -153,26 +153,23 @@ export function CycleCalendarSection({
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
               {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>
-
-            {/* Past the predicted period the three rows are replaced by one
-                sentence. They used to read "81. gün, Luteal, Düşük" for a day
-                in January - confident, and none of it true - because the cycle
-                day counts from the last recorded start and never rolls over.
-
-                Three rows of "Bilinmiyor" would have been honest and useless;
-                the sentence says what is missing and why. */}
-            {selectedDay.isBeyondHorizon ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                {home.noEstimateMessage}
+            {/* The visible text already reads "label: value", so it
+                needs no separate accessibility label. */}
+            {selectedDayRowsIn(home, labels, selectedDay).map((row) => (
+              <ThemedText key={row.label} type="small">
+                {home.labelledValue(row.label, row.value)}
               </ThemedText>
-            ) : (
-              /* The visible text already reads "label: value", so it
-                 needs no separate accessibility label. */
-              selectedDayRowsIn(home, labels, selectedDay).map((row) => (
-                <ThemedText key={row.label} type="small">
-                  {home.labelledValue(row.label, row.value)}
-                </ThemedText>
-              ))
+            ))}
+
+            {/* Past the predicted period the cycle day is still a real count
+                from a real record, and the phase and fertility estimates are
+                not offered at all - `selectedDayRowsIn` returns the one row.
+                This says why, under it, rather than leaving two rows of
+                "Bilinmiyor" to be read as a failure. */}
+            {selectedDay.isBeyondHorizon && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {home.countContinuesMessage}
+              </ThemedText>
             )}
 
             {/* The third of the three places `without-prediction.ts` names.

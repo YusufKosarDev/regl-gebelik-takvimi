@@ -62,6 +62,25 @@ export type ExportRowsInput = {
  * holds. They do not change with the app's language or with a later rewording,
  * which is the same reason the headers are not translated.
  *
+ * ## An empty cell means the app has nothing to say, everywhere
+ *
+ * Six of the eight columns are empty whenever there is nothing to put in them:
+ * the record id on a day no period covers, the cycle day before the first
+ * record, the phase on a day the cycle cannot place, and all three of the
+ * logged values on a day with no entry. That is the file's one convention and
+ * it was not invented for any of them.
+ *
+ * It now also covers a day past the predicted period, where the calendar keeps
+ * counting and stops inferring: those rows carry a real `cycleDay` and an empty
+ * `phase`. The combination is new; the convention is not.
+ *
+ * Nothing explains that inside the file, and that was looked at rather than
+ * assumed. A column would be inventing schema; a sentence in a data cell would
+ * be worse. The readable summary is not the place either - the app shares the
+ * two files separately and says so in `twoFilesNote`, so anything written
+ * there does not travel with a CSV somebody sends on its own. So it is left,
+ * and the reason it is left is here.
+ *
  * Pure: nothing read from the clock, nothing mutated.
  */
 export function buildExportRows(input: ExportRowsInput): readonly (readonly string[])[] {

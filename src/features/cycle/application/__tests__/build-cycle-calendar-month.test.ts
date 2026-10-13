@@ -291,7 +291,7 @@ describe('buildCycleCalendarMonth with a delayed cycle', () => {
     expect(days[0].isBeyondHorizon).toBe(false);
   });
 
-  it('says nothing at all once the predicted period has passed', () => {
+  it('keeps counting once the predicted period has passed, and stops inferring', () => {
     const subject = profile(['2026-09-01']);
     const { days } = buildCycleCalendarMonth(subject, 2026, 10);
 
@@ -300,7 +300,9 @@ describe('buildCycleCalendarMonth with a delayed cycle', () => {
     const last = days.at(-1);
 
     expect(first?.isBeyondHorizon).toBe(true);
-    expect(first?.cycleDay).toBeNull();
+    // The count survives: 4 October is day 34 of a cycle that started on
+    // 1 September, which is arithmetic from a record rather than a guess.
+    expect(first?.cycleDay).toBe(34);
     expect(first?.phase).toBeNull();
     expect(first?.fertilityLevel).toBeNull();
 

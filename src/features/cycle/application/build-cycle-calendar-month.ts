@@ -53,16 +53,21 @@ export type CycleCalendarDay = {
    * underneath was making a confident claim about a day seven weeks out,
    * derived from one October cycle extended forever.
    *
-   * So past the horizon `cycleDay`, `phase` and `fertilityLevel` are `null`
-   * and this is `true`. The app says nothing rather than something wrong.
+   * So past the horizon `phase` and `fertilityLevel` are `null` and this is
+   * `true`. `cycleDay` is not: counting is not inferring. Somebody who started
+   * on 13 October genuinely is on day 31 today whether or not their period has
+   * arrived, and when it is overdue that number is the one thing they most
+   * want the screen to tell them. What stops is the phase and the fertility
+   * level, which are read off that count against a cycle that has not
+   * happened.
    *
    * ## Why it is a flag and not just three nulls
    *
-   * A day *before* the first recorded period also has no cycle day, and its
-   * card says "Henüz başlamadı" - which is true there and false here. The two
-   * are different facts: one cycle has not started, the other has started and
-   * the app will not extrapolate that far. Collapsing them would have swapped
-   * one false claim for another.
+   * Three states, not two. A day before the first recorded period has no cycle
+   * day at all and its card says "Henüz başlamadı"; a day inside the cycle has
+   * all three; a day past the horizon has the count and neither inference.
+   * Without the flag the third would have inherited the first's line, and one
+   * false claim would have become another.
    *
    * ## The horizon stays at one cycle
    *
@@ -180,16 +185,21 @@ export function buildCycleCalendarMonth(
       predictedPeriodStart !== null &&
       daysBetween(predictedPeriodStart, date) > predictedPeriodLength - 1;
 
-    // Null together, and only here: the three of them are the claim, and past
-    // the horizon the app has no basis for any of it.
-    const known = isBeyondHorizon ? null : cycleDay;
+    // The count survives the horizon and the inferences do not.
+    //
+    // A cycle day is arithmetic from a record: somebody who started on the 1st
+    // genuinely is on day 31 today, late or not, and when a period is overdue
+    // that number is the one thing they most want the screen to tell them. The
+    // phase and the fertility level are inferences drawn from that count
+    // against a cycle that has not happened, and those are what stop.
+    const inferable = isBeyondHorizon ? null : cycleDay;
 
     days.push({
       date,
-      cycleDay: known,
-      phase: known === null ? null : resolveCyclePhase(profile.settings, known),
+      cycleDay,
+      phase: inferable === null ? null : resolveCyclePhase(profile.settings, inferable),
       fertilityLevel:
-        known === null ? null : resolveFertilityLevel(profile.settings, known),
+        inferable === null ? null : resolveFertilityLevel(profile.settings, inferable),
       isBeyondHorizon,
       isPredictedPeriodStart: predictedPeriodStart !== null && predictedPeriodStart === date,
       // Inclusive at both ends: the first day of the predicted period is one

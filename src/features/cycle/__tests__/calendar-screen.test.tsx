@@ -1185,18 +1185,20 @@ describe('CalendarScreen past the predicted period', () => {
     repository.loadCycleProfile.mockResolvedValue(profile());
   });
 
-  it('says there is no estimate instead of counting into the fifties', async () => {
+  it('keeps the count and stops the estimates', async () => {
     const screen = await renderScreen();
 
     // October is the next month on from today's September.
     await fireEvent.press(screen.getByLabelText(homeMessages.tr.calendarNextMonthLabel));
     await fireEvent.press(screen.getByTestId('calendar-day-2026-10-10'));
 
-    expect(screen.getByText(homeMessages.tr.noEstimateMessage)).toBeTruthy();
+    expect(screen.getByText(homeMessages.tr.countContinuesMessage)).toBeTruthy();
 
-    // None of the three rows: not the cycle day, not the phase, not the
-    // fertility estimate.
-    expect(screen.queryByText(/Döngü günü/)).toBeNull();
+    // The count is a real one, from a real record: 10 October is day 40 of a
+    // cycle that started on 1 September.
+    expect(screen.getByText(/Döngü günü: 40. gün/)).toBeTruthy();
+
+    // The two inferences are not offered at all - not even as "Bilinmiyor".
     expect(screen.queryByText(/Döngü evresi/)).toBeNull();
     expect(screen.queryByText(/Doğurganlık tahmini/)).toBeNull();
   });
@@ -1206,7 +1208,7 @@ describe('CalendarScreen past the predicted period', () => {
 
     await fireEvent.press(screen.getByTestId('calendar-day-2026-09-20'));
 
-    expect(screen.queryByText(homeMessages.tr.noEstimateMessage)).toBeNull();
+    expect(screen.queryByText(homeMessages.tr.countContinuesMessage)).toBeNull();
     expect(screen.getByText(/Döngü evresi/)).toBeTruthy();
   });
 
