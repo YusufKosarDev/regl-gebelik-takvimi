@@ -174,16 +174,21 @@ describe('what the predicted period does not touch', () => {
     }
   });
 
-  it('is the only field that changed', () => {
-    // Read from the other end: everything a day carries apart from the new
-    // flag is what it carried before, so nothing that reads those fields can
-    // see this change at all.
+  it('changes the two predicted flags and nothing else a caller reads', () => {
+    // Read from the other end: everything a day carries apart from the two
+    // predicted flags is what the domain says about it, so nothing that reads
+    // those fields can see the stripping at all.
+    //
+    // `isBeyondHorizon` is in the comparison rather than blanked out of it:
+    // stripping the prediction must not move the horizon either, or the card
+    // for a day in the far future would start disagreeing with itself.
     for (const day of buildCycleCalendarMonth(LATE, 2026, 10).days) {
       expect({ ...day, isPredictedPeriodDay: undefined }).toEqual({
         date: day.date,
-        cycleDay: getCycleDay(LATE, day.date),
+        cycleDay: day.isBeyondHorizon ? null : getCycleDay(LATE, day.date),
         phase: day.cycleDay === null ? null : resolveCyclePhase(LATE.settings, day.cycleDay),
         fertilityLevel: day.fertilityLevel,
+        isBeyondHorizon: day.isBeyondHorizon,
         isPredictedPeriodStart: day.isPredictedPeriodStart,
         isPredictedPeriodDay: undefined,
       });

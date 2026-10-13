@@ -60,15 +60,44 @@ describe('what it covers', () => {
 });
 
 describe('what it says about each day', () => {
-  it('agrees with asking the domain one day at a time', () => {
-    // The whole justification for the faster route.
+  /**
+   * Up to the horizon, and the horizon is where they part.
+   *
+   * This asked the index and `getCyclePhase` about every day of four months and
+   * expected the same answer, which was the whole justification for building
+   * months rather than asking day by day. It still is, up to the end of the
+   * predicted period.
+   *
+   * Past it they disagree on purpose. `getCyclePhase` runs off a cycle day that
+   * never rolls over, so it answers luteal forever; the calendar stopped
+   * saying that, and this index is what the daily-log history and the export
+   * read. A day logged after the predicted period is now unplaced rather than
+   * attributed to a phase worked out from one old cycle - which is the same
+   * correction, reaching the two places that quote it back as fact.
+   *
+   * The fixture's last record is 30 March, so the predicted period is 27 April
+   * to 1 May and the horizon falls inside the range this walks.
+   */
+  it('agrees with asking the domain one day at a time, up to the horizon', () => {
     const from = toISODate('2026-02-01');
     const to = toISODate('2026-05-31');
     const index = buildCyclePhaseIndex(PROFILE, from, to);
+    const horizonEnd = toISODate('2026-05-01');
+
+    let compared = 0;
 
     for (let date = from; date <= to; date = addDays(date, 1)) {
+      if (date > horizonEnd) {
+        expect(index.get(date as ISODate)).toBeNull();
+        continue;
+      }
+
       expect(index.get(date as ISODate)).toBe(getCyclePhase(PROFILE, date as ISODate));
+      compared += 1;
     }
+
+    // The agreement is not vacuous: three months of days were compared.
+    expect(compared).toBeGreaterThan(80);
   });
 
   it('says null for a day before the first recorded period', () => {

@@ -190,6 +190,31 @@ const homeMessagesTr = {
   predictedPeriodStartNote: 'Sonraki regl başlangıcı tahmini',
   predictedPeriodDayNote: 'Tahmini regl dönemine ait bir gün',
 
+  /**
+   * Said on the card for a day past the predicted period, in place of the
+   * three rows.
+   *
+   * The rows used to read "Döngü günü: 81. gün, Döngü evresi: Luteal,
+   * Doğurganlık tahmini: Düşük" for a day in January, because `getCycleDay`
+   * counts from the last recorded start and never rolls over. All three were
+   * confident and none of them was true.
+   *
+   * One sentence rather than three rows of "Bilinmiyor": three unknowns say
+   * less than one line that explains the limit, which is what the History
+   * tab's two empty lines were about.
+   *
+   * It names which nothing and then why, the same frame as the empty hero and
+   * the History tab - and unlike those two it points at no action, on purpose.
+   * What moves this horizon is a period arriving and being recorded, which is
+   * not something anybody does on a Tuesday; a line inviting somebody to
+   * record a period that has not happened would be worse than saying nothing.
+   *
+   * Not reused for a day *before* the first record. That one still says
+   * "Henüz başlamadı", which is true there and false here.
+   */
+  noEstimateMessage:
+    'Bu gün için tahmin yok; tahminler bir sonraki reglinden öteye geçmiyor.',
+
   /** The month on screen, as something to read aloud. */
   calendarMonthLabel: (monthHeading: string) => `${monthHeading} takvimi`,
 
@@ -339,6 +364,9 @@ const homeMessagesEn: HomeMessages = {
   selectedDayEmptyMessage: 'Pick a day.',
   predictedPeriodStartNote: 'Next period expected to start',
   predictedPeriodDayNote: 'A day of the expected period',
+
+  noEstimateMessage:
+    'No estimate for this day; predictions do not reach past your next period.',
 
   calendarMonthLabel: (monthHeading: string) => `Calendar for ${monthHeading}`,
 

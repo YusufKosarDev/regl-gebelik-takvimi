@@ -261,28 +261,53 @@ describe('buildCycleCalendarMonth before the first record', () => {
   });
 });
 
+/**
+ * A cycle that has not arrived when it was expected.
+ *
+ * These two held the old behaviour and called it correct: the count keeps
+ * climbing past the expected length and every day of it resolves to luteal,
+ * because `cycle-phase.ts` gives the luteal window no upper bound.
+ *
+ * The first is still right and is kept: 1 October is day 31 of a cycle that is
+ * three days late, which is a fact counted from a record and inside the
+ * predicted period.
+ *
+ * The second asserted that 31 October was day 61 and luteal. It is four weeks
+ * past the end of the predicted period, and that is where the app now stops
+ * rather than carrying one September cycle forward. The honest loss is a
+ * person only a few days late, who used to be told their cycle day; the honest
+ * gain is that nobody is told they are on day 81 in January.
+ */
 describe('buildCycleCalendarMonth with a delayed cycle', () => {
   it('keeps counting past the expected cycle length instead of resetting', () => {
     const subject = profile(['2026-09-01']);
     const { days } = buildCycleCalendarMonth(subject, 2026, 10);
 
-    // 1 October is day 31 of a 28 day cycle: late, not a new cycle.
+    // 1 October is day 31 of a 28 day cycle: late, not a new cycle - and
+    // inside the predicted period, which runs 29 September to 3 October.
     expect(days[0].cycleDay).toBe(31);
     expect(days[0].cycleDay).toBe(getCycleDay(subject, days[0].date));
     expect(days[0].phase).toBe('luteal');
+    expect(days[0].isBeyondHorizon).toBe(false);
   });
 
-  it('stays luteal deep into a delay', () => {
+  it('says nothing at all once the predicted period has passed', () => {
     const subject = profile(['2026-09-01']);
     const { days } = buildCycleCalendarMonth(subject, 2026, 10);
 
-    // 30 October is day 60.
-    const lastDay = days.at(-1);
+    // 4 October is the first day after the predicted period ends.
+    const first = days.find((day) => day.date === '2026-10-04');
+    const last = days.at(-1);
 
-    expect(lastDay?.date).toBe('2026-10-31');
-    expect(lastDay?.cycleDay).toBe(61);
-    expect(lastDay?.phase).toBe('luteal');
-    expect(days.every((day) => day.phase === 'luteal')).toBe(true);
+    expect(first?.isBeyondHorizon).toBe(true);
+    expect(first?.cycleDay).toBeNull();
+    expect(first?.phase).toBeNull();
+    expect(first?.fertilityLevel).toBeNull();
+
+    // And it does not come back later in the month.
+    expect(last?.date).toBe('2026-10-31');
+    expect(last?.isBeyondHorizon).toBe(true);
+    expect(last?.phase).toBeNull();
   });
 });
 

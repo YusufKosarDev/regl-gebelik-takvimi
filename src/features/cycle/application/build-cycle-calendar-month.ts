@@ -40,6 +40,44 @@ export type CycleCalendarDay = {
    * to 1. See the note on the field below.
    */
   readonly isPredictedPeriodDay: boolean;
+
+  /**
+   * Past the last day of the predicted period, where the app stops counting.
+   *
+   * ## What this replaced
+   *
+   * `getCycleDay` counts from the latest recorded start and never rolls over,
+   * so without this a day in December came back as cycle day 50, phase luteal,
+   * fertility low - and the card a person opened by tapping it said all three.
+   * The grid drew no marks there, which read as "nothing predicted"; the card
+   * underneath was making a confident claim about a day seven weeks out,
+   * derived from one October cycle extended forever.
+   *
+   * So past the horizon `cycleDay`, `phase` and `fertilityLevel` are `null`
+   * and this is `true`. The app says nothing rather than something wrong.
+   *
+   * ## Why it is a flag and not just three nulls
+   *
+   * A day *before* the first recorded period also has no cycle day, and its
+   * card says "Henüz başlamadı" - which is true there and false here. The two
+   * are different facts: one cycle has not started, the other has started and
+   * the app will not extrapolate that far. Collapsing them would have swapped
+   * one false claim for another.
+   *
+   * ## The horizon stays at one cycle
+   *
+   * A second predicted start is `latestStart + 2 × averageCycleLengthDays`,
+   * which is arithmetic, and a claim that the next two cycles will both match
+   * the setting exactly - with the error compounding. `predictedPeriodRange`
+   * widens one cycle to four days on the recorded fixtures; two would be seven,
+   * and nothing in this codebase computes it.
+   *
+   * Which is also why `getCycleDay` is left alone. Its lack of a rollover only
+   * matters if a second predicted cycle is ever drawn, and that is now a
+   * decision rather than an oversight. Do not fix the rollover for a case that
+   * does not exist.
+   */
+  readonly isBeyondHorizon: boolean;
 };
 
 /** Every day of one month, chronological, with nothing padded or trimmed. */
@@ -136,12 +174,23 @@ export function buildCycleCalendarMonth(
     // and the slowest thing on the screen with five years of them.
     const cycleDay = getCycleDay(profile, date);
 
+    // Everything after the predicted period's last day. With no prediction at
+    // all - nothing recorded yet - there is no horizon to be past.
+    const isBeyondHorizon =
+      predictedPeriodStart !== null &&
+      daysBetween(predictedPeriodStart, date) > predictedPeriodLength - 1;
+
+    // Null together, and only here: the three of them are the claim, and past
+    // the horizon the app has no basis for any of it.
+    const known = isBeyondHorizon ? null : cycleDay;
+
     days.push({
       date,
-      cycleDay,
-      phase: cycleDay === null ? null : resolveCyclePhase(profile.settings, cycleDay),
+      cycleDay: known,
+      phase: known === null ? null : resolveCyclePhase(profile.settings, known),
       fertilityLevel:
-        cycleDay === null ? null : resolveFertilityLevel(profile.settings, cycleDay),
+        known === null ? null : resolveFertilityLevel(profile.settings, known),
+      isBeyondHorizon,
       isPredictedPeriodStart: predictedPeriodStart !== null && predictedPeriodStart === date,
       // Inclusive at both ends: the first day of the predicted period is one
       // of its days as well as its start.

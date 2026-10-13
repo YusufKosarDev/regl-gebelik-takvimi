@@ -33,6 +33,7 @@ import {
 import { StyleSheet } from 'react-native';
 import { Colors, Spacing } from '@/constants/theme';
 import { Sky } from '@/constants/sky';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
 
 // The database and the clock are faked. The use case, the repository contract
 // and every domain rule stay real, so what the screen prints is what the domain
@@ -1165,5 +1166,59 @@ describe('CalendarScreen sky reaches the top of the screen', () => {
     // The padding gives back exactly what the margin took, so the words sit
     // where they did before the strip reached anywhere.
     expect((strip.paddingTop ?? 0) + (strip.marginTop ?? 0)).toBe(Spacing.three);
+  });
+});
+
+/**
+ * What the card says for a day the app will not predict.
+ *
+ * Today is 17 September and the only record starts on 1 September, so the
+ * predicted period runs 29 September to 3 October. 20 September is inside the
+ * cycle and keeps its three rows; 10 October is past the horizon.
+ *
+ * Before this, tapping 10 October said "Döngü günü: 40. gün, Döngü evresi:
+ * Luteal, Doğurganlık tahmini: Düşük" - three confident rows derived from one
+ * September cycle carried forward forever.
+ */
+describe('CalendarScreen past the predicted period', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('says there is no estimate instead of counting into the fifties', async () => {
+    const screen = await renderScreen();
+
+    // October is the next month on from today's September.
+    await fireEvent.press(screen.getByLabelText(homeMessages.tr.calendarNextMonthLabel));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-10-10'));
+
+    expect(screen.getByText(homeMessages.tr.noEstimateMessage)).toBeTruthy();
+
+    // None of the three rows: not the cycle day, not the phase, not the
+    // fertility estimate.
+    expect(screen.queryByText(/Döngü günü/)).toBeNull();
+    expect(screen.queryByText(/Döngü evresi/)).toBeNull();
+    expect(screen.queryByText(/Doğurganlık tahmini/)).toBeNull();
+  });
+
+  it('still says everything for a day inside the cycle', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-20'));
+
+    expect(screen.queryByText(homeMessages.tr.noEstimateMessage)).toBeNull();
+    expect(screen.getByText(/Döngü evresi/)).toBeTruthy();
+  });
+
+  it('does not reuse the before-the-first-record line', async () => {
+    const screen = await renderScreen();
+
+    // October is the next month on from today's September.
+    await fireEvent.press(screen.getByLabelText(homeMessages.tr.calendarNextMonthLabel));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-10-10'));
+
+    // "Henüz başlamadı" is true before the first record and false here: the
+    // cycle started, the app will not count this far.
+    expect(screen.queryByText(new RegExp(homeMessages.tr.cycleNotStarted))).toBeNull();
   });
 });

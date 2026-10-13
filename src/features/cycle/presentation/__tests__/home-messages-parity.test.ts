@@ -127,6 +127,7 @@ describe('the rows', () => {
       fertilityLevel: 'low',
       isPredictedPeriodStart: false,
       isPredictedPeriodDay: false,
+      isBeyondHorizon: false,
     } as CycleCalendarDay;
 
     const rows = selectedDayRowsIn(homeMessages.en, cycleLabels.en, day);
@@ -152,6 +153,7 @@ describe('the rows', () => {
       fertilityLevel: null,
       isPredictedPeriodStart: false,
       isPredictedPeriodDay: false,
+      isBeyondHorizon: false,
     } as unknown as CycleCalendarDay;
 
     const rows = selectedDayRowsIn(homeMessages.en, cycleLabels.en, day);
