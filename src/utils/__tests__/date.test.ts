@@ -1,4 +1,5 @@
 import {
+  addMonths,
   addDays,
   canShiftYearMonth,
   daysBetween,
@@ -11,6 +12,7 @@ import {
   isISODate,
   toISODate,
 } from '@/utils/date';
+import type { ISODate } from '@/types/iso-date';
 
 describe('isISODate', () => {
   it('accepts a real calendar date', () => {
@@ -427,5 +429,35 @@ describe('canShiftYearMonth', () => {
         expect(() => shiftYearMonth(year, month, delta)).toThrow();
       }
     }
+  });
+});
+
+/**
+ * Whole months, for a stepper that would otherwise be ninety taps.
+ *
+ * The clamping is the part worth testing. A month shift that rolled the day
+ * over would skip February on the way past, which is what somebody pressing
+ * "previous month" twice from 31 March would see.
+ */
+describe('addMonths', () => {
+  it('keeps the day of the month where the month has one', () => {
+    expect(addMonths('2026-10-13' as ISODate, -1)).toBe('2026-09-13');
+    expect(addMonths('2026-10-13' as ISODate, -3)).toBe('2026-07-13');
+    expect(addMonths('2026-10-13' as ISODate, 1)).toBe('2026-11-13');
+  });
+
+  it('rolls the year over at both ends', () => {
+    expect(addMonths('2026-01-15' as ISODate, -1)).toBe('2025-12-15');
+    expect(addMonths('2026-12-15' as ISODate, 1)).toBe('2027-01-15');
+  });
+
+  it('clamps to the end of a shorter month rather than rolling past it', () => {
+    expect(addMonths('2026-03-31' as ISODate, -1)).toBe('2026-02-28');
+    expect(addMonths('2024-03-31' as ISODate, -1)).toBe('2024-02-29');
+    expect(addMonths('2026-01-31' as ISODate, 3)).toBe('2026-04-30');
+  });
+
+  it('refuses a fractional amount', () => {
+    expect(() => addMonths('2026-10-13' as ISODate, 1.5)).toThrow(/integer/);
   });
 });

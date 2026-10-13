@@ -105,6 +105,20 @@ const onboardingMessagesTr = {
   lastPeriodPreviousDayText: 'Önceki gün',
   lastPeriodNextDayText: 'Sonraki gün',
 
+  /**
+   * The coarse step, beside the day one.
+   *
+   * The screen steps a day at a time because a period start is almost always
+   * within a few days of today, which is true and covers most people. It left
+   * the rest with ninety taps to reach three months back, or "Bilmiyorum" -
+   * which records nothing at all. These are the same control at a coarser
+   * step, not a different one: same words, "gün" to "ay".
+   */
+  lastPeriodPreviousMonthLabel: 'Önceki ayı seç',
+  lastPeriodNextMonthLabel: 'Sonraki ayı seç',
+  lastPeriodPreviousMonthText: 'Önceki ay',
+  lastPeriodNextMonthText: 'Sonraki ay',
+
   selectedDateLabel: (readableDate: string) => `Seçili tarih: ${readableDate}`,
 
   /* ------------------------------------------------------------- review -- */
@@ -191,6 +205,11 @@ const onboardingMessagesEn: OnboardingMessages = {
   lastPeriodNextDayLabel: 'Pick the next day',
   lastPeriodPreviousDayText: 'Previous day',
   lastPeriodNextDayText: 'Next day',
+
+  lastPeriodPreviousMonthLabel: 'Pick the previous month',
+  lastPeriodNextMonthLabel: 'Pick the next month',
+  lastPeriodPreviousMonthText: 'Previous month',
+  lastPeriodNextMonthText: 'Next month',
 
   selectedDateLabel: (readableDate: string) => `Selected date: ${readableDate}`,
 

@@ -103,6 +103,8 @@ async function renderScreen(options: ScreenOptions = {}) {
     previous: () => screen.getByRole('button', { name: 'Önceki günü seç' }),
     next: () => screen.getByRole('button', { name: 'Sonraki günü seç' }),
     submit: () => screen.getByRole('button', { name: 'Devam' }),
+    previousMonth: () => screen.getByRole('button', { name: 'Önceki ayı seç' }),
+    nextMonth: () => screen.getByRole('button', { name: 'Sonraki ayı seç' }),
   };
 }
 
@@ -242,6 +244,68 @@ describe('LastPeriodScreen date boundaries', () => {
 
     await fireEvent.press(next());
     expect(getByText('29 Şubat 2024')).toBeTruthy();
+  });
+});
+
+/**
+ * The coarse step.
+ *
+ * The day buttons cover the common case - a start within a few days of today -
+ * and left everybody else with about ninety taps to reach three months back,
+ * or "Bilmiyorum", which records nothing.
+ */
+describe('LastPeriodScreen month steps', () => {
+  it('moves a whole month back, keeping the day', async () => {
+    // March, where a month back and thirty days back are different answers:
+    // 13 February against 11 February.
+    const { previousMonth, getByText } = await renderScreen({ today: '2026-03-13' });
+
+    await fireEvent.press(previousMonth());
+
+    expect(getByText('13 Şubat 2026')).toBeTruthy();
+  });
+
+  it('reaches three months back in three presses', async () => {
+    const { previousMonth, getByText } = await renderScreen({ today: '2026-10-13' });
+
+    await pressTimes(previousMonth, 3);
+
+    expect(getByText('13 Temmuz 2026')).toBeTruthy();
+  });
+
+  it('clamps to the end of a shorter month rather than rolling past it', async () => {
+    // From 31 March, a month back is February, not the 3rd of March.
+    const { previous, previousMonth, getByText } = await renderScreen({ today: '2026-04-01' });
+
+    await fireEvent.press(previous());
+    expect(getByText('31 Mart 2026')).toBeTruthy();
+
+    await fireEvent.press(previousMonth());
+    expect(getByText('28 Şubat 2026')).toBeTruthy();
+  });
+
+  it('refuses a month forward that would land after today', async () => {
+    // Two weeks back: a month forward is in the future, so the control is off
+    // rather than quietly landing on today.
+    const { nextMonth, previous, getByText } = await renderScreen({ today: '2026-10-13' });
+
+    await pressTimes(previous, 14);
+    expect(getByText('29 Eylül 2026')).toBeTruthy();
+
+    expect(nextMonth().props.accessibilityState?.disabled).toBe(true);
+
+    await fireEvent.press(nextMonth());
+    expect(getByText('29 Eylül 2026')).toBeTruthy();
+  });
+
+  it('allows a month forward when it lands on or before today', async () => {
+    const { nextMonth, previousMonth, getByText } = await renderScreen({ today: '2026-10-13' });
+
+    await pressTimes(previousMonth, 2);
+    expect(getByText('13 Ağustos 2026')).toBeTruthy();
+
+    await fireEvent.press(nextMonth());
+    expect(getByText('13 Eylül 2026')).toBeTruthy();
   });
 });
 

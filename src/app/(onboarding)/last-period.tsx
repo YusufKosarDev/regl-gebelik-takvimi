@@ -12,7 +12,7 @@ import { onboardingMessages } from '@/features/onboarding/presentation/onboardin
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
-import { addDays, daysBetween } from '@/utils/date';
+import { addDays, addMonths, daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import {
@@ -23,8 +23,11 @@ import {
 /**
  * Third onboarding input: when the last period started.
  *
- * A pair of day buttons rather than a native picker — no extra dependency, and a
- * period start is almost always within a few days of today.
+ * A pair of day buttons rather than a native picker - no extra dependency,
+ * and a period start is almost always within a few days of today. A second
+ * pair steps by whole months, for everybody else: "almost always" left
+ * anybody further back with ninety taps or "Bilmiyorum", which records
+ * nothing at all. Still no dependency, and still the same control.
  *
  * Future dates are refused: a cycle cannot have started after today, and letting
  * one through would produce a negative cycle day everywhere downstream.
@@ -52,6 +55,9 @@ export default function LastPeriodScreen() {
 
   const readableDate = formatDisplayDate(selectedDate, language);
   const canGoToNextDay = daysBetween(selectedDate, today) > 0;
+  // Refused rather than clamped: a step that quietly landed somewhere other
+  // than a month on would be a control that answers a different question.
+  const canGoToNextMonth = daysBetween(addMonths(selectedDate, 1), today) >= 0;
 
   return (
     <ThemedView style={styles.screen}>
@@ -102,6 +108,51 @@ export default function LastPeriodScreen() {
                     pressed && canGoToNextDay && styles.pressed,
                   ]}>
                   <ThemedText type="small">{onboarding.lastPeriodNextDayText}</ThemedText>
+                </Pressable>
+              </View>
+
+              {/* The same control at a coarser step.
+
+                  The note at the top of this file chose a pair of day buttons
+                  over a native picker, for no extra dependency and because a
+                  period start is almost always within a few days of today.
+                  Both still hold - this adds no dependency and the day
+                  buttons are still the ones most people will use - but "almost
+                  always" left everybody else with ninety taps to reach three
+                  months back, or "Bilmiyorum", which records nothing.
+
+                  Bounded on the forward side exactly as the day button is: a
+                  month that would land after today is refused rather than
+                  clamped, so the control never offers a date saving would
+                  reject and never silently gives a different answer from the
+                  one pressed. */}
+              <View style={styles.dayButtons}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={onboarding.lastPeriodPreviousMonthLabel}
+                  accessibilityState={{ disabled: false }}
+                  onPress={() => setSelectedDate((current) => addMonths(current, -1))}
+                  style={({ pressed }) => [
+                    styles.dayButton,
+                    { borderColor: theme.backgroundSelected },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText type="small">{onboarding.lastPeriodPreviousMonthText}</ThemedText>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={onboarding.lastPeriodNextMonthLabel}
+                  accessibilityState={{ disabled: !canGoToNextMonth }}
+                  disabled={!canGoToNextMonth}
+                  onPress={() => setSelectedDate((current) => addMonths(current, 1))}
+                  style={({ pressed }) => [
+                    styles.dayButton,
+                    { borderColor: theme.backgroundSelected },
+                    !canGoToNextMonth && styles.dayButtonDisabled,
+                    pressed && canGoToNextMonth && styles.pressed,
+                  ]}>
+                  <ThemedText type="small">{onboarding.lastPeriodNextMonthText}</ThemedText>
                 </Pressable>
               </View>
             </View>

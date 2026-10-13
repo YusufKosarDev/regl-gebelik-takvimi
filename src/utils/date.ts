@@ -251,6 +251,34 @@ export function addDays(date: ISODate, amount: number): ISODate {
 }
 
 /**
+ * Shifts a calendar date by whole months, keeping the day of the month where
+ * the target month has one.
+ *
+ * 31 January less one month is 28 February, or 29 in a leap year: the day is
+ * clamped to the end of the month it lands in rather than rolling over into
+ * March. A stepper built on rollover would skip February on the way past,
+ * which is the one behaviour a person pressing "previous month" would call a
+ * bug.
+ *
+ * `shiftYearMonth` does the month arithmetic and keeps the supported-year
+ * check in one place, so this throws on the same boundaries the calendar's own
+ * paging does.
+ */
+export function addMonths(date: ISODate, amount: number): ISODate {
+  if (!Number.isInteger(amount)) {
+    throw new Error(`addMonths expects an integer amount, received ${amount}.`);
+  }
+
+  const { year, month } = getYearMonth(date);
+  const day = getDayOfMonth(date);
+
+  const shifted = shiftYearMonth(year, month, amount);
+  const lastDay = getDaysInMonth(shifted.year, shifted.month);
+
+  return formatLocalDate(shifted.year, shifted.month, Math.min(day, lastDay));
+}
+
+/**
  * Calendar days from `start` to `end`: zero on the same day, negative when
  * `end` precedes `start`.
  */
