@@ -1,5 +1,6 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
 import HistoryScreen from '@/app/(app)/(tabs)/history';
 import {
@@ -2282,5 +2283,51 @@ describe('HistoryScreen what you log most', () => {
 
     expect(getByText(dailyLogCatalogueLabels.tr.symptoms.cramps)).toBeTruthy();
     expect(getByText(dailyLogCatalogueLabels.tr.moods.good)).toBeTruthy();
+  });
+});
+
+/**
+ * The row actions look like controls.
+ *
+ * All three were `small` text in `textSecondary` with no border and no glyph -
+ * the same treatment as the "Başlangıç" and "Bitiş" labels above them. The hit
+ * area was always right; nothing said they were pressable, so three controls
+ * read as a caption. A screen reader was told and a sighted person was not.
+ *
+ * The assertion is about the two channels rather than the exact style: a
+ * border, and the accent rather than the secondary text colour. That is the
+ * app's existing treatment for a pressable that is not a filled button.
+ */
+describe('HistoryScreen row actions read as controls', () => {
+  it('gives all three a border and the accent, not the caption colour', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-07' }])
+    );
+
+    const screen = await renderScreen();
+
+    const labels = [
+      '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
+      '2 Eylül 2026 regl kaydının bitiş tarihini düzenle',
+      '2 Eylül 2026 regl kaydını sil',
+    ];
+
+    for (const label of labels) {
+      const control = screen.getByLabelText(label);
+      const style = StyleSheet.flatten(control.props.style);
+
+      expect([label, style?.borderWidth]).toEqual([label, 1]);
+      expect([label, style?.borderColor]).toEqual([label, Colors.light.primary]);
+    }
+
+    // And the words inside them are the accent, not the grey the labels use.
+    for (const text of ['Başlangıcı düzenle', 'Bitişi düzenle', 'Sil']) {
+      const node = screen.getByText(text);
+
+      expect([text, StyleSheet.flatten(node.props.style)?.color]).toEqual([
+        text,
+        Colors.light.primary,
+      ]);
+    }
   });
 });

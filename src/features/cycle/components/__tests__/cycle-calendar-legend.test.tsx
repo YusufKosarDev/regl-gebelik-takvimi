@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 
+import { homeMessages, legendItemsIn } from '@/features/cycle/presentation/home-messages';
 import { CycleCalendarLegend } from '../cycle-calendar-legend';
 
 const ESTIMATE_NOTICE = 'Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.';
@@ -240,5 +241,29 @@ describe('CycleCalendarLegend colours', () => {
     expect(period).toBeDefined();
     expect(ovulation).toBeDefined();
     expect(new Set([period, ovulation, markerColour(tree, '≈')]).size).toBe(3);
+  });
+});
+
+/**
+ * The key does not shrink to the month.
+ *
+ * Paging to a month with no marks leaves four rows explaining marks that are
+ * not on screen, which looks like something to fix - and filtering them is the
+ * obvious fix. This refuses it: a legend that changed as somebody paged would
+ * have nothing to say in the one month where they are asking what they are not
+ * seeing.
+ *
+ * It is pinned against the catalogue rather than against four strings, so
+ * better wording stays green and a disappearing row does not.
+ */
+describe('the legend is the grid vocabulary, not this month', () => {
+  it('lists every mark the calendar can draw, always', async () => {
+    const screen = await render(<CycleCalendarLegend />);
+
+    for (const item of legendItemsIn(homeMessages.tr)) {
+      expect(screen.getByText(item.label)).toBeTruthy();
+    }
+
+    expect(legendItemsIn(homeMessages.tr)).toHaveLength(4);
   });
 });

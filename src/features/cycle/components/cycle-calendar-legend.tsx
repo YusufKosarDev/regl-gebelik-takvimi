@@ -7,7 +7,24 @@ import { Spacing } from '@/constants/theme';
 import { useCyclePhaseColors } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 
-/** Explains the calendar's marks. Reads nothing and computes nothing. */
+/**
+ * Explains the calendar's marks. Reads nothing and computes nothing.
+ *
+ * ## It lists all four whatever the month holds
+ *
+ * Paging to a month with no marks in it leaves four rows explaining marks that
+ * are not on screen, which looks like something to fix. It is not.
+ *
+ * This is the grid's vocabulary rather than a report of what this month
+ * contains. A legend that shrank to the marks present would change every time
+ * somebody paged, so the one place it is most needed - an empty month, where a
+ * person is asking what they are not seeing - is the one place it would have
+ * nothing to say. Four fixed rows are read once; a key that moves is read
+ * again every month.
+ *
+ * The reason a month is empty is the selected-day card's job, and it does say
+ * it: `countContinuesMessage`.
+ */
 /**
  * The swatch's own mark, in the colour the calendar draws that mark in.
  *

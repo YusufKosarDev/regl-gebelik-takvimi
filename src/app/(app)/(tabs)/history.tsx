@@ -560,8 +560,12 @@ export default function HistoryScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={history.editStartLabel(formatDisplayDate(record.startDate, language))}
                           onPress={() => openStartEditor(record)}
-                          style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
-                          <ThemedText type="small" themeColor="textSecondary">
+                          style={({ pressed }) => [
+                            styles.rowAction,
+                            { borderColor: theme.primary },
+                            pressed && styles.pressed,
+                          ]}>
+                          <ThemedText type="smallBold" themeColor="primary">
                             {history.editStartText}
                           </ThemedText>
                         </Pressable>
@@ -571,8 +575,12 @@ export default function HistoryScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={history.editEndLabel(formatDisplayDate(record.startDate, language))}
                             onPress={() => openEndEditor(record)}
-                            style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
-                            <ThemedText type="small" themeColor="textSecondary">
+                            style={({ pressed }) => [
+                            styles.rowAction,
+                            { borderColor: theme.primary },
+                            pressed && styles.pressed,
+                          ]}>
+                            <ThemedText type="smallBold" themeColor="primary">
                               {history.editEndText}
                             </ThemedText>
                           </Pressable>
@@ -582,8 +590,12 @@ export default function HistoryScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={history.deleteRecordLabel(formatDisplayDate(record.startDate, language))}
                           onPress={() => askToDelete(record)}
-                          style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
-                          <ThemedText type="small" themeColor="textSecondary">
+                          style={({ pressed }) => [
+                            styles.rowAction,
+                            { borderColor: theme.primary },
+                            pressed && styles.pressed,
+                          ]}>
+                          <ThemedText type="smallBold" themeColor="primary">
                             {history.deleteText}
                           </ThemedText>
                         </Pressable>
@@ -664,10 +676,36 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
     marginTop: Spacing.two,
   },
+  /**
+   * A row action looks like a control, because it is one.
+   *
+   * All three were `small` text in `textSecondary` with no border and no
+   * glyph - the same treatment as the "Başlangıç" and "Bitiş" labels two lines
+   * above them. The hit area was always right; nothing said they were
+   * pressable, so three controls read as a caption. Assistive technology was
+   * told - they carry `accessibilityRole="button"` - and a sighted person was
+   * not.
+   *
+   * The treatment is the app's existing one rather than a new idea. Every
+   * pressable here that is not a filled button carries a second channel
+   * besides being text: a border in the accent with accent text, as the
+   * calendar's "Bu güne ekle" does on its own record card, or a chevron with
+   * grey text, as the home screen's link rows do. These take the first,
+   * because that is what an inline action on a record already looks like one
+   * screen away; a chevron says "goes somewhere" and these open a panel in
+   * place.
+   *
+   * All three get it, including Delete. Which of them is destructive is the
+   * confirmation step's job - see `deletion-messages.ts` - and this step only
+   * opens a panel that explains itself.
+   */
   rowAction: {
     minHeight: 44,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingRight: Spacing.two,
+    paddingHorizontal: Spacing.three,
   },
   dateBar: {
     flexDirection: 'row',
