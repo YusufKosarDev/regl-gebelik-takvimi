@@ -168,24 +168,6 @@ const CELL_CONTENT_HEIGHT = 48;
 const CELL_BAND_ALLOWANCE = 6;
 
 /**
- * The marker row's line, and the "today" label's, reserved in every square.
- *
- * One idea twice: a line only some squares have, kept open in all of them so
- * the day numbers above it sit level across a row. The marker row has always
- * done this; the label did not, and today's square carried one line more than
- * its neighbours - measured on a device at 1.5, the 13 sat 24 points above the
- * 14 beside it.
- *
- * Both are multiplied by the font scale where they are used. A fixed
- * reservation is the same defect wearing the other hat: at Android's largest
- * setting a real marker is twice this tall, so a square without one came out
- * short and its number sat 32 points low - which is what the reservation
- * existed to prevent.
- */
-const MARKER_LINE_HEIGHT = 12;
-const TODAY_LINE_HEIGHT = 11;
-
-/**
  * How thick the band along the foot of a square is.
  *
  * Thick enough to read as a band rather than as a rule - a hairline between
@@ -321,7 +303,21 @@ function DayCell({
         {getDayOfMonth(day.date)}
       </ThemedText>
 
-      <View style={[styles.markerRow, { minHeight: MARKER_LINE_HEIGHT * fontScale }]}>
+      <View style={styles.markerRow}>
+        {/* A space when there is no glyph, not an empty row with a reserved
+            height. The two are not the same: a reserved `minHeight` is in line
+            heights and the drawn text is taller than its line height, so a
+            square with a real marker came out 32 points taller than one
+            holding only the reservation and its number sat that much higher.
+            The same `ThemedText` with the same style measures the same
+            whatever is in it - which is how `entry-month-grid.tsx` keeps its
+            own squares level, and it was right. */}
+        {marker === '' && !day.isPredictedPeriodDay && (
+          <ThemedText type="small" style={styles.marker}>
+            {' '}
+          </ThemedText>
+        )}
+
         {marker !== '' && (
           <ThemedText type="small" style={[styles.marker, { color: markerColour(state, phases) }]}>
             {marker}
@@ -348,17 +344,18 @@ function DayCell({
         )}
       </View>
 
-      {/* Kept open in every square, not only today's. It is the line that
-          decides where the number above it sits: a square without it centred
-          two lines where its neighbour centred three, and on a device at 1.5
-          that put the 13 twenty-four points above the 14 beside it. */}
-      <View style={{ minHeight: TODAY_LINE_HEIGHT * fontScale }}>
-        {isToday ? (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
-            {home.calendarTodayLabel}
-          </ThemedText>
-        ) : null}
-      </View>
+      {/* Drawn in every square, not only today's, with a space where the word
+          is not. It is the line that decides where the number above it sits -
+          a square without it centred two lines where its neighbour centred
+          three, and on a device at 1.5 that put the 13 twenty-four points
+          above the 14 beside it.
+
+          A space rather than a reserved height, for the reason the marker row
+          above gives: the same text measures the same whatever is in it, and
+          a height reserved in line heights does not match what is drawn. */}
+      <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
+        {isToday ? home.calendarTodayLabel : ' '}
+      </ThemedText>
     </View>
   );
 
@@ -499,8 +496,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.half,
-    // Keeps every square the same height whether or not it has a marker.
-    minHeight: 12,
+    // No reserved height here any more: the space drawn in an empty row does
+    // the job exactly, and a height in line heights did it approximately -
+    // which is worse than not at all, because it looked solved.
   },
   marker: {
     fontSize: 10,

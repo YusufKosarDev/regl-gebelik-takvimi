@@ -945,7 +945,7 @@ describe('CycleCalendar at a large font setting', () => {
   });
 
   /**
-   * Every square reserves the same lines, today's included.
+   * Every square draws the same three lines, today's included.
    *
    * The numbers sit level across a row because each square centres the same
    * amount of content, not because the squares are the same height - they are
@@ -953,24 +953,28 @@ describe('CycleCalendar at a large font setting', () => {
    * three puts its number somewhere else regardless. Measured on a device at
    * 1.5 before this: the 13 sat 24 points above the 14 beside it.
    *
-   * Both reservations scale. A fixed one is the same bug the other way round:
-   * at 2.0 a real marker is 24 points tall and a square without one was
-   * holding 12, which put its number 32 points low.
+   * A space is drawn where there is nothing to say, rather than a height
+   * reserved for it. That was tried first and measured on a device: a reserved
+   * `minHeight` is in line heights, the drawn text is taller than its line
+   * height, and at 2.0 a square holding a real marker came out 32 points
+   * taller than one holding the reservation - so the numbers were still not
+   * level, by a smaller amount. `entry-month-grid.tsx` had it right.
    */
-  it('reserves the same lines in every square, whether or not it is today', async () => {
+  it('draws the same three lines in every square, whether or not it is today', async () => {
     getFontScale.mockReturnValue(2);
 
     const screen = await render(
       <CycleCalendar grid={septemberGrid} today={'2026-09-17' as ISODate} />
     );
 
-    const reserved = (date: string): number[] =>
-      reservedLineHeightsIn(screen.toJSON(), date);
+    const lines = (date: string): number[] => textLineSizesIn(screen.toJSON(), date);
 
-    // Today's square and one that is neither today nor carrying a marker.
-    expect(reserved('2026-09-17')).toEqual(reserved('2026-09-22'));
-    // And they scale: 12 and 11 at the default setting, doubled here.
-    expect(reserved('2026-09-17')).toEqual([24, 22]);
+    // The number, the marker row and the today line: 15, 10 and 9 points.
+    expect(lines('2026-09-17')).toEqual([15, 10, 9]);
+    // A square that carries a marker but is not today.
+    expect(lines('2026-09-16')).toEqual(lines('2026-09-17'));
+    // And one that carries neither.
+    expect(lines('2026-09-22')).toEqual(lines('2026-09-17'));
   });
 });
 
@@ -1020,23 +1024,25 @@ function ringStyleIn(tree: unknown, date: string): Record<string, unknown> {
 
   return ring;
 }
-
 /**
- * The reserved line heights inside one square, in order.
+ * The text lines drawn inside one square, by the size each is set at.
  *
- * The marker row and the "today" line are the two boxes in a cell that exist
- * to hold space open, so they are the two with a `minHeight` and nothing else
- * deciding their size.
+ * Three in every square - the number, the marker row and the today line - and
+ * they sit level because all three are always drawn, with a space where there
+ * is nothing to say. Reading the sizes keeps the assertion about what is on
+ * screen rather than about the shape of the tree.
  */
-function reservedLineHeightsIn(tree: unknown, date: string): number[] {
+function textLineSizesIn(tree: unknown, date: string): number[] {
   const found: number[] = [];
 
   const walk = (node: any): void => {
     if (node === null || typeof node !== 'object') return;
 
-    const flat = StyleSheet.flatten(node.props?.style);
+    if (node.type === 'Text') {
+      const flat = StyleSheet.flatten(node.props?.style);
 
-    if (flat?.minHeight !== undefined) found.push(flat.minHeight as number);
+      if (flat?.fontSize !== undefined) found.push(flat.fontSize as number);
+    }
 
     (node.children ?? []).forEach(walk);
   };
@@ -1058,8 +1064,7 @@ function reservedLineHeightsIn(tree: unknown, date: string): number[] {
 
   if (cell === null) throw new Error(`no cell for ${date}`);
 
-  // The cell's own floor is first and is not a reserved line.
-  (cell.children ?? []).forEach(walk);
+  walk(cell);
 
   return found;
 }
