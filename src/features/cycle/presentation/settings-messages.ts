@@ -78,7 +78,6 @@ const settingsMessagesTr = {
   identityLocalOnly: 'Kayıtların yalnızca bu telefonda.',
   identityChecking: 'Hesap durumu kontrol ediliyor.',
 
-  accountSectionDescription: 'Hesap açmak isteğe bağlı. Verilerin telefonunda kalır.',
   accountOpenLabel: 'Hesabı aç',
   /**
    * What the row says once there is an account to manage.
@@ -126,8 +125,6 @@ const settingsMessagesEn: SettingsMessages = {
   notificationsSectionTitle: 'Notifications',
 
   accountSectionTitle: 'Account',
-  accountSectionDescription:
-    'An account is optional. Your records stay on your phone either way.',
   accountOpenLabel: 'Open an account',
   accountManageLabel: 'Manage your account',
 };
@@ -158,7 +155,6 @@ export const PERIOD_LENGTH_INCREASE_LABEL = settingsMessagesTr.periodLengthIncre
 export const SETTINGS_SAVE_LABEL = settingsMessagesTr.settingsSaveLabel;
 export const NOTIFICATIONS_SECTION_TITLE = settingsMessagesTr.notificationsSectionTitle;
 export const ACCOUNT_SECTION_TITLE = settingsMessagesTr.accountSectionTitle;
-export const ACCOUNT_SECTION_DESCRIPTION = settingsMessagesTr.accountSectionDescription;
 export const ACCOUNT_OPEN_LABEL = settingsMessagesTr.accountOpenLabel;
 
 /** Kept as a bare unit for the assertions that name it; screens call `daysUnit`. */
