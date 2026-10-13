@@ -177,6 +177,34 @@ export function AccountDeletionPanel({
               {wipeLocalToo ? deletion.accountDeleteWipeOnNote : deletion.accountDeleteWipeOffNote}
             </ThemedText>
 
+            {/* Cancel first and filled; the deletion second and outlined.
+
+                The app has one emphatic treatment - a filled button in the
+                accent - and this panel used to spend it on the irreversible
+                action, with Cancel as the quiet outline beneath. That is the
+                loudest control on the screen pointing at the one thing that
+                cannot be undone.
+
+                Cancel first is also what six other panels already do. The
+                order was inconsistent and nothing explained it; see
+                `deletion-messages.ts` for the rule and the reason. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={deletion.accountDeleteCancelLabel}
+              accessibilityState={{ disabled: isBusy }}
+              disabled={isBusy}
+              onPress={onCancel}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                { backgroundColor: theme.primary },
+                isBusy && styles.disabled,
+                pressed && !isBusy && styles.pressed,
+              ]}>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
+                {deletion.accountDeleteCancelLabel}
+              </ThemedText>
+            </Pressable>
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={deletion.accountDeleteConfirmLabel}
@@ -186,29 +214,14 @@ export function AccountDeletionPanel({
                 onConfirm();
               }}
               style={({ pressed }) => [
-                styles.primaryButton,
-                { backgroundColor: theme.primary },
-                isBusy && styles.disabled,
-                pressed && !isBusy && styles.pressed,
-              ]}>
-              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
-                {isBusy ? deletion.accountDeleteBusyLabel : deletion.accountDeleteConfirmLabel}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={deletion.accountDeleteCancelLabel}
-              accessibilityState={{ disabled: isBusy }}
-              disabled={isBusy}
-              onPress={onCancel}
-              style={({ pressed }) => [
                 styles.secondaryButton,
                 { borderColor: theme.backgroundSelected },
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={ButtonLabel}>{deletion.accountDeleteCancelLabel}</ThemedText>
+              <ThemedText type="smallBold" style={ButtonLabel}>
+                {isBusy ? deletion.accountDeleteBusyLabel : deletion.accountDeleteConfirmLabel}
+              </ThemedText>
             </Pressable>
           </View>
         )}

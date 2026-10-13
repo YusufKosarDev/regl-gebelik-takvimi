@@ -501,6 +501,10 @@ export default function HistoryScreen() {
                         )}
 
                         <View style={styles.confirmActions}>
+                          {/* Cancel filled, the deletion outlined. The order
+                              here was already the app's - cancel first - and
+                              the weights were the other two panels'. See
+                              `deletion-messages.ts`. */}
                           <Pressable
                             accessibilityRole="button"
                             accessibilityLabel={common.cancelLabel}
@@ -508,11 +512,14 @@ export default function HistoryScreen() {
                             disabled={isDeleting}
                             onPress={closePanels}
                             style={({ pressed }) => [
-                              styles.secondaryButton,
+                              styles.primaryButton,
+                              { backgroundColor: theme.primary },
                               isDeleting && styles.disabled,
                               pressed && !isDeleting && styles.pressed,
                             ]}>
-                            <ThemedText type="small" themeColor="textSecondary" style={ButtonLabel}>
+                            <ThemedText
+                              type="smallBold"
+                              style={[ButtonLabel, { color: theme.onPrimary }]}>
                               {common.cancelLabel}
                             </ThemedText>
                           </Pressable>
@@ -524,14 +531,11 @@ export default function HistoryScreen() {
                             disabled={isDeleting}
                             onPress={handleDelete}
                             style={({ pressed }) => [
-                              styles.primaryButton,
-                              { backgroundColor: theme.primary },
+                              styles.secondaryButton,
                               isDeleting && styles.disabled,
                               pressed && !isDeleting && styles.pressed,
                             ]}>
-                            <ThemedText
-                              type="smallBold"
-                              style={[ButtonLabel, { color: theme.onPrimary }]}>
+                            <ThemedText type="smallBold" style={ButtonLabel}>
                               {isDeleting ? history.deleteBusyLabel : history.deleteConfirmLabel}
                             </ThemedText>
                           </Pressable>

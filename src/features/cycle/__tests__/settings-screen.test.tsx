@@ -3,7 +3,12 @@ import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/(tabs)/settings';
-import { LOCAL_WIPE_OPEN_LABEL } from '@/features/deletion/presentation/deletion-messages';
+import {
+  LOCAL_WIPE_OPEN_LABEL,
+  deletionMessages,
+} from '@/features/deletion/presentation/deletion-messages';
+import { Colors } from '@/constants/theme';
+import { expectDestructiveConfirmation } from '../../../../jest/assert-destructive-confirmation';
 import { ABOUT_OPEN_LABEL } from '@/features/disclaimer/presentation/disclaimer-messages';
 import {
   DISCREET_NOTIFICATIONS_DESCRIPTION,
@@ -1738,5 +1743,32 @@ describe('the account row label', () => {
 
     expect(await screen.findByLabelText('Hesabı yönet')).toBeTruthy();
     expect(screen.queryByLabelText('Hesabı aç')).toBeNull();
+  });
+});
+
+/**
+ * Which of the two buttons is the loud one.
+ *
+ * The rule and the reason are in `jest/assert-destructive-confirmation.ts`.
+ */
+describe('SettingsScreen wipe confirmation weights', () => {
+  it('fills Cancel and outlines the wipe, with Cancel first', async () => {
+    const screen = await renderLoaded();
+
+    await fireEvent.press(screen.getByLabelText(LOCAL_WIPE_OPEN_LABEL));
+
+    const buttons = screen.queryAllByRole('button').map((node) => ({
+      label: String(node.props.accessibilityLabel ?? ''),
+      style: node.props.style,
+    }));
+
+    expectDestructiveConfirmation(
+      buttons,
+      {
+        cancel: deletionMessages.tr.localWipeCancelLabel,
+        destructive: deletionMessages.tr.localWipeConfirmLabel,
+      },
+      Colors.light.primary
+    );
   });
 });

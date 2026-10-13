@@ -17,6 +17,8 @@ import {
 } from '@/features/cycle/presentation/history-messages';
 import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
 import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-messages';
+import { Colors } from '@/constants/theme';
+import { expectDestructiveConfirmation } from '../../../../jest/assert-destructive-confirmation';
 import { dailyLogHistoryMessages } from '@/features/daily-log/presentation/daily-log-history-messages';
 
 // The database is faked. The use case, the repository contract and the ordering
@@ -452,6 +454,36 @@ describe('HistoryScreen delete action', () => {
 
     expect(screen.queryAllByText('Bu regl kaydını silmek istiyor musun?')).toHaveLength(1);
     expect(screen.getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
+  });
+});
+
+/**
+ * Which of the two buttons is the loud one.
+ *
+ * The rule and the reason are in `jest/assert-destructive-confirmation.ts`.
+ * Nothing asserted this before, which is how the panel came to put the app's
+ * one emphatic treatment on the irreversible action.
+ */
+describe('HistoryScreen delete confirmation weights', () => {
+  it('fills Cancel and outlines the deletion, with Cancel first', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+
+    const buttons = screen.queryAllByRole('button').map((node) => ({
+      label: String(node.props.accessibilityLabel ?? ''),
+      style: node.props.style,
+    }));
+
+    expectDestructiveConfirmation(
+      buttons,
+      { cancel: 'Vazgeç', destructive: 'Sil' },
+      Colors.light.primary
+    );
   });
 });
 

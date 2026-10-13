@@ -101,6 +101,20 @@ export const CyclePhaseColors = {
 export type CyclePhaseColor = keyof typeof CyclePhaseColors.light &
   keyof typeof CyclePhaseColors.dark;
 
+/**
+ * The page palette: nine tokens, and no colour for danger.
+ *
+ * There is no `destructive`, no `danger` and no red, and that is the real
+ * constraint on how a deleting button can be drawn - not the single-ink rule,
+ * which is about de-emphasis by lightness on a sky field and does not reach a
+ * page. It was quoted at this question once and it was the wrong rule.
+ *
+ * Adding one would be a palette decision rather than a styling tweak: a
+ * destructive colour has to clear 4.5:1 against both backgrounds and carry a
+ * readable `on` colour of its own in both schemes, and `theme-contrast.test.ts`
+ * would have to hold it there. The deletion panels get their emphasis from
+ * weight and order instead; `deletion-messages.ts` says how and why.
+ */
 export const Colors = {
   light: {
     text: '#000000',

@@ -21,6 +21,36 @@ import type { Messages } from '@/i18n';
  *     account can be gone while the phone is still full, and that is its own
  *     sentence rather than an error.
  *
+ * ## How the two steps are drawn, and why only the second one argues
+ *
+ * **The first step is an ordinary button.** "Hesabı sil" and "Tüm verilerimi
+ * sil" look exactly like "Çıkış yap" and "Yedek oluştur" - same border, same
+ * weight, same size - and that is on purpose. Pressing one opens a panel; it
+ * destroys nothing. By the time anything is gone a person has read a section
+ * heading that says what will be deleted, a panel heading that says it again,
+ * a warning, and - for the account - typed their password. The first button's
+ * whole job is to reach that panel, and a button that shouted would be
+ * shouting about opening a form.
+ *
+ * This will look like an oversight to whoever notices it next, so: it was
+ * considered, and the page palette has no colour to shout in anyway. See
+ * `constants/theme.ts`.
+ *
+ * **The second step puts the emphasis on Cancel.** The app has one emphatic
+ * treatment - a filled button in the accent - and all three deletion panels
+ * used to spend it on the irreversible action, with Cancel as a quiet outline.
+ * The loudest control on the screen pointed at the one thing that cannot be
+ * undone. They are swapped: Cancel is filled, the deletion is outlined. No
+ * colour is introduced and nothing is hidden - the destructive button is still
+ * a button, with the same hit area and the same words.
+ *
+ * **Cancel comes first, everywhere.** Six panels already did it that way and
+ * three did not, with nothing written down to say which was right - which is
+ * how a fourth order gets invented. In a column that puts Cancel above; in the
+ * history row it puts Cancel to the left. `restore-preview-panel.tsx` follows
+ * the order too, though its weights are left alone: overwriting a phone is
+ * arguably the same family, and that is a decision rather than a tidy-up.
+ *
  * No value from a database, an address or an error is ever interpolated in.
  */
 

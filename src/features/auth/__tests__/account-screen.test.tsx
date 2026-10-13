@@ -8,6 +8,9 @@ import { AuthError } from '@/features/auth/domain/auth-error';
 import type { AuthErrorCode } from '@/features/auth/domain/auth-error';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { PHONE_TRANSFER_NOTE } from '@/features/sync/presentation/sync-messages';
+import { Colors } from '@/constants/theme';
+import { deletionMessages } from '@/features/deletion/presentation/deletion-messages';
+import { expectDestructiveConfirmation } from '../../../../jest/assert-destructive-confirmation';
 
 // The repository and the Firebase file are faked. What this pins is what the
 // screen sends, what it shows, and what it never shows.
@@ -2527,5 +2530,32 @@ describe('the status line and the conflict notice', () => {
     await waitFor(() => {
       expect(screen.getByText('Henüz senkronize edilmedi.')).toBeTruthy();
     });
+  });
+});
+
+/**
+ * Which of the two buttons is the loud one.
+ *
+ * The rule and the reason are in `jest/assert-destructive-confirmation.ts`.
+ */
+describe('AccountScreen deletion confirmation weights', () => {
+  it('fills Cancel and outlines the deletion, with Cancel first', async () => {
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText(deletionMessages.tr.accountDeleteOpenLabel));
+
+    const buttons = screen.queryAllByRole('button').map((node) => ({
+      label: String(node.props.accessibilityLabel ?? ''),
+      style: node.props.style,
+    }));
+
+    expectDestructiveConfirmation(
+      buttons,
+      {
+        cancel: deletionMessages.tr.accountDeleteCancelLabel,
+        destructive: deletionMessages.tr.accountDeleteConfirmLabel,
+      },
+      Colors.light.primary
+    );
   });
 });

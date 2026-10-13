@@ -98,6 +98,27 @@ export function RestorePreviewPanel({
               {authStrings.restoreWarning}
             </ThemedText>
 
+            {/* Cancel first, like every other panel in the app. The weights
+                are left as they are: this one overwrites what is on the phone,
+                which is the same kind of harm the deletion panels carry, but
+                whether it belongs in that family is a decision rather than a
+                tidy-up. See `deletion-messages.ts` for the rule the three
+                deletion panels now follow. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={authStrings.restoreCancelLabel}
+              accessibilityState={{ disabled: isBusy }}
+              disabled={isBusy}
+              onPress={onCancel}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                { borderColor: theme.backgroundSelected },
+                isBusy && styles.disabled,
+                pressed && !isBusy && styles.pressed,
+              ]}>
+              <ThemedText type="smallBold" style={ButtonLabel}>{common.cancelLabel}</ThemedText>
+            </Pressable>
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={authStrings.restoreConfirmLabel}
@@ -113,21 +134,6 @@ export function RestorePreviewPanel({
               <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
                 {isBusy ? authStrings.restoringLabel : authStrings.restoreConfirmLabel}
               </ThemedText>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={authStrings.restoreCancelLabel}
-              accessibilityState={{ disabled: isBusy }}
-              disabled={isBusy}
-              onPress={onCancel}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                { borderColor: theme.backgroundSelected },
-                isBusy && styles.disabled,
-                pressed && !isBusy && styles.pressed,
-              ]}>
-              <ThemedText type="smallBold" style={ButtonLabel}>{common.cancelLabel}</ThemedText>
             </Pressable>
           </View>
   );

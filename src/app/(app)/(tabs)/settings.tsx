@@ -798,25 +798,10 @@ export default function SettingsScreen() {
                     </ThemedText>
                   )}
 
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={deletion.localWipeConfirmLabel}
-                    accessibilityState={{ disabled: isWiping }}
-                    disabled={isWiping}
-                    onPress={() => {
-                      void handleConfirmWipe();
-                    }}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      { backgroundColor: theme.primary },
-                      isWiping && styles.disabled,
-                      pressed && !isWiping && styles.pressed,
-                    ]}>
-                    <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
-                      {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
-                    </ThemedText>
-                  </Pressable>
-
+                  {/* Cancel first and filled, the wipe second and outlined.
+                      Same reasoning as the account panel, written out in
+                      `deletion-messages.ts`: the one emphatic treatment this
+                      app has must not land on the irreversible action. */}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={deletion.localWipeCancelLabel}
@@ -826,12 +811,33 @@ export default function SettingsScreen() {
                       setIsConfirmingWipe(false);
                     }}
                     style={({ pressed }) => [
+                      styles.primaryButton,
+                      { backgroundColor: theme.primary },
+                      isWiping && styles.disabled,
+                      pressed && !isWiping && styles.pressed,
+                    ]}>
+                    <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
+                      {deletion.localWipeCancelLabel}
+                    </ThemedText>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={deletion.localWipeConfirmLabel}
+                    accessibilityState={{ disabled: isWiping }}
+                    disabled={isWiping}
+                    onPress={() => {
+                      void handleConfirmWipe();
+                    }}
+                    style={({ pressed }) => [
                       styles.secondaryButton,
                       { borderColor: theme.backgroundSelected },
                       isWiping && styles.disabled,
                       pressed && !isWiping && styles.pressed,
                     ]}>
-                    <ThemedText type="smallBold" style={ButtonLabel}>{deletion.localWipeCancelLabel}</ThemedText>
+                    <ThemedText type="smallBold" style={ButtonLabel}>
+                      {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
+                    </ThemedText>
                   </Pressable>
                 </View>
               )}
