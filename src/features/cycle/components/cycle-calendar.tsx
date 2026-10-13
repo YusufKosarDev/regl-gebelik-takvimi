@@ -167,6 +167,24 @@ const CELL_CONTENT_HEIGHT = 48;
 const CELL_BAND_ALLOWANCE = 6;
 
 /**
+ * The marker row's line, and the "today" label's, reserved in every square.
+ *
+ * One idea twice: a line only some squares have, kept open in all of them so
+ * the day numbers above it sit level across a row. The marker row has always
+ * done this; the label did not, and today's square carried one line more than
+ * its neighbours - measured on a device at 1.5, the 13 sat 24 points above the
+ * 14 beside it.
+ *
+ * Both are multiplied by the font scale where they are used. A fixed
+ * reservation is the same defect wearing the other hat: at Android's largest
+ * setting a real marker is twice this tall, so a square without one came out
+ * short and its number sat 32 points low - which is what the reservation
+ * existed to prevent.
+ */
+const MARKER_LINE_HEIGHT = 12;
+const TODAY_LINE_HEIGHT = 11;
+
+/**
  * How thick the band along the foot of a square is.
  *
  * Thick enough to read as a band rather than as a rule - a hairline between
@@ -302,7 +320,7 @@ function DayCell({
         {getDayOfMonth(day.date)}
       </ThemedText>
 
-      <View style={styles.markerRow}>
+      <View style={[styles.markerRow, { minHeight: MARKER_LINE_HEIGHT * fontScale }]}>
         {marker !== '' && (
           <ThemedText type="small" style={[styles.marker, { color: markerColour(state, phases) }]}>
             {marker}
@@ -329,11 +347,17 @@ function DayCell({
         )}
       </View>
 
-      {isToday && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
-          {home.calendarTodayLabel}
-        </ThemedText>
-      )}
+      {/* Kept open in every square, not only today's. It is the line that
+          decides where the number above it sits: a square without it centred
+          two lines where its neighbour centred three, and on a device at 1.5
+          that put the 13 twenty-four points above the 14 beside it. */}
+      <View style={{ minHeight: TODAY_LINE_HEIGHT * fontScale }}>
+        {isToday ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.todayLabel}>
+            {home.calendarTodayLabel}
+          </ThemedText>
+        ) : null}
+      </View>
     </View>
   );
 
@@ -403,9 +427,24 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: COLUMN_WIDTH,
-    aspectRatio: 1,
-    // Grown past the square by `cellMinHeight` when the system font setting is
-    // turned up; see the note beside that constant.
+    // No `aspectRatio: 1` any more, and that is the fix rather than a tidy-up.
+    //
+    // A square's height is derived from its width, which makes it a definite
+    // size: content taller than it does not grow it, it spills out of it. The
+    // ring is the box inside this cell, so a cell that cannot grow is a ring
+    // that cannot contain its own date - measured on a device, at 1.3 the day
+    // number was already flush with the cell's top edge, and at 2.0 it was
+    // drawn above the ring entirely with the second line of "Today" below the
+    // period band.
+    //
+    // The height is now the floor below, and whatever the text needs above it.
+    // On a phone the two are the same number at the default setting: the floor
+    // was chosen to match a seventh of the screen, which is what the note
+    // beside it says, so nothing moves there.
+    //
+    // It also lets a row's cells agree. With no definite height they are
+    // `stretch` in the cross axis, so every cell in a line takes the line's
+    // height and the reserved lines above decide where the numbers sit.
     padding: Spacing.half,
     // The band sits here, and the box above it must not run into it. No
     // horizontal padding to match: the band is meant to reach both edges so a
@@ -420,7 +459,20 @@ const styles = StyleSheet.create({
     height: BAND_HEIGHT,
   },
   dayBox: {
-    flex: 1,
+    // `flexGrow` with an `auto` basis, not `flex: 1`.
+    //
+    // `flex: 1` is `flexBasis: 0`: this box never asks for the height its own
+    // text needs, it takes what is left over. With the cell's height no longer
+    // fixed that would collapse it to the floor and leave the text spilling
+    // out exactly as before. `sky-hero.tsx` carries the same three lines for
+    // the same reason, found the same way.
+    //
+    // Growing into spare room is still wanted: it is what keeps the ring the
+    // size of the square at the default setting rather than shrink-wrapped
+    // around three short lines.
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
     borderRadius: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',

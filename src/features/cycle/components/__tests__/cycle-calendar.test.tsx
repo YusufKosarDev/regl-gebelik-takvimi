@@ -1,5 +1,5 @@
 import { fireEvent, render, within } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { PixelRatio, StyleSheet } from 'react-native';
 import { homeMessages } from '@/features/cycle/presentation/home-messages';
 
 import { CycleCalendar } from '../cycle-calendar';
@@ -858,3 +858,180 @@ describe('CycleCalendar bands', () => {
     expect(markersOn(screen, '2026-09-14')).toEqual(['Y']);
   });
 });
+
+/**
+ * What a square does when the system font setting is turned up.
+ *
+ * Three claims, found on a device at 1.3 through 2.0 and each one its own
+ * defect: the ring must contain its own date, the squares in a row must agree
+ * on where the number sits, and neither may depend on whether the square
+ * happens to be today.
+ */
+describe('CycleCalendar at a large font setting', () => {
+  const getFontScale = jest.spyOn(PixelRatio, 'getFontScale');
+
+  afterEach(() => {
+    getFontScale.mockReset();
+  });
+
+  /**
+   * The cell has no definite height, so its content can push it.
+   *
+   * `aspectRatio: 1` derived the height from the width, which makes it a size
+   * rather than a preference: three scaled lines did not grow the square, they
+   * spilled out of it, and the ring - which is the box inside the cell - was
+   * left behind at the old height with the date drawn above it.
+   */
+  it('lets a square grow past its floor rather than fixing its height', async () => {
+    getFontScale.mockReturnValue(2);
+
+    const screen = await renderCalendar();
+
+    const cell = StyleSheet.flatten(
+      screen.getByTestId('calendar-day-2026-09-17').props.style
+    );
+
+    expect(cell.aspectRatio).toBeUndefined();
+    expect(cell.height).toBeUndefined();
+    // The floor still scales with the setting, which is what keeps the grid's
+    // rhythm when the text is small enough not to need the room.
+    expect(cell.minHeight).toBe(48 * 2 + 6);
+  });
+
+  /**
+   * The ring asks for the height its own text needs.
+   *
+   * `flex: 1` is `flexBasis: 0`, so the box takes what is left rather than
+   * asking for anything - with the cell's height no longer fixed that
+   * collapses it to the floor and puts the text back outside the ring.
+   */
+  it('sizes the ring from its contents, not from what is left over', async () => {
+    getFontScale.mockReturnValue(2);
+
+    const screen = await renderCalendar();
+
+    const box = ringStyleIn(screen.toJSON(), '2026-09-17');
+
+    expect(box.flexBasis).toBe('auto');
+    expect(box.flexGrow).toBe(1);
+  });
+
+  /**
+   * Every square reserves the same lines, today's included.
+   *
+   * The numbers sit level across a row because each square centres the same
+   * amount of content, not because the squares are the same height - they are
+   * that too, but a square centring two lines where its neighbour centres
+   * three puts its number somewhere else regardless. Measured on a device at
+   * 1.5 before this: the 13 sat 24 points above the 14 beside it.
+   *
+   * Both reservations scale. A fixed one is the same bug the other way round:
+   * at 2.0 a real marker is 24 points tall and a square without one was
+   * holding 12, which put its number 32 points low.
+   */
+  it('reserves the same lines in every square, whether or not it is today', async () => {
+    getFontScale.mockReturnValue(2);
+
+    const screen = await render(
+      <CycleCalendar grid={septemberGrid} today={'2026-09-17' as ISODate} />
+    );
+
+    const reserved = (date: string): number[] =>
+      reservedLineHeightsIn(screen.toJSON(), date);
+
+    // Today's square and one that is neither today nor carrying a marker.
+    expect(reserved('2026-09-17')).toEqual(reserved('2026-09-22'));
+    // And they scale: 12 and 11 at the default setting, doubled here.
+    expect(reserved('2026-09-17')).toEqual([24, 22]);
+  });
+});
+
+/**
+ * The ring's own style, read off the rendered tree.
+ *
+ * The ring is the one box inside a cell with a corner radius, which is how it
+ * is found here rather than by giving it a testID that exists only for a test.
+ */
+function ringStyleIn(tree: unknown, date: string): Record<string, unknown> {
+  const findCell = (node: any): any => {
+    if (node === null || typeof node !== 'object') return null;
+    if (node.props?.testID === `calendar-day-${date}`) return node;
+
+    for (const child of node.children ?? []) {
+      const hit = findCell(child);
+
+      if (hit !== null) return hit;
+    }
+
+    return null;
+  };
+
+  const findRing = (node: any): any => {
+    if (node === null || typeof node !== 'object') return null;
+
+    const flat = StyleSheet.flatten(node.props?.style);
+
+    if (flat?.borderRadius !== undefined) return flat;
+
+    for (const child of node.children ?? []) {
+      const hit = findRing(child);
+
+      if (hit !== null) return hit;
+    }
+
+    return null;
+  };
+
+  const cell = findCell(tree);
+
+  if (cell === null) throw new Error(`no cell for ${date}`);
+
+  const ring = findRing(cell);
+
+  if (ring === null) throw new Error(`no ring inside ${date}`);
+
+  return ring;
+}
+
+/**
+ * The reserved line heights inside one square, in order.
+ *
+ * The marker row and the "today" line are the two boxes in a cell that exist
+ * to hold space open, so they are the two with a `minHeight` and nothing else
+ * deciding their size.
+ */
+function reservedLineHeightsIn(tree: unknown, date: string): number[] {
+  const found: number[] = [];
+
+  const walk = (node: any): void => {
+    if (node === null || typeof node !== 'object') return;
+
+    const flat = StyleSheet.flatten(node.props?.style);
+
+    if (flat?.minHeight !== undefined) found.push(flat.minHeight as number);
+
+    (node.children ?? []).forEach(walk);
+  };
+
+  const findCell = (node: any): any => {
+    if (node === null || typeof node !== 'object') return null;
+    if (node.props?.testID === `calendar-day-${date}`) return node;
+
+    for (const child of node.children ?? []) {
+      const hit = findCell(child);
+
+      if (hit !== null) return hit;
+    }
+
+    return null;
+  };
+
+  const cell = findCell(tree);
+
+  if (cell === null) throw new Error(`no cell for ${date}`);
+
+  // The cell's own floor is first and is not a reserved line.
+  (cell.children ?? []).forEach(walk);
+
+  return found;
+}
