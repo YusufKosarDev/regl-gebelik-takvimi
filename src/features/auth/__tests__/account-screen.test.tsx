@@ -10,6 +10,7 @@ import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { PHONE_TRANSFER_NOTE } from '@/features/sync/presentation/sync-messages';
 import { Colors } from '@/constants/theme';
 import { deletionMessages } from '@/features/deletion/presentation/deletion-messages';
+import { authMessages } from '@/features/auth/presentation/auth-messages';
 import { expectDestructiveConfirmation } from '../../../../jest/assert-destructive-confirmation';
 
 // The repository and the Firebase file are faked. What this pins is what the
@@ -2554,6 +2555,42 @@ describe('AccountScreen deletion confirmation weights', () => {
       {
         cancel: deletionMessages.tr.accountDeleteCancelLabel,
         destructive: deletionMessages.tr.accountDeleteConfirmLabel,
+      },
+      Colors.light.primary
+    );
+  });
+});
+
+/**
+ * The restore panel is in the deletion family.
+ *
+ * "Bu yedek telefondaki mevcut verilerin üzerine yazılacak" destroys records
+ * that are not coming back; that the word is restoring rather than deleting
+ * changes the word, not the consequence. Same rule, same helper.
+ */
+describe('AccountScreen restore confirmation weights', () => {
+  it('fills Cancel and outlines the overwrite, with Cancel first', async () => {
+    backup.loadCloudBackup.mockResolvedValue({
+      version: 1,
+      payload: PAYLOAD,
+      updatedAt: '2026-09-19T06:00:00.000Z',
+    });
+
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText(authMessages.tr.restoreOpenLabel));
+    await screen.findByText(authMessages.tr.restoreWarning);
+
+    const buttons = screen.queryAllByRole('button').map((node) => ({
+      label: String(node.props.accessibilityLabel ?? ''),
+      style: node.props.style,
+    }));
+
+    expectDestructiveConfirmation(
+      buttons,
+      {
+        cancel: authMessages.tr.restoreCancelLabel,
+        destructive: authMessages.tr.restoreConfirmLabel,
       },
       Colors.light.primary
     );

@@ -98,12 +98,13 @@ export function RestorePreviewPanel({
               {authStrings.restoreWarning}
             </ThemedText>
 
-            {/* Cancel first, like every other panel in the app. The weights
-                are left as they are: this one overwrites what is on the phone,
-                which is the same kind of harm the deletion panels carry, but
-                whether it belongs in that family is a decision rather than a
-                tidy-up. See `deletion-messages.ts` for the rule the three
-                deletion panels now follow. */}
+            {/* The deletion panels' arrangement, because this belongs in that
+                family: "bu yedek telefondaki mevcut verilerin üzerine
+                yazılacak" destroys records that are not coming back, and that
+                it is called restoring changes the word rather than the
+                consequence. Cancel filled and first, the overwrite outlined
+                and second. The rule is in `deletion-messages.ts` and asserted
+                by `jest/assert-destructive-confirmation.ts`. */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={authStrings.restoreCancelLabel}
@@ -111,12 +112,14 @@ export function RestorePreviewPanel({
               disabled={isBusy}
               onPress={onCancel}
               style={({ pressed }) => [
-                styles.secondaryButton,
-                { borderColor: theme.backgroundSelected },
+                styles.primaryButton,
+                { backgroundColor: theme.primary },
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={ButtonLabel}>{common.cancelLabel}</ThemedText>
+              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
+                {common.cancelLabel}
+              </ThemedText>
             </Pressable>
 
             <Pressable
@@ -126,12 +129,12 @@ export function RestorePreviewPanel({
               disabled={isBusy || !canConfirm}
               onPress={onConfirm}
               style={({ pressed }) => [
-                styles.primaryButton,
-                { backgroundColor: theme.primary },
+                styles.secondaryButton,
+                { borderColor: theme.backgroundSelected },
                 isBusy && styles.disabled,
                 pressed && !isBusy && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={[ButtonLabel, { color: theme.onPrimary }]}>
+              <ThemedText type="smallBold" style={ButtonLabel}>
                 {isBusy ? authStrings.restoringLabel : authStrings.restoreConfirmLabel}
               </ThemedText>
             </Pressable>
