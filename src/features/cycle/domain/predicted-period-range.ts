@@ -49,6 +49,39 @@ export type PredictedPeriodRange = {
  * `@/utils/date` has no minimum or maximum helper and does not need one. Cycle
  * lengths are counts of days; `Math.min` on two integers is exact, needs no
  * calendar reasoning, and `addDays` is applied once at the end.
+ *
+ * ## Why the calendar does not draw it
+ *
+ * A range is honest as a statement and misleading as a mark, because a mark on
+ * a square is a claim about that square. The home screen says it in words,
+ * under a label, where a span is a sentence; the grid would say it in shapes,
+ * where a span is eight separate assertions.
+ *
+ * Four things measured before that was decided, on gaps of 26, 30 and 33 days
+ * - spread 7, so `irregular`, so `ranged` - with the last start on 29 August:
+ *
+ *   - **The latest start falls past the horizon, by construction.** The range
+ *     ran 24 September to 1 October and the predicted period ends 30
+ *     September, so a square marked "it might start here" is a square that
+ *     answers "tahminler bir sonraki reglinden öteye geçmiyor" when tapped.
+ *     `latest` is `lastStart + max(setting, longest)` and the horizon is
+ *     `expected + periodLength - 1`, so the wider the range the more of it
+ *     lands past the point the app stops predicting.
+ *   - **Five marked squares become twelve.** Days 2..n are arithmetic from the
+ *     start, so a span of eight possible starts is a span of twelve possible
+ *     period days - nearly forty per cent of a month.
+ *   - **It needs a fifth mark.** "Certainly inside the predicted period" and
+ *     "possibly the start" are different claims, in a marker row that already
+ *     carries a phase letter and `≈`, on a square 54 points wide at every font
+ *     setting.
+ *   - **The legend row reaches everybody.** `cycle-calendar-legend.tsx` lists
+ *     every mark the calendar can draw, always, so a fifth row would appear
+ *     for every user to explain something only an irregular one ever sees.
+ *
+ * The marks themselves would only reach irregular users - the population the
+ * range serves - so the cost is not spread the way it first looks. The legend
+ * is what is spread.
+ *
  */
 export function predictNextPeriodRange(
   profile: CycleProfile,

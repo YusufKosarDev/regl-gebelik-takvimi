@@ -24,6 +24,15 @@ import { useMessages } from '@/i18n';
  *
  * The reason a month is empty is the selected-day card's job, and it does say
  * it: `countContinuesMessage`.
+ *
+ * ## And it is what a fifth mark would cost
+ *
+ * `predictedPeriodRange` is the richest thing the prediction engine produces
+ * and the calendar does not draw it. One of the four reasons is this list: a
+ * mark for "the period might start here" needs a row here, and this row is
+ * shown to everybody - including the regular user who will never see that mark,
+ * because the range only appears when the recorded cycles vary by a week or
+ * more. The full reasoning is in `predicted-period-range.ts`.
  */
 /**
  * The swatch's own mark, in the colour the calendar draws that mark in.
