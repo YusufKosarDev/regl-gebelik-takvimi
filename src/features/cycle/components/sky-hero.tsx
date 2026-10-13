@@ -123,6 +123,32 @@ export function SkyHero({
    * fills the hero and it clears the bar.
    */
   readonly noDayMessage: string;
+  /**
+   * The phase word, or `null` when there is none to say.
+   *
+   * ## The empty slot is the answer, and it is not a gap to fill
+   *
+   * Past the predicted period the app stops inferring a phase - see
+   * `predictionHorizonFor` - so somebody whose period is overdue sees the day
+   * and nothing under it. The hero's two elements are the day and the phase;
+   * with no phase to state it says the one it has.
+   *
+   * "Bilinmiyor" does not go here. In a labelled row that word is a value; in a
+   * 22 point serif under a 96 point number it is a sentence about the app
+   * rather than about the person.
+   *
+   * ## Nor does "Gecikti"
+   *
+   * It was considered and refused. It is true - the predicted period has passed
+   * and nothing is recorded since - and it is the heaviest claim this app would
+   * make anywhere, on the first screen, to somebody who may be pregnant or may
+   * simply not have logged yesterday. The day number already says it to anyone
+   * who knows their own cycle, and the calendar carries the explanation on tap.
+   *
+   * If this looks like an omission later: it is not. Adding a word here is a
+   * decision about what the app is willing to tell somebody about their body
+   * before they have asked.
+   */
   readonly phaseName: string | null;
   /**
    * What assistive technology hears instead of the caption and the bare
