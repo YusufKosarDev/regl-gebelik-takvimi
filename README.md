@@ -896,6 +896,42 @@ written over these dumps should compare the lowest **bottom** of every node,
 not only the text ones: the ring's dots carry no text and at 200% they come
 closer to the bar than any sentence does.
 
+### A dump of the Cycle tab takes four times as long, and can come back stale
+
+The sky drifts. Two `withRepeat(..., -1, true)` animations in `sky-field.tsx`
+move the gradient sheets for as long as that tab is on screen, which is
+deliberate and documented there. The side effect is that the window never
+reports idle, and `uiautomator dump` waits for idle before dumping.
+
+Measured on a device, four runs each:
+
+```
+Cycle tab      ~11.3s per dump
+Calendar tab    ~2.7s per dump
+```
+
+The command does not fail. It waits out its idle timeout and dumps anyway,
+roughly nine seconds after it was asked — by which time the screen may have
+moved on, so the file describes the state *before* whatever happened in
+between. Two stale reads in one session were put down to timing before this
+was measured; it is the kind of thing that corrupts evidence quietly rather
+than failing loudly.
+
+Turn the animations off while measuring:
+
+```sh
+adb shell settings put global transition_animation_scale 0
+adb shell settings put global window_animation_scale 0
+adb shell settings put global animator_duration_scale 0
+```
+
+The Cycle tab then renders zero frames in fifteen seconds and dumps in 2.5s.
+This is a fair test rather than a crippled one: the app reads that setting
+through `use-motion-allowed.ts` and stops the drift because somebody asked it
+to, so what is being measured is the app behaving as designed. Put the three
+settings back to 1 afterwards.
+
+
 ### Mutation testing, and verifying the mutation landed
 
 A test that says a rule is held is worth only what it costs to break the rule
