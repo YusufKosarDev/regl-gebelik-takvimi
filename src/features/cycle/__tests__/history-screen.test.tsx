@@ -331,10 +331,12 @@ describe('HistoryScreen scope', () => {
   it('offers both edits plus delete per record, and nothing else', async () => {
     const { queryAllByRole } = await renderScreen();
 
-    // The fixture's newest record is ongoing, so it offers neither edit.
+    // The fixture's newest record is ongoing, so it offers the start edit and
+    // delete but no end edit: ending a period is the Cycle tab's job.
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
+      '17 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
       '17 Eylül 2026 regl kaydını sil',
       '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
       '2 Eylül 2026 regl kaydının bitiş tarihini düzenle',
@@ -671,7 +673,7 @@ describe('HistoryScreen edit availability', () => {
     expect(getByLabelText('2 Eylül 2026 regl kaydını sil')).toBeTruthy();
   });
 
-  it('offers only delete on a record that is still running', async () => {
+  it('offers no end edit on a record that is still running', async () => {
     repository.loadCycleProfile.mockResolvedValue(
       profile([{ id: 'a', startDate: '2026-09-17', isOngoing: true }])
     );
@@ -1290,18 +1292,24 @@ describe('HistoryScreen start edit availability', () => {
     expect(getByText('Bitişi düzenle')).toBeTruthy();
   });
 
-  it('offers only delete on a record that is still running', async () => {
+  /**
+   * The asymmetry, on the one record where it shows.
+   *
+   * Both ends used to be hidden on a running period. When it ends is a state
+   * change and belongs to the Cycle tab, which is still true; when it began is
+   * a fact about the past whether or not it is still running, and hiding that
+   * left a mistyped start with no remedy but Delete and re-record.
+   */
+  it('offers the start edit on a running record but not the end edit', async () => {
     repository.loadCycleProfile.mockResolvedValue(
       profile([{ id: 'a', startDate: '2026-09-17', isOngoing: true }])
     );
 
     const { getByLabelText, queryByLabelText } = await renderScreen();
 
-    // When a running period began is what the person is living through, and
-    // when it ends is Home's job: neither end is corrected here.
     expect(
-      queryByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
-    ).toBeNull();
+      getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    ).toBeTruthy();
     expect(queryByLabelText('17 Eylül 2026 regl kaydının bitiş tarihini düzenle')).toBeNull();
     expect(getByLabelText('17 Eylül 2026 regl kaydını sil')).toBeTruthy();
   });
@@ -1517,6 +1525,34 @@ describe('HistoryScreen start edit save', () => {
         endDate: '2026-09-17',
         isOngoing: false,
       },
+    ]);
+  });
+
+  /**
+   * The whole path, on the record the editor used not to open for.
+   *
+   * The application test holds the rule; this holds that a person can reach
+   * it. The record is written back still running and still with no end date -
+   * which is what a correction of the past must not quietly change about the
+   * present.
+   */
+  it('corrects a running record from the screen and leaves it running', async () => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'period-2026-09-17', startDate: '2026-09-17', isOngoing: true }])
+    );
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('17 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    const saved = repository.saveCycleProfile.mock.calls[0][1] as CycleProfile;
+
+    expect(saved.periodRecords).toEqual([
+      { id: 'period-2026-09-16', startDate: '2026-09-16', isOngoing: true },
     ]);
   });
 

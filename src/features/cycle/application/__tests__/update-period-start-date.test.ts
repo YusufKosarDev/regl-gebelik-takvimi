@@ -158,30 +158,48 @@ describe('updatePeriodStartDate when the record cannot be edited', () => {
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
 
-  it('refuses a period that is still running', async () => {
+  /**
+   * A running period's start may be corrected, and it stays running.
+   *
+   * It was refused, on the grounds that a period still running "started when
+   * the person said it started". That is an assumption that nobody mistypes a
+   * date, and the only remedy it left was Delete and re-record.
+   *
+   * The second assertion is the one that matters most. The record is rebuilt
+   * rather than spread over, and the rebuild used to hardcode `isOngoing:
+   * false` - safe only while a running record could not reach it. Removing the
+   * refusal without that line would have silently ended the period, leaving it
+   * with no end date to say when.
+   */
+  it('corrects a period that is still running, and leaves it running', async () => {
     loadCycleProfile.mockResolvedValue(mixedProfile());
 
-    await expect(
-      updatePeriodStartDate(db, {
-        recordId: 'period-2026-09-20',
-        startDate: '2026-09-19' as ISODate,
-        today: TODAY,
-      })
-    ).rejects.toThrow(/while it is ongoing/);
+    const result = await updatePeriodStartDate(db, {
+      recordId: 'period-2026-09-20',
+      startDate: '2026-09-19' as ISODate,
+      today: TODAY,
+    });
 
-    expect(saveCycleProfile).not.toHaveBeenCalled();
+    const corrected = result.periodRecords.find((record) => record.isOngoing);
+
+    expect(corrected?.startDate).toBe('2026-09-19');
+    expect(corrected?.isOngoing).toBe(true);
+    expect(
+      Object.prototype.hasOwnProperty.call(corrected, 'endDate')
+    ).toBe(false);
+    expect(saveCycleProfile).toHaveBeenCalled();
   });
 
-  it('refuses a running period even when the date has not changed', async () => {
+  it('still refuses a start date in the future for a running period', async () => {
     loadCycleProfile.mockResolvedValue(mixedProfile());
 
     await expect(
       updatePeriodStartDate(db, {
         recordId: 'period-2026-09-20',
-        startDate: '2026-09-20' as ISODate,
+        startDate: '2026-09-26' as ISODate,
         today: TODAY,
       })
-    ).rejects.toThrow(/while it is ongoing/);
+    ).rejects.toThrow(/future/);
 
     expect(saveCycleProfile).not.toHaveBeenCalled();
   });
@@ -504,7 +522,9 @@ describe('updatePeriodStartDate when it saves', () => {
     ).toBe(false);
   });
 
-  it('never marks the edited record as ongoing', async () => {
+  // The flag is carried, not set. A finished record stays finished, which is
+  // the other half of the running record staying running.
+  it('leaves a finished record finished', async () => {
     loadCycleProfile.mockResolvedValue(mixedProfile());
 
     const result = await updatePeriodStartDate(db, {

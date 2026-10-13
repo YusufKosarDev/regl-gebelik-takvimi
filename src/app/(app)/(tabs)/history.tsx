@@ -539,37 +539,39 @@ export default function HistoryScreen() {
                       </View>
                     ) : (
                       <View style={styles.rowActions}>
-                        {/* A period that is still running is finished from Home,
-                            and began on the day the person said it did: neither
-                            end of it is corrected here. */}
-                        {!record.isOngoing && (
-                          <>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={history.editStartLabel(formatDisplayDate(record.startDate, language))}
-                              onPress={() => openStartEditor(record)}
-                              style={({ pressed }) => [
-                                styles.rowAction,
-                                pressed && styles.pressed,
-                              ]}>
-                              <ThemedText type="small" themeColor="textSecondary">
-                                {history.editStartText}
-                              </ThemedText>
-                            </Pressable>
+                        {/* The two ends are offered differently, and the
+                            difference is not an oversight.
 
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={history.editEndLabel(formatDisplayDate(record.startDate, language))}
-                              onPress={() => openEndEditor(record)}
-                              style={({ pressed }) => [
-                                styles.rowAction,
-                                pressed && styles.pressed,
-                              ]}>
-                              <ThemedText type="small" themeColor="textSecondary">
-                                {history.editEndText}
-                              </ThemedText>
-                            </Pressable>
-                          </>
+                            Ending a period is a state change, and the Cycle
+                            tab is where the period state changes - so a
+                            running period has no end to correct here.
+
+                            When it began is a fact about the past whether or
+                            not it is still running, so that is offered on
+                            every record. It used to be hidden on a running
+                            one as well, which left a mistyped start date with
+                            no remedy but Delete and re-record: throwing the
+                            record away to fix one day of it. */}
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={history.editStartLabel(formatDisplayDate(record.startDate, language))}
+                          onPress={() => openStartEditor(record)}
+                          style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {history.editStartText}
+                          </ThemedText>
+                        </Pressable>
+
+                        {!record.isOngoing && (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={history.editEndLabel(formatDisplayDate(record.startDate, language))}
+                            onPress={() => openEndEditor(record)}
+                            style={({ pressed }) => [styles.rowAction, pressed && styles.pressed]}>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {history.editEndText}
+                            </ThemedText>
+                          </Pressable>
                         )}
 
                         <Pressable

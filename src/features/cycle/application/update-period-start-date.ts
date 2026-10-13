@@ -25,9 +25,24 @@ export type UpdatePeriodStartDateInput = {
 /**
  * Corrects the day a recorded period began.
  *
- * Only a finished record can move. A period that is still running started when
- * the person said it started and is being lived through now; changing that here
- * would be editing the present rather than correcting the past.
+ * ## A running period may be corrected too
+ *
+ * It could not be, and the reason given was that a period still running
+ * "started when the person said it started and is being lived through now".
+ * That is not a rule about the data, it is an assumption that nobody mistypes
+ * a date - and the only remedy it left was Delete and re-record, which throws
+ * the record away to fix one day of it.
+ *
+ * The two ends are not symmetrical and that is deliberate. When a period
+ * *ends* is a state change: the Cycle tab is where the period starts and
+ * stops, and this use case never touches `endDate` or `isOngoing`. When it
+ * *began* is a fact about the past whether or not it is still going on, and a
+ * fact about the past is what this corrects.
+ *
+ * `isOngoing` is carried across rather than assumed. It used to be rebuilt as
+ * `false`, which was safe only because a running record could not get this far
+ * - with the refusal gone, that line would have quietly ended a period that is
+ * still running, and left it with no end date to say when.
  *
  * The end date is left exactly as it was, so this edit only ever answers "it
  * actually began earlier/later than I said". How far apart the two ends may be
@@ -72,12 +87,6 @@ export async function updatePeriodStartDate(
 
   if (target === undefined) {
     throw new Error('updatePeriodStartDate found no period record with that id.');
-  }
-
-  if (target.isOngoing) {
-    throw new Error(
-      'updatePeriodStartDate cannot edit a record while it is ongoing; end it first.'
-    );
   }
 
   // Nothing to write when the answer is already what was asked for. Saving would
@@ -127,7 +136,11 @@ export async function updatePeriodStartDate(
 
       // Rebuilt rather than spread over, so a record with no end date does not
       // pick up an `endDate: undefined` key on the way through.
-      const corrected: PeriodRecord = { id: updatedId, startDate, isOngoing: false };
+      // `isOngoing` carried across, not assumed. Rebuilt as `false` this
+      // quietly ended a period that is still running, and left it with no
+      // end date to say when - which was safe only while one could not get
+      // this far.
+      const corrected: PeriodRecord = { id: updatedId, startDate, isOngoing: target.isOngoing };
 
       return record.endDate === undefined ? corrected : { ...corrected, endDate: record.endDate };
     }),
