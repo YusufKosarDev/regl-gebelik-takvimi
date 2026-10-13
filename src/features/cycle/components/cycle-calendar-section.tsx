@@ -46,6 +46,7 @@ export function CycleCalendarSection({
   setPickedDate,
   pickedEntry,
   headerField,
+  headerBleedTop,
 }: {
   readonly today: ISODate;
   readonly monthHeading: string;
@@ -58,6 +59,8 @@ export function CycleCalendarSection({
   readonly pickedEntry: DailyEntry | null;
   /** Today's sky, for the strip behind the header. */
   readonly headerField: SkyField;
+  /** Top inset for the strip to reach back through, so the sky starts at the screen edge. */
+  readonly headerBleedTop?: number;
 }) {
   const router = useRouter();
   const theme = useTheme();
@@ -80,7 +83,7 @@ export function CycleCalendarSection({
           It bleeds past the content's padding on both sides, because a band
           with a margin either side is a card, and a card is what this screen
           just stopped having. */}
-      <SkyStrip field={headerField} testID="calendar-field-strip">
+      <SkyStrip field={headerField} bleedTop={headerBleedTop} testID="calendar-field-strip">
         <ThemedText accessibilityRole="header" type="small">
           {home.calendarSectionTitle}
         </ThemedText>

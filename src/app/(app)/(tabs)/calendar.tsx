@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -45,6 +45,7 @@ export default function CalendarScreen() {
   const theme = useTheme();
   const sky = useSky();
   const tabBarInset = useTabBarInset();
+  const insets = useSafeAreaInsets();
   const language = useLanguage();
   const home = useMessages(homeMessages);
 
@@ -207,8 +208,17 @@ export default function CalendarScreen() {
 
   return (
     <ThemedView style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Spacing.five + tabBarInset }]} showsVerticalScrollIndicator={false}>
+      {/* No top edge here. The sky strip reaches back through the status bar
+          the way it already reaches past the horizontal padding, so the inset
+          is spent inside the scroll content rather than above it - otherwise
+          the strip is clipped at the scroll view's own top. */}
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top, paddingBottom: Spacing.five + tabBarInset },
+          ]}
+          showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
 
             <CycleCalendarSection
@@ -221,6 +231,7 @@ export default function CalendarScreen() {
               selectedDay={findDay(pickedDate) ?? findDay(data.dashboard.today)}
               setPickedDate={setPickedDate}
               headerField={sky.fields[data.dashboard.phase ?? 'luteal']}
+              headerBleedTop={insets.top}
               pickedEntry={pickedDate === null ? todayEntry : pickedEntry}
             />
           </View>

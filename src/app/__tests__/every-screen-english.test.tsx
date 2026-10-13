@@ -6,6 +6,7 @@ import { getTodayLocalISODate } from '@/utils/today';
 
 import { expectNoTurkishCatalogueText } from '../../../jest/assert-english-render';
 import { renderSettled } from '../../../jest/render-settled';
+import { SafeAreaTestProvider } from '../../../jest/safe-area-test-provider';
 
 /**
  * Every screen in the app, rendered on an English phone, swept for Turkish.
@@ -43,6 +44,11 @@ import { renderSettled } from '../../../jest/render-settled';
  * here": no database, no account, no profile, no reminders. Nothing in `domain/`
  * or `presentation/` is mocked, because those are what is under test - the
  * screens read the real catalogues through the real `useMessages`.
+ *
+ * One thing is supplied rather than faked: the safe area. `ExpoRoot` wraps the
+ * whole app in a `SafeAreaProvider`, and a screen that reads its own insets
+ * throws without one, so the sweep renders each screen inside the same
+ * provider seeded the same way. See `jest/safe-area-test-provider.tsx`.
  */
 
 jest.mock('expo-localization', () => ({
@@ -286,7 +292,7 @@ describe('no screen shows Turkish on an English phone', () => {
     async (_name, load) => {
       const Screen = load();
 
-      const screen = await renderSettled(<Screen />);
+      const screen = await renderSettled(<Screen />, { wrapper: SafeAreaTestProvider });
 
       expectNoTurkishCatalogueText(screen);
     },
@@ -390,7 +396,7 @@ describe('no screen shows Turkish once something is recorded', () => {
     async (_name, load) => {
       const Screen = load();
 
-      const screen = await renderSettled(<Screen />);
+      const screen = await renderSettled(<Screen />, { wrapper: SafeAreaTestProvider });
 
       expectNoTurkishCatalogueText(screen);
     },

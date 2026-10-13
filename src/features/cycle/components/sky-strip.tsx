@@ -28,6 +28,26 @@ import type { SkyField } from '@/constants/sky';
  * stopped having cards. The bleed is a negative margin rather than a change of
  * layout, so nothing above or below it has to know.
  *
+ * ## And upwards, when the caller asks
+ *
+ * `bleedTop` is the same trick on the vertical: a negative margin of that many
+ * points with the same amount added back as padding, so the words inside stay
+ * where they were and nothing around it has to know.
+ *
+ * It exists because the two sky screens disagreed about where the sky starts.
+ * The home screen's `SkyField` wraps everything, so it paints behind the
+ * status bar; this strip sat four levels inside a `SafeAreaView`, so the band
+ * above it was the page - measured on a device, pure white against the strip's
+ * 196, a seam of 59 levels in light mode.
+ *
+ * That was never a decision about the strip. The contrast reasoning above
+ * keeps the field off the *grid*, because the grid is data; the status bar
+ * band carries less than the header does, so nothing in that argument reaches
+ * it.
+ *
+ * The caller passes its own top inset and stops taking that edge itself,
+ * because a strip cannot know whether it is the first thing on its screen.
+ *
  * ## Everything inside is on the sky
  *
  * `OnSkyProvider`, exactly as the full-screen ones do it, so `ThemedText` and
@@ -40,14 +60,24 @@ export function SkyStrip({
   field,
   children,
   testID,
+  bleedTop = 0,
 }: {
   readonly field: SkyField;
   readonly children: React.ReactNode;
   readonly testID?: string;
+  /** Points of inset above this strip to reach back through. */
+  readonly bleedTop?: number;
 }) {
   return (
     <OnSkyProvider value>
-      <View style={styles.strip} testID={testID}>
+      <View
+        style={[
+          styles.strip,
+          bleedTop === 0
+            ? null
+            : { marginTop: -bleedTop, paddingTop: bleedTop + Spacing.three },
+        ]}
+        testID={testID}>
         <LinearGradient colors={[...field]} style={StyleSheet.absoluteFill} />
 
         {children}

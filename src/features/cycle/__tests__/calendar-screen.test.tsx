@@ -26,8 +26,12 @@ import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
+import {
+  SAFE_AREA_TEST_INSETS,
+  SafeAreaTestProvider,
+} from '../../../../jest/safe-area-test-provider';
 import { StyleSheet } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { Sky } from '@/constants/sky';
 
 // The database and the clock are faked. The use case, the repository contract
@@ -258,7 +262,13 @@ beforeEach(() => {
 });
 
 async function renderScreen() {
-  const screen = await render(<CalendarScreen />);
+  // The provider the app always has - `ExpoRoot` wraps the tree in one - so
+  // the screen can read its own top inset the way it does on a device.
+  const screen = await render(
+    <SafeAreaTestProvider>
+      <CalendarScreen />
+    </SafeAreaTestProvider>,
+  );
 
   await waitFor(() => {
     expect(screen.queryByTestId('calendar-loading')).toBeNull();
@@ -418,7 +428,7 @@ describe('CalendarScreen calendar absence', () => {
   it('shows no calendar while loading', async () => {
     db.openAppDatabase.mockReturnValue(new Promise(() => {}));
 
-    const { queryByText, queryAllByTestId } = await render(<CalendarScreen />);
+    const { queryByText, queryAllByTestId } = await render(<CalendarScreen />, { wrapper: SafeAreaTestProvider });
 
     expect(queryByText('Takvim')).toBeNull();
     expect(queryAllByTestId(/^calendar-day-/)).toHaveLength(0);
@@ -449,7 +459,7 @@ describe('CalendarScreen legend absence', () => {
   it('shows no legend while loading', async () => {
     db.openAppDatabase.mockReturnValue(new Promise(() => {}));
 
-    const { queryByText } = await render(<CalendarScreen />);
+    const { queryByText } = await render(<CalendarScreen />, { wrapper: SafeAreaTestProvider });
 
     expect(queryByText('Regl günü')).toBeNull();
     expect(queryByText('Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.')).toBeNull();
@@ -975,7 +985,7 @@ describe('CalendarScreen selected day absence', () => {
   it('shows no selected card while loading', async () => {
     db.openAppDatabase.mockReturnValue(new Promise(() => {}));
 
-    const { queryByText } = await render(<CalendarScreen />);
+    const { queryByText } = await render(<CalendarScreen />, { wrapper: SafeAreaTestProvider });
 
     expect(queryByText('Seçilen gün')).toBeNull();
   });
@@ -1087,5 +1097,73 @@ describe('CalendarScreen field strip', () => {
     walk(strip);
 
     expect([...new Set(colours)]).toEqual([Sky.light.ink]);
+  });
+});
+
+/**
+ * Where the sky starts.
+ *
+ * The strip used to begin four levels inside a `SafeAreaView`, so the band
+ * across the status bar was the page: measured on a device, pure white against
+ * the strip's 196, a seam of 59 levels. The home screen has no such seam
+ * because its field wraps everything.
+ *
+ * Closing it takes three things that have to agree - the screen stops taking
+ * the top edge, spends the inset inside the scroll content instead so the
+ * strip is not clipped at the viewport's own top, and the strip reaches back
+ * through it. Each one alone makes it worse, so what is asserted is the sum of
+ * all three: the distance from the top of the screen to the top of the sky.
+ */
+describe('CalendarScreen sky reaches the top of the screen', () => {
+
+  const findByType = (root: unknown, type: string): any => {
+    const visit = (node: any): any => {
+      if (node === null || typeof node !== 'object') return null;
+      if (node.type === type) return node;
+
+      for (const child of node.children ?? []) {
+        const hit = visit(child);
+
+        if (hit !== null) return hit;
+      }
+
+      return null;
+    };
+
+    return visit(root);
+  };
+
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('leaves no page between the screen edge and the strip', async () => {
+    const screen = await renderScreen();
+
+    const tree = screen.toJSON();
+    const safeArea = findByType(tree, 'RNCSafeAreaView');
+    const scroller = findByType(tree, 'RCTScrollView');
+    const strip = StyleSheet.flatten(screen.getByTestId('calendar-field-strip').props.style);
+
+    // What the safe area still holds back, plus what the content pays, less
+    // what the strip reaches back through.
+    const edgeToSky =
+      (safeArea.props.edges.top === 'off' ? 0 : SAFE_AREA_TEST_INSETS.top) +
+      (StyleSheet.flatten(scroller.props.contentContainerStyle).paddingTop ?? 0) +
+      (strip.marginTop ?? 0);
+
+    expect(edgeToSky).toBe(0);
+    // And the bleed is a real one, not a sum of zeroes.
+    expect(strip.marginTop).toBeLessThan(0);
+  });
+
+  it('does not move the month down to pay for the bleed', async () => {
+    const screen = await renderScreen();
+
+    const strip = StyleSheet.flatten(screen.getByTestId('calendar-field-strip').props.style);
+
+    // The padding gives back exactly what the margin took, so the words sit
+    // where they did before the strip reached anywhere.
+    expect((strip.paddingTop ?? 0) + (strip.marginTop ?? 0)).toBe(Spacing.three);
   });
 });
