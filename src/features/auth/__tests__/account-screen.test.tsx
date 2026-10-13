@@ -8,8 +8,6 @@ import { AuthError } from '@/features/auth/domain/auth-error';
 import type { AuthErrorCode } from '@/features/auth/domain/auth-error';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { PHONE_TRANSFER_NOTE } from '@/features/sync/presentation/sync-messages';
-import { emailForDisplay } from '@/features/auth/presentation/email-for-display';
-import { signedInAccountLabel } from '@/features/auth/presentation/auth-messages';
 
 // The repository and the Firebase file are faked. What this pins is what the
 // screen sends, what it shows, and what it never shows.
@@ -602,39 +600,32 @@ describe('AccountScreen when the attempt is refused', () => {
 });
 
 describe('AccountScreen when someone is signed in', () => {
+  /**
+   * The address, whole, as it is stored.
+   *
+   * It wraps mid-domain in a narrow row and that is unfixed on purpose. A
+   * zero-width space before the `@` was tried and measured on a device: the
+   * character reached the screen and the break did not move, because Android's
+   * line breaker still prefers the hyphen it already had. Reinforcing the
+   * trick - word joiners through the domain to leave it no other choice - is
+   * more machinery than a cosmetic wrap is worth, and shortening the address
+   * is what the export button's finding was about.
+   *
+   * So this asserts the address is shown exactly as stored. Anything that
+   * starts rewriting it for display has to come back past here.
+   */
+  it('shows which account it is, as the address was given', async () => {
+    const screen = await renderSignedIn();
+
+    expect(screen.getByText(EMAIL)).toBeTruthy();
+  });
+
   it('offers a way out and nothing to sign in with', async () => {
     const screen = await renderSignedIn();
 
     expect(screen.getByLabelText('Çıkış yap')).toBeTruthy();
     expect(screen.queryByLabelText('E-posta')).toBeNull();
     expect(screen.queryByLabelText('Giriş yap')).toBeNull();
-  });
-
-  /**
-   * The address a person came to this row to read, and where it may wrap.
-   *
-   * Measured on a device: at the default font size, in a row 870 points wide,
-   * `regl.wrap.test.1013@disposable-example.test` broke after "disposable",
-   * because `@` is not a break opportunity and the hyphen is. The screen shows
-   * the address with a break opportunity before the `@`.
-   *
-   * Asserted through the catalogue's own view of it rather than against a
-   * literal with an invisible character typed into it, and the second half is
-   * what matters: nothing visible changed.
-   */
-  it('shows the address with somewhere sensible to wrap', async () => {
-    const screen = await renderSignedIn();
-
-    expect(screen.getByText(emailForDisplay(EMAIL))).toBeTruthy();
-    expect(screen.queryByText(EMAIL)).toBeNull();
-  });
-
-  it('says the same address to a screen reader, with nothing invisible in it', async () => {
-    const screen = await renderSignedIn();
-
-    // The spoken label is built from the stored address, not from what is
-    // drawn, so the break opportunity cannot reach it.
-    expect(screen.getByLabelText(signedInAccountLabel(EMAIL))).toBeTruthy();
   });
 
   it('copes with an account that has no address', async () => {
