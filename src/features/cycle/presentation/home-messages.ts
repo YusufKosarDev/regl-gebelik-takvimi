@@ -52,7 +52,36 @@ const homeMessagesTr = {
   rowFertility: 'Doğurganlık tahmini',
   rowNextPeriod: 'Sonraki regl tahmini',
 
+  /**
+   * What a labelled row says when there is no cycle day: two words after
+   * "Döngü günü:".
+   *
+   * It is a value in a row, and it is read in two places where a row is what
+   * it has to be - the home screen's summary and the calendar's card for a
+   * day somebody picked. The card can be about last March, so this cannot
+   * say anything about what to do next; it reports, because a row is a place
+   * where reporting is the job.
+   *
+   * The hero is the other case and has {@link noCycleDayMessage} instead. The
+   * two were one string until a sentence written for the hero turned the
+   * calendar's card into "Döngü günü: Gün sayısı ilk reglinle başlar".
+   */
   cycleNotStarted: 'Henüz başlamadı',
+
+  /**
+   * What the hero says when there is no cycle day - standing where a 96 point
+   * number would be, with no label over it.
+   *
+   * "Henüz başlamadı" was here first and reported a state: true, and the end
+   * of the conversation. The screen it is on is somebody's first, and the one
+   * thing missing is the record that makes a day number exist, so this says
+   * where the count comes from instead.
+   *
+   * Not an instruction. There is no control in the hero to obey one - the
+   * period button is below the fold - so it is written as how the app works
+   * rather than as something to do.
+   */
+  noCycleDayMessage: 'Gün sayısı ilk reglinle başlar',
   cycleDayValue: (day: number) => `${day}. gün`,
   nextPeriodUnknown: 'Henüz hesaplanamıyor',
 
@@ -233,6 +262,7 @@ const homeMessagesEn: HomeMessages = {
   rowNextPeriod: 'Next period estimate',
 
   cycleNotStarted: 'Not started yet',
+  noCycleDayMessage: 'The day count starts with your first period',
   cycleDayValue: (day: number) => `Day ${day}`,
   nextPeriodUnknown: 'Cannot be worked out yet',
 

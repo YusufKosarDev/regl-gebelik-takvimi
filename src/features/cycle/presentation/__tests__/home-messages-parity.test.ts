@@ -133,4 +133,30 @@ describe('the rows', () => {
 
     expect(rows.map((row) => row.value)).toEqual(['Day 3', 'Period', 'Low']);
   });
+
+  /**
+   * A labelled row reports; the hero points somewhere.
+   *
+   * Both of these put a value after "Cycle day:" - the summary row above and
+   * the calendar's card for a day somebody picked, which can be a day last
+   * March. Neither can carry the hero's sentence about where the count comes
+   * from, which is why there are two keys. They were one until the sentence
+   * was written, and sharing them would have put "Cycle day: The day count
+   * starts with your first period" on a card about a past day.
+   */
+  it('reports the absence in a labelled row rather than pointing anywhere', () => {
+    const day = {
+      date: toISODate('2026-08-20'),
+      cycleDay: null,
+      phase: null,
+      fertilityLevel: null,
+      isPredictedPeriodStart: false,
+      isPredictedPeriodDay: false,
+    } as unknown as CycleCalendarDay;
+
+    const rows = selectedDayRowsIn(homeMessages.en, cycleLabels.en, day);
+
+    expect(rows[0]?.value).toBe(homeMessages.en.cycleNotStarted);
+    expect(rows[0]?.value).not.toBe(homeMessages.en.noCycleDayMessage);
+  });
 });

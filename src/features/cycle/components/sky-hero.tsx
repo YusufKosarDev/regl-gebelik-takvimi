@@ -91,7 +91,32 @@ export function SkyHero({
   readonly dayNumber: string | null;
   /** The word that says what the number counts. */
   readonly dayCaption: string;
-  /** What stands in for the number when there is none, e.g. "Henüz başlamadı". */
+  /**
+   * What stands where the number would be when there is none.
+   *
+   * ## What it must not claim
+   *
+   * Null is not a dash. A profile with nothing recorded has no day eleven,
+   * and a 96 point "—" says the screen is broken rather than that the cycle
+   * has not started. In that case the caption and the number both go and this
+   * carries the slot on its own.
+   *
+   * ## And what it now has to say
+   *
+   * Where the count comes from. It used to be the summary row's value,
+   * "Henüz başlamadı", which reports a state and ends there - on what is
+   * usually somebody's first screen, with the thing that would fill this slot
+   * one record away. The caller passes `noCycleDayMessage` instead, which
+   * names the record rather than the absence.
+   *
+   * It is not an instruction and must not become one: there is no control in
+   * the hero to obey it. It is also the one thing in the accessibility tree
+   * in this state, since the labelled wrapper belongs to the number.
+   *
+   * It is set at `phaseSize` in the serif, so at Android's largest setting a
+   * sentence here is a short paragraph. That is allowed - the hero grows with
+   * its content now - but it is the reason not to make this any longer.
+   */
   readonly noDayMessage: string;
   readonly phaseName: string | null;
   /**

@@ -703,7 +703,10 @@ export default function HomeScreen() {
               {isPregnancyView ? null : (
                 <SkyHero
                   dayNumber={shownDay === null ? null : String(shownDay)}
-                  noDayMessage={dayRow.value}
+                  // Not `dayRow.value`, which is the row's "Henüz başlamadı".
+                  // The row has a label in front of it and the hero does not,
+                  // so the hero says where the count comes from instead.
+                  noDayMessage={home.noCycleDayMessage}
                   dayCaption={dayRow.label}
                   phaseName={
                     shownPhase === null ? null : labels.phaseLabels[shownPhase]

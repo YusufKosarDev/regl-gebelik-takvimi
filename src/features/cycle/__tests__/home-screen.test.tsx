@@ -12,6 +12,7 @@ import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
 
 // The database and the clock are faked. The use case, the repository contract
 // and every domain rule stay real, so what the screen prints is what the domain
@@ -385,12 +386,20 @@ describe('HomeScreen tracks the real cycle', () => {
 });
 
 describe('HomeScreen with an incomplete profile', () => {
-  it('says the cycle has not started when nothing is on record yet', async () => {
+  it('points at the first record rather than reporting an empty cycle', async () => {
     repository.loadCycleProfile.mockResolvedValue(profile([]));
 
-    const { getByText } = await renderScreen();
+    const { getByText, getByTestId, queryByText } = await renderScreen();
 
-    expect(getByText('Henüz başlamadı')).toBeTruthy();
+    // The hero's slot, where the day number would be. It says where the count
+    // comes from. "Henüz başlamadı" is the row value - it has a label in
+    // front of it there - and it is not what this screen shows.
+    expect(getByTestId('sky-no-day')).toHaveTextContent(homeMessages.tr.noCycleDayMessage);
+    expect(queryByText(homeMessages.tr.cycleNotStarted)).toBeNull();
+
+    // And what it points at is reachable from the screen it is on, which is
+    // what stops the line being a dead end in a different register.
+    expect(getByText('Regl başladı')).toBeTruthy();
     expect(getByText('Henüz hesaplanamıyor')).toBeTruthy();
   });
 
@@ -1397,7 +1406,9 @@ describe('HomeScreen focus refresh', () => {
 
     await refocus();
 
-    expect(screen.getByText('Henüz başlamadı')).toBeTruthy();
+    expect(screen.getByTestId('sky-no-day')).toHaveTextContent(
+      homeMessages.tr.noCycleDayMessage,
+    );
     expect(screen.getByText('Henüz hesaplanamıyor')).toBeTruthy();
     expect(screen.getByText('Regl başladı')).toBeTruthy();
     // The calendar is still there, just with nothing marked.
