@@ -152,6 +152,8 @@ export default function SettingsScreen() {
   const [avatar, setAvatar] = useState<AvatarConfig | null>(null);
   const appLockEnabled = useAppLockStore((state) => state.enabled);
   const resetAppState = useAppStore((state) => state.resetAppState);
+  // The wipe deletes the lock record; this is the app's own copy of that fact.
+  const forgetAppLockState = useAppLockStore((state) => state.markDisabled);
 
   const [isConfirmingWipe, setIsConfirmingWipe] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
@@ -177,7 +179,7 @@ export default function SettingsScreen() {
 
     try {
       const db = await openAppDatabase();
-      const outcome = await wipeLocalData({ db, resetAppState });
+      const outcome = await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
       const message = localWipeMessageIn(deletion, outcome);
 

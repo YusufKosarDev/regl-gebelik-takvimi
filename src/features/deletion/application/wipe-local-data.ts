@@ -56,6 +56,22 @@ export type WipeLocalDataInput = {
    * that reaches into the global store, and so a test can assert it ran last.
    */
   readonly resetAppState: () => Promise<void>;
+
+  /**
+   * Forgets, in memory, that a lock was ever set.
+   *
+   * `removeAppLock` deletes the stored record; this is the copy of that fact
+   * the app is holding. The store reads the record once at launch and only
+   * changes when a lock is set or taken off, so without this the settings
+   * screen went on saying the lock was on - and offering to manage it -
+   * until the process was killed. Reproduced on a device: wipe, finish
+   * onboarding again, Profile still says On, force stop, Profile says Off.
+   *
+   * Injected like `resetAppState` and for the same reason: this file stays a
+   * use case rather than something that reaches into a global store, and a
+   * test can assert when it ran.
+   */
+  readonly forgetAppLockState: () => void;
 };
 
 /** Runs a step whose failure must not stop the wipe, and says whether it worked. */
@@ -112,7 +128,7 @@ export async function wipeLocalData(input: WipeLocalDataInput): Promise<LocalWip
 }
 
 async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
-  const { db, resetAppState } = input;
+  const { db, resetAppState, forgetAppLockState } = input;
 
   // The one step that decides whether this is a wipe at all.
   try {
@@ -153,6 +169,13 @@ async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   // put a PIN in front of a fresh onboarding, which is a lock on an empty room
   // that somebody may no longer have the PIN for.
   complete = (await bestEffort(removeAppLock, 'local data wipe failed')) && complete;
+
+  // The record is gone; this is the app's own memory of it. Both or neither,
+  // or the settings screen goes on offering to manage a lock that is not there.
+  complete =
+    (await bestEffort(async () => {
+      forgetAppLockState();
+    }, 'local data wipe failed')) && complete;
   complete =
     (await bestEffort(clearPendingAccountDeletion, 'local data wipe failed')) && complete;
 

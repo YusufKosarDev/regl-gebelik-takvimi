@@ -31,6 +31,7 @@ import {
   shouldRetryWithPassword,
 } from '@/features/deletion/presentation/deletion-messages';
 import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
+import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 import { isAppLockBoundTo } from '@/features/app-lock/application/remove-app-lock';
 import { toAuthError } from '@/features/auth/domain/auth-error';
@@ -169,6 +170,9 @@ export default function AccountScreen() {
   // Deleting the account. Its own password field: the one above belongs to the
   // sign-in form, which is not on screen while somebody is signed in.
   const resetAppState = useAppStore((state) => state.resetAppState);
+  // Only reached when the local wipe runs too, and for the same reason it is
+  // passed there: the record goes, so the memory of it has to go with it.
+  const forgetAppLockState = useAppLockStore((state) => state.markDisabled);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   // No tab bar on this screen: it is pushed, not a tab, so nothing floats
@@ -711,6 +715,7 @@ export default function AccountScreen() {
         password: deletePassword,
         wipeLocalDataToo: wipeLocalToo,
         resetAppState,
+        forgetAppLockState,
       });
 
       if (shouldRetryWithPassword(outcome)) {

@@ -94,6 +94,7 @@ function baseInput(overrides: Partial<Parameters<typeof deleteAccount>[0]> = {})
     password: 'correct horse',
     wipeLocalDataToo: false,
     resetAppState: jest.fn().mockResolvedValue(undefined),
+    forgetAppLockState: jest.fn(),
     ...overrides,
   };
 }
@@ -401,13 +402,18 @@ describe('when the phone is being wiped too', () => {
       kind: 'deleted-wipe-failed',
     });
   });
-
-  it('passes the caller its own resetAppState', async () => {
+  it('passes the caller its own resetAppState and lock reset', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
+    const forgetAppLockState = jest.fn();
 
-    await deleteAccount(baseInput({ wipeLocalDataToo: true, resetAppState }));
+    await deleteAccount(
+      baseInput({ wipeLocalDataToo: true, resetAppState, forgetAppLockState })
+    );
 
-    expect(wipeLocalData).toHaveBeenCalledWith({ db, resetAppState });
+    // Both, because the wipe path here is the same wipe the settings screen
+    // runs: a lock deleted on one route and remembered on the other would be
+    // the same stale row in a different place.
+    expect(wipeLocalData).toHaveBeenCalledWith({ db, resetAppState, forgetAppLockState });
   });
 
   it('does not wipe when the account delete failed', async () => {

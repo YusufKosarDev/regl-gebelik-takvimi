@@ -87,6 +87,10 @@ function resolveAll(): void {
   auth.signOut.mockResolvedValue(undefined);
 }
 
+// Shared rather than made per test: it is the one input that is a plain
+// callback with no return to arrange, and `clearAllMocks` resets it below.
+const forgetAppLockState = jest.fn();
+
 beforeEach(() => {
   jest.clearAllMocks();
   resolveAll();
@@ -96,13 +100,43 @@ describe('wiping this device', () => {
   it('reports it wiped everything when every step works', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'wiped' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
+  });
+
+  /**
+   * The record goes and the memory of it goes with it.
+   *
+   * `removeAppLock` deletes the stored record, and the app's own copy of "a
+   * lock is set" lives in a store that only reads it at launch. Reproduced on
+   * a device: wipe, finish onboarding again without killing the process, and
+   * Profile still said On and offered to manage a lock that was not there -
+   * the manage screen offered to change a PIN that no longer existed. A force
+   * stop corrected it, which is what identified the state as in-memory.
+   *
+   * The order is asserted as well. `resetAppState` is what sends the app back
+   * to onboarding, and the layout decides whether to show a lock screen from
+   * this same store - so forgetting the lock after that flip would mount
+   * onboarding with the app still believing it is locked.
+   */
+  it('forgets the lock in memory, before the app is sent back to onboarding', async () => {
+    const order: string[] = [];
+    const resetAppState = jest.fn(async () => {
+      order.push('reset');
+    });
+
+    forgetAppLockState.mockImplementation(() => {
+      order.push('forget');
+    });
+
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
+
+    expect(order).toEqual(['forget', 'reset']);
   });
 
   it('empties the tables', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(clearAllLocalTables).toHaveBeenCalledWith(db);
   });
@@ -110,7 +144,7 @@ describe('wiping this device', () => {
   it('cancels both reminders, and only those two kinds', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(cancelScheduledRemindersOfType).toHaveBeenCalledTimes(2);
     expect(cancelScheduledRemindersOfType).toHaveBeenCalledWith(PERIOD_REMINDER_TYPE);
@@ -120,7 +154,7 @@ describe('wiping this device', () => {
   it('clears the widget copy sitting on the home screen', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(widget.clearWidgetSnapshot).toHaveBeenCalledTimes(1);
   });
@@ -128,7 +162,7 @@ describe('wiping this device', () => {
   it('clears the sync preference, the device id and any half-finished deletion', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(clearSyncPreferences).toHaveBeenCalledTimes(1);
     expect(clearDeviceId).toHaveBeenCalledTimes(1);
@@ -138,7 +172,7 @@ describe('wiping this device', () => {
   it('resets the app state, which is what sends the app to onboarding', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(resetAppState).toHaveBeenCalledTimes(1);
   });
@@ -161,7 +195,7 @@ describe('the order the steps run in', () => {
       order.push('reset');
     });
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(order[0]).toBe('tables');
   });
@@ -186,7 +220,7 @@ describe('the order the steps run in', () => {
       order.push('reset');
     });
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(order[order.length - 1]).toBe('reset');
   });
@@ -203,7 +237,7 @@ describe('the order the steps run in', () => {
       order.push('reset');
     });
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(order).toEqual(['sign-out', 'reset']);
   });
@@ -215,7 +249,7 @@ describe('when the tables cannot be emptied', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({
       kind: 'failed',
       reason: 'local-failed',
     });
@@ -226,7 +260,7 @@ describe('when the tables cannot be emptied', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(cancelScheduledRemindersOfType).not.toHaveBeenCalled();
     expect(widget.clearWidgetSnapshot).not.toHaveBeenCalled();
@@ -238,7 +272,7 @@ describe('when the tables cannot be emptied', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(resetAppState).not.toHaveBeenCalled();
   });
@@ -248,7 +282,7 @@ describe('when the tables cannot be emptied', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(logEvent).toHaveBeenCalledWith('local data wipe failed', expect.anything());
   });
@@ -265,7 +299,7 @@ describe('steps that must not stop the wipe', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'partial' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'partial' });
   });
 
   it('still resets the app state when a middle step failed', async () => {
@@ -273,7 +307,7 @@ describe('steps that must not stop the wipe', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(resetAppState).toHaveBeenCalledTimes(1);
   });
@@ -281,7 +315,7 @@ describe('steps that must not stop the wipe', () => {
   it('reports partial when the app state itself will not reset', async () => {
     const resetAppState = jest.fn().mockRejectedValue(new Error('storage full'));
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'partial' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'partial' });
   });
 });
 
@@ -291,7 +325,7 @@ describe('the widget bridge not being there', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(widget.clearWidgetSnapshot).not.toHaveBeenCalled();
   });
@@ -302,7 +336,7 @@ describe('the widget bridge not being there', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'wiped' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
   });
 });
 
@@ -312,7 +346,7 @@ describe('the session', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(auth.signOut).toHaveBeenCalledTimes(1);
   });
@@ -322,7 +356,7 @@ describe('the session', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    await wipeLocalData({ db, resetAppState });
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
     expect(auth.signOut).not.toHaveBeenCalled();
   });
@@ -334,7 +368,7 @@ describe('the session', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'wiped' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
@@ -344,7 +378,7 @@ describe('the session', () => {
 
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'partial' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'partial' });
   });
 });
 
@@ -352,7 +386,7 @@ describe('running it twice', () => {
   it('succeeds the second time as well', async () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'wiped' });
-    expect(await wipeLocalData({ db, resetAppState })).toEqual({ kind: 'wiped' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
   });
 });

@@ -67,6 +67,8 @@ export type DeleteAccountInput = {
   readonly wipeLocalDataToo: boolean;
   /** Resets the store and the onboarding flag; only used when wiping. */
   readonly resetAppState: () => Promise<void>;
+  /** Forgets in memory that a lock was set; only used when wiping. */
+  readonly forgetAppLockState: () => void;
 };
 
 /** Auth codes this flow can show, mapped to its own vocabulary. */
@@ -232,7 +234,7 @@ export async function deleteAccount(input: DeleteAccountInput): Promise<AccountD
 }
 
 async function runDeleteAccount(input: DeleteAccountInput): Promise<AccountDeletionOutcome> {
-  const { db, user, password, wipeLocalDataToo, resetAppState } = input;
+  const { db, user, password, wipeLocalDataToo, resetAppState, forgetAppLockState } = input;
 
   if (typeof user !== 'object' || user === null || typeof user.uid !== 'string' || user.uid.trim() === '') {
     return { kind: 'failed', reason: 'signed-out' };
@@ -307,7 +309,7 @@ async function runDeleteAccount(input: DeleteAccountInput): Promise<AccountDelet
     return { kind: 'deleted' };
   }
 
-  const wipe = await wipeLocalData({ db, resetAppState });
+  const wipe = await wipeLocalData({ db, resetAppState, forgetAppLockState });
 
   if (wipe.kind === 'failed') {
     return { kind: 'deleted-wipe-failed' };
