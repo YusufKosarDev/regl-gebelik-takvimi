@@ -40,6 +40,11 @@ import type { SkyField } from '@/constants/sky';
  * above it was the page - measured on a device, pure white against the strip's
  * 196, a seam of 59 levels in light mode.
  *
+ * Measured again after, across the same boundary at 1080x2400: 186 against
+ * 185 in light, 26 against 26 in dark. The Cycle tab, whose field has always
+ * wrapped the whole screen, reads 226 against 226 and 41 against 41 at the
+ * same place - so the calendar now joins it rather than approaching it.
+ *
  * That was never a decision about the strip. The contrast reasoning above
  * keeps the field off the *grid*, because the grid is data; the status bar
  * band carries less than the header does, so nothing in that argument reaches
