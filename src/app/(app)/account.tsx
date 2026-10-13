@@ -31,6 +31,7 @@ import {
   shouldRetryWithPassword,
 } from '@/features/deletion/presentation/deletion-messages';
 import { clearPendingAccountDeletion } from '@/features/deletion/infrastructure/pending-account-deletion';
+import { emailForDisplay } from '@/features/auth/presentation/email-for-display';
 import { useAppLockStore } from '@/store/app-lock-store';
 import { useAppStore } from '@/store/app-store';
 import { isAppLockBoundTo } from '@/features/app-lock/application/remove-app-lock';
@@ -834,7 +835,9 @@ export default function AccountScreen() {
                     accessibilityLabel={authStrings.signedInAccountLabel(auth.user.email ?? null)}
                     type="smallBold"
                     style={styles.email}>
-                    {auth.user.email ?? authStrings.noEmailText}
+                    {auth.user.email === null
+                      ? authStrings.noEmailText
+                      : emailForDisplay(auth.user.email)}
                   </ThemedText>
                 </View>
 
