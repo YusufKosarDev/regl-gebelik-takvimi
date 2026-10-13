@@ -872,6 +872,30 @@ subtracted from the bottom should fail there rather than pass on a borrowed
 inset. Anything asserted about the top edge is asserted against
 `SAFE_AREA_TEST_INSETS.top` rather than a literal 24.
 
+### A `uiautomator dump` reports clipped rows with inverted bounds
+
+Device evidence in this project is a `uiautomator dump` paired with a
+`screencap`, and the dump has one trap worth knowing before trusting it.
+
+A node that is scrolled off the bottom comes back with its top below its
+bottom:
+
+```
+text="Doğurganlık tahmini"  bounds="[63,2380][1017,2337]"
+```
+
+2380 is the top and 2337 is the bottom. Nothing is wrong on screen — the row
+is simply below the fold and clipped — but read naively it says a row is
+drawn 170 points past the top of a floating tab bar, which is exactly what a
+real overlap looks like in that output. Two of this list's findings were
+about text reaching the tab bar, so the shape is not hypothetical.
+
+Treat `bottom <= top` as "off screen, measure something else", and confirm
+any suspected overlap against the screenshot before reporting it. A check
+written over these dumps should compare the lowest **bottom** of every node,
+not only the text ones: the ring's dots carry no text and at 200% they come
+closer to the bar than any sentence does.
+
 ### Mutation testing, and verifying the mutation landed
 
 A test that says a rule is held is worth only what it costs to break the rule
