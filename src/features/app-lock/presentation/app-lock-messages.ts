@@ -58,9 +58,24 @@ const appLockMessagesTr = {
 
   setupTitle: 'Uygulama kilidi',
 
+  /**
+   * Scoped to what the lock does, deliberately.
+   *
+   * It said "kayıtlarını göremez" - cannot see your records, full stop - and
+   * `setupHonestyNote` three lines down says the files are not encrypted and
+   * the phone's own lock is the real protection. Both cannot be true: somebody
+   * holding the phone can reach the records, just not through the app.
+   *
+   * So this says what a PIN on a screen actually achieves, which is
+   * unconditionally true, and leaves the file-level truth to the note that
+   * owns it. The two now say different things rather than contradicting.
+   *
+   * The short form is what a tidy-up reaches for - it reads stronger - so
+   * `app-lock-messages.test.ts` refuses it.
+   */
   setupDescription:
     `Uygulamayı her açtığında ${PIN_LENGTH} haneli bir PIN sorulur. Telefonu eline alan ` +
-    'başka biri kayıtlarını göremez.',
+    'başka biri uygulamayı açıp kayıtlarını okuyamaz.',
 
   /**
    * The sentence this feature is honest because of.
@@ -245,7 +260,7 @@ const appLockMessagesEn: AppLockMessages = {
 
   setupDescription:
     `A ${PIN_LENGTH}-digit PIN is asked for every time you open the app. Somebody else ` +
-    'picking up your phone cannot see your records.',
+    'picking up your phone cannot open the app and read your records.',
 
   setupHonestyNote:
     'This lock closes the app’s screen; it does not encrypt the files on your phone. ' +

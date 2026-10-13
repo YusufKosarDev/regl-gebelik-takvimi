@@ -17,6 +17,17 @@ import { waitMessage } from '../wait-message';
 const MESSAGES_FILE = readFileSync(join(__dirname, '..', 'app-lock-messages.ts'), 'utf8');
 
 /**
+ * The file with its comments taken out.
+ *
+ * These scans are about the copy, and the copy's own documentation quotes the
+ * sentences it replaced - so a doc saying "it used to say X" made a guard
+ * against X fire. Found immediately, by the guard added below.
+ *
+ * The same trap the reveal-placement check hit, solved the same way.
+ */
+const COPY_ONLY = MESSAGES_FILE.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '');
+
+/**
  * The sentence the whole feature's honesty rests on.
  *
  * Written as a test because the risk is a future copy edit, not a bug. Somebody
@@ -39,16 +50,40 @@ describe('SETUP_HONESTY_NOTE', () => {
   // The failure this guards against is a note that is technically present but
   // has been softened into saying nothing.
   it('does not claim the opposite anywhere in the file', () => {
-    expect(MESSAGES_FILE).not.toMatch(/verilerin şifrelen/i);
-    expect(MESSAGES_FILE).not.toMatch(/şifrelenir/i);
-    expect(MESSAGES_FILE).not.toMatch(/güvenle saklan/i);
+    expect(COPY_ONLY).not.toMatch(/verilerin şifrelen/i);
+    expect(COPY_ONLY).not.toMatch(/şifrelenir/i);
+    expect(COPY_ONLY).not.toMatch(/güvenle saklan/i);
   });
 });
 
+/**
+ * The description says what a PIN on a screen achieves, and no more.
+ *
+ * It used to say "Telefonu eline alan başka biri kayıtlarını göremez" -
+ * cannot see your records, full stop - and `SETUP_HONESTY_NOTE` three lines
+ * below says the files are not encrypted and the phone's own lock is the real
+ * protection. Both cannot be true.
+ *
+ * This describe was already called "nothing here promises more than the lock
+ * does" and its one assertion pinned `göremez`, the overpromise itself. A test
+ * named for a rule can hold its opposite.
+ */
 describe('nothing here promises more than the lock does', () => {
-  it('describes the lock as closing the screen, not the data', () => {
-    expect(SETUP_DESCRIPTION).toContain('göremez');
+  it('describes the lock as closing the app, not the data', () => {
+    expect(SETUP_DESCRIPTION).toContain('uygulamayı açıp');
+    expect(SETUP_DESCRIPTION).toContain('okuyamaz');
     expect(SETUP_DESCRIPTION).not.toContain('şifre');
+  });
+
+  /**
+   * The short form is what a tidy-up reaches for: it is four words shorter and
+   * reads stronger. Refused in both languages, over the file, so the English
+   * half cannot drift back on its own - which is how the privacy guard found
+   * the account catalogue's dead string.
+   */
+  it('never claims the records cannot be seen at all', () => {
+    expect(COPY_ONLY).not.toMatch(/kayıtlarını göremez/);
+    expect(COPY_ONLY).not.toMatch(/cannot see your records/i);
   });
 
   // The thing somebody seeing this will be afraid of is that their records are
