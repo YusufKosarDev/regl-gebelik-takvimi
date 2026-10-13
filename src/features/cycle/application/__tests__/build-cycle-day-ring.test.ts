@@ -110,6 +110,39 @@ describe('the phase each dot carries', () => {
   });
 });
 
+/**
+ * The ring stops one day short of the horizon, and that is arithmetic.
+ *
+ * The calendar and the dashboard stop inferring a phase past the predicted
+ * period. This ring never has to, and the test is here so that a ring drawn
+ * wider than one cycle fails rather than quietly carrying a phase for a date
+ * past the prediction.
+ */
+describe('the ring against the prediction horizon', () => {
+  it('ends the day before the predicted period starts', () => {
+    const { dots, cycleDay } = buildCycleDayRing(profileOf(20), TODAY);
+
+    // Dot 28 of a 28 day cycle, with today on dot 21.
+    const last = dots[dots.length - 1];
+
+    expect(cycleDay).toBe(21);
+    expect(last.day).toBe(28);
+
+    // Every dot still carries a phase, because none of them is past the
+    // predicted start - which is the day after the last one.
+    expect(dots.every((dot) => dot.phase !== null)).toBe(true);
+  });
+
+  it('still carries a phase on every dot of an overdue cycle, all of it behind', () => {
+    // Forty days in: the ring's dots run from the recorded start to the day
+    // before the prediction, all of it in the past.
+    const { dots, cycleDay } = buildCycleDayRing(profileOf(39), TODAY);
+
+    expect(cycleDay).toBe(40);
+    expect(dots.every((dot) => dot.phase !== null)).toBe(true);
+  });
+});
+
 describe('before anything has been recorded', () => {
   it('still draws a full ring, with nothing lit', () => {
     // A person who has recorded nothing sees the shape of what the app is for

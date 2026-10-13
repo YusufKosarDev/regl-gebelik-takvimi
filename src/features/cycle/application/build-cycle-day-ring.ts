@@ -84,6 +84,17 @@ export function buildCycleDayRing(profile: CycleProfile, today: ISODate): CycleD
       // A cycle running longer than the setting pushes the later dots past
       // today into dates that have not happened; `getCyclePhase` answers for
       // them exactly as the calendar does when it draws the rest of the month.
+      //
+      // No horizon check here, and that is arithmetic rather than an oversight.
+      // The calendar and the dashboard stop inferring a phase past the
+      // predicted period - `predictionHorizonFor` - and this ring cannot reach
+      // it. The last dot is day `count`, which sits at
+      // `lastStart + count - 1`, and the predicted start is at
+      // `lastStart + averageCycleLengthDays`, which is `count`. So the ring
+      // ends one day short of the first day it would have to stop at.
+      //
+      // A ring drawn wider than one cycle would reach it and would need the
+      // check.
       const date = addDays(today, day - cycleDay);
 
       return {

@@ -3,7 +3,7 @@ import { resolveCyclePhase } from '../domain/cycle-phase';
 import { resolveFertilityLevel } from '../domain/fertility-level';
 import type { FertilityLevel } from '../domain/fertility-level';
 import type { CyclePhase } from '../domain/phases';
-import { predictNextPeriodStart } from '../domain/predictions';
+import { predictionHorizonFrom, predictNextPeriodStart } from '../domain/predictions';
 import type { CycleProfile } from '../domain/types';
 import { validateCycleProfile } from '../domain/validation';
 
@@ -165,6 +165,10 @@ export function buildCycleCalendarMonth(
    */
   const predictedPeriodLength = profile.settings.averagePeriodLengthDays;
 
+  // Once per month, like the prediction above it: the predicate validates the
+  // profile when it is built, not when it is asked.
+  const isBeyondHorizonOn = predictionHorizonFrom(predictedPeriodStart, predictedPeriodLength);
+
   const dayCount = getDaysInMonth(year, month);
   const days: CycleCalendarDay[] = [];
 
@@ -179,11 +183,9 @@ export function buildCycleCalendarMonth(
     // and the slowest thing on the screen with five years of them.
     const cycleDay = getCycleDay(profile, date);
 
-    // Everything after the predicted period's last day. With no prediction at
-    // all - nothing recorded yet - there is no horizon to be past.
-    const isBeyondHorizon =
-      predictedPeriodStart !== null &&
-      daysBetween(predictedPeriodStart, date) > predictedPeriodLength - 1;
+    // The one definition, in `predictions.ts`. It used to be this arithmetic
+    // written here, which is how the dashboard came to miss it.
+    const isBeyondHorizon = isBeyondHorizonOn(date);
 
     // The count survives the horizon and the inferences do not.
     //

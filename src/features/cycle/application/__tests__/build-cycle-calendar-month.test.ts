@@ -15,7 +15,10 @@ jest.mock('@/features/cycle/domain/predictions', () => {
     '@/features/cycle/domain/predictions'
   );
 
-  return { predictNextPeriodStart: jest.fn(actual.predictNextPeriodStart) };
+  // Spread the real module and spy on the one function: the month also builds
+  // its horizon predicate from here, and a mock listing only what it needed
+  // when it was written is a mock that breaks the next time it needs one more.
+  return { ...actual, predictNextPeriodStart: jest.fn(actual.predictNextPeriodStart) };
 });
 
 const predictNextPeriodStartMock = predictNextPeriodStart as unknown as jest.Mock;

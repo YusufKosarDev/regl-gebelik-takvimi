@@ -6,7 +6,7 @@ import { getCyclePhase } from '../domain/cycle-phase';
 import { getEstimatedFertilityLevel } from '../domain/fertility-level';
 import type { FertilityLevel } from '../domain/fertility-level';
 import type { CyclePhase } from '../domain/phases';
-import { predictNextPeriodStart } from '../domain/predictions';
+import { isBeyondPredictionHorizon, predictNextPeriodStart } from '../domain/predictions';
 import type { CycleProfile } from '../domain/types';
 
 import type { ISODate } from '@/types/iso-date';
@@ -35,11 +35,27 @@ export type CycleDashboard = {
  * this without going back to the database for it.
  */
 export function buildCycleDashboard(profile: CycleProfile, today: ISODate): CycleDashboard {
+  // Past the predicted period the app counts and stops inferring, exactly as
+  // the calendar does - `isBeyondPredictionHorizon` is the one definition, and
+  // this screen missing it is why that function exists rather than the
+  // arithmetic living in the calendar.
+  //
+  // The phase and the fertility level go; the cycle day does not. Somebody
+  // whose period is overdue is past the horizon by definition and is looking
+  // at this screen for a reason, and the days since their last period started
+  // is the thing they came for.
+  // The cycle day first, and not only for readability: `getCycleDay` is what
+  // refuses a date that is not one, with a message naming the argument. Asking
+  // the horizon first would reject the same input a step earlier and say
+  // something vaguer about it.
+  const cycleDay = getCycleDay(profile, today);
+  const beyondHorizon = isBeyondPredictionHorizon(profile, today);
+
   return {
     today,
-    cycleDay: getCycleDay(profile, today),
-    phase: getCyclePhase(profile, today),
-    fertilityLevel: getEstimatedFertilityLevel(profile, today),
+    cycleDay,
+    phase: beyondHorizon ? null : getCyclePhase(profile, today),
+    fertilityLevel: beyondHorizon ? null : getEstimatedFertilityLevel(profile, today),
     nextPeriodStart: predictNextPeriodStart(profile),
   };
 }

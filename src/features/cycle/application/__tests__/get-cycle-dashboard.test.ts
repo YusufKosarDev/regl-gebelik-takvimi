@@ -187,3 +187,45 @@ describe('getCycleDashboard failures', () => {
     await expect(getCycleDashboard(db, '2026-02-30' as ISODate)).rejects.toThrow();
   });
 });
+
+/**
+ * The screen somebody opens when their period is late.
+ *
+ * The dashboard derives today's phase straight from `getCyclePhase`, which runs
+ * off a cycle day that never rolls over - so with a 1 September start it said
+ * "luteal" for every day of October and November and beyond. The calendar
+ * stopped saying that; this did not, and the two contradicted each other on the
+ * screen the app opens to. Found by paging on a device after the diff was clean
+ * and the suite was green.
+ *
+ * The count stays and the inferences go, the same split the calendar keeps,
+ * from the same `predictionHorizonFor`.
+ */
+describe('getCycleDashboard past the predicted period', () => {
+  it('keeps counting and stops inferring', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    // 1 September start, 28 day setting: the predicted period is 29 September
+    // to 3 October, so 13 October is ten days past it.
+    await expect(getCycleDashboard(db, '2026-10-13' as ISODate)).resolves.toEqual({
+      today: '2026-10-13',
+      cycleDay: 43,
+      phase: null,
+      fertilityLevel: null,
+      nextPeriodStart: '2026-09-29',
+    });
+  });
+
+  it('still infers on the last day the prediction covers', async () => {
+    loadCycleProfile.mockResolvedValue(profile());
+
+    // 3 October is the predicted period's last day. The phase is still read
+    // off the cycle day there - day 33, which `resolveCyclePhase` calls luteal
+    // because the luteal window has no upper bound. The horizon is where the
+    // app stops answering, not where the answer becomes sensible.
+    const dashboard = await getCycleDashboard(db, '2026-10-03' as ISODate);
+
+    expect(dashboard?.phase).toBe('luteal');
+    expect(dashboard?.cycleDay).toBe(33);
+  });
+});

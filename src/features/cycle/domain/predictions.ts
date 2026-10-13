@@ -76,3 +76,83 @@ export function predictNextPeriodStart(profile: CycleProfile): ISODate | null {
 
   return addDays(latestStart, profile.settings.averageCycleLengthDays);
 }
+
+/**
+ * A predicate for "is this date past the last day of the predicted period",
+ * built once for a profile.
+ *
+ * ## Why this is here and not in the calendar
+ *
+ * It was in `build-cycle-calendar-month.ts`, because the calendar is what
+ * needed it first. That is also how it came to be missed: the dashboard
+ * derives today's phase straight from `getCyclePhase`, so the home screen went
+ * on saying "Luteal" for a day the calendar had already stopped speaking
+ * about. Found by paging on a device with a clean diff and 6,973 green tests.
+ *
+ * The horizon belongs to the prediction, not to any one screen drawn from it.
+ * Anything that turns a cycle day into a phase or a fertility level asks here
+ * first, and a fourth consumer has one place to look.
+ *
+ * ## What it decides
+ *
+ * Past it the app stops inferring and keeps counting. A cycle day is
+ * arithmetic from a record and stays true however far out it is asked; a phase
+ * read off that count is a claim about a cycle that has not happened, because
+ * `getCycleDay` never rolls over at a predicted start and `cycle-phase.ts`
+ * gives the luteal window no upper bound.
+ *
+ * The count's usefulness does decay with distance. Measured on a device: today,
+ * ten days overdue, came back as day 39 - the number somebody in that state
+ * opens the app for. Paging to 18 December gave day 105, which is equally true
+ * and is a counter rather than information.
+ *
+ * That is recorded rather than fixed. A cutoff would be a new threshold with its
+ * own arbitrariness, and the days it would be wrong about are the ones somebody
+ * is actually living through.
+ *
+ * ## No end date is materialised
+ *
+ * Measured forward from the predicted start, like the calendar's own span and
+ * for the same reason: `addDays` on a start in the last days of year 9999
+ * walks off the supported range and `formatLocalDate` refuses it.
+ *
+ * `false` when nothing is predicted at all - with no record there is no
+ * horizon to be past, and every day is simply unknown.
+ */
+export function predictionHorizonFrom(
+  predictedStart: ISODate | null,
+  periodLengthDays: number
+): (date: ISODate) => boolean {
+  if (predictedStart === null) {
+    return () => false;
+  }
+
+  return (date) => daysBetween(predictedStart, date) > periodLengthDays - 1;
+}
+
+/**
+ * The same predicate for a caller that does not already hold the prediction.
+ *
+ * The calendar does hold it - it marks the predicted days from the same start -
+ * so it builds the predicate with `predictionHorizonFrom` and pays for one
+ * prediction rather than two. `phase-lookup-cost.test.ts` counts those scans
+ * and caught the second one.
+ */
+export function predictionHorizonFor(profile: CycleProfile): (date: ISODate) => boolean {
+  return predictionHorizonFrom(
+    predictNextPeriodStart(profile),
+    profile.settings.averagePeriodLengthDays
+  );
+}
+
+/**
+ * The same question for a caller with one date to ask about.
+ *
+ * A loop asks `predictionHorizonFor` once and keeps the answer.
+ * `predictNextPeriodStart` validates the whole profile, so asking per day puts
+ * a validation on every square - which `phase-lookup-cost.test.ts` measures and
+ * refuses, and which it caught when this was first written the other way round.
+ */
+export function isBeyondPredictionHorizon(profile: CycleProfile, date: ISODate): boolean {
+  return predictionHorizonFor(profile)(date);
+}
