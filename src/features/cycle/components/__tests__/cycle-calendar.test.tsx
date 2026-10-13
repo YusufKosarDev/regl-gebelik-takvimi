@@ -1,6 +1,7 @@
 import { fireEvent, render, within } from '@testing-library/react-native';
 import { PixelRatio, StyleSheet } from 'react-native';
 import { homeMessages } from '@/features/cycle/presentation/home-messages';
+import { Spacing } from '@/constants/theme';
 
 import { CycleCalendar } from '../cycle-calendar';
 
@@ -914,6 +915,33 @@ describe('CycleCalendar at a large font setting', () => {
 
     expect(box.flexBasis).toBe('auto');
     expect(box.flexGrow).toBe(1);
+  });
+
+  /**
+   * The square spends its air on the word.
+   *
+   * A seven-column grid has the same cell width at every setting, so the only
+   * width there is to give the text is the padding around the ring. It tapers
+   * to nothing at the top of the range, and is untouched at the default.
+   */
+  it('keeps its air at the default setting and gives it up at the largest', async () => {
+    getFontScale.mockReturnValue(1);
+
+    const small = await renderCalendar();
+
+    expect(
+      StyleSheet.flatten(small.getByTestId('calendar-day-2026-09-17').props.style)
+        .paddingHorizontal
+    ).toBe(Spacing.half);
+
+    getFontScale.mockReturnValue(2);
+
+    const large = await renderCalendar();
+
+    expect(
+      StyleSheet.flatten(large.getByTestId('calendar-day-2026-09-17').props.style)
+        .paddingHorizontal
+    ).toBe(0);
   });
 
   /**

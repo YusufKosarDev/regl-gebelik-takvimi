@@ -13,6 +13,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-font-scale';
 import { useCyclePhaseColors, useTheme } from '@/hooks/use-theme';
+import { calendarCellSidePadding } from '../presentation/calendar-cell-metrics';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { getDayOfMonth } from '@/utils/date';
@@ -363,7 +364,16 @@ function DayCell({
 
   const band = bandColour(state, phases);
 
-  const outerStyle = [styles.dayCell, { minHeight: CELL_CONTENT_HEIGHT * fontScale + CELL_BAND_ALLOWANCE }];
+  // The side padding tapers with the font setting; `calendar-cell-metrics.ts`
+  // says why. It is the width the word "Today" is short of at the top of the
+  // range, and the only width a seven-column grid has to give.
+  const outerStyle = [
+    styles.dayCell,
+    {
+      minHeight: CELL_CONTENT_HEIGHT * fontScale + CELL_BAND_ALLOWANCE,
+      paddingHorizontal: calendarCellSidePadding(fontScale),
+    },
+  ];
 
   // The band is a sibling of the box rather than a child of it, because it is
   // laid on the cell's own edges and the box is inside the cell's padding.
@@ -445,7 +455,7 @@ const styles = StyleSheet.create({
     // It also lets a row's cells agree. With no definite height they are
     // `stretch` in the cross axis, so every cell in a line takes the line's
     // height and the reserved lines above decide where the numbers sit.
-    padding: Spacing.half,
+    paddingTop: Spacing.half,
     // The band sits here, and the box above it must not run into it. No
     // horizontal padding to match: the band is meant to reach both edges so a
     // run of days meets across the squares.
