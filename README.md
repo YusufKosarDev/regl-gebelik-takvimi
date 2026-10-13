@@ -845,6 +845,33 @@ Both Kotlin modules have their own unit tests, under
 `modules/screen-privacy/android/src/test/`. They run through Gradle rather than
 Jest, so `npm test` does not cover them and neither does CI.
 
+### Screen tests render through a safe area provider
+
+`jest/safe-area-test-provider.tsx`, and it is a change in what a lot of tests
+are exercising rather than a detail of one.
+
+`useSafeAreaInsets` throws without a `SafeAreaProvider`. The app always has
+one — `ExpoRoot` wraps the whole tree in a provider seeded with
+`initialMetrics`, which is why a screen can read its own insets on a device
+(see `node_modules/expo-router/build/ExpoRoot.js`). A test that renders one
+screen starts below that, so it has to supply the same thing.
+
+It is the real provider seeded the same way, not a mocked hook. Mocking the
+hook would have tested a hook that does not ship.
+
+Two places use it, and both now exercise the provider for every screen they
+render: `src/features/cycle/__tests__/calendar-screen.test.tsx`, because the
+calendar reads its top inset to let the sky reach the screen edge, and
+`src/app/__tests__/every-screen-english.test.tsx`, which renders all
+twenty-one screens and therefore renders that one. A screen that starts
+reading its insets needs no new setup in either.
+
+The insets are a 24 point status bar and zero everywhere else. The bottom is
+deliberately zero: a screen that only looks right once something is
+subtracted from the bottom should fail there rather than pass on a borrowed
+inset. Anything asserted about the top edge is asserted against
+`SAFE_AREA_TEST_INSETS.top` rather than a literal 24.
+
 ### Mutation testing, and verifying the mutation landed
 
 A test that says a rule is held is worth only what it costs to break the rule
