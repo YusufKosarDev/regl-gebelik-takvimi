@@ -50,6 +50,29 @@ const homeMessagesTr = {
   rowCycleDay: 'Döngü günü',
   rowCyclePhase: 'Döngü evresi',
   rowFertility: 'Doğurganlık tahmini',
+
+  /**
+   * The fertility row's value past the predicted period.
+   *
+   * Not `unknownLabel`. "Bilinmiyor" says the app looked and found nothing,
+   * which is true before the first record and false here: past the horizon it
+   * declines to estimate rather than failing to. The two states would
+   * otherwise read identically, which is the collision the selected-day card
+   * had and the History tab's two empty lines had before it.
+   *
+   * The label supplies the subject, so the value does not repeat "tahmin" -
+   * "Doğurganlık tahmini: Bugüne ulaşmıyor" - and it says reach rather than
+   * knowledge, the same thing the card says at greater length.
+   *
+   * "Bugüne" rather than "bu güne": these rows are always about today.
+   * `summaryRowsIn` is built from the dashboard, and scrubbing the ring moves
+   * the hero without moving them.
+   *
+   * The row below has its own version of declining - `nextPeriodStale`, for
+   * records too old to compute from - and this is deliberately not that
+   * sentence: they decline for different reasons and should not read as one.
+   */
+  fertilityBeyondHorizon: 'Bugüne ulaşmıyor',
   rowNextPeriod: 'Sonraki regl tahmini',
 
   /**
@@ -314,6 +337,7 @@ const homeMessagesEn: HomeMessages = {
   rowCycleDay: 'Cycle day',
   rowCyclePhase: 'Cycle phase',
   rowFertility: 'Fertility estimate',
+  fertilityBeyondHorizon: 'Does not reach today',
   rowNextPeriod: 'Next period estimate',
 
   cycleNotStarted: 'Not started yet',
@@ -550,7 +574,19 @@ export function summaryRowsIn(
     },
     {
       label: messages.rowFertility,
-      value: getFertilityLevelLabelIn(labels, dashboard.fertilityLevel),
+      // Past the horizon the level is null because the app declined to
+      // estimate, not because it does not know - `fertilityBeyondHorizon` says
+      // which. `getFertilityLevelLabelIn` keeps answering "unknown" for the
+      // genuine one, which is what keeps the two tellable apart.
+      //
+      // The phase row above is left as it is. Past the horizon its value is
+      // "Bilinmiyor" too, and nothing draws it: the hero takes that row and
+      // uses it only for an accessibility label it skips when there is no
+      // phase word. A second string for something nothing renders is how dead
+      // copy accumulates.
+      value: dashboard.isBeyondHorizon
+        ? messages.fertilityBeyondHorizon
+        : getFertilityLevelLabelIn(labels, dashboard.fertilityLevel),
       note: messages.fertilityDisclaimer,
     },
     nextPeriodRowIn(messages, dashboard, language, outlook),

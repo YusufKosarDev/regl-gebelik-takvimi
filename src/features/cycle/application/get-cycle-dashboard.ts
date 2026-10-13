@@ -26,6 +26,17 @@ export type CycleDashboard = {
   readonly phase: CyclePhase | null;
   readonly fertilityLevel: FertilityLevel | null;
   readonly nextPeriodStart: ISODate | null;
+
+  /**
+   * Past the last day of the predicted period, where the app stops inferring.
+   *
+   * Carried rather than re-derived, for the reason `CycleCalendarDay` carries
+   * it: a null fertility level means "genuinely unknown" before the first
+   * record and "not estimated this far" past the horizon, and a screen reading
+   * only the null cannot tell them apart. They are different facts and they
+   * must not end up saying the same thing.
+   */
+  readonly isBeyondHorizon: boolean;
 };
 
 /**
@@ -57,6 +68,7 @@ export function buildCycleDashboard(profile: CycleProfile, today: ISODate): Cycl
     phase: beyondHorizon ? null : getCyclePhase(profile, today),
     fertilityLevel: beyondHorizon ? null : getEstimatedFertilityLevel(profile, today),
     nextPeriodStart: predictNextPeriodStart(profile),
+    isBeyondHorizon: beyondHorizon,
   };
 }
 

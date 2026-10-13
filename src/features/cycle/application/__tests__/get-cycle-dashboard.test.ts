@@ -61,6 +61,7 @@ describe('getCycleDashboard with a saved profile', () => {
       phase: 'luteal',
       fertilityLevel: 'low',
       nextPeriodStart: '2026-09-29',
+      isBeyondHorizon: false,
     });
   });
 
@@ -115,6 +116,7 @@ describe('getCycleDashboard with a saved profile', () => {
     expect(await getCycleDashboard(db, '2026-09-17' as ISODate)).toMatchObject({
       cycleDay: 17,
       nextPeriodStart: '2026-09-29',
+      isBeyondHorizon: false,
     });
   });
 
@@ -128,6 +130,7 @@ describe('getCycleDashboard with a saved profile', () => {
       fertilityLevel: null,
       // The prediction looks at every record, not only past ones.
       nextPeriodStart: '2026-09-29',
+      isBeyondHorizon: false,
     });
   });
 
@@ -140,6 +143,7 @@ describe('getCycleDashboard with a saved profile', () => {
       phase: null,
       fertilityLevel: null,
       nextPeriodStart: null,
+      isBeyondHorizon: false,
     });
   });
 
@@ -151,6 +155,7 @@ describe('getCycleDashboard with a saved profile', () => {
 
     expect(await getCycleDashboard(db, '2026-09-17' as ISODate)).toMatchObject({
       nextPeriodStart: '2026-10-06',
+      isBeyondHorizon: false,
       // Ovulation moves to day 21, so day 17 is still follicular here.
       phase: 'follicular',
     });
@@ -162,6 +167,7 @@ describe('getCycleDashboard with a saved profile', () => {
     expect(await getCycleDashboard(db, '2027-01-02' as ISODate)).toMatchObject({
       cycleDay: 14,
       nextPeriodStart: '2027-01-17',
+      isBeyondHorizon: false,
     });
   });
 
@@ -213,6 +219,7 @@ describe('getCycleDashboard past the predicted period', () => {
       phase: null,
       fertilityLevel: null,
       nextPeriodStart: '2026-09-29',
+      isBeyondHorizon: true,
     });
   });
 

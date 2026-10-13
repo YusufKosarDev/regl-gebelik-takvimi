@@ -1,4 +1,5 @@
-import { FERTILITY_DISCLAIMER, selectedDayRows, summaryRows } from '../home-messages';
+import { FERTILITY_DISCLAIMER, homeMessages, selectedDayRows, summaryRows } from '../home-messages';
+import { cycleLabels } from '../cycle-labels';
 
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
 import type { CycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
@@ -21,6 +22,7 @@ function dashboard(overrides: Partial<CycleDashboard> = {}): CycleDashboard {
     phase: 'menstrual',
     fertilityLevel: 'low',
     nextPeriodStart: '2026-04-02' as ISODate,
+    isBeyondHorizon: false,
     ...overrides,
   };
 }
@@ -113,5 +115,34 @@ describe('selectedDayRows', () => {
     const selected = selectedDayRows(day());
 
     expect(selected).toEqual(summary.slice(0, 3).map(({ label, value }) => ({ label, value })));
+  });
+});
+
+/**
+ * The fertility row has two ways of saying nothing, and they are not the same.
+ *
+ * Before the first record the app genuinely does not know. Past the predicted
+ * period it declines to estimate. Both leave `fertilityLevel` null, so a row
+ * reading only the null would say "Bilinmiyor" to both - which is the
+ * collision the selected-day card had.
+ */
+describe('the fertility row past the horizon', () => {
+  it('says the estimate does not reach, not that the answer is unknown', () => {
+    const rows = summaryRows(
+      dashboard({ fertilityLevel: null, isBeyondHorizon: true }),
+      'tr'
+    );
+
+    expect(rows[2]?.value).toBe(homeMessages.tr.fertilityBeyondHorizon);
+    expect(rows[2]?.value).not.toBe(cycleLabels.tr.unknownLabel);
+  });
+
+  it('still says unknown for a day the cycle cannot place at all', () => {
+    const rows = summaryRows(
+      dashboard({ fertilityLevel: null, isBeyondHorizon: false }),
+      'tr'
+    );
+
+    expect(rows[2]?.value).toBe(cycleLabels.tr.unknownLabel);
   });
 });

@@ -101,6 +101,7 @@ describe('getCycleHomeData dashboard', () => {
       phase: 'luteal',
       fertilityLevel: 'low',
       nextPeriodStart: '2026-09-29',
+      isBeyondHorizon: false,
     });
   });
 });
