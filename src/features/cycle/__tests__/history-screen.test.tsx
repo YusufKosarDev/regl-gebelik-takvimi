@@ -10,9 +10,14 @@ import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
-import { HISTORY_DESCRIPTION, HISTORY_TITLE } from '@/features/cycle/presentation/history-messages';
+import {
+  HISTORY_DESCRIPTION,
+  HISTORY_EMPTY_MESSAGE,
+  HISTORY_TITLE,
+} from '@/features/cycle/presentation/history-messages';
 import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
 import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-messages';
+import { dailyLogHistoryMessages } from '@/features/daily-log/presentation/daily-log-history-messages';
 
 // The database is faked. The use case, the repository contract and the ordering
 // rule stay real, so what the screen lists is what the app would really read.
@@ -156,7 +161,7 @@ describe('HistoryScreen with nothing saved', () => {
 
     const { getByText, queryAllByTestId } = await renderScreen();
 
-    expect(getByText('Henüz kayıt bulunamadı.')).toBeTruthy();
+    expect(getByText(HISTORY_EMPTY_MESSAGE)).toBeTruthy();
     expect(queryAllByTestId(/^history-record-/)).toHaveLength(0);
   });
 
@@ -165,8 +170,30 @@ describe('HistoryScreen with nothing saved', () => {
 
     const { getByText, queryAllByTestId } = await renderScreen();
 
-    expect(getByText('Henüz kayıt bulunamadı.')).toBeTruthy();
+    expect(getByText(HISTORY_EMPTY_MESSAGE)).toBeTruthy();
     expect(queryAllByTestId(/^history-record-/)).toHaveLength(0);
+  });
+
+  /**
+   * Two empty lines on one screen, and they have to be told apart.
+   *
+   * This tab reports two kinds of record. It used to say "Henüz kayıt yok."
+   * under the counts and "Henüz kayıt bulunamadı." three lines further down,
+   * about daily entries and period records respectively, with nothing in
+   * either sentence saying which.
+   *
+   * The assertion is not that the words are any particular words. It is that
+   * the screen still has two distinct sentences in those two places: merge the
+   * keys back into one string and `getByText` finds the same text twice and
+   * fails, which is the edit this exists to catch.
+   */
+  it('tells its two empty lines apart', async () => {
+    repository.loadCycleProfile.mockResolvedValue(profile([]));
+
+    const { getByText } = await renderScreen();
+
+    expect(getByText(HISTORY_EMPTY_MESSAGE)).toBeTruthy();
+    expect(getByText(dailyLogHistoryMessages.tr.mostLoggedEmpty)).toBeTruthy();
   });
 });
 
@@ -282,7 +309,7 @@ describe('HistoryScreen when loading fails', () => {
     const { queryAllByTestId, queryByText } = await renderScreen();
 
     expect(queryAllByTestId(/^history-record-/)).toHaveLength(0);
-    expect(queryByText('Henüz kayıt bulunamadı.')).toBeNull();
+    expect(queryByText(HISTORY_EMPTY_MESSAGE)).toBeNull();
   });
 });
 
@@ -567,7 +594,7 @@ describe('HistoryScreen delete', () => {
     await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
     await fireEvent.press(screen.getByLabelText('Sil'));
 
-    expect(screen.getByText('Henüz kayıt bulunamadı.')).toBeTruthy();
+    expect(screen.getByText(HISTORY_EMPTY_MESSAGE)).toBeTruthy();
     expect(screen.queryAllByTestId(/^history-record-/)).toHaveLength(0);
   });
 

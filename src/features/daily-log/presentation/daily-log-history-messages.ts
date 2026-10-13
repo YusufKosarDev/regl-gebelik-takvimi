@@ -54,7 +54,26 @@ const dailyLogHistoryMessagesTr = {
    * the only thing standing between a count and a claim.
    */
   mostLoggedTitle: 'En çok kaydettiklerin',
-  mostLoggedEmpty: 'Henüz kayıt yok.',
+
+  /**
+   * Said when no day has been written on yet.
+   *
+   * It was "Henüz kayıt yok.", three lines above the period list's "Henüz
+   * kayıt bulunamadı." - two sentences a few lines apart, almost the same
+   * words, about two different things. Neither said which kind of record it
+   * meant, and on a tab whose whole job is to report what has been recorded
+   * that is the one thing they had to say.
+   *
+   * The two are built on the same frame now - which nothing, then where it
+   * comes from - so the only difference between them is the word that
+   * matters. See `historyEmptyMessage`.
+   *
+   * Still a sentence and not a control. The thing that fills this is adding a
+   * day, which is done elsewhere, so this says where the count comes from
+   * rather than offering a button that is not here. Same answer as the
+   * empty hero's.
+   */
+  mostLoggedEmpty: 'Henüz günlük kaydın yok; eklediğin günler burada sayılır.',
   mostLoggedDays: (count: number) => `${count} gün`,
   mostLoggedRowLabel: (label: string, count: number) => `${label}: ${count} gün`,
 
@@ -108,7 +127,7 @@ const dailyLogHistoryMessagesEn: DailyLogHistoryMessages = {
   markedDayMarker: '•',
 
   mostLoggedTitle: 'What you log most',
-  mostLoggedEmpty: 'Nothing logged yet.',
+  mostLoggedEmpty: 'No days logged yet; the days you log are counted here.',
   mostLoggedDays: (count: number) => `${count} ${count === 1 ? 'day' : 'days'}`,
   mostLoggedRowLabel: (label: string, count: number) =>
     `${label}: ${count} ${count === 1 ? 'day' : 'days'}`,

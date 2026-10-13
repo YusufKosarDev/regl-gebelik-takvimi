@@ -38,7 +38,27 @@ const historyMessagesTr = {
   historyLoadFailedMessage: 'Kayıtlar yüklenemedi.',
   historyDeleteFailedMessage: 'Kayıt silinemedi.',
   historyUpdateFailedMessage: 'Kayıt güncellenemedi.',
-  historyEmptyMessage: 'Henüz kayıt bulunamadı.',
+
+  /**
+   * Said where the list of recorded periods would be.
+   *
+   * The worse of the two empty lines this tab had. The list above it has a
+   * heading - "En çok kaydettiklerin" - and this one has none at all, so
+   * "Henüz kayıt bulunamadı." sat under three other blocks with nothing to
+   * say which of them it was about. It also read as a failed lookup rather
+   * than as an empty list.
+   *
+   * It names what it lists now, and then the one thing that puts a row in
+   * it. `mostLoggedEmpty` is built on the same frame for the same reason -
+   * the two were nearly the same sentence, and the only part that needed to
+   * differ was the kind of record.
+   *
+   * A sentence, not a control: a period start is recorded on the Cycle tab,
+   * which is where the period state changes, so this points there rather
+   * than offering a second way in from here.
+   */
+  historyEmptyMessage:
+    'Henüz regl kaydın yok; bir regl başlangıcı kaydettiğinde burada listelenir.',
 
   /* ------------------------------------------------------------ one record -- */
 
@@ -126,7 +146,8 @@ const historyMessagesEn: HistoryMessages = {
   historyLoadFailedMessage: 'Those records could not be loaded.',
   historyDeleteFailedMessage: 'That record could not be deleted.',
   historyUpdateFailedMessage: 'That record could not be updated.',
-  historyEmptyMessage: 'Nothing recorded yet.',
+  historyEmptyMessage:
+    'No period records yet; a period appears here once you record its start.',
 
   recordStartLabel: 'Started',
   recordEndLabel: 'Ended',

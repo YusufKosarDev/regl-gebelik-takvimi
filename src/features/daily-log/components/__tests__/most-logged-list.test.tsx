@@ -3,6 +3,7 @@ import { render } from '@testing-library/react-native';
 import { MostLoggedList } from '../most-logged-list';
 import { dailyLogCatalogueLabels } from '../../presentation/daily-log-catalogues';
 import { dailyLogMessages } from '../../presentation/daily-log-messages';
+import { dailyLogHistoryMessages } from '../../presentation/daily-log-history-messages';
 
 /**
  * The answer, before any chart.
@@ -48,7 +49,7 @@ describe('MostLoggedList', () => {
     // `PhaseCorrelationSummary` already keeps.
     const { getByText } = await render(<MostLoggedList flows={[]} symptoms={[]} moods={[]} />);
 
-    expect(getByText('Henüz kayıt yok.')).toBeTruthy();
+    expect(getByText(dailyLogHistoryMessages.tr.mostLoggedEmpty)).toBeTruthy();
   });
 
   it('skips a thing this language has no word for', async () => {
