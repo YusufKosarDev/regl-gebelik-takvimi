@@ -80,7 +80,12 @@ export function HomeModeSwitch({
 
       <Pressable
         accessibilityRole="tab"
-        accessibilityLabel={home.pregnancyTabLabel}
+        // The reason rides with the name: a disabled control cannot be pressed
+        // to ask why it is disabled, and "devre dışı" on its own is a state
+        // with no reason attached.
+        accessibilityLabel={
+          pregnancy === null ? home.pregnancyTabUnavailableLabel : home.pregnancyTabLabel
+        }
         accessibilityState={{ selected: isPregnancyView, disabled: pregnancy === null }}
         disabled={pregnancy === null}
         onPress={() => chooseMode('pregnancy')}

@@ -132,6 +132,29 @@ const homeMessagesTr = {
   cycleTabLabel: 'Döngü',
   pregnancyTabLabel: 'Gebelik',
 
+  /**
+   * What the Gebelik tab is called while there is no pregnancy to show.
+   *
+   * The segment is disabled until one exists, which is right - there is no
+   * second view to switch to - but "disabled" is all a person got. Visually a
+   * greyed word; to a screen reader "Gebelik, sekme, devre dışı", a state with
+   * no reason attached. It cannot be pressed to find out why, because being
+   * disabled is the thing being explained.
+   *
+   * So the reason goes in the label, between the name and the state, which is
+   * where it answers the question "devre dışı" is about to raise.
+   *
+   * A condition, not an instruction: "başlattığında", not "başlat". There is
+   * no control here to obey one - the way in is a row further down the same
+   * tab - and a label that implied this segment could start a pregnancy would
+   * be describing a button that does not exist.
+   *
+   * It echoes that row's own label, `pregnancyStartLinkLabel`, word for word,
+   * rather than saying where it is. A name stays correct when the screen is
+   * reordered and "below" does not.
+   */
+  pregnancyTabUnavailableLabel: 'Gebelik, gebelik takibini başlattığında kullanılabilir',
+
   /* ------------------------------------------------ the support section -- */
 
   supportMoodTitle: 'Olası ruh hali',
@@ -287,6 +310,7 @@ const homeMessagesEn: HomeMessages = {
 
   cycleTabLabel: 'Cycle',
   pregnancyTabLabel: 'Pregnancy',
+  pregnancyTabUnavailableLabel: 'Pregnancy, available once you start following a pregnancy',
 
   supportMoodTitle: 'How you might feel',
   supportMessageTitle: 'Today’s note',

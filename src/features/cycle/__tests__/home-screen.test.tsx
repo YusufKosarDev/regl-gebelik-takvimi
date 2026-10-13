@@ -2416,20 +2416,52 @@ describe('HomeScreen mode switch without a pregnancy', () => {
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
   });
 
-  it('offers the pregnancy view but refuses it', async () => {
+  /**
+   * Refused, and the refusal says why.
+   *
+   * A disabled control cannot be pressed to ask why it is disabled, so the
+   * reason rides with the name: a screen reader hears it between "Gebelik" and
+   * "devre dışı", which is where the question arises. The second assertion is
+   * what stops it going back to a bare name.
+   */
+  it('offers the pregnancy view, refuses it, and says what would open it', async () => {
     const screen = await renderScreen();
 
-    expect(screen.getByLabelText('Gebelik')).toBeTruthy();
-    expect(screen.getByLabelText('Gebelik').props.accessibilityState.disabled).toBe(true);
+    const tab = screen.getByLabelText(homeMessages.tr.pregnancyTabUnavailableLabel);
+
+    expect(tab.props.accessibilityState.disabled).toBe(true);
+    expect(screen.queryByLabelText(homeMessages.tr.pregnancyTabLabel)).toBeNull();
   });
 
   it('stays on the cycle view when it is pressed', async () => {
     const screen = await renderScreen();
 
-    await fireEvent.press(screen.getByLabelText('Gebelik'));
+    await fireEvent.press(screen.getByLabelText(homeMessages.tr.pregnancyTabUnavailableLabel));
 
     expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
     expect(appStateStorage.saveAppState).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The reason names a control that is on this screen.
+   *
+   * The label echoes `pregnancyStartLinkLabel` word for word rather than
+   * saying where that row is, so a screen reader user hears the exact name of
+   * the thing to look for. That is only worth anything while the row is
+   * actually there, which is what this asserts: the two move together or the
+   * label starts naming something that does not exist.
+   */
+  it('names a control that is on the screen', async () => {
+    const screen = await renderScreen();
+
+    // Lowercased, and a prefix rather than the whole phrase: Turkish inflects
+    // the verb, so the label says "başlattığında" where the row says
+    // "başlat". The shared stem is the part that has to survive, because it
+    // is what a person hears and then goes looking for.
+    expect(homeMessages.tr.pregnancyTabUnavailableLabel.toLocaleLowerCase('tr')).toContain(
+      homeMessages.tr.pregnancyStartLinkLabel.toLocaleLowerCase('tr')
+    );
+    expect(screen.getByLabelText(homeMessages.tr.pregnancyStartLinkLabel)).toBeTruthy();
   });
 
   it('keeps the cycle view usable', async () => {
@@ -2487,7 +2519,10 @@ describe('HomeScreen mode fallback', () => {
 
     expect(screen.queryByText('Gebelik takibi')).toBeNull();
     expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
-    expect(screen.getByLabelText('Gebelik').props.accessibilityState.disabled).toBe(true);
+    expect(
+      screen.getByLabelText(homeMessages.tr.pregnancyTabUnavailableLabel).props
+        .accessibilityState.disabled
+    ).toBe(true);
   });
 
   it('still shows the cycle view when the fallback write fails', async () => {
