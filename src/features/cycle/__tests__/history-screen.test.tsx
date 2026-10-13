@@ -11,6 +11,8 @@ import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
 import { HISTORY_DESCRIPTION, HISTORY_TITLE } from '@/features/cycle/presentation/history-messages';
+import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
+import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-messages';
 
 // The database is faked. The use case, the repository contract and the ordering
 // rule stay real, so what the screen lists is what the app would really read.
@@ -57,6 +59,7 @@ const db = jest.requireMock('@/storage/db');
 const repository = jest.requireMock('@/features/cycle/data/cycle-repository');
 const widgetSync = jest.requireMock('@/features/widget/application/sync-widget-snapshot');
 const reminderSync = jest.requireMock('@/features/notifications/application/sync-period-reminder');
+const dailyLogRepository = jest.requireMock('@/features/daily-log/data/daily-log-repository');
 const useRouterMock = useRouter as unknown as jest.Mock;
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
 
@@ -90,6 +93,11 @@ beforeEach(() => {
   widgetSync.syncWidgetSnapshotQuietly.mockResolvedValue(null);
   reminderSync.syncPeriodReminderQuietly.mockReset();
   reminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
+  // Reset like every other mock here rather than left as the module default:
+  // a describe that gives the tab some days to count would otherwise leave
+  // them for whatever runs next.
+  dailyLogRepository.loadAllDailyEntries.mockReset();
+  dailyLogRepository.loadAllDailyEntries.mockResolvedValue([]);
 
   back = jest.fn();
   useRouterMock.mockReset();
@@ -2142,5 +2150,42 @@ describe('HistoryScreen insights', () => {
     const screen = await renderScreen();
 
     expect(screen.getByText(HISTORY_TITLE)).toBeTruthy();
+  });
+});
+
+/**
+ * What the tab counts.
+ *
+ * `MostLoggedList` holds the rules about how the three groups are drawn. This
+ * holds the one thing only the screen can be wrong about: which of them it
+ * hands over. It passed `symptomIds` and `moodId` and nothing else, so flow -
+ * the one thing a period day always has - never reached the list that is the
+ * first answer on this screen.
+ */
+describe('HistoryScreen what you log most', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02' }])
+    );
+
+    dailyLogRepository.loadAllDailyEntries.mockResolvedValue([
+      { date: '2026-09-02' as ISODate, flowId: 'medium', moodId: 'good', symptomIds: ['cramps'] },
+      { date: '2026-09-03' as ISODate, flowId: 'medium', moodId: null, symptomIds: [] },
+    ]);
+  });
+
+  it('counts the flow that was recorded, not only symptoms and moods', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(dailyLogMessages.tr.flowSectionTitle)).toBeTruthy();
+    expect(getByText(dailyLogCatalogueLabels.tr.flows.medium)).toBeTruthy();
+    expect(getByText('2 gün')).toBeTruthy();
+  });
+
+  it('still counts the other two', async () => {
+    const { getByText } = await renderScreen();
+
+    expect(getByText(dailyLogCatalogueLabels.tr.symptoms.cramps)).toBeTruthy();
+    expect(getByText(dailyLogCatalogueLabels.tr.moods.good)).toBeTruthy();
   });
 });

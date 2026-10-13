@@ -392,6 +392,14 @@ export default function HistoryScreen() {
             {log !== null && (
               <>
                 <MostLoggedList
+                  // One per day, like the mood, so it takes the mood's limit
+                  // rather than the symptoms' three: the row answers what it
+                  // mostly was, and a day has exactly one answer.
+                  flows={mostLogged(
+                    log.entries,
+                    (entry) => (entry.flowId === null ? [] : [entry.flowId]),
+                    1
+                  )}
                   symptoms={mostLogged(log.entries, (entry) => entry.symptomIds, 3)}
                   moods={mostLogged(
                     log.entries,
