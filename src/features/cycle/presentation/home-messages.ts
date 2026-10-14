@@ -133,6 +133,33 @@ const homeMessagesTr = {
    * different words. The note that follows is the way out, because a screen
    * that only reports a dead end is worse than one that says what to do.
    */
+  /**
+   * Said once the predicted day has gone by with nothing recorded.
+   *
+   * The row showed `predictNextPeriodStart` whatever the date was, so somebody
+   * ten days late read "Sonraki regl tahmini: 4 Ekim 2026" on 14 October - a
+   * prediction stated as fact after it had expired, directly under a fertility
+   * row that had just declined to estimate and under a hero that had stopped
+   * naming a phase. The one row nobody looked at, contradicting the two that
+   * had been fixed.
+   *
+   * It turns on `isBeyondHorizon`, the same moment the hero and the card stop
+   * at, so the three agree rather than each having a boundary of its own.
+   *
+   * Not `nextPeriodStale`, which is for records so old the arithmetic means
+   * nothing and carries a note about adding a new one. This is the ordinary
+   * case - a few days late - and says the opposite kind of thing: there was an
+   * estimate and the day it named has passed.
+   *
+   * No note. The fertility row directly above already carries the
+   * contraception one, and two stacked notes bury each other.
+   *
+   * The date is not kept. "4 Ekim 2026 geçti" would put a past date back under
+   * a label that says estimate, which is the defect rather than a softer
+   * version of it; the `≈` marks on the calendar still show where it fell.
+   */
+  nextPeriodExpectedDayPassed: 'Beklenen gün geçti',
+
   nextPeriodStale: 'Şimdilik tahmin edilemiyor',
   predictionStaleNote:
     'Son kaydının üzerinden uzun süre geçti. Yeni bir regl kaydı eklediğinde tahmin yeniden hesaplanır.',
@@ -350,6 +377,7 @@ const homeMessagesEn: HomeMessages = {
   irregularCycleNote:
     'Your recorded cycle lengths vary, so a span is shown here instead of a single day.',
 
+  nextPeriodExpectedDayPassed: 'The expected day has passed',
   nextPeriodStale: 'Cannot be estimated right now',
   predictionStaleNote:
     'It has been a long time since your last record. Add a new period and the estimate is worked out again.',
@@ -624,6 +652,23 @@ function nextPeriodRowIn(
       label: messages.rowNextPeriod,
       value: messages.nextPeriodStale,
       note: messages.predictionStaleNote,
+    };
+  }
+
+  // Before the range, deliberately. An irregular profile past the horizon
+  // would otherwise be shown a span whose latest start has already gone by -
+  // the contradiction `predicted-period-range.ts` warns about, arriving
+  // through a different door.
+  //
+  // After the stale branch, equally deliberately: records older than
+  // `STALE_PREDICTION_DAYS` keep their own message and the note that says how
+  // to get a prediction back. That branch stays reachable; this one covers the
+  // ordinary window between the predicted day passing and the records going
+  // stale.
+  if (dashboard.isBeyondHorizon) {
+    return {
+      label: messages.rowNextPeriod,
+      value: messages.nextPeriodExpectedDayPassed,
     };
   }
 

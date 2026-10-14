@@ -1,4 +1,10 @@
-import { FERTILITY_DISCLAIMER, homeMessages, selectedDayRows, summaryRows } from '../home-messages';
+import {
+  FERTILITY_DISCLAIMER,
+  homeMessages,
+  selectedDayRows,
+  summaryRows,
+  summaryRowsIn,
+} from '../home-messages';
 import { cycleLabels } from '../cycle-labels';
 
 import type { CycleCalendarDay } from '@/features/cycle/application/build-cycle-calendar-month';
@@ -144,5 +150,74 @@ describe('the fertility row past the horizon', () => {
     );
 
     expect(rows[2]?.value).toBe(cycleLabels.tr.unknownLabel);
+  });
+});
+
+/**
+ * The next-period row once the predicted day has gone by.
+ *
+ * It showed `predictNextPeriodStart` whatever the date was, so somebody ten
+ * days late read a prediction for a day that had already passed - stated as
+ * fact, directly under a fertility row that had just declined to estimate.
+ *
+ * The boundary is `isBeyondHorizon`, the same one the hero and the card use,
+ * so three screens stop at one moment for one reason.
+ */
+describe('the next period row past the horizon', () => {
+  it('says the expected day has passed instead of naming it', () => {
+    const rows = summaryRows(dashboard({ isBeyondHorizon: true }), 'tr');
+
+    expect(rows[3]?.value).toBe(homeMessages.tr.nextPeriodExpectedDayPassed);
+    expect(rows[3]?.note).toBeUndefined();
+  });
+
+  it('still names the day while the predicted period is running', () => {
+    // The boundary this turns on: inside the predicted period the date is
+    // still the answer, and an off-by-one here would take it away a day early.
+    const rows = summaryRows(dashboard({ isBeyondHorizon: false }), 'tr');
+
+    expect(rows[3]?.value).toBe('2 Nisan 2026');
+  });
+
+  it('leaves a stale profile its own message, with its note', () => {
+    // The ordering this depends on: stale is checked first, so records older
+    // than STALE_PREDICTION_DAYS keep the message that explains how to get a
+    // prediction back rather than the plainer one. Both states are past the
+    // horizon - a 90-day-old record is past it by definition - so moving the
+    // horizon branch above the stale one would make that branch unreachable
+    // without failing anything else.
+    const rows = summaryRowsIn(
+      homeMessages.tr,
+      cycleLabels.tr,
+      dashboard({ isBeyondHorizon: true }),
+      'tr',
+      {
+        observations: {
+          lengths: [],
+          shortestDays: null,
+          longestDays: null,
+          medianDays: null,
+          spreadDays: null,
+          discardedCount: 0,
+        },
+        cycleLengthSuggestion: null,
+        predictionConfidence: 'stale',
+        nextPeriodRange: null,
+      }
+    );
+
+    expect(rows[3]?.value).toBe(homeMessages.tr.nextPeriodStale);
+    expect(rows[3]?.note).toBe(homeMessages.tr.predictionStaleNote);
+  });
+
+  it('does not say the same thing as the stale row', () => {
+    // They decline for different reasons: one because the records are too old
+    // to compute from, one because the day computed has been and gone.
+    expect(homeMessages.tr.nextPeriodExpectedDayPassed).not.toBe(
+      homeMessages.tr.nextPeriodStale
+    );
+    expect(homeMessages.en.nextPeriodExpectedDayPassed).not.toBe(
+      homeMessages.en.nextPeriodStale
+    );
   });
 });
