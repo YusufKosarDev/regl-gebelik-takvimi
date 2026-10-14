@@ -1,5 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { AppState, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/(tabs)/settings';
@@ -23,6 +23,7 @@ import {
   notifyLocalDataChanged,
   resetLocalDataChangeListenersForTests,
 } from '@/shared/data-change/local-data-change';
+import { DATA_REFRESHED_NOTICE } from '@/features/sync/presentation/sync-messages';
 import {
   MAX_CYCLE_LENGTH_DAYS,
   MAX_PERIOD_LENGTH_DAYS,
@@ -166,6 +167,34 @@ const openSettingsMock = jest.spyOn(Linking, 'openSettings');
 
 // Acting out leaving the screen and coming back, from the shared router mock.
 const { focusAgain } = jest.requireMock('expo-router') as { focusAgain: () => void };
+
+const addAppStateListener = AppState.addEventListener as unknown as jest.Mock;
+
+/**
+ * Acting out leaving the **app** and coming back, which is a different event.
+ *
+ * `focusAgain` is navigation focus: another tab, or a screen pushed on top of
+ * this one. Going to Android's own settings and pressing Back moves no
+ * navigation at all - this screen stays focused the whole way through - so the
+ * two have to be driven separately. They were treated as interchangeable here:
+ * tests named for the second route drove the first, passed, and left the
+ * second broken on a real phone.
+ *
+ * The listeners are held in a registry rather than replayed out of
+ * `mock.calls`, so a screen that has gone really is a screen that no longer
+ * hears anything.
+ */
+let appStateListeners: ((state: string) => void)[] = [];
+
+async function returnToForeground(): Promise<void> {
+  for (const state of ['background', 'active']) {
+    await act(async () => {
+      for (const listener of [...appStateListeners]) {
+        listener(state);
+      }
+    });
+  }
+}
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
@@ -233,6 +262,24 @@ beforeEach(() => {
     })
   );
   repository.saveCycleProfile.mockResolvedValue(undefined);
+
+  appStateListeners = [];
+  addAppStateListener.mockReset();
+  addAppStateListener.mockImplementation(
+    (event: string, listener: (state: string) => void) => {
+      if (event === 'change') {
+        appStateListeners.push(listener);
+      }
+
+      return {
+        remove: () => {
+          appStateListeners = appStateListeners.filter(
+            (registered) => registered !== listener
+          );
+        },
+      };
+    }
+  );
 
   back = jest.fn();
   useRouterMock.mockReset();
@@ -1490,9 +1537,8 @@ describe('when notifications are blocked for this app', () => {
     expect(permissionModule.ensureNotificationPermission).not.toHaveBeenCalled();
   });
 
-  it('picks up a permission granted while the app was in the background', async () => {
-    // Coming back from system settings should show the new answer without
-    // anybody having to press a switch to find out.
+  it('picks up a permission granted before this screen was opened again', async () => {
+    // Navigation focus: the answer changed while another tab was in front.
     permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
 
     const screen = await renderLoaded();
@@ -1506,6 +1552,29 @@ describe('when notifications are blocked for this app', () => {
     await act(async () => {
       focusAgain();
     });
+
+    await waitFor(() => {
+      expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+    });
+  });
+
+  it('picks up a permission granted while the app was in the background', async () => {
+    // The route this screen's own button sends people down: Android's
+    // settings, then Back. Navigation never moves, so nothing but the app
+    // coming forward can say the answer may have changed - and on a device
+    // nothing did, leaving somebody who had just granted the permission
+    // reading a notice telling them to go and grant it.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await returnToForeground();
 
     await waitFor(() => {
       expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
@@ -1846,6 +1915,34 @@ describe('the queue after permission arrives from outside the app', () => {
     // was queued while the system would not deliver, so without this the
     // sentence would come true only when the home screen was next opened -
     // the same defect of naming a remedy that does not happen, one screen on.
+    //
+    // Driven by the app coming forward rather than by a refocus, because that
+    // is what the way back from system settings actually is. Measured on a
+    // device: `dumpsys alarm` counted no reminders for the package after
+    // somebody turned notifications on and pressed Back, and two after they
+    // changed tabs. The empty queue is the severity of this - a wrong sentence
+    // is recoverable by anybody who switches tabs, and a reminder that was
+    // never scheduled is not.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    await renderLoaded();
+
+    reminderSync.syncPeriodReminderQuietly.mockClear();
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockClear();
+
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await returnToForeground();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalled();
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalled();
+  });
+
+  it('builds it when the screen is opened again instead', async () => {
+    // The other route to the same state, kept because both are real.
     permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
 
     await renderLoaded();
@@ -1879,6 +1976,46 @@ describe('the queue after permission arrives from outside the app', () => {
     await act(async () => {
       focusAgain();
     });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('does not claim a sync happened when the app simply came back', async () => {
+    // Coming back from another app is an arrival, not an interruption. The
+    // form is replaced either way - that trade is settled beside `load` - but
+    // "verilerin yenilendi" is a claim about another phone having written
+    // something, and nothing wrote anything here. The read still has to carry
+    // an origin, and this is the one assertion that notices which.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    const screen = await renderLoaded(28, 5);
+
+    await fireEvent.press(screen.getByLabelText('Ortalama döngü süresini artır'));
+
+    expect(screen.getByText('29')).toBeTruthy();
+
+    await returnToForeground();
+
+    await waitFor(() => {
+      expect(screen.getByText('28')).toBeTruthy();
+    });
+
+    expect(screen.queryByText(DATA_REFRESHED_NOTICE)).toBeNull();
+  });
+
+  it('does not rebuild it every time the app comes forward either', async () => {
+    // The new trigger re-reads; it does not re-queue. Somebody who checks a
+    // message and comes back ten times is not ten arrivals of a permission.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await renderLoaded();
+
+    reminderSync.syncPeriodReminderQuietly.mockClear();
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockClear();
+
+    await returnToForeground();
+    await returnToForeground();
 
     expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
     expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
@@ -1994,6 +2131,48 @@ describe('a reminder silenced in the phone’s own settings', () => {
     });
 
     expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+  });
+
+  it('stops saying so once the channel is switched back on', async () => {
+    // The direction that was worse on the device. Somebody reads "telefonun
+    // bildirim ayarlarında kapatılmış", follows the button, switches the
+    // channel back on and comes home to the same sentence - told their phone
+    // is wrong about something they have just put right.
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    silence({});
+
+    await returnToForeground();
+
+    await waitFor(() => {
+      expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+    });
+
+    expect(screen.queryByText(CHANNEL_OFF_NOTE)).toBeNull();
+  });
+
+  it('starts saying so when a channel is silenced while the app is away', async () => {
+    silence({});
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+
+    silence({ periodReminder: true });
+
+    await returnToForeground();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.getAllByText(CHANNEL_OFF_NOTE)).toHaveLength(1);
   });
 
   it('says nothing about a silenced channel whose reminder is off', async () => {

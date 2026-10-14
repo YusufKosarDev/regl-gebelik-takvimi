@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
+import { AppState } from 'react-native';
 
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import { onLocalDataChanged } from '@/shared/data-change/local-data-change';
@@ -13,22 +14,59 @@ import { onLocalDataChanged } from '@/shared/data-change/local-data-change';
  * looking at a screen showing the old version — and, worse, while a form holds
  * the old version ready to be saved back over it.
  *
- * Two triggers, one mechanism:
+ * Three triggers, one mechanism:
  *
- *   - gaining focus, which covers arriving at the screen and coming back to it
+ *   - gaining navigation focus, which covers arriving at the screen and coming
+ *     back to it from elsewhere in the app
+ *   - the app returning to the foreground while this screen is the focused one,
+ *     which covers everything that changed while somebody was in another app
  *   - an announcement from the change notifier while the screen is focused,
  *     which covers data arriving under somebody who is already looking
  *
- * The subscription lives and dies with focus, so a screen sitting in the
+ * The subscriptions live and die with focus, so a screen sitting in the
  * navigation stack does no work and cannot set state — it re-reads when it is
  * next looked at, which is the first moment the answer matters.
+ *
+ * ## The second trigger is not the first one wearing a different hat
+ *
+ * `useFocusEffect` is React Navigation's focus, and navigation does not move
+ * when Android does. Backgrounding the app and resuming it leaves the same
+ * screen focused the whole way through, so no focus effect runs and nothing is
+ * re-read. For a long time this hook's own description said focus "covers
+ * coming back to it", and the settings screen said the same thing about
+ * returning from system settings. Both were describing an event nobody was
+ * listening for.
+ *
+ * Measured on a device rather than argued about. With the period reminder on
+ * and notifications turned off in Android's settings, the settings screen
+ * correctly said so and offered its "open notification settings" button.
+ * Turning notifications back on there and pressing Back came home to a screen
+ * still insisting they were off — and to an empty queue: `dumpsys alarm`
+ * counted no reminders for the package. Switching to another tab and back
+ * rebuilt both of them. The stale sentence is recoverable by anyone who
+ * happens to change tabs; the empty queue is not recoverable by somebody who
+ * does not, and they are the person who did exactly what the app asked.
+ *
+ * `use-app-lock`, `use-automatic-sync` and `use-motion-allowed` were already
+ * listening to `AppState` for their own versions of this. This is the fourth.
+ *
+ * ## What the resume read costs
+ *
+ * One screen's read per return, because only the focused screen is subscribed.
+ * The price is the one focus already charges: a form holding unsaved edits is
+ * replaced by what is stored. The reasoning beside `settings`'s own `load` is
+ * what settles that — losing an unsaved edit is recoverable by retyping it,
+ * and losing a saved record from another phone is not — and a resume is that
+ * same argument rather than a new one.
  */
 
 /**
  * What a screen's reload does, and how to call it off.
  *
  * `origin` is `null` for the read that happens because the screen was opened,
- * which no notice should be attached to: nobody's work was interrupted.
+ * which no notice should be attached to: nobody's work was interrupted. A
+ * resume passes `null` too, and for the same reason — coming back to the app is
+ * an arrival, not an interruption.
  *
  * Returning a cancel function is optional but expected of any reload that sets
  * state after an await. Every one handed out is called when focus is lost, so a
@@ -75,8 +113,35 @@ export function useDataChangeReload(reload: DataChangeReload): void {
 
       const unsubscribe = onLocalDataChanged(run);
 
+      /*
+       * Whether the app has actually been away since this screen gained focus.
+       *
+       * `change` reports states that are not a trip out of the app, and a read
+       * per blip would be work nobody asked for. The question a resume answers
+       * is "did anything change while we were gone", which needs a gone to have
+       * happened — so the listener arms on the way out and fires on the way in.
+       */
+      let wasAway = AppState.currentState !== 'active';
+
+      const appState = AppState.addEventListener('change', (next) => {
+        if (next !== 'active') {
+          wasAway = true;
+
+          return;
+        }
+
+        if (!wasAway) {
+          return;
+        }
+
+        wasAway = false;
+
+        run(null);
+      });
+
       return () => {
         unsubscribe();
+        appState.remove();
 
         for (const cancel of cancels) {
           cancel();

@@ -235,9 +235,14 @@ export default function SettingsScreen() {
   /**
    * Which reminders Android itself is discarding.
    *
-   * Read beside the permission and for the same reason, on every load and every
-   * refocus: silencing a channel happens in system settings, so coming back is
-   * the moment the answer can have changed. It reads; it never prompts.
+   * Read beside the permission and for the same reason, on all three of
+   * `useDataChangeReload`'s triggers: mount, gaining navigation focus, and the
+   * app returning to the foreground. Silencing a channel happens in system
+   * settings, so coming back from another app is the moment the answer can have
+   * changed — and the third trigger is the one that covers it. Until the hook
+   * grew its `AppState` listener, that return fired nothing at all, and
+   * somebody could unblock a channel and come home to a screen still saying it
+   * was blocked. It reads; it never prompts.
    */
   const [blockedChannels, setBlockedChannels] = useState<BlockedReminderChannels>(
     NO_BLOCKED_REMINDER_CHANNELS
@@ -273,9 +278,11 @@ export default function SettingsScreen() {
   const readSettings = useCallback(async () => {
     const db = await openAppDatabase();
 
-    // The permission is read here too, on every load and every refocus, so
-    // coming back from system settings shows the new answer without anybody
-    // having to press a switch to find out. It reads; it never prompts.
+    // The permission is read here too, on the same three triggers, so coming
+    // back from system settings shows the new answer without anybody having to
+    // press a switch to find out. The panel below sends people to those
+    // settings itself, which makes the trip out and back the expected route
+    // rather than an unusual one. It reads; it never prompts.
     const [stored, storedReminders, storedDiscreet, storedAvatar, permission, blocked] =
       await Promise.all([
         getCycleSettings(db),

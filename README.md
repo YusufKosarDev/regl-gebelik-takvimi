@@ -955,6 +955,30 @@ b.includes(Buffer.from('Beklenen gün geçti', 'utf16le'));   // true
 b.includes(Buffer.from('Beklenen gün geçti', 'utf8'));      // false
 ```
 
+### Android's own surfaces follow the phone, not the app
+
+A Turkish build on an English phone asks for notification permission in
+**English**: "Allow Regl & Gebelik Takvimi to send you notifications?" The
+app's language setting reaches the app's own strings and nothing else. The
+permission dialog, the channel names' surrounding chrome, the App info page and
+the "1 category turned off" summary beneath it are all drawn by Android in the
+system locale.
+
+This is worth writing down for two readers. Anybody capturing store screenshots
+should know that a system dialog in frame is not evidence of a translation bug
+and should not be "fixed" by a code change — the only way to photograph it in
+Turkish is to set the **device** to Turkish. And anybody reviewing a report of
+one should know the same before filing it.
+
+The channel names themselves *are* the app's: "Regl hatırlatıcıları" and
+"Gebelik hatırlatıcıları" appear in Turkish on an English phone, because the
+app creates the channels with its own strings. The two sit side by side on the
+same settings page, in different languages, and that is correct.
+
+A related one on that page: a channel nothing has ever been posted on is
+collapsed under **Show unused categories**, so a freshly installed app shows no
+channel rows at all until the first reminder has actually been delivered.
+
 ### Play's aspect limit rules out a modern phone's native resolution
 
 Google Play requires that a screenshot's **longest side be no more than twice
@@ -1049,6 +1073,35 @@ through `use-motion-allowed.ts` and stops the drift because somebody asked it
 to, so what is being measured is the app behaving as designed. Put the three
 settings back to 1 afterwards.
 
+
+### App info relays out as it loads, and Uninstall arrives under your finger
+
+Driving Android's own settings with `adb shell input tap` is how the
+notification checks are run, and the App info page is the one screen on that
+route where a mistimed tap is expensive. It renders in two passes: first a
+plain list with **Notifications** near the top, then — once the package sizes
+have been computed — an Archive / Uninstall / Force stop row appears *above*
+the list and pushes everything down by about 220px.
+
+A tap aimed at **Notifications** from a screenshot taken during the first pass
+lands on **Uninstall** in the second, and the confirmation dialog is one more
+tap from wiping the app and every record in it. This happened once here. It was
+cancelled, and `pm list packages` confirmed the package and its 155MB of data
+were intact, but nothing about the tap itself said it was about to do that.
+
+So: on that screen, screenshot immediately before every tap and read the
+screenshot, rather than reusing coordinates from the one before. Where a direct
+intent exists, prefer it to navigating the page at all —
+
+```sh
+adb shell am start -a android.settings.APP_NOTIFICATION_SETTINGS \
+  --es android.provider.extra.APP_PACKAGE com.yusufkosardev.regltakvimi
+```
+
+— which lands on the notification page with no Uninstall button anywhere on it.
+The same holds for `uiautomator dump` on that page: it describes a layout that
+may already have been replaced, which is the stale-evidence problem above
+pointing at something that deletes data.
 
 ### Mutation testing, and verifying the mutation landed
 
@@ -1191,6 +1244,41 @@ const record = addDays(TODAY, -10);   // not '2026-09-01'
 
 A date written down stops meaning what it meant, silently, on a day nobody
 chose.
+
+#### A different tell: the right assertion, reached by the wrong event
+
+The five above assert the wrong thing. This one asserts exactly the right
+thing and never reaches the state it is named for.
+
+`settings-screen.test.tsx` had a test called **"picks up a permission granted
+while the app was in the background"**, and a whole `describe` block called
+**"the queue after permission arrives from outside the app"**. Both drove
+`focusAgain()` — the shared router mock's navigation refocus. Navigation focus
+is not the app coming back from Android: a trip to system settings and a press
+of Back leaves the same screen focused the entire time, so the one event those
+tests were named for was the one event they never fired.
+
+The assertions were right. The notice does clear and the queue is rebuilt — on
+a refocus. On a device, somebody who followed this screen's own "Bildirim
+ayarlarını aç" button, granted the permission and came back got the notice from
+before they left and **no reminders queued at all**; `dumpsys alarm` counted
+zero for the package, and two after a tab change. The fix was an `AppState`
+listener in `use-data-change-reload.ts`, which is the fourth place in this app
+to need one.
+
+The tell is in the name. **If a test's name says *when* — on resume, on
+reconnect, after a restart, while backgrounded — read what fires it and ask
+whether that is the same event.** A test harness only has the stimuli somebody
+built into it, and the easiest stimulus to reach for is rarely the one the name
+describes. `focusAgain()` existed; nothing acted out leaving the app, so
+nothing did.
+
+The repair is to keep both and name both: `settings-screen.test.tsx` now has a
+`returnToForeground()` beside `focusAgain()`, with the listeners held in a
+registry that honours `remove()` rather than replayed out of `mock.calls` —
+because a stand-in that keeps calling listeners a screen has removed answers
+"does an unfocused screen still read" with a cheerful yes. That shortcut was
+written first here, and it reported a correctly unsubscribed hook as leaking.
 
 ### Two scanners for defects nothing else can see
 
