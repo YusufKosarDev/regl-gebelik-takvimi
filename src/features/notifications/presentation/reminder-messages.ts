@@ -120,6 +120,46 @@ const reminderMessagesTr = {
    */
   reminderPermissionDeclinedMessage: 'Bildirim izni verilmedi.',
 
+  /* ----------------------------- a reminder silenced in system settings -- */
+
+  /**
+   * Shown while a reminder is on and its own channel has been switched off.
+   *
+   * A different failure from the three above, and the app has to say so
+   * differently: notifications are *not* off here. The permission is granted,
+   * the queue holds a reminder, and Android is discarding it because the person
+   * silenced that one channel in the system settings.
+   *
+   * So the sentence has to carry the distinction that is the whole of the
+   * problem — the switch on this screen against the switch on the phone — which
+   * is why it says "burada" and "telefonun bildirim ayarlarında" rather than
+   * naming either as "the" setting. Somebody looking at a switch that reads on
+   * needs to know they are looking at two switches, not one.
+   *
+   * It does not count the reminders, for the same reason
+   * `reminderUnreachableNotice` does not: the line under the affected switch is
+   * what identifies which one, and a sentence that counted would need a plural
+   * it cannot know in advance.
+   */
+  reminderChannelBlockedNotice:
+    'Burada açtığın bir hatırlatıcı telefonun bildirim ayarlarında kapatılmış, bu ' +
+    'yüzden sana ulaşamaz. Oradan tekrar açabilirsin.',
+
+  /**
+   * The line under the switch whose channel is the silenced one.
+   *
+   * Short on purpose. It sits directly beneath the row it contradicts and
+   * carries no remedy, because the notice above has just given it — repeating
+   * the way out under each switch would be the app saying the same thing twice
+   * on one screen.
+   *
+   * Per switch rather than one sentence naming both, because the two channels
+   * are independent: somebody can silence period reminders and keep the weekly
+   * pregnancy note. A single sentence would either enumerate awkwardly when
+   * both are off or leave somebody hunting for which reminder stopped.
+   */
+  reminderChannelOffNote: 'Telefon ayarlarında kapalı.',
+
   /** When the system settings screen refuses to open, which is rare and not fatal. */
   openSystemSettingsFailedMessage:
     'Telefon ayarları açılamadı. Ayarlar > Uygulamalar > Regl & Gebelik Takvimi > ' +
@@ -276,6 +316,12 @@ const reminderMessagesEn: ReminderMessages = {
   grantNotificationPermissionLabel: 'Allow notifications',
 
   reminderPermissionDeclinedMessage: 'Notification permission was not given.',
+
+  reminderChannelBlockedNotice:
+    'A reminder you turned on here has been turned off in your phone’s notification ' +
+    'settings, so it cannot reach you. You can turn it back on there.',
+
+  reminderChannelOffNote: 'Turned off in phone settings.',
 
   openSystemSettingsFailedMessage:
     'Your phone settings would not open. You can go there yourself: Settings > Apps > ' +

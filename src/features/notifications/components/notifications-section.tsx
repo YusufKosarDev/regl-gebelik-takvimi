@@ -4,6 +4,7 @@ import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
+import type { BlockedReminderChannels } from '../infrastructure/blocked-reminder-channels';
 import type { NotificationPreferences } from '../domain/notification-preferences';
 import type { NotificationPermissionStatus } from '../infrastructure/notification-permission';
 import { ReminderToggle } from './reminder-toggle';
@@ -30,6 +31,7 @@ export function NotificationsSection({
   discreetBusy,
   permission,
   askingPermission,
+  blockedChannels,
   settingsLinkNotice,
   onReminderChange,
   onDiscreetChange,
@@ -43,6 +45,7 @@ export function NotificationsSection({
   readonly discreetBusy: boolean;
   readonly permission: NotificationPermissionStatus | null;
   readonly askingPermission: boolean;
+  readonly blockedChannels: BlockedReminderChannels;
   readonly settingsLinkNotice: string | null;
   readonly onReminderChange: (field: keyof NotificationPreferences, next: boolean) => void;
   readonly onDiscreetChange: (next: boolean) => void;
@@ -83,13 +86,27 @@ export function NotificationsSection({
    */
   const canAskPermission = waitingOnPermission && permission !== 'denied';
 
+  /**
+   * A reminder whose own channel the person has silenced.
+   *
+   * Paired with the switch rather than asked on its own: a blocked channel
+   * under a switch that is off is not a problem, it is somebody who turned the
+   * reminder off and then turned it off again somewhere else.
+   */
+  const periodChannelSilenced =
+    reminders.periodReminderEnabled && blockedChannels.periodReminder;
+  const pregnancyChannelSilenced =
+    reminders.pregnancyWeeklyReminderEnabled && blockedChannels.pregnancyWeeklyReminder;
+  const anyChannelSilenced = periodChannelSilenced || pregnancyChannelSilenced;
+
   /*
    * The standing notice keeps exactly the case it was written for: nothing
    * switched on, and notifications blocked outright. 'undetermined' with every
    * switch off is still the ordinary starting point and would be a warning
    * about nothing.
    */
-  const showPermissionPanel = waitingOnPermission || permission === 'denied';
+  const showPermissionPanel =
+    waitingOnPermission || anyChannelSilenced || permission === 'denied';
 
   let permissionMessage = reminderStrings.notificationsBlockedNotice;
 
@@ -97,6 +114,13 @@ export function NotificationsSection({
     permissionMessage = canAskPermission
       ? reminderStrings.reminderPermissionMissingNotice
       : reminderStrings.reminderUnreachableNotice;
+  } else if (anyChannelSilenced) {
+    /*
+     * After the permission, deliberately. When nothing is being delivered at
+     * all, which channel is silenced is beside the point and saying so would
+     * send somebody to fix the smaller of two problems.
+     */
+    permissionMessage = reminderStrings.reminderChannelBlockedNotice;
   }
 
   return (
@@ -169,6 +193,16 @@ export function NotificationsSection({
           onChange={(next) => onReminderChange('periodReminderEnabled', next)}
         />
 
+        {/* Directly under the row it contradicts, which is the whole reason
+            this is per switch and not one sentence in the panel: the two
+            channels are independent, and somebody needs to know which of
+            their reminders stopped without going looking. */}
+        {periodChannelSilenced && (
+          <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+            {reminderStrings.reminderChannelOffNote}
+          </ThemedText>
+        )}
+
         <ReminderToggle
           label={reminderStrings.pregnancyWeeklyReminderToggleLabel}
           value={reminders.pregnancyWeeklyReminderEnabled}
@@ -176,6 +210,12 @@ export function NotificationsSection({
           disabled={reminderField !== null}
           onChange={(next) => onReminderChange('pregnancyWeeklyReminderEnabled', next)}
         />
+
+        {pregnancyChannelSilenced && (
+          <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+            {reminderStrings.reminderChannelOffNote}
+          </ThemedText>
+        )}
 
         {/* Below the two reminders, because it is about what they say
             and reads as nonsense above them. Its description sits

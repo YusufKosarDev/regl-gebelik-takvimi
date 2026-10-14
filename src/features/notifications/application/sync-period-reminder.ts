@@ -66,6 +66,27 @@ export async function syncPeriodReminder(
     return { scheduled: null, cancelled: await cancelPeriodReminders() };
   }
 
+  // ## A silenced channel is deliberately not treated like this, and the
+  // ## difference is worth keeping
+  //
+  // Somebody can switch off "Regl hatırlatıcıları" in Android's own settings
+  // while leaving notifications on for the app. `areNotificationsEnabled()`
+  // stays true, so the check above reads 'granted' and this function queues a
+  // reminder Android will discard. The screen says so - see
+  // `infrastructure/blocked-reminder-channels.ts` - and nothing here changes.
+  //
+  // Cancelling would look consistent with the branch above and would make
+  // things worse. This is a one-shot trigger on a date: left in the queue it
+  // fires correctly if the person unsilences the channel before that day, with
+  // the app never opened. Cancelled, nothing arrives even after they fix it,
+  // because nothing re-queues it until the app is next opened - and for the
+  // period reminder that is a date that has by then gone past.
+  //
+  // The branch above can afford to cancel because the preference rebuilds the
+  // queue on the next sync whatever happens. A date that has been and gone
+  // cannot be rebuilt. So the apparent inconsistency is the point: do not tidy
+  // it away.
+
   // One read for both answers. `getCycleDashboard` would load the profile too
   // and then throw it away, and the outlook needs it - two reads of the same
   // rows could also land either side of a write.

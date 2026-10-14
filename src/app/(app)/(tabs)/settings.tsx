@@ -39,6 +39,11 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domai
 import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import type { NotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
+import type { BlockedReminderChannels } from '@/features/notifications/infrastructure/blocked-reminder-channels';
+import {
+  NO_BLOCKED_REMINDER_CHANNELS,
+  loadBlockedReminderChannels,
+} from '@/features/notifications/infrastructure/blocked-reminder-channels';
 import {
   ensureNotificationPermission,
   getNotificationPermissionStatus,
@@ -226,6 +231,17 @@ export default function SettingsScreen() {
   // switches: a reminder can be switched on and still never arrive, and that is
   // the case worth a standing notice rather than a message after a press.
   const [permission, setPermission] = useState<NotificationPermissionStatus>('undetermined');
+
+  /**
+   * Which reminders Android itself is discarding.
+   *
+   * Read beside the permission and for the same reason, on every load and every
+   * refocus: silencing a channel happens in system settings, so coming back is
+   * the moment the answer can have changed. It reads; it never prompts.
+   */
+  const [blockedChannels, setBlockedChannels] = useState<BlockedReminderChannels>(
+    NO_BLOCKED_REMINDER_CHANNELS
+  );
   const [settingsLinkNotice, setSettingsLinkNotice] = useState<string | null>(null);
   const reminderInFlight = useRef(false);
 
@@ -260,17 +276,21 @@ export default function SettingsScreen() {
     // The permission is read here too, on every load and every refocus, so
     // coming back from system settings shows the new answer without anybody
     // having to press a switch to find out. It reads; it never prompts.
-    const [stored, storedReminders, storedDiscreet, storedAvatar, permission] = await Promise.all([
-      getCycleSettings(db),
-      loadNotificationPreferences(db),
-      loadDiscreetNotifications(db),
-      // The person, for the block at the top. Read on the same trip as the
-      // rest rather than in an effect of its own.
-      loadAvatarConfig(db),
-      getNotificationPermissionStatus().catch(
-        (): NotificationPermissionStatus => 'undetermined'
-      ),
-    ]);
+    const [stored, storedReminders, storedDiscreet, storedAvatar, permission, blocked] =
+      await Promise.all([
+        getCycleSettings(db),
+        loadNotificationPreferences(db),
+        loadDiscreetNotifications(db),
+        // The person, for the block at the top. Read on the same trip as the
+        // rest rather than in an effect of its own.
+        loadAvatarConfig(db),
+        getNotificationPermissionStatus().catch(
+          (): NotificationPermissionStatus => 'undetermined'
+        ),
+        // Nothing blocked when it cannot be read. Saying less than the app
+        // knows beats telling somebody their phone is wrong when it is not.
+        loadBlockedReminderChannels().catch(() => NO_BLOCKED_REMINDER_CHANNELS),
+      ]);
 
     return {
       settings: stored,
@@ -278,6 +298,7 @@ export default function SettingsScreen() {
       discreet: storedDiscreet,
       avatar: storedAvatar,
       permission,
+      blocked,
     };
   }, []);
 
@@ -311,6 +332,7 @@ export default function SettingsScreen() {
           setReminders(data.reminders);
           setDiscreet(data.discreet);
           setPermission(data.permission);
+          setBlockedChannels(data.blocked);
 
           /*
            * The moment a reminder already switched on can finally be queued.
@@ -767,6 +789,7 @@ export default function SettingsScreen() {
                 discreetBusy={discreetBusy}
                 permission={permission}
                 askingPermission={askingPermission}
+                blockedChannels={blockedChannels}
                 settingsLinkNotice={settingsLinkNotice}
                 onReminderChange={handleReminder}
                 onDiscreetChange={handleDiscreet}

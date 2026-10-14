@@ -104,6 +104,17 @@ jest.mock('@/features/notifications/infrastructure/notification-permission', () 
   ensureNotificationPermission: jest.fn(),
 }));
 
+// Likewise, and for the same reason: which channels Android is discarding is
+// something the screen is told, not something it works out. The module that
+// does work it out has its own tests, where expo-notifications is the fake.
+jest.mock('@/features/notifications/infrastructure/blocked-reminder-channels', () => ({
+  loadBlockedReminderChannels: jest.fn(),
+  NO_BLOCKED_REMINDER_CHANNELS: {
+    periodReminder: false,
+    pregnancyWeeklyReminder: false,
+  },
+}));
+
 jest.mock('@/features/notifications/application/set-reminder-enabled', () => ({
   setReminderEnabled: jest.fn(),
 }));
@@ -145,6 +156,9 @@ const discreet = jest.requireMock(
 );
 const permissionModule = jest.requireMock(
   '@/features/notifications/infrastructure/notification-permission'
+);
+const channelsModule = jest.requireMock(
+  '@/features/notifications/infrastructure/blocked-reminder-channels'
 );
 // Spied rather than module-mocked: React Native's own Linking is already in
 // place under jest-expo, and there is no system settings screen to open here.
@@ -199,6 +213,11 @@ beforeEach(() => {
   );
   permissionModule.getNotificationPermissionStatus.mockReset();
   permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+  channelsModule.loadBlockedReminderChannels.mockReset();
+  channelsModule.loadBlockedReminderChannels.mockResolvedValue({
+    periodReminder: false,
+    pregnancyWeeklyReminder: false,
+  });
   permissionModule.ensureNotificationPermission.mockReset();
   openSettingsMock.mockReset();
   openSettingsMock.mockResolvedValue(undefined);
@@ -1854,6 +1873,165 @@ describe('the queue after permission arrives from outside the app', () => {
 
     expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
     expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A reminder Android is discarding because the person silenced its channel.
+ *
+ * ## Why this is not the same finding as the three above
+ *
+ * Notifications are not off here. The permission reads 'granted',
+ * `syncPeriodReminder` queues a reminder, and Android throws it away because
+ * one channel in the system settings has been switched off.
+ * `areNotificationsEnabled()` - which is what the permission status folds in -
+ * stays true, so the read the app already makes cannot see any of it.
+ *
+ * ## Why the line is per switch
+ *
+ * The two channels are switched independently. Somebody tracking a pregnancy
+ * may well silence period reminders and keep the weekly note, and a single
+ * sentence in the panel would either enumerate awkwardly when both are off or
+ * leave somebody hunting for which of their reminders stopped.
+ */
+describe('a reminder silenced in the phone’s own settings', () => {
+  const CHANNEL_BLOCKED_NOTICE = reminderMessages.tr.reminderChannelBlockedNotice;
+  const CHANNEL_OFF_NOTE = reminderMessages.tr.reminderChannelOffNote;
+  const UNREACHABLE_NOTICE = reminderMessages.tr.reminderUnreachableNotice;
+
+  beforeEach(() => {
+    // Permission granted, which is the whole point: nothing the app already
+    // read reports a problem.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: true,
+    });
+  });
+
+  function silence(channels: {
+    periodReminder?: boolean;
+    pregnancyWeeklyReminder?: boolean;
+  }) {
+    channelsModule.loadBlockedReminderChannels.mockResolvedValue({
+      periodReminder: channels.periodReminder ?? false,
+      pregnancyWeeklyReminder: channels.pregnancyWeeklyReminder ?? false,
+    });
+  }
+
+  it('says so, and offers the settings where it was switched off', async () => {
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeTruthy();
+  });
+
+  it('marks the reminder that stopped, and only that one', async () => {
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(CHANNEL_OFF_NOTE)).toHaveLength(1);
+    });
+  });
+
+  it('marks both when both are silenced', async () => {
+    silence({ periodReminder: true, pregnancyWeeklyReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(CHANNEL_OFF_NOTE)).toHaveLength(2);
+    });
+  });
+
+  it('leaves the switch reading on, because that is what was asked for', async () => {
+    // The same contradiction as #34, from a different direction: the switch
+    // reports what is stored and the note reports what the phone will do.
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+  });
+
+  it('says nothing about a silenced channel whose reminder is off', async () => {
+    // Not a problem: somebody turned the reminder off and then turned it off
+    // again somewhere else.
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: false,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+    silence({ periodReminder: true, pregnancyWeeklyReminder: true });
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+    expect(screen.queryByText(CHANNEL_OFF_NOTE)).toBeNull();
+  });
+
+  it('says nothing when no channel is silenced', async () => {
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+    expect(screen.queryByText(CHANNEL_OFF_NOTE)).toBeNull();
+  });
+
+  it('gives way to the app-wide notice when nothing is delivered at all', async () => {
+    // Which channel is silenced is beside the point when the app has no
+    // permission, and saying so would send somebody to fix the smaller of two
+    // problems.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(UNREACHABLE_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+  });
+
+  it('keeps the screen usable when the channels cannot be read', async () => {
+    // Nothing blocked rather than a guess. Telling somebody their phone is
+    // wrong when it is not is worse than missing a silenced channel.
+    channelsModule.loadBlockedReminderChannels.mockRejectedValue(new Error('no module'));
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+    expect(screen.getByLabelText('Regl hatırlatıcısı')).toBeTruthy();
+  });
+
+  it('picks up a channel switched back on while the app was in the background', async () => {
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    silence({});
+
+    await act(async () => {
+      focusAgain();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(CHANNEL_BLOCKED_NOTICE)).toBeNull();
+    });
   });
 });
 
