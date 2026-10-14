@@ -722,13 +722,49 @@ silhouette, both splash images and the favicon cannot drift apart.
 To change any of them, edit that file and run it again:
 
 ```sh
-npm install --no-save sharp
 node assets/icon-source/generate-icons.mjs
 ```
 
-`sharp` renders the SVG and resizes it. `--no-save` keeps it out of
-`package.json` and the lockfile: it is a build tool for this one script, and
-nothing the app or CI needs.
+`sharp` renders the SVG and resizes it, and is a devDependency. It used to be
+installed with `--no-save` on the grounds that it is a build tool rather than
+something the app ships. That is true and it was still the wrong call: the next
+person to run either generator met a missing module with nothing saying what to
+install, and an asset pipeline that works only on the machine that last ran it
+is not a pipeline. It is in the lockfile now.
+
+### The store graphics come from the same geometry
+
+[`assets/icon-source/generate-store-graphics.mjs`](assets/icon-source/generate-store-graphics.mjs)
+writes the Play feature graphic in both languages and the 512px store icon into
+`assets/store/`, which is not bundled into the app.
+
+```sh
+node assets/icon-source/generate-store-graphics.mjs
+```
+
+It is deliberately not a separate piece of design. The crescent is the icon's
+own construction scaled — r=250 cut by r=225 at +108/−52, disc r=60 at
++148/−72 — the gradient is the icon background's two ends, and the dotted arc is
+the one the cycle screen draws under the day count. A brand change that reached
+the icons and missed the banner is precisely the drift the generator's "the
+shapes cannot drift apart" exists to prevent, and the store page is the first
+thing anybody sees.
+
+Two things it does that are not obvious:
+
+- **The words are drawn by `ffmpeg`, not by the SVG.** Fraunces is bundled
+  rather than installed, and librsvg resolves font families by name — the SVG
+  would fall back to whatever serif the machine has and nobody would notice
+  until the banner was live. `drawtext` takes a font file by path, so the type
+  comes from `node_modules/@expo-google-fonts/fraunces` or it does not render.
+- **The line breaks are written out rather than wrapped**, because they have to
+  clear the crescent and the two languages are different lengths. At 66px on
+  three lines the type ends 189px short of the mark in Turkish and 165px in
+  English; the first attempt, 78px on two lines, ran the second line through it.
+
+Play's two fields want different things and the script writes both: the feature
+graphic is 1024x500 24-bit with **no** alpha, and the store icon is 512x512
+**with** one, which is why it is a re-render of `icon.png` rather than a copy.
 
 ### The palette
 

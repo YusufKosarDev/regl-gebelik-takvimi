@@ -56,9 +56,10 @@ module.exports = defineConfig([
     },
   },
 
-  // The icon generator is a Node script run by hand, and `sharp` is installed
-  // with `--no-save` on purpose - it is a build tool for this one file, not
-  // something the app or CI needs - so it is never resolvable from here.
+  // The asset generators are Node scripts run by hand. They import `sharp`,
+  // which is a devDependency rather than something the app bundles, and this
+  // config lints with the app's resolver - so the import is reachable at run
+  // time and unresolvable from here.
   {
     files: ['assets/icon-source/*.mjs'],
     languageOptions: {

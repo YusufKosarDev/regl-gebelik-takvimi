@@ -1,11 +1,14 @@
 /**
  * Regenerates every app icon from one piece of geometry.
  *
- *   npm install --no-save sharp
  *   node assets/icon-source/generate-icons.mjs
  *
- * `--no-save` keeps sharp out of package.json and the lockfile: it is a build
- * tool for this one script, not something the app or CI needs.
+ * `sharp` is a devDependency. It used to be installed with `--no-save` on the
+ * grounds that it is a build tool for one script rather than something the app
+ * ships — true, but it left the next person running this with a missing module
+ * and nothing saying what to install. An asset pipeline that works only on the
+ * machine that last ran it is not reproducible, and the lockfile is where that
+ * is fixed. `generate-store-graphics.mjs` beside this file uses it too.
  *
  * The mark is a crescent - one circle cut by another - with a small disc
  * resting between its horns. Everything below is derived from that: the
