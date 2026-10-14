@@ -2041,6 +2041,786 @@ mean anything to an English reader; flag it if it would not.
   <https://my.clevelandclinic.org/health/articles/7247-fetal-development-stages-of-growth>
 
 
+## 4. The strings that make a claim without a citation
+
+Sections 2 and 3 are written from medical sources and carry them. These are
+not. They are the app's own sentences about somebody's body, written in
+Turkish and then written again in English, and nothing outside the
+repository they live in has ever read the English half.
+
+### What to check for in this section
+
+These fail differently from the health content, and the difference matters
+more than the resemblance. A week note fails by sounding like advice. These
+fail in three other ways:
+
+1. **A limit that reads as a fact.** Most of 4e exists to stop the app
+   claiming something: that a prediction has run out, that a count is
+   arithmetic rather than a forecast, that a fertility figure is a guess.
+   English can turn a refusal into an assertion without altering the meaning
+   of a single word. "The expected day has passed" is a boundary; "Your
+   period is late" would be a finding about a person, and the app does not
+   know that. If a sentence written to withhold reads like a result, that is
+   the failure, and it is the one most likely to be missed because the
+   sentence will read perfectly well.
+2. **A label that tells somebody how they are.** "Luteal", "Highest", "How
+   you might feel". These appear as a value beside a date with no sentence
+   around them to soften anything. Each has to be readable as an estimate
+   drawn from an average cycle. One that reads as a measurement of this
+   person in this month is wrong however right it is on average - and in
+   English a single word carries more certainty than its Turkish counterpart
+   more often than the reverse, because English has fewer ways to be
+   tentative in one word.
+3. **More said than was meant to be.** The six strings in 4a arrive on a
+   locked phone. See below.
+
+The two directions from section 1 - a hedge that weakened, a claim that
+strengthened - apply here as well and are not repeated.
+
+### Six of these are read by somebody who is not the user
+
+Everything in 4a is delivered as a notification, which Android prints on the
+lock screen whether the app would prefer it or not. The app asked not to,
+with the option that exists for exactly that, and the platform discarded it -
+so the only thing it controls is the wording, and that is what 4a is.
+
+Read those six as if over a shoulder, on a phone lying on a table in a
+shared room. The question is not whether the sentence is accurate. It is
+what somebody who is not the user learns from it. The Turkish was written
+against that test; the English has never been held to it by anyone.
+
+The discreet pair exists for people who need less said: one wording for both
+reminders, so that nothing in the words distinguishes a period reminder from
+a pregnancy one. If the English discreet lines give away which reminder
+arrived - by tone, by register, by a word the other would not use - that
+defeats the setting, and it is the single most important thing in this
+section.
+
+What it does not hide, and does not claim to: the app's name and its icon
+are on the notification. 4b's first entry is the sentence that admits that.
+Check that it admits it plainly in English too.
+
+### The mechanical check has already been run, and found nothing
+
+Section 1's first check - a hedge that weakened - is the one a rule can
+approximate, so it was tried: all 54 pairs in sections 2 and 3, Turkish
+hedging matched against English hedging. **One hit, and it was wrong.** Week
+24's Turkish "yaşayabilir" is the quoted technical term that the English
+carries as the quoted "viable", and the English hedges in a way the pattern
+could not see - "would have a chance of surviving".
+
+So there is no rule-detectable hedge asymmetry anywhere in this document, and
+the scan was not kept. A check that passes on everything and has never caught
+anything is worse than no check, because the next person reads the green and
+stops looking.
+
+That is said here for two reasons: so nobody writes it again, and because it
+locates what is left. What remains is the part no pattern reaches - whether a
+sentence sounds natural, whether it sounds like advice, whether it sounds
+more certain than the thing it describes. That is the whole of why a person
+is being asked.
+
+### What is not in this section, and why
+
+A string is here if it **makes or withholds a claim about the person's body,
+or about a prediction of it**. That admits "Luteal" and "The expected day has
+passed"; it excludes "Takvim", "Bugün", "Kaydet" and the thousand or so other
+interface strings, none of which say anything about anybody.
+
+Six strings a looser reading would have admitted are deliberately out: row
+labels that name a claim without making one, and the calendar legend's
+period mark, which describes a record rather than a prediction. If the rule
+has drawn that line in the wrong place, say so - that is more useful than a
+section that grew because nobody wanted to argue about it.
+
+47 pairs in all.
+
+### 4a. What a reminder says
+
+All six of these arrive on a locked phone. Read them as described above:
+not whether the sentence is accurate, but what somebody who is not the
+user learns from it.
+
+#### `periodReminderTitle`
+
+**Turkish**
+
+```text
+Regl hatırlatıcısı
+```
+
+**English**
+
+```text
+Period reminder
+```
+
+#### `periodReminderBody`
+
+**Turkish**
+
+```text
+Tahminine göre regl dönemin yaklaşıyor.
+```
+
+**English**
+
+```text
+Based on your average, your period is expected soon.
+```
+
+#### `pregnancyWeeklyReminderTitle`
+
+**Turkish**
+
+```text
+Gebelik takibi
+```
+
+**English**
+
+```text
+Pregnancy tracking
+```
+
+#### `pregnancyWeeklyReminderBody`
+
+**Turkish**
+
+```text
+Bu haftaki gebelik gelişim bilgilerine göz atabilirsin.
+```
+
+**English**
+
+```text
+You can have a look at this week’s development notes.
+```
+
+#### `discreetReminderTitle`
+
+**Turkish**
+
+```text
+Hatırlatıcı
+```
+
+**English**
+
+```text
+Reminder
+```
+
+#### `discreetReminderBody`
+
+**Turkish**
+
+```text
+Uygulamayı açtığında hatırlatmanı görebilirsin.
+```
+
+**English**
+
+```text
+Open the app to see your reminder.
+```
+
+### 4b. What the app says about reminders
+
+Shown in the app's own settings, under the switches they describe.
+
+#### `discreetNotificationsDescription`
+
+**Turkish**
+
+```text
+Açıkken hatırlatıcılar regl ya da gebelikten söz etmez, yalnızca uygulamayı açmanı söyler. Android bildirim metnini kilit ekranında gösterir ve uygulama bunu gizleyemez; değiştirebildiği tek şey metnin kendisidir.
+```
+
+**English**
+
+```text
+When this is on, reminders do not mention periods or pregnancy — they only tell you to open the app. Android shows notification text on the lock screen and this app cannot hide it; the only part it can change is the text itself.
+```
+
+#### `pregnancyWeeklyReminderDescription`
+
+**Turkish**
+
+```text
+Gebelik takibi açıkken her pazartesi gelir.
+```
+
+**English**
+
+```text
+Arrives on Monday mornings while you are tracking a pregnancy.
+```
+
+### 4c. What Android's own settings show
+
+Not on a lock screen. These are read in the phone's notification
+settings, in a list beside every other app on it, by somebody deciding
+whether to keep these at all.
+
+#### `periodReminderChannelName`
+
+**Turkish**
+
+```text
+Regl hatırlatıcıları
+```
+
+**English**
+
+```text
+Period reminders
+```
+
+#### `periodReminderChannelDescription`
+
+**Turkish**
+
+```text
+Tahmini regl tarihinden bir gün önce, sabah saatlerinde tek bir hatırlatma.
+```
+
+**English**
+
+```text
+One reminder in the morning, the day before your period is expected.
+```
+
+#### `pregnancyWeeklyReminderChannelName`
+
+**Turkish**
+
+```text
+Gebelik hatırlatıcıları
+```
+
+**English**
+
+```text
+Pregnancy reminders
+```
+
+#### `pregnancyWeeklyReminderChannelDescription`
+
+**Turkish**
+
+```text
+Gebelik takibi açıkken her pazartesi sabah saatlerinde haftalık bilgilendirme.
+```
+
+**English**
+
+```text
+A weekly note on Monday mornings, while you are following a pregnancy.
+```
+
+### 4d. Phase and fertility labels
+
+Each of these appears as a value beside a date, with no sentence around
+it to soften anything.
+
+#### `phaseLabels.menstrual`
+
+**Turkish**
+
+```text
+Regl
+```
+
+**English**
+
+```text
+Period
+```
+
+#### `phaseLabels.follicular`
+
+**Turkish**
+
+```text
+Foliküler
+```
+
+**English**
+
+```text
+Follicular
+```
+
+#### `phaseLabels.ovulatory`
+
+**Turkish**
+
+```text
+Yumurtlama
+```
+
+**English**
+
+```text
+Ovulation
+```
+
+#### `phaseLabels.luteal`
+
+**Turkish**
+
+```text
+Luteal
+```
+
+**English**
+
+```text
+Luteal
+```
+
+#### `fertilityLabels.low`
+
+**Turkish**
+
+```text
+Düşük
+```
+
+**English**
+
+```text
+Low
+```
+
+#### `fertilityLabels.elevated`
+
+**Turkish**
+
+```text
+Yüksek
+```
+
+**English**
+
+```text
+Raised
+```
+
+#### `fertilityLabels.peak`
+
+**Turkish**
+
+```text
+En yüksek
+```
+
+**English**
+
+```text
+Highest
+```
+
+#### `fertilityInSentence.low`
+
+**Turkish**
+
+```text
+doğurganlık düşük
+```
+
+**English**
+
+```text
+fertility low
+```
+
+#### `fertilityInSentence.elevated`
+
+**Turkish**
+
+```text
+doğurganlık yüksek
+```
+
+**English**
+
+```text
+fertility raised
+```
+
+#### `fertilityInSentence.peak`
+
+**Turkish**
+
+```text
+doğurganlık en yüksek
+```
+
+**English**
+
+```text
+fertility highest
+```
+
+#### `predictedPeriodStart`
+
+**Turkish**
+
+```text
+sonraki regl başlangıcı tahmini
+```
+
+**English**
+
+```text
+next period expected to start
+```
+
+#### `predictedPeriodDay`
+
+**Turkish**
+
+```text
+tahmini regl günü
+```
+
+**English**
+
+```text
+expected period day
+```
+
+#### `unknownLabel`
+
+**Turkish**
+
+```text
+Bilinmiyor
+```
+
+**English**
+
+```text
+Not known
+```
+
+### 4e. Where the app stops claiming
+
+Most of these exist to withhold something. A limit that reads as a fact
+is the failure to look for, and it is the one easiest to miss, because
+the sentence will read perfectly well.
+
+#### `supportDisclaimer`
+
+**Turkish**
+
+```text
+Bu bilgiler geneldir; kişiden kişiye ve aydan aya değişebilir.
+```
+
+**English**
+
+```text
+This is general information; it varies from person to person and month to month.
+```
+
+#### `fertilityDisclaimer`
+
+**Turkish**
+
+```text
+Doğurganlık bilgileri tahminidir ve gebelikten korunma yöntemi olarak kullanılmamalıdır.
+```
+
+**English**
+
+```text
+Fertility information is an estimate and must not be used as a method of contraception.
+```
+
+#### `supportMoodTitle`
+
+**Turkish**
+
+```text
+Olası ruh hali
+```
+
+**English**
+
+```text
+How you might feel
+```
+
+#### `rowFertility`
+
+**Turkish**
+
+```text
+Doğurganlık tahmini
+```
+
+**English**
+
+```text
+Fertility estimate
+```
+
+#### `rowNextPeriod`
+
+**Turkish**
+
+```text
+Sonraki regl tahmini
+```
+
+**English**
+
+```text
+Next period estimate
+```
+
+#### `fertilityBeyondHorizon`
+
+**Turkish**
+
+```text
+Bugüne ulaşmıyor
+```
+
+**English**
+
+```text
+Does not reach today
+```
+
+#### `cycleNotStarted`
+
+**Turkish**
+
+```text
+Henüz başlamadı
+```
+
+**English**
+
+```text
+Not started yet
+```
+
+#### `noCycleDayMessage`
+
+**Turkish**
+
+```text
+Gün sayısı ilk reglinle başlar
+```
+
+**English**
+
+```text
+The day count starts with your first period
+```
+
+#### `countContinuesMessage`
+
+**Turkish**
+
+```text
+Gün sayısı sürüyor; tahminler bir sonraki reglinden öteye geçmiyor.
+```
+
+**English**
+
+```text
+The day count continues; estimates do not reach past your next period.
+```
+
+#### `nextPeriodUnknown`
+
+**Turkish**
+
+```text
+Henüz hesaplanamıyor
+```
+
+**English**
+
+```text
+Cannot be worked out yet
+```
+
+#### `nextPeriodRangeValue`
+
+**Turkish**
+
+```text
+3 Mart – 9 Mart
+```
+
+**English**
+
+```text
+3 March – 9 March
+```
+
+#### `irregularCycleNote`
+
+**Turkish**
+
+```text
+Kayıtlarındaki döngü süreleri değişkenlik gösterdiği için tek bir gün yerine aralık gösteriliyor.
+```
+
+**English**
+
+```text
+Your recorded cycle lengths vary, so a span is shown here instead of a single day.
+```
+
+#### `nextPeriodExpectedDayPassed`
+
+**Turkish**
+
+```text
+Beklenen gün geçti
+```
+
+**English**
+
+```text
+The expected day has passed
+```
+
+#### `nextPeriodStale`
+
+**Turkish**
+
+```text
+Şimdilik tahmin edilemiyor
+```
+
+**English**
+
+```text
+Cannot be estimated right now
+```
+
+#### `predictionStaleNote`
+
+**Turkish**
+
+```text
+Son kaydının üzerinden uzun süre geçti. Yeni bir regl kaydı eklediğinde tahmin yeniden hesaplanır.
+```
+
+**English**
+
+```text
+It has been a long time since your last record. Add a new period and the estimate is worked out again.
+```
+
+#### `cycleLengthSuggestionTitle`
+
+**Turkish**
+
+```text
+Döngü süren değişmiş olabilir
+```
+
+**English**
+
+```text
+Your cycle length may have changed
+```
+
+#### `predictedPeriodStartNote`
+
+**Turkish**
+
+```text
+Sonraki regl başlangıcı tahmini
+```
+
+**English**
+
+```text
+Next period expected to start
+```
+
+#### `predictedPeriodDayNote`
+
+**Turkish**
+
+```text
+Tahmini regl dönemine ait bir gün
+```
+
+**English**
+
+```text
+A day of the expected period
+```
+
+#### `calendarEstimateNotice`
+
+**Turkish**
+
+```text
+Takvimdeki doğurganlık ve yumurtlama bilgileri tahminidir.
+```
+
+**English**
+
+```text
+The fertility and ovulation marks on this calendar are estimates.
+```
+
+#### `legendOvulationDay`
+
+**Turkish**
+
+```text
+Tahmini yumurtlama günü
+```
+
+**English**
+
+```text
+Estimated day of ovulation
+```
+
+#### `legendRaisedFertility`
+
+**Turkish**
+
+```text
+Doğurganlığın yüksek olduğu tahmini gün
+```
+
+**English**
+
+```text
+Estimated day of raised fertility
+```
+
+#### `legendNextPeriod`
+
+**Turkish**
+
+```text
+Tahmini regl günleri
+```
+
+**English**
+
+```text
+Expected period days
+```
+
+
 ## Returning this
 
 

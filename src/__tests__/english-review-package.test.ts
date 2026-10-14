@@ -2,7 +2,10 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { cycleDailySupport } from '@/features/cycle/data/cycle-daily-support';
+import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
+import { homeMessages } from '@/features/cycle/presentation/home-messages';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
+import { reminderMessages } from '@/features/notifications/presentation/reminder-messages';
 import { pregnancyWeeklyContent } from '@/features/pregnancy/data/pregnancy-weekly-content';
 
 /**
@@ -30,9 +33,28 @@ import { pregnancyWeeklyContent } from '@/features/pregnancy/data/pregnancy-week
  *
  * The disclaimer, the four cycle phases and all forty pregnancy weeks: Turkish
  * and English side by side, each entry with its own citations, each section with
- * what to check for. Nothing else - the interface strings are not in here. A
- * reviewer given 1,400 strings reads none of them; these are the ones where
- * being wrong matters, and they are the ones written from medical sources.
+ * what to check for.
+ *
+ * Section 4 then carries the strings that make a claim without a citation - the
+ * notification wording, the phase and fertility labels, and the sentences that
+ * exist to stop the app claiming something. They are not written from medical
+ * sources, which is exactly why nobody outside this repository had ever read
+ * the English half.
+ *
+ * ## The rule for what belongs in section 4, so the boundary stays decidable
+ *
+ * A string belongs there if it **makes or withholds a claim about the person's
+ * body, or about a prediction of it**. That admits "Luteal" and "The expected
+ * day has passed"; it excludes "Takvim", "Bugün", "Kaydet" and the thousand
+ * or so other interface strings. A reviewer given 1,400 strings reads none of
+ * them; these are the ones where being wrong matters.
+ *
+ * Six strings were left out that a looser reading would have admitted - row
+ * labels that name a claim without making one, and the legend's period mark,
+ * which describes a record rather than a prediction. They stay out. Admitting
+ * them would put the next person's boundary back to a judgement call, and a
+ * reviewer telling us the rule drew the line wrong is better feedback than a
+ * section that grew because nobody wanted to argue.
  */
 
 const OUTPUT = join(__dirname, '..', '..', 'ENGLISH_REVIEW.md');
@@ -290,12 +312,350 @@ function pregnancySection(): string {
   ].join('\n');
 }
 
+
+/* ------------------------------------------------------------------------- */
+/* Section 4: the claims with no citation behind them                        */
+/* ------------------------------------------------------------------------- */
+
+/** One labelled pair in section 4. */
+type ClaimEntry = {
+  readonly label: string;
+  readonly tr: string;
+  readonly en: string;
+};
+
+/**
+ * The inventory, written out rather than derived.
+ *
+ * Every entry names its catalogue key in the label, so a correction can be
+ * applied without anybody searching for the string. Listed explicitly because
+ * the inclusion rule is a judgement about meaning and cannot be computed from
+ * a catalogue: a loop over `homeMessages` would pull in "Kaydet".
+ */
+function claimGroups(): readonly {
+  readonly id: string;
+  readonly title: string;
+  readonly intro: readonly string[];
+  readonly entries: readonly ClaimEntry[];
+}[] {
+  const tr = reminderMessages.tr;
+  const en = reminderMessages.en;
+  const labelsTr = cycleLabels.tr;
+  const labelsEn = cycleLabels.en;
+  const homeTr = homeMessages.tr;
+  const homeEn = homeMessages.en;
+
+  const entry = (label: string, trValue: string, enValue: string): ClaimEntry => ({
+    label,
+    tr: trValue,
+    en: enValue,
+  });
+
+  return [
+    {
+      id: '4a',
+      title: 'What a reminder says',
+      intro: [
+        'All six of these arrive on a locked phone. Read them as described above:',
+        'not whether the sentence is accurate, but what somebody who is not the',
+        'user learns from it.',
+      ],
+      entries: [
+        entry('periodReminderTitle', tr.periodReminderTitle, en.periodReminderTitle),
+        entry('periodReminderBody', tr.periodReminderBody, en.periodReminderBody),
+        entry(
+          'pregnancyWeeklyReminderTitle',
+          tr.pregnancyWeeklyReminderTitle,
+          en.pregnancyWeeklyReminderTitle
+        ),
+        entry(
+          'pregnancyWeeklyReminderBody',
+          tr.pregnancyWeeklyReminderBody,
+          en.pregnancyWeeklyReminderBody
+        ),
+        entry('discreetReminderTitle', tr.discreetReminderTitle, en.discreetReminderTitle),
+        entry('discreetReminderBody', tr.discreetReminderBody, en.discreetReminderBody),
+      ],
+    },
+    {
+      id: '4b',
+      title: 'What the app says about reminders',
+      intro: [
+        'Shown in the app\'s own settings, under the switches they describe.',
+      ],
+      entries: [
+        entry(
+          'discreetNotificationsDescription',
+          tr.discreetNotificationsDescription,
+          en.discreetNotificationsDescription
+        ),
+        entry(
+          'pregnancyWeeklyReminderDescription',
+          tr.pregnancyWeeklyReminderDescription,
+          en.pregnancyWeeklyReminderDescription
+        ),
+      ],
+    },
+    {
+      id: '4c',
+      title: "What Android's own settings show",
+      intro: [
+        'Not on a lock screen. These are read in the phone\'s notification',
+        'settings, in a list beside every other app on it, by somebody deciding',
+        'whether to keep these at all.',
+      ],
+      entries: [
+        entry(
+          'periodReminderChannelName',
+          tr.periodReminderChannelName,
+          en.periodReminderChannelName
+        ),
+        entry(
+          'periodReminderChannelDescription',
+          tr.periodReminderChannelDescription,
+          en.periodReminderChannelDescription
+        ),
+        entry(
+          'pregnancyWeeklyReminderChannelName',
+          tr.pregnancyWeeklyReminderChannelName,
+          en.pregnancyWeeklyReminderChannelName
+        ),
+        entry(
+          'pregnancyWeeklyReminderChannelDescription',
+          tr.pregnancyWeeklyReminderChannelDescription,
+          en.pregnancyWeeklyReminderChannelDescription
+        ),
+      ],
+    },
+    {
+      id: '4d',
+      title: 'Phase and fertility labels',
+      intro: [
+        'Each of these appears as a value beside a date, with no sentence around',
+        'it to soften anything.',
+      ],
+      entries: [
+        entry('phaseLabels.menstrual', labelsTr.phaseLabels.menstrual, labelsEn.phaseLabels.menstrual),
+        entry(
+          'phaseLabels.follicular',
+          labelsTr.phaseLabels.follicular,
+          labelsEn.phaseLabels.follicular
+        ),
+        entry(
+          'phaseLabels.ovulatory',
+          labelsTr.phaseLabels.ovulatory,
+          labelsEn.phaseLabels.ovulatory
+        ),
+        entry('phaseLabels.luteal', labelsTr.phaseLabels.luteal, labelsEn.phaseLabels.luteal),
+        entry('fertilityLabels.low', labelsTr.fertilityLabels.low, labelsEn.fertilityLabels.low),
+        entry(
+          'fertilityLabels.elevated',
+          labelsTr.fertilityLabels.elevated,
+          labelsEn.fertilityLabels.elevated
+        ),
+        entry('fertilityLabels.peak', labelsTr.fertilityLabels.peak, labelsEn.fertilityLabels.peak),
+        entry(
+          'fertilityInSentence.low',
+          labelsTr.fertilityInSentence.low,
+          labelsEn.fertilityInSentence.low
+        ),
+        entry(
+          'fertilityInSentence.elevated',
+          labelsTr.fertilityInSentence.elevated,
+          labelsEn.fertilityInSentence.elevated
+        ),
+        entry(
+          'fertilityInSentence.peak',
+          labelsTr.fertilityInSentence.peak,
+          labelsEn.fertilityInSentence.peak
+        ),
+        entry('predictedPeriodStart', labelsTr.predictedPeriodStart, labelsEn.predictedPeriodStart),
+        entry('predictedPeriodDay', labelsTr.predictedPeriodDay, labelsEn.predictedPeriodDay),
+        entry('unknownLabel', labelsTr.unknownLabel, labelsEn.unknownLabel),
+      ],
+    },
+    {
+      id: '4e',
+      title: 'Where the app stops claiming',
+      intro: [
+        'Most of these exist to withhold something. A limit that reads as a fact',
+        'is the failure to look for, and it is the one easiest to miss, because',
+        'the sentence will read perfectly well.',
+      ],
+      entries: [
+        entry('supportDisclaimer', homeTr.supportDisclaimer, homeEn.supportDisclaimer),
+        entry('fertilityDisclaimer', homeTr.fertilityDisclaimer, homeEn.fertilityDisclaimer),
+        entry('supportMoodTitle', homeTr.supportMoodTitle, homeEn.supportMoodTitle),
+        entry('rowFertility', homeTr.rowFertility, homeEn.rowFertility),
+        entry('rowNextPeriod', homeTr.rowNextPeriod, homeEn.rowNextPeriod),
+        entry(
+          'fertilityBeyondHorizon',
+          homeTr.fertilityBeyondHorizon,
+          homeEn.fertilityBeyondHorizon
+        ),
+        entry('cycleNotStarted', homeTr.cycleNotStarted, homeEn.cycleNotStarted),
+        entry('noCycleDayMessage', homeTr.noCycleDayMessage, homeEn.noCycleDayMessage),
+        entry('countContinuesMessage', homeTr.countContinuesMessage, homeEn.countContinuesMessage),
+        entry('nextPeriodUnknown', homeTr.nextPeriodUnknown, homeEn.nextPeriodUnknown),
+        entry(
+          'nextPeriodRangeValue',
+          homeTr.nextPeriodRangeValue('3 Mart', '9 Mart'),
+          homeEn.nextPeriodRangeValue('3 March', '9 March')
+        ),
+        entry('irregularCycleNote', homeTr.irregularCycleNote, homeEn.irregularCycleNote),
+        entry(
+          'nextPeriodExpectedDayPassed',
+          homeTr.nextPeriodExpectedDayPassed,
+          homeEn.nextPeriodExpectedDayPassed
+        ),
+        entry('nextPeriodStale', homeTr.nextPeriodStale, homeEn.nextPeriodStale),
+        entry('predictionStaleNote', homeTr.predictionStaleNote, homeEn.predictionStaleNote),
+        entry(
+          'cycleLengthSuggestionTitle',
+          homeTr.cycleLengthSuggestionTitle,
+          homeEn.cycleLengthSuggestionTitle
+        ),
+        entry(
+          'predictedPeriodStartNote',
+          homeTr.predictedPeriodStartNote,
+          homeEn.predictedPeriodStartNote
+        ),
+        entry(
+          'predictedPeriodDayNote',
+          homeTr.predictedPeriodDayNote,
+          homeEn.predictedPeriodDayNote
+        ),
+        entry('calendarEstimateNotice', homeTr.calendarEstimateNotice, homeEn.calendarEstimateNotice),
+        entry('legendOvulationDay', homeTr.legendOvulationDay, homeEn.legendOvulationDay),
+        entry('legendRaisedFertility', homeTr.legendRaisedFertility, homeEn.legendRaisedFertility),
+        entry('legendNextPeriod', homeTr.legendNextPeriod, homeEn.legendNextPeriod),
+      ],
+    },
+  ];
+}
+
+/** Every pair in section 4, flattened, for the guards below. */
+function claimEntries(): readonly ClaimEntry[] {
+  return claimGroups().flatMap((group) => group.entries);
+}
+
+function claimSection(): string {
+  const groups = claimGroups().map((group) =>
+    [
+      `### ${group.id}. ${group.title}`,
+      '',
+      ...group.intro,
+      '',
+      ...group.entries.map((item) => [`#### \`${item.label}\``, '', pair(item.tr, item.en)].join('\n')),
+    ].join('\n')
+  );
+
+  return [
+    '## 4. The strings that make a claim without a citation',
+    '',
+    'Sections 2 and 3 are written from medical sources and carry them. These are',
+    'not. They are the app\'s own sentences about somebody\'s body, written in',
+    'Turkish and then written again in English, and nothing outside the',
+    'repository they live in has ever read the English half.',
+    '',
+    '### What to check for in this section',
+    '',
+    'These fail differently from the health content, and the difference matters',
+    'more than the resemblance. A week note fails by sounding like advice. These',
+    'fail in three other ways:',
+    '',
+    '1. **A limit that reads as a fact.** Most of 4e exists to stop the app',
+    '   claiming something: that a prediction has run out, that a count is',
+    '   arithmetic rather than a forecast, that a fertility figure is a guess.',
+    '   English can turn a refusal into an assertion without altering the meaning',
+    '   of a single word. "The expected day has passed" is a boundary; "Your',
+    '   period is late" would be a finding about a person, and the app does not',
+    '   know that. If a sentence written to withhold reads like a result, that is',
+    '   the failure, and it is the one most likely to be missed because the',
+    '   sentence will read perfectly well.',
+    '2. **A label that tells somebody how they are.** "Luteal", "Highest", "How',
+    '   you might feel". These appear as a value beside a date with no sentence',
+    '   around them to soften anything. Each has to be readable as an estimate',
+    '   drawn from an average cycle. One that reads as a measurement of this',
+    '   person in this month is wrong however right it is on average - and in',
+    '   English a single word carries more certainty than its Turkish counterpart',
+    '   more often than the reverse, because English has fewer ways to be',
+    '   tentative in one word.',
+    '3. **More said than was meant to be.** The six strings in 4a arrive on a',
+    '   locked phone. See below.',
+    '',
+    'The two directions from section 1 - a hedge that weakened, a claim that',
+    'strengthened - apply here as well and are not repeated.',
+    '',
+    '### Six of these are read by somebody who is not the user',
+    '',
+    'Everything in 4a is delivered as a notification, which Android prints on the',
+    'lock screen whether the app would prefer it or not. The app asked not to,',
+    'with the option that exists for exactly that, and the platform discarded it -',
+    'so the only thing it controls is the wording, and that is what 4a is.',
+    '',
+    'Read those six as if over a shoulder, on a phone lying on a table in a',
+    'shared room. The question is not whether the sentence is accurate. It is',
+    'what somebody who is not the user learns from it. The Turkish was written',
+    'against that test; the English has never been held to it by anyone.',
+    '',
+    'The discreet pair exists for people who need less said: one wording for both',
+    'reminders, so that nothing in the words distinguishes a period reminder from',
+    'a pregnancy one. If the English discreet lines give away which reminder',
+    'arrived - by tone, by register, by a word the other would not use - that',
+    'defeats the setting, and it is the single most important thing in this',
+    'section.',
+    '',
+    'What it does not hide, and does not claim to: the app\'s name and its icon',
+    'are on the notification. 4b\'s first entry is the sentence that admits that.',
+    'Check that it admits it plainly in English too.',
+    '',
+    '### The mechanical check has already been run, and found nothing',
+    '',
+    'Section 1\'s first check - a hedge that weakened - is the one a rule can',
+    'approximate, so it was tried: all 54 pairs in sections 2 and 3, Turkish',
+    'hedging matched against English hedging. **One hit, and it was wrong.** Week',
+    '24\'s Turkish "yaşayabilir" is the quoted technical term that the English',
+    'carries as the quoted "viable", and the English hedges in a way the pattern',
+    'could not see - "would have a chance of surviving".',
+    '',
+    'So there is no rule-detectable hedge asymmetry anywhere in this document, and',
+    'the scan was not kept. A check that passes on everything and has never caught',
+    'anything is worse than no check, because the next person reads the green and',
+    'stops looking.',
+    '',
+    'That is said here for two reasons: so nobody writes it again, and because it',
+    'locates what is left. What remains is the part no pattern reaches - whether a',
+    'sentence sounds natural, whether it sounds like advice, whether it sounds',
+    'more certain than the thing it describes. That is the whole of why a person',
+    'is being asked.',
+    '',
+    '### What is not in this section, and why',
+    '',
+    'A string is here if it **makes or withholds a claim about the person\'s body,',
+    'or about a prediction of it**. That admits "Luteal" and "The expected day has',
+    'passed"; it excludes "Takvim", "Bugün", "Kaydet" and the thousand or so other',
+    'interface strings, none of which say anything about anybody.',
+    '',
+    'Six strings a looser reading would have admitted are deliberately out: row',
+    'labels that name a claim without making one, and the calendar legend\'s',
+    'period mark, which describes a record rather than a prediction. If the rule',
+    'has drawn that line in the wrong place, say so - that is more useful than a',
+    'section that grew because nobody wanted to argue about it.',
+    '',
+    `${claimEntries().length} pairs in all.`,
+    '',
+    ...groups,
+  ].join('\n');
+}
+
 function buildReview(): string {
   return [
     HEADER,
     disclaimerSection(),
     cycleSection(),
     pregnancySection(),
+    claimSection(),
     '## Returning this',
     '',
     'Mark up anything that reads unnaturally, anything where the English is more',
@@ -307,6 +667,16 @@ function buildReview(): string {
 }
 
 describe('the English review package', () => {
+  /**
+   * The guard that keeps the whole thing from going stale.
+   *
+   * It now covers section 4, whose catalogues change far more often than the
+   * health content does - `reminderMessages` and `homeMessages` were both
+   * edited several times in the week this section was added, while
+   * `pregnancyWeeklyContent` has not moved since it was written. So this is
+   * the assertion most likely to fire, and firing is the point: a reviewer
+   * reading last month's wording signs off on strings the app no longer shows.
+   */
   it('matches the catalogues it was generated from', () => {
     const built = buildReview();
 
@@ -336,6 +706,79 @@ describe('the English review package', () => {
     for (const phase of cycleDailySupport.tr) {
       expect([phase.phase, built.includes(`phase`)]).toEqual([phase.phase, true]);
     }
+  });
+
+  it('renders one pair for every entry in the claim inventory', () => {
+    // The same failure the week check above guards against, one section along:
+    // a generator that silently dropped a group would still match a committed
+    // file generated by the same bug.
+    const built = buildReview();
+    const entries = claimEntries();
+
+    for (const item of entries) {
+      const rendered = built.split('#### `' + item.label + '`').length - 1;
+
+      expect([item.label, rendered]).toEqual([item.label, 1]);
+    }
+
+    // And the count the section prints is the count it rendered.
+    expect(built).toContain(`${entries.length} pairs in all.`);
+  });
+
+  it('holds every pair from both halves of the file', () => {
+    // 54 is the health content, which the week and phase check above pins. The
+    // arithmetic is what catches a section-4 group that failed to render: the
+    // per-label check would pass on an empty group, this one would not.
+    const built = buildReview();
+    const pairs = built.split('**Turkish**').length - 1;
+
+    expect(pairs).toBe(54 + claimEntries().length);
+  });
+
+  it('names the strings that reach a locked screen, which a reviewer cannot tell', () => {
+    // Everything in 4a is delivered as a notification, and the section has to
+    // say so: read as ordinary interface copy, these six look harmless. A
+    // seventh added without moving the note fails here.
+    const built = buildReview();
+    const onLockScreen = claimGroups().find((group) => group.id === '4a');
+
+    expect(onLockScreen?.entries).toHaveLength(6);
+    expect(built).toContain('arrive on a locked phone');
+    expect(built).toContain(
+      'what somebody who is not the user learns from it'
+    );
+  });
+
+  it('keeps the discreet wording shared, which is the whole of that setting', () => {
+    // One wording for both reminders. Two neutral texts would be a code -
+    // "haftalık" would tell a reader over a shoulder which reminder arrived,
+    // which is most of what the original sentence told them. A reviewer must
+    // not tidy it into two, so the section says why, and the two reminders'
+    // own bodies have to stay distinct from each other for that to mean
+    // anything.
+    const built = buildReview();
+
+    expect(built).toContain(
+      'nothing in the words distinguishes a period reminder from'
+    );
+    expect(
+      claimEntries().filter((item) => item.label.startsWith('discreetReminder'))
+    ).toHaveLength(2);
+    expect(reminderMessages.tr.pregnancyWeeklyReminderBody).not.toBe(
+      reminderMessages.tr.periodReminderBody
+    );
+    expect(reminderMessages.en.pregnancyWeeklyReminderBody).not.toBe(
+      reminderMessages.en.periodReminderBody
+    );
+  });
+
+  it('records that the mechanical check was run and found nothing', () => {
+    // So nobody writes the scan again. A check that passes on everything and
+    // has never caught anything teaches the next person to trust it.
+    const built = buildReview();
+
+    expect(built).toContain('One hit, and it was wrong');
+    expect(built).toContain('the scan was not kept');
   });
 
   it('shows both halves of the emergency line, which is the one deliberate difference', () => {
