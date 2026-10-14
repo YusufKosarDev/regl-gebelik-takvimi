@@ -58,20 +58,5 @@
     "test:watch": "jest --watchAll",
     "rules:deploy": "npx --yes firebase-tools@15 deploy --only firestore:rules"
   },
-  "private": true,
-  "jest": {
-    "preset": "jest-expo",
-    "moduleNameMapper": {
-      "\\.css$": "<rootDir>/jest/style-mock.js"
-    },
-    "setupFiles": [
-      "<rootDir>/jest/expo-localization-mock.js",
-      "<rootDir>/jest/async-storage-mock.js",
-      "react-native-gesture-handler/jestSetup",
-      "<rootDir>/jest/native-ui-mocks.js"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/jest/fail-on-act-warning.js"
-    ]
-  }
+  "private": true
 }
