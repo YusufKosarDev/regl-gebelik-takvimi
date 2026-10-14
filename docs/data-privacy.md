@@ -183,7 +183,28 @@ olmadığı gösterilir.
 
 Bu tablo `src/features/privacy/domain/data-category.ts` içindeki `DATA_INVENTORY`
 ile aynı. Bir test ikisini birbirine bağlıyor: kodda olup burada olmayan (ya da
-tersi) bir kategori testi düşürür.
+tersi) bir kategori testi düşürür. Aynı test yayımlanan beş sayfanın her birinin
+de bu kategorilerin hepsini adıyla andığını, ve dört ya da daha fazlasını sayan
+hiçbir paragrafın birini atlamadığını doğruluyor.
+
+## Bu üçlü tutarlılığı dışarıdan kimse denetlemiyor
+
+Google'ın Data Safety kuralı formun **uygulamanın davranışına** karşı doğru
+olmasını istiyor: "complete and accurate declarations", "Your Data safety form
+responses must remain accurate and complete at all times", ve yaptırım
+"a discrepancy between your app behavior and your declaration" bulunduğunda
+geliyor. Formun gizlilik politikasıyla ya da mağaza metniyle birebir uyuşmasını
+açıkça şart koşan bir madde yok.
+
+Yani envanter, yayımlanan sayfalar ve mağaza metninin aynı şeyi söylemesi bizim
+kendi disiplinimiz. Biri kaydığında bunu yakalayacak harici bir mekanizma yok —
+ki kategorileri sayfalara bağlayan test tam bu yüzden var. Altıncı kategori
+(`daily-entries`) payload'a, envanter tablosuna ve sayfaların özet tablolarına
+girip hiçbir düzyazı listesine girmediğinde, on iki yerde yanlış duran metni
+hiçbir araç bildirmedi.
+
+Mağaza metni bu zincirin üçüncü halkası ve Google'ın ilk okuduğu olan; nereden
+geldiği ve neye uymak zorunda olduğu `STORE_LISTING.md` içinde yazılı.
 
 ## Neden hesaplanan veri gitmiyor
 
