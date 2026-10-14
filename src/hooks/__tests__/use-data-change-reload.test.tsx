@@ -1,6 +1,6 @@
 import { act } from '@testing-library/react-native';
 import { useCallback } from 'react';
-import { AppState, Text } from 'react-native';
+import { Text } from 'react-native';
 
 import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-change';
 import {
@@ -11,6 +11,13 @@ import {
 import { useDataChangeReload } from '../use-data-change-reload';
 
 import { renderSettled } from '../../../jest/render-settled';
+import {
+  appStateListenerCount,
+  armAppState,
+  returnToForeground,
+  sendAppState,
+  setCurrentAppState,
+} from '../../../jest/app-state-driver';
 
 jest.mock('expo-router', () => require('../../../jest/expo-router-mock'));
 
@@ -42,22 +49,10 @@ jest.mock('expo-router', () => require('../../../jest/expo-router-mock'));
  * origins it was called with.
  */
 
-const addAppStateListener = AppState.addEventListener as unknown as jest.Mock;
 const { focusAgain } = jest.requireMock('expo-router') as { focusAgain: () => void };
 
 let origins: (LocalDataChangeOrigin | null)[];
 let cancels: jest.Mock[];
-
-/**
- * The listeners currently registered, as the real `AppState` would hold them.
- *
- * A registry rather than a replay of `mock.calls`, because the question "does
- * an unfocused screen still read" is only asked honestly by a stand-in that
- * honours `remove()`. Driving every call ever recorded answers it `yes` for a
- * hook that unsubscribed correctly, which is a test that cannot fail for the
- * right reason - and this one did exactly that before the registry existed.
- */
-let listeners: ((state: string) => void)[];
 
 function Probe() {
   const reload = useCallback((origin: LocalDataChangeOrigin | null) => {
@@ -75,51 +70,14 @@ function Probe() {
   return <Text>probe</Text>;
 }
 
-/**
- * Hands the registered listeners a state change, inside `act`.
- *
- * Every listener rather than the first: a test that rendered two probes is
- * acting out two focused screens, and the real `AppState` would tell both.
- */
-async function appState(next: string): Promise<void> {
-  await act(async () => {
-    for (const listener of [...listeners]) {
-      listener(next);
-    }
-  });
-}
-
-/** Away and back, which is what a trip to system settings looks like. */
-async function returnToForeground(): Promise<void> {
-  await appState('background');
-  await appState('active');
-}
-
-function setCurrentState(state: string): void {
-  (AppState as unknown as { currentState: string }).currentState = state;
-}
-
 beforeEach(() => {
   jest.clearAllMocks();
   resetLocalDataChangeListenersForTests();
 
   origins = [];
   cancels = [];
-  listeners = [];
 
-  addAppStateListener.mockImplementation((event: string, listener: (state: string) => void) => {
-    if (event === 'change') {
-      listeners.push(listener);
-    }
-
-    return {
-      remove: () => {
-        listeners = listeners.filter((registered) => registered !== listener);
-      },
-    };
-  });
-
-  setCurrentState('active');
+  armAppState();
 });
 
 describe('arriving at a screen', () => {
@@ -168,11 +126,11 @@ describe('coming back from another app', () => {
     // A screen can gain focus without anybody looking at it - a notification
     // tap routes while the app is still coming up. It never saw the trip out,
     // so the state it starts from is what has to say it was away.
-    setCurrentState('background');
+    setCurrentAppState('background');
 
     await renderSettled(<Probe />);
 
-    await appState('active');
+    await sendAppState('active');
 
     expect(origins).toEqual([null, null]);
   });
@@ -183,7 +141,7 @@ describe('what is not a return', () => {
     // Nothing has changed yet, and the screen is not being looked at.
     await renderSettled(<Probe />);
 
-    await appState('background');
+    await sendAppState('background');
 
     expect(origins).toEqual([null]);
   });
@@ -194,7 +152,7 @@ describe('what is not a return', () => {
     // and only then fires on the way in.
     await renderSettled(<Probe />);
 
-    await appState('active');
+    await sendAppState('active');
 
     expect(origins).toEqual([null]);
   });
@@ -202,9 +160,9 @@ describe('what is not a return', () => {
   it('does not read twice for one return reported twice', async () => {
     await renderSettled(<Probe />);
 
-    await appState('background');
-    await appState('active');
-    await appState('active');
+    await sendAppState('background');
+    await sendAppState('active');
+    await sendAppState('active');
 
     expect(origins).toHaveLength(2);
   });
@@ -233,13 +191,13 @@ describe('a screen nobody is looking at', () => {
     // become a leak nobody can see.
     const view = await renderSettled(<Probe />);
 
-    expect(listeners).toHaveLength(1);
+    expect(appStateListenerCount()).toBe(1);
 
     await act(async () => {
       view.unmount();
     });
 
-    expect(listeners).toHaveLength(0);
+    expect(appStateListenerCount()).toBe(0);
   });
 });
 

@@ -11,6 +11,7 @@ import type { CycleProfile, PeriodRecord } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
+import { armAppState, returnToForeground } from '../../../../jest/app-state-driver';
 import {
   HISTORY_DESCRIPTION,
   HISTORY_EMPTY_MESSAGE,
@@ -113,6 +114,8 @@ beforeEach(() => {
 
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-25' as ISODate);
+
+  armAppState();
 });
 
 async function renderScreen() {
@@ -2329,5 +2332,125 @@ describe('HistoryScreen row actions read as controls', () => {
         Colors.light.primary,
       ]);
     }
+  });
+});
+
+/**
+ * The day moving while the screen is open.
+ *
+ * ## Why this tab and not another
+ *
+ * It is the one that both measures against today and writes. The editors'
+ * calendars stop at today, the use cases refuse a date after today, and every
+ * save rebuilds the reminder queue and the widget snapshot from today. A
+ * screen a day behind is therefore a calendar that will not offer the day it
+ * actually is, with nothing on screen saying which day it thinks it is, and a
+ * reminder recomputed from a yesterday nothing will correct.
+ *
+ * It used to read the clock once, in `useState(() => ...)`, with a comment
+ * saying every edit should measure against the same day. True for one sitting.
+ * A phone left on this tab at 23:58 and picked up at 00:05 kept yesterday for
+ * as long as it stayed there.
+ */
+describe('HistoryScreen when the day moves under it', () => {
+  beforeEach(() => {
+    getTodayMock.mockReturnValue('2026-09-04' as ISODate);
+    repository.loadCycleProfile.mockResolvedValue(
+      profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-04' }])
+    );
+  });
+
+  it('offers the new day in the editor once the app comes back', async () => {
+    // The visible half. Before, the calendar stopped at the day the screen was
+    // opened and the only way past it was to leave the tab.
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(true);
+
+    getTodayMock.mockReturnValue('2026-09-05' as ISODate);
+
+    await returnToForeground();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Sonraki gün').props.accessibilityState.disabled).toBe(false);
+    });
+  });
+
+  it('rebuilds the queue from the day it is now, not the day it opened', async () => {
+    // The invisible half, and the one that costs something. A reminder
+    // recomputed from yesterday is not on screen to be noticed and nothing
+    // later puts it right.
+    const screen = await renderScreen();
+
+    getTodayMock.mockReturnValue('2026-09-05' as ISODate);
+
+    await fireEvent.press(screen.getByLabelText('2 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+        expect.anything(),
+        '2026-09-05'
+      );
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-09-05'
+    );
+  });
+
+  it('takes the day at the moment of the write, without waiting to be refocused', async () => {
+    // Nothing brought the screen back here: the day simply turned while
+    // somebody was looking at it, and then they pressed save. The write reads
+    // the clock itself rather than trusting the screen's copy, so there is no
+    // window at all on the side that cannot be seen.
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+
+    getTodayMock.mockReturnValue('2026-09-05' as ISODate);
+
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+        expect.anything(),
+        '2026-09-05'
+      );
+    });
+  });
+
+  it('does the same on the start date, which is a separate path', async () => {
+    // Three writes on this screen take the day, and a sweep that checked one
+    // of them would have found the other two agreeing with it by luck. The
+    // start-date save was uncovered until a mutation said so.
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+
+    getTodayMock.mockReturnValue('2026-09-05' as ISODate);
+
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalledWith(
+        expect.anything(),
+        '2026-09-05'
+      );
+    });
+
+    expect(widgetSync.syncWidgetSnapshotQuietly).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-09-05'
+    );
   });
 });

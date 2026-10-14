@@ -1,5 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { AppState, Linking } from 'react-native';
+import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import SettingsScreen from '@/app/(app)/(tabs)/settings';
@@ -33,6 +33,7 @@ import {
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
 import { expectClearsTabBar } from '../../../../jest/assert-clears-tab-bar';
+import { armAppState, returnToForeground } from '../../../../jest/app-state-driver';
 
 // The database is faked. The use cases, the repository contract and the domain
 // rules stay real, so the stepper is bounded by the limits the app really has.
@@ -168,33 +169,14 @@ const openSettingsMock = jest.spyOn(Linking, 'openSettings');
 // Acting out leaving the screen and coming back, from the shared router mock.
 const { focusAgain } = jest.requireMock('expo-router') as { focusAgain: () => void };
 
-const addAppStateListener = AppState.addEventListener as unknown as jest.Mock;
-
-/**
- * Acting out leaving the **app** and coming back, which is a different event.
- *
+/*
  * `focusAgain` is navigation focus: another tab, or a screen pushed on top of
- * this one. Going to Android's own settings and pressing Back moves no
- * navigation at all - this screen stays focused the whole way through - so the
- * two have to be driven separately. They were treated as interchangeable here:
- * tests named for the second route drove the first, passed, and left the
- * second broken on a real phone.
- *
- * The listeners are held in a registry rather than replayed out of
- * `mock.calls`, so a screen that has gone really is a screen that no longer
- * hears anything.
+ * this one. `returnToForeground` is Android taking the app away and giving it
+ * back, which moves no navigation at all - this screen stays focused the whole
+ * way through. The two have to be driven separately, and they were treated as
+ * interchangeable here: tests named for the second route drove the first,
+ * passed, and left the second broken on a real phone.
  */
-let appStateListeners: ((state: string) => void)[] = [];
-
-async function returnToForeground(): Promise<void> {
-  for (const state of ['background', 'active']) {
-    await act(async () => {
-      for (const listener of [...appStateListeners]) {
-        listener(state);
-      }
-    });
-  }
-}
 const useRouterMock = useRouter as unknown as jest.Mock;
 
 let back: jest.Mock;
@@ -263,23 +245,7 @@ beforeEach(() => {
   );
   repository.saveCycleProfile.mockResolvedValue(undefined);
 
-  appStateListeners = [];
-  addAppStateListener.mockReset();
-  addAppStateListener.mockImplementation(
-    (event: string, listener: (state: string) => void) => {
-      if (event === 'change') {
-        appStateListeners.push(listener);
-      }
-
-      return {
-        remove: () => {
-          appStateListeners = appStateListeners.filter(
-            (registered) => registered !== listener
-          );
-        },
-      };
-    }
-  );
+  armAppState();
 
   back = jest.fn();
   useRouterMock.mockReset();

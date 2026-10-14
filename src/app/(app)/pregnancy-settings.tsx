@@ -86,9 +86,6 @@ export default function PregnancySettingsScreen() {
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
 
-  // Read once for the screen, so every save is measured against the same day.
-  const [today] = useState<ISODate>(() => getTodayLocalISODate());
-
   /** Stable, so the mount effect can depend on it. */
   const readProfile = useCallback(async () => {
     const db = await openAppDatabase();
@@ -240,6 +237,19 @@ export default function PregnancySettingsScreen() {
 
     try {
       const db = await openAppDatabase();
+
+      /*
+       * The clock at the moment of the save, and nowhere else on this screen.
+       *
+       * It was held in state, read once when the screen opened, so a screen
+       * left open overnight saved against yesterday. That changed nothing,
+       * because `updatePregnancyDueDate` checks this argument is a real date
+       * and then never looks at it again - there is no "not in the future"
+       * rule on a due date, which is in the future by definition. A held copy
+       * of the clock whose only use is an argument nobody reads is a wire
+       * waiting to be live, so it is read here instead of kept.
+       */
+      const today = getTodayLocalISODate();
 
       await updatePregnancyDueDate(db, { estimatedDueDate, source, today });
 

@@ -10,6 +10,7 @@ import { toISODate } from '@/utils/date';
 import { getTodayLocalISODate } from '@/utils/today';
 
 import { expectNoTurkishCatalogueText } from '../../../../jest/assert-english-render';
+import { armAppState, returnToForeground } from '../../../../jest/app-state-driver';
 
 /**
  * The log history screen on an English phone.
@@ -112,6 +113,8 @@ beforeEach(() => {
   cycle.loadCycleProfile.mockResolvedValue(PROFILE);
   dailyLog.loadAllDailyEntries.mockResolvedValue([]);
   useRouterMock.mockReturnValue({ back: jest.fn(), push: jest.fn(), replace: jest.fn() });
+
+  armAppState();
 });
 
 describe('the screen in English', () => {
@@ -205,5 +208,29 @@ describe('what the summary refuses to say', () => {
     for (const word of ['because', 'caused', 'causes', 'linked', 'associated', 'correlat']) {
       expect(text).not.toContain(word);
     }
+  });
+});
+
+describe('when the day moves under the screen', () => {
+  it('opens on the month it is now, not the month it was opened in', async () => {
+    /*
+     * This screen only reads, so a stale day costs a window rather than a
+     * record: the summary counts back from the wrong day, and on the first of
+     * a month the calendar stays on the previous one. Cheap to be wrong about
+     * and cheap to fix, which is why it is here with the two that are not.
+     */
+    dailyLog.loadAllDailyEntries.mockResolvedValue(lutealDays(6, ['cramps']));
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText('March 2026')).toBeTruthy();
+
+    getTodayMock.mockReturnValue(toISODate('2026-04-01'));
+
+    await returnToForeground();
+
+    await waitFor(() => {
+      expect(screen.getByText('April 2026')).toBeTruthy();
+    });
   });
 });

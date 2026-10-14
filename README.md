@@ -1273,12 +1273,18 @@ built into it, and the easiest stimulus to reach for is rarely the one the name
 describes. `focusAgain()` existed; nothing acted out leaving the app, so
 nothing did.
 
-The repair is to keep both and name both: `settings-screen.test.tsx` now has a
-`returnToForeground()` beside `focusAgain()`, with the listeners held in a
-registry that honours `remove()` rather than replayed out of `mock.calls` —
-because a stand-in that keeps calling listeners a screen has removed answers
-"does an unfocused screen still read" with a cheerful yes. That shortcut was
-written first here, and it reported a correctly unsubscribed hook as leaking.
+The repair is to keep both and name both. `jest/app-state-driver.ts` offers
+`returnToForeground()` beside the router mock's `focusAgain()`, and four test
+files use it — the same reason `expo-router-mock.js` is shared rather than
+copied.
+
+Its listeners are held in a registry that honours `remove()` rather than
+replayed out of `mock.calls`, and that is not tidiness. A stand-in that keeps
+calling listeners a screen has already removed answers "does an unfocused
+screen still read" with a cheerful yes, so the test cannot fail for the reason
+it exists. That shortcut was written first here, and it reported a correctly
+unsubscribed hook as leaking — a test that could not fail for the right reason,
+written while fixing a test that could not fail for the right reason.
 
 ### Two scanners for defects nothing else can see
 

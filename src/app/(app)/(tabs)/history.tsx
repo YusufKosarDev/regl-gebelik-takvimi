@@ -104,9 +104,28 @@ export default function HistoryScreen() {
   // from what the other one had already replaced.
   const mutationInFlight = useRef(false);
 
-  // Read once for the screen, so every edit measures "not in the future"
-  // against the same day.
-  const [today] = useState<ISODate>(() => getTodayLocalISODate());
+  /**
+   * What day the screen believes it is.
+   *
+   * Held rather than read per render so that the editors' calendars and the
+   * use cases' "not in the future" rule measure against the same day: a picker
+   * offering a date its own save would refuse is worse than either alone.
+   *
+   * It used to be read once and never again — `useState(() => ...)`, with a
+   * comment saying every edit should measure against the same day. That is
+   * right for one sitting and wrong across a night. A phone left on this tab
+   * at 23:58 and picked up at 00:05 kept yesterday: the calendars stopped one
+   * day short of the day it actually was, with nothing on screen saying why,
+   * and `syncPeriodReminderQuietly` recomputed the next period from a
+   * yesterday it had no reason to doubt.
+   *
+   * So it is re-read on every read of the screen — which since
+   * `use-data-change-reload` grew its `AppState` listener includes coming back
+   * from another app, and already included arriving, refocusing, and the
+   * refresh after every write. Inside one uninterrupted sitting it is as stable
+   * as the old comment wanted.
+   */
+  const [today, setToday] = useState<ISODate>(() => getTodayLocalISODate());
 
   /** Stable, so the mount effect can depend on it and the mutations can reuse it. */
   /**
@@ -124,15 +143,25 @@ export default function HistoryScreen() {
   const readHistory = useCallback(async () => {
     const db = await openAppDatabase();
 
-    const [records, log] = await Promise.all([getPeriodHistory(db), getDailyLogHistory(db, today)]);
+    // The clock, on the same trip as the data. Returned rather than written
+    // here so the screen takes the day and the records it describes together,
+    // and so this stays stable: a dependency on `today` would rebuild the
+    // reload on every rollover and re-run the focus effect with it.
+    const current = getTodayLocalISODate();
 
-    return { records, log };
-  }, [today]);
+    const [records, log] = await Promise.all([
+      getPeriodHistory(db),
+      getDailyLogHistory(db, current),
+    ]);
+
+    return { records, log, today: current };
+  }, []);
 
   /** Re-reads both halves after a write, so neither goes stale on its own. */
   const refresh = useCallback(async () => {
     const history = await readHistory();
 
+    setToday(history.today);
     setRecords(history.records);
     setLog(history.log);
   }, [readHistory]);
@@ -158,6 +187,7 @@ export default function HistoryScreen() {
             return;
           }
 
+          setToday(history.today);
           setRecords(history.records);
           setLog(history.log);
           setHasError(false);
@@ -250,10 +280,17 @@ export default function HistoryScreen() {
 
       await deletePeriodRecord(db, { recordId: recordPendingDelete.id });
 
+      // Read here rather than taken from the screen. What the queue and the
+      // widget are rebuilt from has to be the day it is now: everything else
+      // on this screen can be a day out and be corrected by looking at it,
+      // and a reminder scheduled from the wrong day is neither visible nor
+      // corrected by anything.
+      const now = getTodayLocalISODate();
+
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
-      await syncWidgetSnapshotQuietly(db, today);
-      await syncPeriodReminderQuietly(db, today);
+      await syncWidgetSnapshotQuietly(db, now);
+      await syncPeriodReminderQuietly(db, now);
 
       await refresh();
       setRecordPendingDelete(null);
@@ -281,12 +318,18 @@ export default function HistoryScreen() {
     try {
       const db = await openAppDatabase();
 
-      await updatePeriodEndDate(db, { recordId: recordUnderEndEdit.id, endDate, today });
+      // The clock at the moment of the write, for the same reason as above.
+      // Against the picker's own bound this can only ever be the same day or a
+      // later one, so it relaxes a rule the calendar has already enforced and
+      // can never refuse a date the person was offered.
+      const now = getTodayLocalISODate();
+
+      await updatePeriodEndDate(db, { recordId: recordUnderEndEdit.id, endDate, today: now });
 
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
-      await syncWidgetSnapshotQuietly(db, today);
-      await syncPeriodReminderQuietly(db, today);
+      await syncWidgetSnapshotQuietly(db, now);
+      await syncPeriodReminderQuietly(db, now);
 
       await refresh();
       closePanels();
@@ -317,16 +360,18 @@ export default function HistoryScreen() {
       // Sent with the id the record had when the edit began. The use case may
       // give it a new one, which is why nothing here keeps hold of it after the
       // save: the reloaded list is the only thing that knows the record now.
+      const now = getTodayLocalISODate();
+
       await updatePeriodStartDate(db, {
         recordId: recordUnderStartEdit.id,
         startDate,
-        today,
+        today: now,
       });
 
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.
-      await syncWidgetSnapshotQuietly(db, today);
-      await syncPeriodReminderQuietly(db, today);
+      await syncWidgetSnapshotQuietly(db, now);
+      await syncPeriodReminderQuietly(db, now);
 
       await refresh();
       closePanels();

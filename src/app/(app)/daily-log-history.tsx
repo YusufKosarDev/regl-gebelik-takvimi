@@ -61,13 +61,23 @@ export default function DailyLogHistoryScreen() {
   const [hasError, setHasError] = useState(false);
   const [monthOffset, setMonthOffset] = useState(0);
 
-  const [today] = useState<ISODate>(() => getTodayLocalISODate());
+  /**
+   * What day the screen believes it is.
+   *
+   * Nothing here writes, so a day out of date costs a window rather than a
+   * record: the summary counts back from the wrong day, and on the first of a
+   * month the calendar opens on the previous one. It is re-read with the data
+   * for the same reason as `history`, and by the same means.
+   */
+  const [today, setToday] = useState<ISODate>(() => getTodayLocalISODate());
 
   const readHistory = useCallback(async () => {
     const db = await openAppDatabase();
 
-    return getDailyLogHistory(db, today);
-  }, [today]);
+    const current = getTodayLocalISODate();
+
+    return { log: await getDailyLogHistory(db, current), today: current };
+  }, []);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -80,7 +90,8 @@ export default function DailyLogHistoryScreen() {
           return;
         }
 
-        setData(read);
+        setToday(read.today);
+        setData(read.log);
         setHasError(false);
       } catch (error) {
         logEvent('daily log history load failed', error);
