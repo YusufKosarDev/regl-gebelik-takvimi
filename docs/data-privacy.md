@@ -12,7 +12,7 @@ senkronizasyon özelliği gelirse neyin çıkabileceğini, neyin çıkamayacağ�
   aşağıdaki beş tetikleyici.
 - **"Otomatik senkronizasyon" varsayılan olarak kapalı.** Kapalıyken hiçbir
   gönderim olmaz ve yalnızca o iki düğme çalışır. Açıldığında ne gönderildiği
-  değişmez — taşınan şey yine envanterdeki beş kategoridir — değişen tek şey
+  değişmez — taşınan şey yine envanterdeki altı kategoridir — değişen tek şey
   gönderimin ne zaman tetiklendiğidir: anahtarın açılması, oturum açılması,
   uygulamanın öne gelmesi, bir kaydın değişmesi ve uygulama arka plana alınırken
   bekleyen bir değişikliğin son kez gönderilmesi.
@@ -103,9 +103,10 @@ içindedir; ölçüm oraya da yazıldı, böylece seçeneği geri ekleyen biri n
 
 İki ayrı işlem var ve ikisi farklı şeyleri siliyor.
 
-- **"Tüm verilerimi sil" (Ayarlar).** Bu telefondaki her şeyi siler: altı
+- **"Tüm verilerimi sil" (Ayarlar).** Bu telefondaki her şeyi siler: sekiz
   tablonun tamamı (`cycle_settings`, `period_records`, `pregnancy_profile`,
-  `avatar_config`, `notification_preferences`, `sync_state`), zamanlanmış
+  `avatar_config`, `notification_preferences`, `daily_entries`,
+  `daily_entry_symptoms`, `sync_state`), zamanlanmış
   hatırlatıcılar, widget kopyası, senkronizasyon tercihleri, cihaz kimliği, son
   senkronizasyon zamanı ve çözülmemiş çakışma notu.
   Giriş yapılmışsa oturum da kapatılır ve uygulama onboarding'e döner.
@@ -132,7 +133,7 @@ reddedilir; yoksa silinen yedek tek dokunuşla geri yüklenirdi.
 ## Otomatik senkronizasyon
 
 "Otomatik senkronizasyon" kapalıyken hiçbir gönderim olmaz. Açıldığında ne
-gönderildiği değişmez — taşınan şey yine yalnızca envanterdeki beş kategoridir —
+gönderildiği değişmez — taşınan şey yine yalnızca envanterdeki altı kategoridir —
 değişen tek şey gönderimin ne zaman tetiklendiğidir.
 
 Tetikleyiciler yalnızca şunlardır: anahtarın açılması, oturum açılması,
@@ -202,7 +203,7 @@ yazar.
 
 ```
 { version: 1, cycleSettings, periodRecords, pregnancyProfile, avatarConfig,
-  notificationPreferences }
+  notificationPreferences, dailyEntries }
 ```
 
 - Her alan, uygulamanın kendi domain doğrulayıcısından geçer; bir senkronizasyon
