@@ -63,10 +63,9 @@ export async function syncPregnancyWeeklyReminder(
   }
 
   const pregnancy = await loadPregnancyProfile(db);
-  const cancelled = await cancelPregnancyWeeklyReminders();
 
   if (pregnancy === null) {
-    return { scheduled: false, cancelled };
+    return { scheduled: false, cancelled: await cancelPregnancyWeeklyReminders() };
   }
 
   // The wording travels with the schedule: a repeating trigger holds one set of
@@ -77,7 +76,15 @@ export async function syncPregnancyWeeklyReminder(
   // it is this device's answer and cloud sync does not carry it.
   // Same as the period reminder: the language as it is when the notification
   // is queued, because that is the language it will still be in when it fires.
-  await schedulePregnancyWeeklyReminder(await loadDiscreetNotifications(db), currentLanguage());
+  //
+  // And read before the cancel, for the reason written out beside the period
+  // reminder's own read: between the two calls below the queue holds nothing,
+  // and a read inside that gap widens it by a SQLite round trip for no gain.
+  const discreet = await loadDiscreetNotifications(db);
+
+  const cancelled = await cancelPregnancyWeeklyReminders();
+
+  await schedulePregnancyWeeklyReminder(discreet, currentLanguage());
 
   return { scheduled: true, cancelled };
 }

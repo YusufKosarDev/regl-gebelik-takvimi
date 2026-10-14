@@ -199,6 +199,50 @@ describe('syncPregnancyWeeklyReminder when the reminder is on', () => {
   });
 });
 
+describe('the gap where the queue holds nothing', () => {
+  /**
+   * Its own assertion rather than trusting the period reminder's.
+   *
+   * The same change was made in both syncs, and "both were changed together"
+   * is not something a test can check later. The order is the property here:
+   * between cancelling and scheduling the queue is empty, and the discreet
+   * read used to sit inside that gap, widening it by a SQLite round trip.
+   *
+   * Narrower, not closed - #38's residual. A kill between the two calls still
+   * loses the reminder, and the recovery is the next app open. What this
+   * refuses is anybody putting work back into the gap.
+   */
+  it('reads the wording before emptying the queue', async () => {
+    await syncPregnancyWeeklyReminder(db);
+
+    const read = preferences.loadDiscreetNotifications.mock.invocationCallOrder[0];
+    const cancel = scheduler.cancelPregnancyWeeklyReminders.mock.invocationCallOrder[0];
+
+    expect(read).toBeLessThan(cancel);
+  });
+
+  it('still cancels before it schedules, which is the documented order', async () => {
+    // Not swapped, for the reason written beside the period reminder: a failed
+    // cancel after a successful schedule would leave a second reminder queued,
+    // and for a repeating weekly trigger that is two notifications every
+    // Monday rather than one.
+    await syncPregnancyWeeklyReminder(db);
+
+    const cancel = scheduler.cancelPregnancyWeeklyReminders.mock.invocationCallOrder[0];
+    const schedule = scheduler.schedulePregnancyWeeklyReminder.mock.invocationCallOrder[0];
+
+    expect(cancel).toBeLessThan(schedule);
+  });
+
+  it('does not read the wording when there is no pregnancy to be reminded of', async () => {
+    pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);
+
+    await syncPregnancyWeeklyReminder(db);
+
+    expect(preferences.loadDiscreetNotifications).not.toHaveBeenCalled();
+  });
+});
+
 describe('syncPregnancyWeeklyReminder with no pregnancy', () => {
   beforeEach(() => {
     pregnancyRepository.loadPregnancyProfile.mockResolvedValue(null);

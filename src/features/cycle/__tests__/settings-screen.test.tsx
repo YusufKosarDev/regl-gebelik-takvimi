@@ -815,6 +815,37 @@ describe('SettingsScreen reminders', () => {
     expect(screen.getByLabelText('Haftalık gebelik hatırlatıcısı')).toBeTruthy();
   });
 
+  it('says when the weekly reminder arrives, with the switch off', async () => {
+    // Standing copy, so it is there to be read while somebody decides rather
+    // than appearing once they have decided.
+    const screen = await renderLoaded();
+
+    expect(
+      screen.getByText(reminderMessages.tr.pregnancyWeeklyReminderDescription)
+    ).toBeTruthy();
+  });
+
+  it('says it with the switch on as well, so it is not a state notice', async () => {
+    // One render per test: rendering the screen twice in one leaves a second
+    // focus effect loading into a torn-down tree, and this suite fails on act
+    // warnings - which is how it caught the first version of this pair.
+    //
+    // The pairing is the point. The line reads the same either way, because
+    // the question it answers - the switch is armed when no pregnancy is
+    // tracked, not broken - must be answerable without remarking on whether
+    // one is being tracked.
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: false,
+      pregnancyWeeklyReminderEnabled: true,
+    });
+
+    const screen = await renderLoaded();
+
+    expect(
+      screen.getByText(reminderMessages.tr.pregnancyWeeklyReminderDescription)
+    ).toBeTruthy();
+  });
+
   it('shows both off by default', async () => {
     const screen = await renderLoaded();
 

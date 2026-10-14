@@ -217,6 +217,15 @@ export function NotificationsSection({
           </ThemedText>
         )}
 
+        {/* Standing, and below the alert rather than above it: when both are
+            on screen the urgent one belongs next to the switch. It says when
+            the reminder arrives and never what the person's situation is -
+            see the note on the string for why that distinction is the whole
+            of it. */}
+        <ThemedText type="small" themeColor="textSecondary">
+          {reminderStrings.pregnancyWeeklyReminderDescription}
+        </ThemedText>
+
         {/* Below the two reminders, because it is about what they say
             and reads as nonsense above them. Its description sits
             under the switch rather than above: the label is the thing

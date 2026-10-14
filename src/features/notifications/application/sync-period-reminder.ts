@@ -131,10 +131,8 @@ export async function syncPeriodReminder(
     ? null
     : periodReminderDate(dashboard?.nextPeriodStart ?? null);
 
-  const cancelled = await cancelPeriodReminders();
-
   if (reminderDate === null) {
-    return { scheduled: null, cancelled };
+    return { scheduled: null, cancelled: await cancelPeriodReminders() };
   }
 
   // The wording travels with the schedule. A queued notification carries the
@@ -143,7 +141,31 @@ export async function syncPeriodReminder(
   //
   // Read here rather than beside the preferences above, because it is not one
   // of them: it is this device's answer and cloud sync does not carry it.
+  //
+  // ## Read before the cancel, which is the whole reason this sits here
+  //
+  // Between cancelling and scheduling, the queue holds nothing. If this
+  // process dies in that gap - swiped away, or killed by the system - the
+  // reminder is gone until the app is next opened, and for somebody who logs a
+  // period and then closes the app for a month that is the reminder they
+  // needed. This read used to be inside that gap, so the gap contained a
+  // SQLite round trip as well as a bridge call. Moving it out is the widest
+  // part of the window removed at no cost.
+  //
+  // The gap is narrower, not closed. #38 stays open as that residual: a kill
+  // between the cancel below and the schedule after it still loses the
+  // reminder, and the recovery is the next app open.
+  //
+  // The order of the two calls after this is deliberate and documented at the
+  // top of this file. Scheduling first and then cancelling the others would
+  // close the gap and open a worse one: a cancel that failed would leave a
+  // second reminder queued for a date the prediction has since moved off,
+  // which is the app stating something it no longer believes. A reminder that
+  // does not arrive is a silence; one that arrives on the wrong day is a
+  // claim. Do not swap them.
   const discreet = await loadDiscreetNotifications(db);
+
+  const cancelled = await cancelPeriodReminders();
 
   // `null` back means the moment has already gone. Nothing is scheduled and no
   // hour is invented to replace it; the next cycle change looks again.

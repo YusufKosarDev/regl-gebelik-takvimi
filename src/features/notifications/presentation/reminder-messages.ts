@@ -160,6 +160,34 @@ const reminderMessagesTr = {
    */
   reminderChannelOffNote: 'Telefon ayarlarında kapalı.',
 
+  /**
+   * What the weekly switch does, said where somebody is deciding about it.
+   *
+   * ## Why this is standing copy and not a state notice
+   *
+   * The switch can be on with no pregnancy tracked, and nothing arrives. That
+   * looked like a defect worth a line under the row - until
+   * `loadPregnancyProfile()` returning `null` turned out to cover two
+   * situations the app cannot tell apart: somebody who has never tracked a
+   * pregnancy, and somebody whose pregnancy has ended. A line saying "gebelik
+   * takibi açık değil" is useful to the first and, to the second, is the app
+   * remarking on a pregnancy to the person who recorded its ending.
+   *
+   * So this says what the reminder does and never what the person's situation
+   * is. True while a pregnancy is being tracked, true when none ever was, true
+   * the day after one ended, and a remark about none of them.
+   *
+   * It also answers the original question honestly. The switch is not broken
+   * when there is no pregnancy, it is armed: `pregnancy-start.tsx` syncs after
+   * saving the profile, so the weekly note begins by itself the moment tracking
+   * starts. "Açıkken" is doing that work - it says when the reminder arrives
+   * rather than whether the setting took.
+   *
+   * The channel description in system settings already carried this clause.
+   * That is the wrong place for it: nobody reads it while deciding here.
+   */
+  pregnancyWeeklyReminderDescription: 'Gebelik takibi açıkken her pazartesi gelir.',
+
   /** When the system settings screen refuses to open, which is rare and not fatal. */
   openSystemSettingsFailedMessage:
     'Telefon ayarları açılamadı. Ayarlar > Uygulamalar > Regl & Gebelik Takvimi > ' +
@@ -322,6 +350,9 @@ const reminderMessagesEn: ReminderMessages = {
     'settings, so it cannot reach you. You can turn it back on there.',
 
   reminderChannelOffNote: 'Turned off in phone settings.',
+
+  pregnancyWeeklyReminderDescription:
+    'Arrives on Monday mornings while you are tracking a pregnancy.',
 
   openSystemSettingsFailedMessage:
     'Your phone settings would not open. You can go there yourself: Settings > Apps > ' +

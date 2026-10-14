@@ -225,6 +225,41 @@ describe('syncPeriodReminder when the reminder is on', () => {
     );
   });
 
+  /**
+   * The order is the property here, which is why this asserts calls.
+   *
+   * Between cancelling and scheduling, the queue holds nothing. A kill in that
+   * gap loses the reminder until the app is next opened - and for somebody who
+   * logs a period and then closes the app for a month, that is the reminder
+   * they needed. The discreet read used to sit inside the gap, so the gap
+   * contained a SQLite round trip as well as a bridge call.
+   *
+   * #38 is narrowed by this, not closed: a kill between the cancel and the
+   * schedule still loses it. What this refuses is anybody widening the gap
+   * again by moving work into it.
+   */
+  it('reads the wording before emptying the queue, not inside the gap', async () => {
+    await syncPeriodReminder(db, TODAY);
+
+    const read = preferences.loadDiscreetNotifications.mock.invocationCallOrder[0];
+    const cancel = scheduler.cancelPeriodReminders.mock.invocationCallOrder[0];
+
+    expect(read).toBeLessThan(cancel);
+  });
+
+  it('still cancels before it schedules, which is the documented order', async () => {
+    // Deliberately not swapped. Scheduling first would close the gap and open
+    // a worse one: a failed cancel would leave a reminder queued for a date
+    // the prediction has since moved off, which is the app stating something
+    // it no longer believes.
+    await syncPeriodReminder(db, TODAY);
+
+    const cancel = scheduler.cancelPeriodReminders.mock.invocationCallOrder[0];
+    const schedule = scheduler.schedulePeriodReminder.mock.invocationCallOrder[0];
+
+    expect(cancel).toBeLessThan(schedule);
+  });
+
   it('reads the prediction rather than working one out', async () => {
     await syncPeriodReminder(db, TODAY);
 
@@ -240,6 +275,17 @@ describe('syncPeriodReminder with nothing to be early about', () => {
 
     expect(scheduler.schedulePeriodReminder).not.toHaveBeenCalled();
     expect(result.scheduled).toBeNull();
+  });
+
+  it('does not read the wording when there is nothing to schedule', async () => {
+    // The claim the staleness gate's comment makes about skipping a pointless
+    // read. Moving that read above the cancel must not have made it
+    // unconditional.
+    cycleRepository.loadCycleProfile.mockResolvedValue(null);
+
+    await syncPeriodReminder(db, TODAY);
+
+    expect(preferences.loadDiscreetNotifications).not.toHaveBeenCalled();
   });
 
   it('schedules nothing when nothing has been recorded', async () => {
