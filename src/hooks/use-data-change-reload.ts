@@ -33,6 +33,20 @@ import { onLocalDataChanged } from '@/shared/data-change/local-data-change';
  * Returning a cancel function is optional but expected of any reload that sets
  * state after an await. Every one handed out is called when focus is lost, so a
  * read still in flight cannot land on a screen that has gone.
+ *
+ * ## Seven screens implement this, under three different names
+ *
+ * `settings`, `history`, `avatar`, `daily-log-history` and
+ * `pregnancy-settings` call the flag `cancelled`; `index` calls it
+ * `isActive`; `calendar` calls it `active`. All seven are the same thing -
+ * a closure flag checked before every `setState` and flipped by the function
+ * returned here - and all seven are correct.
+ *
+ * Written down because the inconsistency is not harmless. A sweep for
+ * unguarded reloads grepped for `cancelled`, reported the two busiest screens
+ * as unguarded, and was wrong about both; the names are why. If you are
+ * checking whether a screen guards its reload, read the cleanup it returns
+ * rather than searching for a word.
  */
 export type DataChangeReload = (
   origin: LocalDataChangeOrigin | null

@@ -57,6 +57,20 @@ export type AvatarOutfitShape = {
 
 export type AvatarAccessoryKind = 'glasses' | 'hair-clip' | 'earrings';
 
+/**
+ * The metal the earrings and the hair clip are drawn in.
+ *
+ * Here with the other tones rather than in the component, for the reason every
+ * colour in this file is here: an avatar colour is data about an illustration,
+ * not a theme token, and the one thing a literal in a component does reliably
+ * is get edited in one place and not the other. This one was written twice in
+ * `AvatarPreview`, once for each accessory that uses it.
+ *
+ * Not part of a palette record, because it does not vary with any choice the
+ * person makes - the earrings are this colour whatever the skin and hair are.
+ */
+export const AVATAR_ACCESSORY_GOLD = '#E2B84B';
+
 const SKIN_PALETTES: Readonly<Record<string, AvatarSkinPalette>> = {
   'skin-tone-1': { base: '#F7DFCE', shade: '#E8C9B3', feature: '#5C4033' },
   'skin-tone-2': { base: '#EFC9A9', shade: '#DDB08C', feature: '#563A28' },

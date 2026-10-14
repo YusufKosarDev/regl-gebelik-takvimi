@@ -6,7 +6,7 @@ import { useMessages } from '@/i18n';
 import { avatarCatalogue } from '../data/avatar-catalog';
 import { avatarLabels, describeAvatarIn } from '../presentation/avatar-labels';
 import type { AvatarVisuals } from '../presentation/avatar-visuals';
-import { resolveAvatarVisuals } from '../presentation/avatar-visuals';
+import { AVATAR_ACCESSORY_GOLD, resolveAvatarVisuals } from '../presentation/avatar-visuals';
 
 /**
  * The avatar, drawn.
@@ -366,7 +366,7 @@ function Accessory({ visuals, u }: Part) {
       top: u(EAR.top + EAR.height - 5),
       width: u(8),
       height: u(8),
-      backgroundColor: '#E2B84B',
+      backgroundColor: AVATAR_ACCESSORY_GOLD,
       borderRadius: u(4),
     };
 
@@ -389,7 +389,7 @@ function Accessory({ visuals, u }: Part) {
           top: u(HEAD.top + 8),
           width: u(20),
           height: u(7),
-          backgroundColor: '#E2B84B',
+          backgroundColor: AVATAR_ACCESSORY_GOLD,
           borderColor: hair.shade,
           borderWidth: u(1),
           borderRadius: u(3.5),
