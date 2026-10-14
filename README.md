@@ -1029,6 +1029,33 @@ npx expo prebuild --platform android --clean
 `android/local.properties` is **not** regenerated, so back it up before a clean
 prebuild and restore it afterwards.
 
+### The EAS Android build quota, and building locally without it
+
+This account is on the EAS free plan, which allows a limited number of Android
+builds per month. **The quota was spent on 13 October 2026 and resets on 1
+November**, so `eas build --platform android` fails until then with:
+
+```
+This account has used its Android builds from the Free plan this month,
+which will reset in 18 days (on Sun Nov 01 2026).
+```
+
+That bears on the release schedule, not only on a device pass: there is no new
+cloud build before November without upgrading the plan.
+
+Gradle builds the same source locally in the meantime:
+
+```sh
+cd android && ./gradlew assembleRelease
+# android/app/build/outputs/apk/release/app-release.apk
+```
+
+Use it to judge layout and copy on a device. Do not use it to conclude anything
+about packaging: it is signed with a different key and built in a different
+environment from an EAS build, so size, signing and anything install-related
+are not comparable. `android/` is generated and gitignored, so the first run
+after a clean checkout takes considerably longer.
+
 ### App versions and the version code
 
 Two different numbers, and only one of them is in this repository.
