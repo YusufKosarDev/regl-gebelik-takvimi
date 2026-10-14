@@ -76,3 +76,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# The store banner before the words go on. `generate-store-graphics.mjs`
+# rewrites both on every run and neither is uploaded anywhere; the three files
+# beside them are the ones Play takes.
+assets/store/feature-base.svg
+assets/store/feature-base.png
