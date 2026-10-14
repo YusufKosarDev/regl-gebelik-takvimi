@@ -936,8 +936,8 @@ git log -1 --format='%ad' --date=iso
 ```
 
 If the build is older, rebuild and reinstall. `./gradlew assembleRelease`
-succeeded on this machine despite the Hermes note under "TODO before release";
-that block has not recurred.
+succeeds on this machine; the Hermes block recorded under the local build notes
+has not recurred.
 
 **Checking the APK's own bundle needs the right encoding.** Verifying that a
 fresh build contains today's copy by grepping
@@ -1384,6 +1384,21 @@ environment from an EAS build, so size, signing and anything install-related
 are not comparable. `android/` is generated and gitignored, so the first run
 after a clean checkout takes considerably longer.
 
+#### The Hermes step was blocked once and has not been since
+
+`createBundleReleaseJsAndAssets` failed early on with `hermesc.exe was blocked
+by your organization's Device Guard policy` — the JS bundle was written and only
+the bytecode step refused. That sat under a "TODO before release" heading for a
+while saying a release build needed a policy exception or another machine.
+
+It has not recurred. Every local `assembleRelease` on 14 October 2026 succeeded
+on the same machine, several of them, in 49s to 1m02s. The note is kept here
+rather than deleted because the failure is environmental and could come back
+with a policy update — but it is not a blocker, and leaving it written as one
+would have had somebody arranging a second machine for a problem that is not
+there. A TODO that has quietly stopped being true is worse than no TODO: it is
+read as a current state of the build.
+
 ### App versions and the version code
 
 Two different numbers, and only one of them is in this repository.
@@ -1435,13 +1450,6 @@ from `argv[0]` — runs as the C driver. The C++ standard library is then never
 linked, and `react-native-screens` and `react-native-worklets` fail with dozens
 of `undefined symbol: operator new` style errors that have nothing to do with
 this app's code.
-
-## TODO before release
-
-- **Release bundling.** `createBundleReleaseJsAndAssets` currently fails on the
-  development machine: `hermesc.exe was blocked by your organization's Device
-  Guard policy`. The JS bundle itself is written; only the Hermes bytecode step
-  is blocked. A release build needs that policy exception, or another machine.
 
 ## License
 
