@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,6 +43,8 @@ import {
   NO_BLOCKED_REMINDER_CHANNELS,
   loadBlockedReminderChannels,
 } from '@/features/notifications/infrastructure/blocked-reminder-channels';
+import type { NotificationSettingsTarget } from '@/features/notifications/domain/notification-settings-target';
+import { openNotificationSettings } from '@/features/notifications/infrastructure/open-notification-settings';
 import {
   ensureNotificationPermission,
   getNotificationPermissionStatus,
@@ -598,18 +599,25 @@ export default function SettingsScreen() {
    *
    * Android shows the permission dialog once. After that the app cannot ask
    * again — `ensureNotificationPermission` says as much — so a button that
-   * tried would do nothing at all, twice as confusingly. This opens the app's
-   * own page in system settings instead, which is where the switch actually is.
+   * tried would do nothing at all, twice as confusingly. This opens the system
+   * settings page that holds the switch instead.
    *
-   * `Linking.openSettings` is React Native's own, so nothing new is installed
-   * for it. A failure is reported rather than swallowed: somebody who pressed a
+   * Which page is `openNotificationSettings`'s decision and the panel's: the
+   * app's notification page when nothing is being delivered, and one
+   * reminder's own page when that reminder's channel is the thing that was
+   * switched off. It used to be `Linking.openSettings()` for every case, which
+   * is App info — a page with Uninstall on it and the word Notifications a tap
+   * further down, under a sentence that had just said "telefonun bildirim
+   * ayarlarında kapatılmış, oradan tekrar açabilirsin".
+   *
+   * A failure is still reported rather than swallowed: somebody who pressed a
    * button and saw nothing happen would reasonably press it again.
    */
-  const handleOpenSystemSettings = async () => {
+  const handleOpenSystemSettings = async (target: NotificationSettingsTarget) => {
     setSettingsLinkNotice(null);
 
     try {
-      await Linking.openSettings();
+      await openNotificationSettings(target);
     } catch (error) {
       logEvent('notification settings open failed', error);
 
@@ -803,8 +811,8 @@ export default function SettingsScreen() {
                 onAskPermission={() => {
                   void handleAskPermission();
                 }}
-                onOpenSystemSettings={() => {
-                  void handleOpenSystemSettings();
+                onOpenSystemSettings={(target) => {
+                  void handleOpenSystemSettings(target);
                 }}
               />
             )}

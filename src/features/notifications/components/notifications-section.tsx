@@ -6,6 +6,10 @@ import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
 import type { BlockedReminderChannels } from '../infrastructure/blocked-reminder-channels';
 import type { NotificationPreferences } from '../domain/notification-preferences';
+import {
+  notificationSettingsTargetFor,
+  type NotificationSettingsTarget,
+} from '../domain/notification-settings-target';
 import type { NotificationPermissionStatus } from '../infrastructure/notification-permission';
 import { ReminderToggle } from './reminder-toggle';
 import { reminderMessages } from '../presentation/reminder-messages';
@@ -50,7 +54,7 @@ export function NotificationsSection({
   readonly onReminderChange: (field: keyof NotificationPreferences, next: boolean) => void;
   readonly onDiscreetChange: (next: boolean) => void;
   readonly onAskPermission: () => void;
-  readonly onOpenSystemSettings: () => void;
+  readonly onOpenSystemSettings: (target: NotificationSettingsTarget) => void;
 }) {
   const theme = useTheme();
   const reminderStrings = useMessages(reminderMessages);
@@ -107,6 +111,19 @@ export function NotificationsSection({
    */
   const showPermissionPanel =
     waitingOnPermission || anyChannelSilenced || permission === 'denied';
+
+  /**
+   * Where the button goes, decided by the same facts as the sentence above it.
+   *
+   * Computed here rather than in the screen because this is where the two
+   * `...Silenced` answers already are, and a second copy of that reasoning
+   * would be a second chance for the button and the sentence to disagree.
+   */
+  const settingsTarget = notificationSettingsTargetFor({
+    permissionIsTheProblem: waitingOnPermission || permission === 'denied',
+    periodChannelSilenced,
+    pregnancyChannelSilenced,
+  });
 
   let permissionMessage = reminderStrings.notificationsBlockedNotice;
 
@@ -166,7 +183,7 @@ export function NotificationsSection({
                 accessibilityRole="button"
                 accessibilityLabel={reminderStrings.openSystemSettingsLabel}
                 onPress={() => {
-                  onOpenSystemSettings();
+                  onOpenSystemSettings(settingsTarget);
                 }}
                 style={({ pressed }) => [
                   styles.secondaryButton,

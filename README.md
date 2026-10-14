@@ -977,7 +977,17 @@ same settings page, in different languages, and that is correct.
 
 A related one on that page: a channel nothing has ever been posted on is
 collapsed under **Show unused categories**, so a freshly installed app shows no
-channel rows at all until the first reminder has actually been delivered.
+channel rows at all until the first reminder has actually been delivered. A
+channel that has been *switched off* is not hidden — being silenced is enough to
+make Android count it as used — so the page does show the one the app is
+complaining about.
+
+The disclosure stops mattering for this app's own route regardless, because
+`CHANNEL_NOTIFICATION_SETTINGS` opens a channel page when it is asked for by
+name, used or not. Measured: with neither reminder ever delivered and both
+therefore collapsed out of sight, that intent still opened "Regl
+hatırlatıcıları" with the app's own Turkish name and description and **Show
+notifications** at the top.
 
 ### Play's aspect limit rules out a modern phone's native resolution
 
@@ -1096,12 +1106,25 @@ intent exists, prefer it to navigating the page at all —
 ```sh
 adb shell am start -a android.settings.APP_NOTIFICATION_SETTINGS \
   --es android.provider.extra.APP_PACKAGE com.yusufkosardev.regltakvimi
+
+adb shell am start -a android.settings.CHANNEL_NOTIFICATION_SETTINGS \
+  --es android.provider.extra.APP_PACKAGE com.yusufkosardev.regltakvimi \
+  --es android.provider.extra.CHANNEL_ID period-reminders
 ```
 
-— which lands on the notification page with no Uninstall button anywhere on it.
-The same holds for `uiautomator dump` on that page: it describes a layout that
-may already have been replaced, which is the stale-evidence problem above
-pointing at something that deletes data.
+— the first lands on the app's notification page and the second on one
+reminder's own, neither with an Uninstall button anywhere on it. The same holds
+for `uiautomator dump` on App info: it describes a layout that may already have
+been replaced, which is the stale-evidence problem above pointing at something
+that deletes data.
+
+**The app sends nobody there any more either.** "Bildirim ayarlarını aç" used to
+call `Linking.openSettings()`, which is documented as the app's own settings
+and on Android means App info — so a sentence saying a reminder had been
+switched off *in the notification settings* handed somebody a page with
+Uninstall on it and left them to find Notifications themselves.
+`open-notification-settings.ts` sends the two actions above instead, picking
+between them by what the panel is reporting.
 
 ### Mutation testing, and verifying the mutation landed
 

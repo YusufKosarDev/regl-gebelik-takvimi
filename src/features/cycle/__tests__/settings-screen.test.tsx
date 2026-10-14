@@ -109,6 +109,13 @@ jest.mock('@/features/notifications/infrastructure/notification-permission', () 
 // Likewise, and for the same reason: which channels Android is discarding is
 // something the screen is told, not something it works out. The module that
 // does work it out has its own tests, where expo-notifications is the fake.
+// Faked so the page the screen asks for can be read. Which page that is, is
+// this screen's decision; whether Android opens it is the opener's own test,
+// and that one has to pin the platform because this suite runs as iOS.
+jest.mock('@/features/notifications/infrastructure/open-notification-settings', () => ({
+  openNotificationSettings: jest.fn(),
+}));
+
 jest.mock('@/features/notifications/infrastructure/blocked-reminder-channels', () => ({
   loadBlockedReminderChannels: jest.fn(),
   NO_BLOCKED_REMINDER_CHANNELS: {
@@ -165,6 +172,9 @@ const channelsModule = jest.requireMock(
 // Spied rather than module-mocked: React Native's own Linking is already in
 // place under jest-expo, and there is no system settings screen to open here.
 const openSettingsMock = jest.spyOn(Linking, 'openSettings');
+const openNotificationSettingsMock = jest.requireMock(
+  '@/features/notifications/infrastructure/open-notification-settings'
+).openNotificationSettings as jest.Mock;
 
 // Acting out leaving the screen and coming back, from the shared router mock.
 const { focusAgain } = jest.requireMock('expo-router') as { focusAgain: () => void };
@@ -232,6 +242,8 @@ beforeEach(() => {
   permissionModule.ensureNotificationPermission.mockReset();
   openSettingsMock.mockReset();
   openSettingsMock.mockResolvedValue(undefined);
+  openNotificationSettingsMock.mockReset();
+  openNotificationSettingsMock.mockResolvedValue(undefined);
   reminders.setReminderEnabled.mockReset();
   reminders.setReminderEnabled.mockImplementation(
     async (_db: unknown, field: string, enabled: boolean) => ({
@@ -1460,7 +1472,9 @@ describe('when notifications are blocked for this app', () => {
     });
   });
 
-  it('opens the system settings when that is pressed', async () => {
+  it('asks for the page the master switch is on', async () => {
+    // Not App info, which is where this used to go: a page whose first row is
+    // Archive / Uninstall / Force stop, with Notifications a tap further down.
     permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
 
     const screen = await renderLoaded();
@@ -1472,14 +1486,14 @@ describe('when notifications are blocked for this app', () => {
     await fireEvent.press(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL));
 
     await waitFor(() => {
-      expect(openSettingsMock).toHaveBeenCalledTimes(1);
+      expect(openNotificationSettingsMock).toHaveBeenCalledWith({ kind: 'app' });
     });
   });
 
   it('says so when the settings screen refuses to open', async () => {
     // Somebody who pressed a button and saw nothing happen would press again.
     permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
-    openSettingsMock.mockRejectedValue(new Error('no activity'));
+    openNotificationSettingsMock.mockRejectedValue(new Error('no activity'));
 
     const screen = await renderLoaded();
 
@@ -2097,6 +2111,73 @@ describe('a reminder silenced in the phone’s own settings', () => {
     });
 
     expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+  });
+
+  it('opens that reminder own page rather than a list to search', async () => {
+    /*
+     * The second half of the same complaint. The sentence says the reminder
+     * was switched off in the phone's notification settings and can be
+     * switched back on from there; the button now lands on that reminder's own
+     * page, titled with the channel's name and with its switch at the top.
+     *
+     * It matters most for a reminder that has never arrived. Android collapses
+     * a channel nothing has been posted on under "Show unused categories", so
+     * the app's notification page can show no reminders at all - but a channel
+     * page opens when it is asked for by name, used or not.
+     */
+    silence({ periodReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL));
+
+    await waitFor(() => {
+      expect(openNotificationSettingsMock).toHaveBeenCalledWith({
+        kind: 'channel',
+        channelId: 'period-reminders',
+      });
+    });
+  });
+
+  it('names the weekly reminder when that is the silenced one', async () => {
+    silence({ pregnancyWeeklyReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL));
+
+    await waitFor(() => {
+      expect(openNotificationSettingsMock).toHaveBeenCalledWith({
+        kind: 'channel',
+        channelId: 'pregnancy-reminders',
+      });
+    });
+  });
+
+  it('opens the page that lists both when both are silenced', async () => {
+    // One button and two channels to open, so the page that cannot name
+    // either is the only one that reaches both.
+    silence({ periodReminder: true, pregnancyWeeklyReminder: true });
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(CHANNEL_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL));
+
+    await waitFor(() => {
+      expect(openNotificationSettingsMock).toHaveBeenCalledWith({ kind: 'app' });
+    });
   });
 
   it('stops saying so once the channel is switched back on', async () => {
