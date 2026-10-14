@@ -6,8 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { parseCycleLengthParam } from '@/features/onboarding/parse-cycle-length-param';
-import { parsePeriodLengthParam } from '@/features/onboarding/parse-period-length-param';
 import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';

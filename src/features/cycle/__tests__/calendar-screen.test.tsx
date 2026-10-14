@@ -14,12 +14,10 @@
  * for either to disturb.
  */
 
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import CalendarScreen from '@/app/(app)/(tabs)/calendar';
-import { CONTENT_DISCLAIMER_FOOTER } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useAppStore } from '@/store/app-store';
 import type { AppMode } from '@/types/app-state';
 import type { CycleProfile } from '@/features/cycle/domain/types';
@@ -152,38 +150,7 @@ function setStoredMode(mode: AppMode) {
   useAppStore.setState({ mode, onboardingCompleted: true, hydrated: true });
 }
 const useRouterMock = useRouter as unknown as jest.Mock;
-const focusListeners = (globalThis as Record<string, unknown>).__focusListeners as (() => void)[];
-
-/** Acts out leaving the screen and coming back to it. */
-async function refocus() {
-  await act(async () => {
-    for (const listener of [...focusListeners]) {
-      listener();
-    }
-  });
-}
-
 let push: jest.Mock;
-
-const FERTILITY_DISCLAIMER =
-  'Doğurganlık bilgileri tahminidir ve gebelikten korunma yöntemi olarak kullanılmamalıdır.';
-
-/** Collects every visible string in a rendered tree, ignoring props and styles. */
-function collectText(node: unknown): string[] {
-  if (typeof node === 'string') {
-    return [node];
-  }
-
-  if (Array.isArray(node)) {
-    return node.flatMap(collectText);
-  }
-
-  if (node === null || typeof node !== 'object') {
-    return [];
-  }
-
-  return collectText((node as { children?: unknown }).children);
-}
 
 /**
  * Cycle 28, period 5 -> ovulation on day 14, fertile window days 9-15.
@@ -206,19 +173,6 @@ function profile(
       ...(isOngoing ? {} : { endDate: startDate as ISODate }),
       isOngoing,
     })),
-  };
-}
-
-/**
- * The shape onboarding leaves behind: a past period whose end was never asked
- * for. Not ongoing, and no end date invented for it.
- */
-function onboardingProfile(startDate = '2026-09-02'): CycleProfile {
-  return {
-    settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
-    periodRecords: [
-      { id: 'onboarding-initial-period', startDate: startDate as ISODate, isOngoing: false },
-    ],
   };
 }
 

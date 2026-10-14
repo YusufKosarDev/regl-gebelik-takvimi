@@ -1,6 +1,4 @@
-import { StyleSheet } from 'react-native';
-
-import { PixelRatio } from 'react-native';
+import { PixelRatio, StyleSheet } from 'react-native';
 
 import { tabBarInsetFor } from '../src/components/tab-bar';
 

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Linking, StyleSheet, Text } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import HomeScreen from '@/app/(app)/(tabs)/index';
@@ -715,7 +715,7 @@ describe('HomeScreen period start save', () => {
       .mockResolvedValueOnce(profile())
       .mockResolvedValue(profileWithToday());
 
-    const screen = await saveToday();
+    await saveToday();
 
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
@@ -727,7 +727,7 @@ describe('HomeScreen period start save', () => {
       .mockResolvedValueOnce(profile())
       .mockResolvedValue(profileWithToday());
 
-    const screen = await saveToday();
+    await saveToday();
 
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
@@ -739,7 +739,7 @@ describe('HomeScreen period start save', () => {
       .mockResolvedValueOnce(profile())
       .mockResolvedValue(profileWithToday());
 
-    const screen = await saveToday();
+    await saveToday();
 
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
@@ -1342,7 +1342,7 @@ describe('HomeScreen focus refresh', () => {
   it('does not read on an ordinary re-render', async () => {
     repository.loadCycleProfile.mockResolvedValue(profile());
 
-    const screen = await renderScreen();
+    await renderScreen();
 
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
@@ -1817,7 +1817,7 @@ describe('HomeScreen cycle dashboard alongside a pregnancy', () => {
   });
 
   it('still shows the cycle summary', async () => {
-    const { getByText } = await renderScreen();
+    await renderScreen();
 
     // The calendar assertion that was here moved with the calendar, to
     // `calendar-screen.test.tsx`. What this test is about stays.
@@ -3037,7 +3037,7 @@ describe('HomeScreen cycle daily support', () => {
     async (today) => {
       getTodayMock.mockReturnValue(today as ISODate);
 
-      const { getByText, getAllByText, queryByText } = await renderScreen();
+      const { getByText, getAllByText } = await renderScreen();
 
       expect(getByText('Olası ruh hali')).toBeTruthy();
       // Twice on the screen: once as the hero's sentence and once in the
@@ -3104,7 +3104,7 @@ describe('HomeScreen cycle daily support', () => {
     async (today) => {
       getTodayMock.mockReturnValue(today as ISODate);
 
-      const { getByText, getAllByText } = await renderScreen();
+      const { getByText } = await renderScreen();
 
       expect(getByText('Bugünün mesajı')).toBeTruthy();
       expect(getByText(SUPPORT_DISCLAIMER)).toBeTruthy();
@@ -3114,7 +3114,7 @@ describe('HomeScreen cycle daily support', () => {
   it('shows the luteal message rather than a neighbouring one', async () => {
     getTodayMock.mockReturnValue('2026-09-20' as ISODate);
 
-    const { getByText, getAllByText } = await renderScreen();
+    const { getAllByText } = await renderScreen();
 
     // Twice on the screen: once as the hero's sentence and once in the
     // support section parked below the fold. The duplication is a known
@@ -3130,7 +3130,7 @@ describe('HomeScreen cycle daily support', () => {
   it('shows the menstrual message on a menstrual day', async () => {
     getTodayMock.mockReturnValue('2026-09-03' as ISODate);
 
-    const { getByText, getAllByText } = await renderScreen();
+    const { getAllByText } = await renderScreen();
 
     // Twice on the screen: once as the hero's sentence and once in the
     // support section parked below the fold. The duplication is a known
@@ -3373,7 +3373,7 @@ describe('HomeScreen avatar link with one saved', () => {
   });
 
   it('offers to edit it instead', async () => {
-    const { getByText, getByLabelText, queryByText } = await renderScreen();
+    const { getByLabelText, queryByText } = await renderScreen();
 
     expect(getByLabelText('Avatarı düzenle')).toBeTruthy();
     // The way to edit an avatar is now the avatar, at the top of the screen.
@@ -3449,7 +3449,7 @@ describe('HomeScreen avatar link with one saved', () => {
   });
 
   it('keeps the rest of the cycle screen where it was', async () => {
-    const { getByText, getByLabelText } = await renderScreen();
+    const { getByLabelText } = await renderScreen();
 
     expect(getByLabelText('Günlük kayıt geçmişini görüntüle')).toBeTruthy();
   });

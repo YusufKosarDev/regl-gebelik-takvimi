@@ -69,6 +69,21 @@ module.exports = defineConfig([
     },
   },
 
+  // `require` is the API in a Jest mock factory, so this rule reports on every
+  // test that fakes a module and never on anything anybody will change. Fifty-six
+  // standing warnings is not a backlog, it is a screen nobody reads - and the
+  // next real warning would have arrived in the middle of it. Off here rather
+  // than left to be scrolled past, so the count means something again.
+  //
+  // Narrow on purpose: only test files and the Jest helpers. A `require` in
+  // shipped code is still a warning, which is what the rule is for.
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', 'jest/**/*.{js,ts}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
   {
     files: ['src/**/*.{ts,tsx}'],
     plugins: { i18n: i18nPlugin },
