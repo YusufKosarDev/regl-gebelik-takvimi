@@ -1720,8 +1720,28 @@ describe('the button that asks for the permission', () => {
     const screen = await pressAsk();
 
     await waitFor(() => {
-      expect(screen.getByText(PERMISSION_REFUSED_MESSAGE)).toBeTruthy();
+      expect(
+        screen.getByText(reminderMessages.tr.reminderPermissionDeclinedMessage)
+      ).toBeTruthy();
     });
+  });
+
+  it('does not tell somebody they need permission to switch on a reminder that is on', async () => {
+    // `permissionRefusedMessage` belongs to a switch that failed to move. Here
+    // the switch moved weeks ago and the phone is the part that is missing, so
+    // borrowing that sentence would be the app talking past the person in the
+    // same way the panel around it exists to stop.
+    permissionModule.ensureNotificationPermission.mockResolvedValue('undetermined');
+
+    const screen = await pressAsk();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(reminderMessages.tr.reminderPermissionDeclinedMessage)
+      ).toBeTruthy();
+    });
+
+    expect(screen.queryByText(PERMISSION_REFUSED_MESSAGE)).toBeNull();
   });
 
   it('queues nothing when the answer is no', async () => {

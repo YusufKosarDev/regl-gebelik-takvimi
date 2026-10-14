@@ -101,6 +101,25 @@ const reminderMessagesTr = {
    */
   grantNotificationPermissionLabel: 'Bildirim izni ver',
 
+  /**
+   * Shown when that button was pressed and the answer was no.
+   *
+   * ## Why this is not `permissionRefusedMessage`
+   *
+   * That one ends "Hatırlatıcıyı açmak için bildirim izni gerekiyor" — you
+   * need permission to switch a reminder on — which is exactly right after a
+   * switch failed to move, and wrong here, where the switch is already on and
+   * has been for a while. Saying it would be the app talking as though
+   * somebody had not already done the thing they did, which is the smaller
+   * version of the defect this whole panel exists to fix.
+   *
+   * So it reports the refusal and stops. No second sentence about what
+   * permission is for: the notice above the button has just said that, and
+   * repeating it would be the app explaining itself to somebody who has
+   * understood and declined.
+   */
+  reminderPermissionDeclinedMessage: 'Bildirim izni verilmedi.',
+
   /** When the system settings screen refuses to open, which is rare and not fatal. */
   openSystemSettingsFailedMessage:
     'Telefon ayarları açılamadı. Ayarlar > Uygulamalar > Regl & Gebelik Takvimi > ' +
@@ -255,6 +274,8 @@ const reminderMessagesEn: ReminderMessages = {
     'working.',
 
   grantNotificationPermissionLabel: 'Allow notifications',
+
+  reminderPermissionDeclinedMessage: 'Notification permission was not given.',
 
   openSystemSettingsFailedMessage:
     'Your phone settings would not open. You can go there yourself: Settings > Apps > ' +

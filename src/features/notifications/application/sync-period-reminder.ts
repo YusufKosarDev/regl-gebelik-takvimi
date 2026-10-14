@@ -73,12 +73,36 @@ export async function syncPeriodReminder(
   const dashboard = profile === null ? null : buildCycleDashboard(profile, today);
 
   // A prediction counted forward from a record older than the longest possible
-  // cycle is not a prediction. Without this, somebody who stopped logging - or
-  // who has just been pregnant for nine months - gets a reminder queued for a
-  // date in the past, or one built on a start date that stopped describing
-  // anything long ago. The home screen already withholds the date in that case;
-  // a notification that arrived anyway would be the app contradicting itself
-  // somewhere the person cannot see the reasoning.
+  // cycle is not a prediction, and this says so where the decision is made.
+  //
+  // ## It is not what prevents the reminder, and it used to claim it was
+  //
+  // This comment said that without the gate somebody who stopped logging would
+  // get a reminder queued for a date in the past. They would not.
+  // `STALE_PREDICTION_DAYS` is `MAX_CYCLE_LENGTH_DAYS`, and
+  // `averageCycleLengthDays` is validated into [15, 90] - so a record old
+  // enough to be stale predicts a day that has already gone, and
+  // `schedulePeriodReminder` refuses a moment in the past. There is no profile
+  // for which this gate is the thing that stops anything: it changes the route,
+  // never the outcome.
+  //
+  // The test beside it believed the claim because it replaced the scheduler
+  // with a mock, which reported a reminder scheduled for February on a `today`
+  // in April. `sync-period-reminder-staleness.test.ts` now runs the real one
+  // and pins the refusal where it lives.
+  //
+  // ## So why keep it
+  //
+  // Because the reason is worth stating at the point the decision is taken,
+  // rather than leaving the next person to derive it from two constants and a
+  // validator. The home screen already withholds a stale date; a notification
+  // built from one would be the app contradicting itself somewhere the person
+  // cannot see the reasoning, and that is a rule about predictions, not an
+  // accident of how far in the past the arithmetic happens to land. It also
+  // skips a read of the discreet setting there is no point making.
+  //
+  // If the bounds ever change - a longer cycle than the staleness window -
+  // this stops being redundant and starts being the only thing standing there.
   const isStale =
     profile !== null && buildCycleOutlook(profile, today).predictionConfidence === 'stale';
 

@@ -522,6 +522,10 @@ export default function SettingsScreen() {
    * was pressed in rewrites itself into the settings route on the next render -
    * which is why the message below is the only thing needed for the refusal
    * Android is still prepared to reconsider.
+   *
+   * That message is `reminderPermissionDeclinedMessage` and not
+   * `permissionRefusedMessage`: the second half of the latter says permission
+   * is needed to switch a reminder on, and the reminder here is already on.
    */
   const handleAskPermission = async () => {
     if (askPermissionInFlight.current) {
@@ -546,7 +550,7 @@ export default function SettingsScreen() {
         await syncPeriodReminderQuietly(db, getTodayLocalISODate());
         await syncPregnancyWeeklyReminderQuietly(db);
       } else {
-        setReminderNotice(reminderStrings.permissionRefusedMessage);
+        setReminderNotice(reminderStrings.reminderPermissionDeclinedMessage);
       }
     } catch (error) {
       // Logged and nothing more. The panel already says the permission is
