@@ -872,6 +872,88 @@ subtracted from the bottom should fail there rather than pass on a borrowed
 inset. Anything asserted about the top edge is asserted against
 `SAFE_AREA_TEST_INSETS.top` rather than a literal 24.
 
+### A screenshot is evidence of whatever build is on the device
+
+The device does not announce what it has, and nothing in the capture process
+asks. A store screenshot taken from a stale build is wrong in a way that
+survives: it goes up on the listing and stays there.
+
+This nearly happened. The first capture of the beyond-horizon screen showed
+
+    Sonraki regl tahmini    4 Ekim 2026
+
+on a device where today was 14 October — a next-period estimate naming a day
+ten days gone, which is exactly the defect #33 had been fixed to stop. The fix
+was real and committed. The APK on the emulator had been installed at 06:37 and
+the fix landed at 10:00, so the build predated it, along with every other
+user-visible change made that day: the permission notices, the silenced-channel
+line, the weekly reminder's description. Four screenshots would have advertised
+behaviour the app no longer had, and one of them would have advertised a
+defect.
+
+**Before capturing anything, compare the install time with the commit you mean
+to be photographing:**
+
+```sh
+adb shell dumpsys package com.yusufkosardev.regltakvimi | grep lastUpdateTime
+git log -1 --format='%ad' --date=iso
+```
+
+If the build is older, rebuild and reinstall. `./gradlew assembleRelease`
+succeeded on this machine despite the Hermes note under "TODO before release";
+that block has not recurred.
+
+**Checking the APK's own bundle needs the right encoding.** Verifying that a
+fresh build contains today's copy by grepping
+`assets/index.android.bundle` finds nothing, because the bundle is Hermes
+bytecode and Turkish strings sit in its string table as **UTF-16LE**. An ASCII
+string such as `period-reminder-v1` is findable with plain `grep`; `Beklenen
+gün geçti` is not. The check reported a correctly built APK as missing the
+day's work until it was calibrated against a string known to be present — the
+same discipline as the sweeps above, arriving from the other direction. A false
+alarm and a false all-clear cost the same.
+
+```js
+const b = fs.readFileSync('index.android.bundle');
+b.includes(Buffer.from('Beklenen gün geçti', 'utf16le'));   // true
+b.includes(Buffer.from('Beklenen gün geçti', 'utf8'));      // false
+```
+
+### Play's aspect limit rules out a modern phone's native resolution
+
+Google Play requires that a screenshot's **longest side be no more than twice
+its shortest**, and recommends 1080x1920 for portrait. The emulator here, like
+most current phones, is **1080x2400** — a ratio of 2.22, which fails. Captured
+natively it is rejected rather than merely ugly.
+
+So the display is resized for the capture session and reset afterwards:
+
+```sh
+adb shell wm size 1080x1920      # exactly 9:16, Play's recommendation
+# ... capture ...
+adb shell wm size reset
+```
+
+The app relayouts for the shorter screen, which is a real supported
+configuration rather than a trick. The alternative — cropping 1080x2400 down to
+1080x2160 — removes 240px of real interface to buy nothing.
+
+Two more things the capture needs. `adb exec-out screencap -p` emits **32-bit
+RGBA**, and Play accepts "JPEG or 24-bit PNG (no alpha)", so each file is
+re-encoded (`ffmpeg -i in.png -pix_fmt rgb24 out.png`). And the status bar is
+put into a fixed state first, which is what Play means by "edit excess elements
+in the notification bar":
+
+```sh
+adb shell settings put global sysui_demo_allowed 1
+adb shell am broadcast -a com.android.systemui.demo -e command enter
+adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0930
+adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false
+adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
+# ... capture ...
+adb shell am broadcast -a com.android.systemui.demo -e command exit
+```
+
 ### A `uiautomator dump` reports clipped rows with inverted bounds
 
 Device evidence in this project is a `uiautomator dump` paired with a
