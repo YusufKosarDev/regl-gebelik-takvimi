@@ -29,9 +29,11 @@ export function NotificationsSection({
   discreet,
   discreetBusy,
   permission,
+  askingPermission,
   settingsLinkNotice,
   onReminderChange,
   onDiscreetChange,
+  onAskPermission,
   onOpenSystemSettings,
 }: {
   readonly reminders: NotificationPreferences;
@@ -40,14 +42,62 @@ export function NotificationsSection({
   readonly discreet: boolean;
   readonly discreetBusy: boolean;
   readonly permission: NotificationPermissionStatus | null;
+  readonly askingPermission: boolean;
   readonly settingsLinkNotice: string | null;
   readonly onReminderChange: (field: keyof NotificationPreferences, next: boolean) => void;
   readonly onDiscreetChange: (next: boolean) => void;
+  readonly onAskPermission: () => void;
   readonly onOpenSystemSettings: () => void;
 }) {
   const theme = useTheme();
   const reminderStrings = useMessages(reminderMessages);
   const cycleSettings = useMessages(settingsMessages);
+
+  /**
+   * Whether somebody is waiting for a reminder that cannot arrive.
+   *
+   * Keyed off the stored preference rather than off `permission` alone, which
+   * looks like the wrong signal until you know why: 'undetermined' covers a
+   * permission nobody has been asked for, a refusal Android is still willing to
+   * re-ask, and a grant the person has since taken away - and the platform will
+   * not tell those apart. The long note on `toStatus` has the reason. So the
+   * status cannot say whether anybody is waiting. The switch can.
+   *
+   * Without this the three ways in were all silent: a grant revoked in system
+   * settings, notifications switched off for the whole app, and an account
+   * restored onto a phone that was never asked. In each one the switch read on,
+   * the queue held nothing, and the screen said nothing - and the last of those
+   * is the part only this can fix.
+   */
+  const waitingOnPermission =
+    permission !== 'granted' &&
+    (reminders.periodReminderEnabled || reminders.pregnancyWeeklyReminderEnabled);
+
+  /**
+   * Whether to offer the dialog rather than a trip through system settings.
+   *
+   * 'denied' is the one state where Android has stopped offering it, so every
+   * other one can ask. Two taps against leaving the app - and for somebody who
+   * restored their account it is the difference between being asked a question
+   * and being sent to find a switch they never touched.
+   */
+  const canAskPermission = waitingOnPermission && permission !== 'denied';
+
+  /*
+   * The standing notice keeps exactly the case it was written for: nothing
+   * switched on, and notifications blocked outright. 'undetermined' with every
+   * switch off is still the ordinary starting point and would be a warning
+   * about nothing.
+   */
+  const showPermissionPanel = waitingOnPermission || permission === 'denied';
+
+  let permissionMessage = reminderStrings.notificationsBlockedNotice;
+
+  if (waitingOnPermission) {
+    permissionMessage = canAskPermission
+      ? reminderStrings.reminderPermissionMissingNotice
+      : reminderStrings.reminderUnreachableNotice;
+  }
 
   return (
     <View style={styles.fields}>
@@ -62,28 +112,46 @@ export function NotificationsSection({
         {/* Standing, not transient: while this is true every switch in
             this section is a promise the phone will not keep, and that
             is worth saying before somebody flips one rather than after.
-            Only for 'denied' — the one state the app cannot ask its way
-            out of. 'undetermined' is the ordinary starting point and
-            would be a warning about nothing. */}
-        {permission === 'denied' && (
+            One panel and never two, because the states overlap — a
+            reminder switched on while notifications are blocked is both
+            of them at once, and it only wants telling once. */}
+        {showPermissionPanel && (
           <View style={[styles.blockedPanel, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-              {reminderStrings.notificationsBlockedNotice}
+              {permissionMessage}
             </ThemedText>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={reminderStrings.openSystemSettingsLabel}
-              onPress={() => {
-                onOpenSystemSettings();
-              }}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                { borderColor: theme.backgroundSelected },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText type="smallBold" style={ButtonLabel}>{reminderStrings.openSystemSettingsLabel}</ThemedText>
-            </Pressable>
+            {canAskPermission ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={reminderStrings.grantNotificationPermissionLabel}
+                accessibilityState={{ disabled: askingPermission, busy: askingPermission }}
+                disabled={askingPermission}
+                onPress={() => {
+                  onAskPermission();
+                }}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  (pressed || askingPermission) && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold" style={ButtonLabel}>{reminderStrings.grantNotificationPermissionLabel}</ThemedText>
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={reminderStrings.openSystemSettingsLabel}
+                onPress={() => {
+                  onOpenSystemSettings();
+                }}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold" style={ButtonLabel}>{reminderStrings.openSystemSettingsLabel}</ThemedText>
+              </Pressable>
+            )}
 
             {settingsLinkNotice !== null && (
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">

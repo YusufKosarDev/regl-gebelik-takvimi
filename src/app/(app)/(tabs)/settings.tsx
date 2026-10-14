@@ -39,7 +39,10 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/features/notifications/domai
 import { setReminderEnabled } from '@/features/notifications/application/set-reminder-enabled';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import type { NotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
-import { getNotificationPermissionStatus } from '@/features/notifications/infrastructure/notification-permission';
+import {
+  ensureNotificationPermission,
+  getNotificationPermissionStatus,
+} from '@/features/notifications/infrastructure/notification-permission';
 import { reminderMessages } from '@/features/notifications/presentation/reminder-messages';
 import { wipeLocalData } from '@/features/deletion/application/wipe-local-data';
 import {
@@ -227,6 +230,25 @@ export default function SettingsScreen() {
   const reminderInFlight = useRef(false);
 
   /**
+   * Whether the permission dialog is on screen.
+   *
+   * Its own flag rather than another value of `reminderField`: no switch moved,
+   * and the thing that must not happen twice is a system dialog rather than a
+   * write.
+   */
+  const [askingPermission, setAskingPermission] = useState(false);
+  const askPermissionInFlight = useRef(false);
+
+  /**
+   * The permission the queue was last rebuilt for.
+   *
+   * So the rebuild below happens on the transition into 'granted' and not on
+   * every focus. A rebuild is idempotent, so doing it every time would be
+   * harmless and wasteful; doing it never would make the notice lie.
+   */
+  const syncedPermission = useRef<NotificationPermissionStatus | null>(null);
+
+  /**
    * Stable, so the mount effect can depend on it.
    *
    * Reads the reminders too, and only reads them: asking the system for
@@ -289,6 +311,43 @@ export default function SettingsScreen() {
           setReminders(data.reminders);
           setDiscreet(data.discreet);
           setPermission(data.permission);
+
+          /*
+           * The moment a reminder already switched on can finally be queued.
+           *
+           * Nothing was scheduled while the system would not deliver - both
+           * syncs cancel and return in that state - so permission arriving is
+           * what turns the preference back into something in the queue. The
+           * notice this screen shows promises exactly that ("izin verdiğinde
+           * hatırlatıcı çalışmaya başlar"), and without this it would come
+           * true only when the home screen next mounted: the same defect of
+           * naming a remedy that does not happen, one screen along.
+           *
+           * Quiet and unawaited, like the home screen's own: the person came
+           * here to read a notice, not to wait for a queue, and a sync that
+           * failed is not news on this screen.
+           */
+          const previousPermission = syncedPermission.current;
+
+          syncedPermission.current = data.permission;
+
+          if (
+            data.permission === 'granted' &&
+            previousPermission !== 'granted' &&
+            (data.reminders.periodReminderEnabled ||
+              data.reminders.pregnancyWeeklyReminderEnabled)
+          ) {
+            void (async () => {
+              try {
+                const db = await openAppDatabase();
+
+                await syncPeriodReminderQuietly(db, getTodayLocalISODate());
+                await syncPregnancyWeeklyReminderQuietly(db);
+              } catch (syncError) {
+                logEvent('notification sync failed', syncError);
+              }
+            })();
+          }
 
           if (data.settings !== null) {
             // Against what was stored, not against what has just arrived: a
@@ -440,6 +499,64 @@ export default function SettingsScreen() {
       }
     } finally {
       setDiscreetBusy(false);
+    }
+  };
+
+  /**
+   * Asks for the permission a reminder already switched on is waiting for.
+   *
+   * The button this belongs to only appears while somebody is waiting for a
+   * reminder that cannot arrive and Android is still willing to be asked - see
+   * `NotificationsSection`, which works that out from the stored switches
+   * because the permission status cannot. For the person who restored their
+   * account onto a new phone this is the whole repair: they are asked the
+   * question they were never asked, and the queue is built from the preference
+   * that came back with them.
+   *
+   * No write. The preference already says yes; what was missing was the
+   * system's half, so nothing here touches the database except to rebuild the
+   * queue once there is a point to it.
+   *
+   * A refusal says so and leaves the switches alone. When Android has decided
+   * it will not ask again the status comes back 'denied', and the panel this
+   * was pressed in rewrites itself into the settings route on the next render -
+   * which is why the message below is the only thing needed for the refusal
+   * Android is still prepared to reconsider.
+   */
+  const handleAskPermission = async () => {
+    if (askPermissionInFlight.current) {
+      return;
+    }
+
+    askPermissionInFlight.current = true;
+    setAskingPermission(true);
+    setReminderNotice(null);
+    setSettingsLinkNotice(null);
+
+    try {
+      const next = await ensureNotificationPermission();
+
+      setPermission(next);
+
+      if (next === 'granted') {
+        const db = await openAppDatabase();
+
+        syncedPermission.current = next;
+
+        await syncPeriodReminderQuietly(db, getTodayLocalISODate());
+        await syncPregnancyWeeklyReminderQuietly(db);
+      } else {
+        setReminderNotice(reminderStrings.permissionRefusedMessage);
+      }
+    } catch (error) {
+      // Logged and nothing more. The panel already says the permission is
+      // missing and the press did not change that, so it is still true -
+      // whereas a message about a setting that could not be saved would be
+      // about something this never tried to do.
+      logEvent('notification permission request failed', error);
+    } finally {
+      askPermissionInFlight.current = false;
+      setAskingPermission(false);
     }
   };
 
@@ -645,9 +762,13 @@ export default function SettingsScreen() {
                 discreet={discreet}
                 discreetBusy={discreetBusy}
                 permission={permission}
+                askingPermission={askingPermission}
                 settingsLinkNotice={settingsLinkNotice}
                 onReminderChange={handleReminder}
                 onDiscreetChange={handleDiscreet}
+                onAskPermission={() => {
+                  void handleAskPermission();
+                }}
                 onOpenSystemSettings={() => {
                   void handleOpenSystemSettings();
                 }}

@@ -47,6 +47,60 @@ const reminderMessagesTr = {
   /** The way out of it, and the only one Android leaves once it has been refused. */
   openSystemSettingsLabel: 'Bildirim ayarlarını aç',
 
+  /* --------------------------- a reminder that cannot arrive -- */
+
+  /**
+   * Shown while a reminder is switched on and nothing can be delivered.
+   *
+   * ## Why there are two of these
+   *
+   * `notificationsBlockedNotice` above argues about a hypothetical — "açsan
+   * bile", even if you switched one on — because it is written for somebody
+   * whose switches are all off. Here one is on, and telling that person what
+   * would happen if they turned it on describes something they have already
+   * done. The contradiction they can see is the switch in front of them, so
+   * that is what the sentence opens with.
+   *
+   * This is the version for when only system settings can fix it. It says the
+   * notifications are off, which is a fact about the phone rather than an
+   * accusation, and names the one route that works.
+   *
+   * Neither counts the reminders. One switch or both, the state and the remedy
+   * are the same, and a sentence that counted would need a plural it cannot
+   * know in advance.
+   */
+  reminderUnreachableNotice:
+    'Açık bir hatırlatıcın var ama bu uygulamanın bildirimleri kapalı, bu yüzden ' +
+    'sana ulaşamaz. Telefon ayarlarından bildirimlere izin verdiğinde hatırlatıcı ' +
+    'çalışmaya başlar.',
+
+  /**
+   * The same state, when the dialog is still available.
+   *
+   * Deliberately not "bu uygulamanın bildirimleri kapalı". Somebody restoring
+   * their account onto a new phone has never been asked for anything, and a
+   * sentence saying notifications are off reads like a setting they chose and
+   * forgot. "Bildirim izni yok" is the state without the history — true for
+   * them, and true for somebody who granted it and took it away, which is the
+   * other situation this covers and the one the platform will not let the app
+   * tell apart.
+   *
+   * It says "izin verdiğinde", not "ayarlardan", because the button underneath
+   * it asks rather than sending anybody anywhere.
+   */
+  reminderPermissionMissingNotice:
+    'Açık bir hatırlatıcın var ama bu telefonda bildirim izni yok, bu yüzden sana ' +
+    'ulaşamaz. İzin verdiğinde hatırlatıcı çalışmaya başlar.',
+
+  /**
+   * The button that asks, where Android is still willing to be asked.
+   *
+   * Phrased as the thing being granted rather than as the dialog: "izin ver"
+   * is what the person does, and the same imperative as
+   * `openSystemSettingsLabel` beside it.
+   */
+  grantNotificationPermissionLabel: 'Bildirim izni ver',
+
   /** When the system settings screen refuses to open, which is rare and not fatal. */
   openSystemSettingsFailedMessage:
     'Telefon ayarları açılamadı. Ayarlar > Uygulamalar > Regl & Gebelik Takvimi > ' +
@@ -189,6 +243,18 @@ const reminderMessagesEn: ReminderMessages = {
     'reach you. Allow notifications in your phone settings and try again.',
 
   openSystemSettingsLabel: 'Open notification settings',
+
+  reminderUnreachableNotice:
+    'You have a reminder switched on, but notifications are off for this app, so it ' +
+    'cannot reach you. Allow notifications in your phone settings and the reminder ' +
+    'starts working.',
+
+  reminderPermissionMissingNotice:
+    'You have a reminder switched on, but notification permission has not been given ' +
+    'on this phone, so it cannot reach you. Give permission and the reminder starts ' +
+    'working.',
+
+  grantNotificationPermissionLabel: 'Allow notifications',
 
   openSystemSettingsFailedMessage:
     'Your phone settings would not open. You can go there yourself: Settings > Apps > ' +

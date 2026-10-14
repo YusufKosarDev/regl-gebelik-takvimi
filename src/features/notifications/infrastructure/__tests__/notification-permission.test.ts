@@ -58,10 +58,60 @@ describe('getNotificationPermissionStatus', () => {
     await expect(getNotificationPermissionStatus()).resolves.toBe('undetermined');
   });
 
-  it('trusts granted even when the status string says something else', async () => {
-    notifications.getPermissionsAsync.mockResolvedValue({ status: 'provisional', granted: true });
+  /**
+   * ## This assertion used to say the opposite, and that was the defect
+   *
+   * It read "trusts granted even when the status string says something else",
+   * against `{ status: 'provisional', granted: true }` - an iOS status this
+   * app never receives, since there is no iOS build and every channel call is
+   * already behind a `Platform.OS` check.
+   *
+   * On Android 13+ `granted` is the POST_NOTIFICATIONS bit on its own, while
+   * `status` is 'granted' only when the permission is held *and*
+   * `areNotificationsEnabled()` is true. So a held permission under a denied
+   * status is a real state - notifications switched off for the whole app -
+   * and the old rule made the app certain it was permitted while Android threw
+   * every reminder away. The test passed throughout, because it pinned the
+   * rule rather than the outcome.
+   */
+  it('does not read a held permission as delivery when the status disagrees', async () => {
+    notifications.getPermissionsAsync.mockResolvedValue({
+      status: 'denied',
+      granted: true,
+      canAskAgain: true,
+    });
 
-    await expect(getNotificationPermissionStatus()).resolves.toBe('granted');
+    // 'denied' rather than 'undetermined': no dialog can turn app-level
+    // notifications back on, so system settings is the only route and the
+    // screen has to offer that one.
+    await expect(getNotificationPermissionStatus()).resolves.toBe('denied');
+  });
+
+  /**
+   * The ambiguity this layer cannot resolve, stated so nobody tries.
+   *
+   * `canAskAgain` is a flag `expo-modules-core` persists when the app asks, and
+   * a successful grant writes it false for good. Revoke that grant in system
+   * settings and the response is field for field what an app that has never
+   * asked receives - because the platform does not distinguish them at query
+   * time either.
+   *
+   * Which is why nothing here can answer "is somebody waiting for a reminder
+   * that will not come", and why the screen asks the stored preference instead.
+   */
+  it('cannot tell a revoked grant from a permission nobody has been asked for', async () => {
+    const neverAsked = { status: 'denied', granted: false, canAskAgain: true };
+    const revokedAfterGranting = { status: 'denied', granted: false, canAskAgain: true };
+
+    notifications.getPermissionsAsync.mockResolvedValue(neverAsked);
+
+    await expect(getNotificationPermissionStatus()).resolves.toBe('undetermined');
+
+    notifications.getPermissionsAsync.mockResolvedValue(revokedAfterGranting);
+
+    // The same answer, and it has to be: the dialog is available in both, which
+    // is the one thing this status is for.
+    await expect(getNotificationPermissionStatus()).resolves.toBe('undetermined');
   });
 
   it('asks nobody anything', async () => {

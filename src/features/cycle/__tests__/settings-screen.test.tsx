@@ -17,6 +17,7 @@ import {
   OPEN_SYSTEM_SETTINGS_FAILED_MESSAGE,
   OPEN_SYSTEM_SETTINGS_LABEL,
   PERMISSION_REFUSED_MESSAGE,
+  reminderMessages,
 } from '@/features/notifications/presentation/reminder-messages';
 import {
   notifyLocalDataChanged,
@@ -1468,6 +1469,371 @@ describe('when notifications are blocked for this app', () => {
 
     expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
     expect(screen.getByLabelText('Regl hatırlatıcısı')).toBeTruthy();
+  });
+});
+
+/**
+ * A reminder switched on that the system will not deliver.
+ *
+ * ## Why these are screen tests and not permission tests
+ *
+ * There are three ways into this state and the permission layer cannot see any
+ * of them. Two of the three - a grant revoked in system settings, and
+ * notifications switched off for the whole app - arrive as a response field for
+ * field identical to the one an app that has never asked receives, because
+ * Android does not distinguish them at query time. The third never asks at all.
+ *
+ * What the app does know is whether somebody switched a reminder on. So the
+ * notice is keyed off the stored preference, which looks like the wrong signal
+ * until you know that the right-looking one cannot answer the question. These
+ * assertions are what say so.
+ *
+ * Before this, all three were silent: the switch read on, the queue held
+ * nothing, and the screen explained nothing. The failure is invisible by
+ * construction - the person is waiting for a notification, so the thing that
+ * would tell them something is wrong is the thing that never comes.
+ */
+describe('a reminder that cannot reach anybody', () => {
+  const PERMISSION_MISSING_NOTICE = reminderMessages.tr.reminderPermissionMissingNotice;
+  const UNREACHABLE_NOTICE = reminderMessages.tr.reminderUnreachableNotice;
+  const GRANT_PERMISSION_LABEL = reminderMessages.tr.grantNotificationPermissionLabel;
+
+  function storedReminderOn() {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+  }
+
+  it('says so, and offers the dialog, after a grant was revoked in settings', async () => {
+    // Route one. The person switched the reminder on, Android said yes, and
+    // they later turned notifications off again - so the persisted flag is
+    // still the false the grant wrote, and the status reads 'undetermined'.
+    storedReminderOn();
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(PERMISSION_MISSING_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText(GRANT_PERMISSION_LABEL)).toBeTruthy();
+    // The dialog is available, so nobody is sent on a trip through settings.
+    expect(screen.queryByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeNull();
+  });
+
+  it('says so, and offers settings, when notifications are off for the app', async () => {
+    // Route two. The permission bit may well still be held; what is off is the
+    // app's notifications, which no dialog can turn back on - so the permission
+    // layer reports 'denied' and system settings is the only honest route.
+    storedReminderOn();
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(UNREACHABLE_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeTruthy();
+    expect(screen.queryByLabelText(GRANT_PERMISSION_LABEL)).toBeNull();
+  });
+
+  /**
+   * Route three, and its own case because it is the one no test would have
+   * caught and the one that reaches somebody who did nothing wrong.
+   *
+   * The preference is on because it came back with their account -
+   * `periodReminderEnabled` is carried by cloud sync - and this phone has never
+   * been asked for anything. Nothing they did is visible to them as a cause,
+   * and the only clue the old build gave was a reminder that never arrived.
+   *
+   * It also pins what must not happen on the way: a restore must not produce a
+   * permission dialog on a screen somebody merely opened.
+   */
+  it('says so after an account restore onto a phone that was never asked', async () => {
+    storedReminderOn();
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(PERMISSION_MISSING_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText(GRANT_PERMISSION_LABEL)).toBeTruthy();
+    expect(permissionModule.ensureNotificationPermission).not.toHaveBeenCalled();
+  });
+
+  it('shows the switch on while saying it cannot reach anybody', async () => {
+    // The contradiction is the point. The switch reports what is stored, which
+    // is what the person asked for; the notice reports what the phone will do
+    // about it. Hiding either would be the app choosing which half to admit.
+    storedReminderOn();
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(PERMISSION_MISSING_NOTICE)).toBeTruthy();
+    });
+
+    expect(isOn(screen, 'Regl hatırlatıcısı')).toBe(true);
+  });
+
+  it('says nothing while no reminder is switched on', async () => {
+    // Unchanged, and the reason the preference is the signal: somebody who has
+    // asked for nothing is not waiting for anything, however little permission
+    // the app has.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(PERMISSION_MISSING_NOTICE)).toBeNull();
+    expect(screen.queryByText(UNREACHABLE_NOTICE)).toBeNull();
+    expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+    expect(screen.queryByLabelText(GRANT_PERMISSION_LABEL)).toBeNull();
+  });
+
+  it('says nothing when the reminder will actually arrive', async () => {
+    storedReminderOn();
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    const screen = await renderLoaded();
+
+    expect(screen.queryByText(PERMISSION_MISSING_NOTICE)).toBeNull();
+    expect(screen.queryByText(UNREACHABLE_NOTICE)).toBeNull();
+    expect(screen.queryByLabelText(GRANT_PERMISSION_LABEL)).toBeNull();
+  });
+
+  it('keeps the blocked notice for the case it was written for', async () => {
+    // Nothing switched on and notifications blocked outright. That notice
+    // argues about a hypothetical - "açsan bile" - which is right for somebody
+    // whose switches are off and wrong for somebody whose switch is on.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.queryByText(UNREACHABLE_NOTICE)).toBeNull();
+  });
+
+  it('shows one notice and never two', async () => {
+    // A reminder switched on while notifications are blocked is both states at
+    // once, and it only wants telling once.
+    storedReminderOn();
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByText(UNREACHABLE_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.queryByText(NOTIFICATIONS_BLOCKED_NOTICE)).toBeNull();
+  });
+});
+
+describe('the button that asks for the permission', () => {
+  const GRANT_PERMISSION_LABEL = reminderMessages.tr.grantNotificationPermissionLabel;
+  const PERMISSION_MISSING_NOTICE = reminderMessages.tr.reminderPermissionMissingNotice;
+
+  beforeEach(() => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('undetermined');
+  });
+
+  async function pressAsk() {
+    const screen = await renderLoaded();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(GRANT_PERMISSION_LABEL)).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByLabelText(GRANT_PERMISSION_LABEL));
+
+    return screen;
+  }
+
+  it('asks', async () => {
+    permissionModule.ensureNotificationPermission.mockResolvedValue('granted');
+
+    await pressAsk();
+
+    await waitFor(() => {
+      expect(permissionModule.ensureNotificationPermission).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('builds the queue the preference was already asking for', async () => {
+    // The whole repair for the restored account: the preference said yes all
+    // along and nothing was queued because the system would not deliver it.
+    // This is the moment it can be, and leaving it to the home screen would
+    // make the notice's promise come true somewhere else.
+    permissionModule.ensureNotificationPermission.mockResolvedValue('granted');
+
+    await pressAsk();
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalled();
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalled();
+  });
+
+  it('writes no preference, because the preference already says yes', async () => {
+    permissionModule.ensureNotificationPermission.mockResolvedValue('granted');
+
+    await pressAsk();
+
+    await waitFor(() => {
+      expect(permissionModule.ensureNotificationPermission).toHaveBeenCalledTimes(1);
+    });
+
+    expect(reminders.setReminderEnabled).not.toHaveBeenCalled();
+    expect(reminderRepository.saveNotificationPreferences).not.toHaveBeenCalled();
+  });
+
+  it('stops saying anything once the permission is in hand', async () => {
+    permissionModule.ensureNotificationPermission.mockResolvedValue('granted');
+
+    const screen = await pressAsk();
+
+    await waitFor(() => {
+      expect(screen.queryByText(PERMISSION_MISSING_NOTICE)).toBeNull();
+    });
+  });
+
+  it('says so when the answer is no', async () => {
+    // Pressed, Android asked, the person said no. Without a line here the
+    // press would look like the app losing it: the refusal Android is still
+    // willing to reconsider leaves the panel exactly as it was.
+    permissionModule.ensureNotificationPermission.mockResolvedValue('undetermined');
+
+    const screen = await pressAsk();
+
+    await waitFor(() => {
+      expect(screen.getByText(PERMISSION_REFUSED_MESSAGE)).toBeTruthy();
+    });
+  });
+
+  it('queues nothing when the answer is no', async () => {
+    permissionModule.ensureNotificationPermission.mockResolvedValue('undetermined');
+
+    await pressAsk();
+
+    await waitFor(() => {
+      expect(permissionModule.ensureNotificationPermission).toHaveBeenCalledTimes(1);
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('hands over to system settings once Android stops offering the dialog', async () => {
+    permissionModule.ensureNotificationPermission.mockResolvedValue('denied');
+
+    const screen = await pressAsk();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(OPEN_SYSTEM_SETTINGS_LABEL)).toBeTruthy();
+    });
+
+    expect(screen.queryByLabelText(GRANT_PERMISSION_LABEL)).toBeNull();
+  });
+
+  it('keeps the screen standing when the request itself fails', async () => {
+    permissionModule.ensureNotificationPermission.mockRejectedValue(new Error('no module'));
+
+    const screen = await pressAsk();
+
+    // The notice still says the permission is missing, which is still true.
+    await waitFor(() => {
+      expect(screen.getByText(PERMISSION_MISSING_NOTICE)).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText('Regl hatırlatıcısı')).toBeTruthy();
+  });
+});
+
+describe('the queue after permission arrives from outside the app', () => {
+  beforeEach(() => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: true,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+  });
+
+  it('builds it on the way back from system settings', async () => {
+    // What makes "izin verdiğinde hatırlatıcı çalışmaya başlar" true. Nothing
+    // was queued while the system would not deliver, so without this the
+    // sentence would come true only when the home screen was next opened -
+    // the same defect of naming a remedy that does not happen, one screen on.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    await renderLoaded();
+
+    reminderSync.syncPeriodReminderQuietly.mockClear();
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockClear();
+
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await act(async () => {
+      focusAgain();
+    });
+
+    await waitFor(() => {
+      expect(reminderSync.syncPeriodReminderQuietly).toHaveBeenCalled();
+    });
+
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).toHaveBeenCalled();
+  });
+
+  it('does not rebuild it on every focus once the permission is settled', async () => {
+    // A rebuild is idempotent, so doing it every time would be harmless and
+    // wasteful. It is the arrival that matters, not the state.
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await renderLoaded();
+
+    reminderSync.syncPeriodReminderQuietly.mockClear();
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockClear();
+
+    await act(async () => {
+      focusAgain();
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+
+  it('leaves the queue alone when no reminder is switched on', async () => {
+    reminderRepository.loadNotificationPreferences.mockResolvedValue({
+      periodReminderEnabled: false,
+      pregnancyWeeklyReminderEnabled: false,
+    });
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('denied');
+
+    await renderLoaded();
+
+    reminderSync.syncPeriodReminderQuietly.mockClear();
+    pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockClear();
+
+    permissionModule.getNotificationPermissionStatus.mockResolvedValue('granted');
+
+    await act(async () => {
+      focusAgain();
+    });
+
+    expect(reminderSync.syncPeriodReminderQuietly).not.toHaveBeenCalled();
+    expect(pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
   });
 });
 
