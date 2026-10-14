@@ -7,6 +7,8 @@ import {
 
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
+import { addDays } from '@/utils/date';
+import { getTodayLocalISODate } from '@/utils/today';
 
 // The database reads, the permission and the queue are faked. The dashboard,
 // the prediction and the reminder's own date arithmetic stay real, so this pins
@@ -32,7 +34,6 @@ jest.mock('@/features/notifications/infrastructure/period-reminder-scheduler', (
   cancelPeriodReminders: jest.fn(),
   schedulePeriodReminder: jest.fn(),
   ensurePeriodReminderChannel: jest.fn(),
-  periodReminderMoment: jest.fn(),
 }));
 
 const cycleRepository = jest.requireMock('@/features/cycle/data/cycle-repository');
@@ -49,8 +50,42 @@ const scheduler = jest.requireMock(
 const db = {} as SQLiteDatabase;
 const date = (value: string) => value as ISODate;
 
-/** Cycle 28 from 2026-09-01, so the next start is predicted for 2026-09-29. */
-function profile(startDates: string[] = ['2026-09-01']): CycleProfile {
+/**
+ * Counted from the clock, and it used to be written down.
+ *
+ * This file read `today` as '2026-09-18' against a record on '2026-09-01',
+ * and asserted a reminder scheduled for '2026-09-28'. That was a future day
+ * when it was written and a past one from 29 September, at which point the
+ * real scheduler would have refused the moment - `schedulePeriodReminder`
+ * returns `null` for one that has gone - and only the mock below still said
+ * yes. Five assertions were naming days that had already passed.
+ *
+ * The mock stays, because the nineteen assertions around them are about this
+ * use case's own contract: what it cancels, in what order, and which flag and
+ * language it hands on. Mocking that boundary is the right shape. What was
+ * wrong was naming a date as the outcome while mocking away the rule that
+ * decides whether a date can be an outcome.
+ *
+ * So the dates move with the clock. Seventeen days into a 28-day cycle, which
+ * is what the old fixture described, leaves the predicted start eleven days
+ * out and the reminder ten - always ahead, on any day this suite is run.
+ */
+const TODAY = getTodayLocalISODate();
+const CYCLE_LENGTH = 28;
+const DAYS_IN = 17;
+
+/** The record everything here counts from, seventeen days back. */
+const LATEST_START = addDays(TODAY, -DAYS_IN);
+
+/** Where that lands: the predicted start, and the day before it. */
+const PREDICTED_START = addDays(LATEST_START, CYCLE_LENGTH);
+const REMINDER_DAY = addDays(PREDICTED_START, -1);
+
+/** A more recent record, for the case where the prediction moves. */
+const RECENT_START = addDays(TODAY, -8);
+const RECENT_REMINDER_DAY = addDays(addDays(RECENT_START, CYCLE_LENGTH), -1);
+
+function profile(startDates: string[] = [LATEST_START]): CycleProfile {
   return {
     settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
     periodRecords: startDates.map((startDate, index) => ({
@@ -99,26 +134,26 @@ describe('syncPeriodReminder when the reminder is off', () => {
   it('takes the queued reminder back out', async () => {
     scheduler.cancelPeriodReminders.mockResolvedValue(1);
 
-    await expect(syncPeriodReminder(db, date('2026-09-18'))).resolves.toEqual({
+    await expect(syncPeriodReminder(db, TODAY)).resolves.toEqual({
       scheduled: null,
       cancelled: 1,
     });
   });
 
   it('schedules nothing', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.schedulePeriodReminder).not.toHaveBeenCalled();
   });
 
   it('does not even read the cycle', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(cycleRepository.loadCycleProfile).not.toHaveBeenCalled();
   });
 
   it('cancels only period reminders, which is all that function touches', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.cancelPeriodReminders).toHaveBeenCalledTimes(1);
     expect(scheduler.cancelPeriodReminders).toHaveBeenCalledWith();
@@ -127,10 +162,10 @@ describe('syncPeriodReminder when the reminder is off', () => {
 
 describe('syncPeriodReminder when the reminder is on', () => {
   it('schedules one a day before the predicted start', async () => {
-    const result = await syncPeriodReminder(db, date('2026-09-18'));
+    const result = await syncPeriodReminder(db, TODAY);
 
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', false, 'tr');
-    expect(result.scheduled).toBe('2026-09-28');
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith(REMINDER_DAY, false, 'tr');
+    expect(result.scheduled).toBe(REMINDER_DAY);
   });
 
   it('carries the quiet wording when this phone has asked for it', async () => {
@@ -138,9 +173,9 @@ describe('syncPeriodReminder when the reminder is on', () => {
     // the only moment the setting can reach the reminder that arrives.
     preferences.loadDiscreetNotifications.mockResolvedValue(true);
 
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-09-28', true, 'tr');
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith(REMINDER_DAY, true, 'tr');
   });
 
   /**
@@ -153,7 +188,7 @@ describe('syncPeriodReminder when the reminder is on', () => {
   it('reads the wording from the device, not from the synced preferences', async () => {
     preferences.loadDiscreetNotifications.mockResolvedValue(true);
 
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(preferences.loadDiscreetNotifications).toHaveBeenCalledTimes(1);
   });
@@ -161,7 +196,7 @@ describe('syncPeriodReminder when the reminder is on', () => {
   it('takes the old one out before putting a new one in', async () => {
     scheduler.cancelPeriodReminders.mockResolvedValue(1);
 
-    const result = await syncPeriodReminder(db, date('2026-09-18'));
+    const result = await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.cancelPeriodReminders).toHaveBeenCalledTimes(1);
     expect(scheduler.schedulePeriodReminder).toHaveBeenCalledTimes(1);
@@ -171,22 +206,27 @@ describe('syncPeriodReminder when the reminder is on', () => {
   it('leaves exactly one behind however many were there', async () => {
     scheduler.cancelPeriodReminders.mockResolvedValue(3);
 
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.schedulePeriodReminder).toHaveBeenCalledTimes(1);
   });
 
   it('follows the prediction when the cycle changes', async () => {
-    cycleRepository.loadCycleProfile.mockResolvedValue(profile(['2026-09-10']));
+    cycleRepository.loadCycleProfile.mockResolvedValue(profile([RECENT_START]));
 
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
-    // 2026-09-10 plus 28 days is 2026-10-08; the reminder is the day before.
-    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith('2026-10-07', false, 'tr');
+    // A record eight days back rather than seventeen, so the predicted start
+    // and the reminder both move nine days later.
+    expect(scheduler.schedulePeriodReminder).toHaveBeenCalledWith(
+      RECENT_REMINDER_DAY,
+      false,
+      'tr'
+    );
   });
 
   it('reads the prediction rather than working one out', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(cycleRepository.loadCycleProfile).toHaveBeenCalledTimes(1);
   });
@@ -196,7 +236,7 @@ describe('syncPeriodReminder with nothing to be early about', () => {
   it('schedules nothing when there is no cycle profile', async () => {
     cycleRepository.loadCycleProfile.mockResolvedValue(null);
 
-    const result = await syncPeriodReminder(db, date('2026-09-18'));
+    const result = await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.schedulePeriodReminder).not.toHaveBeenCalled();
     expect(result.scheduled).toBeNull();
@@ -205,7 +245,7 @@ describe('syncPeriodReminder with nothing to be early about', () => {
   it('schedules nothing when nothing has been recorded', async () => {
     cycleRepository.loadCycleProfile.mockResolvedValue(profile([]));
 
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.schedulePeriodReminder).not.toHaveBeenCalled();
   });
@@ -214,7 +254,7 @@ describe('syncPeriodReminder with nothing to be early about', () => {
     cycleRepository.loadCycleProfile.mockResolvedValue(null);
     scheduler.cancelPeriodReminders.mockResolvedValue(1);
 
-    const result = await syncPeriodReminder(db, date('2026-09-18'));
+    const result = await syncPeriodReminder(db, TODAY);
 
     expect(result.cancelled).toBe(1);
   });
@@ -223,7 +263,7 @@ describe('syncPeriodReminder with nothing to be early about', () => {
     // The scheduler refuses a moment in the past rather than moving it.
     scheduler.schedulePeriodReminder.mockResolvedValue(null);
 
-    const result = await syncPeriodReminder(db, date('2026-09-18'));
+    const result = await syncPeriodReminder(db, TODAY);
 
     expect(result.scheduled).toBeNull();
     expect(scheduler.schedulePeriodReminder).toHaveBeenCalledTimes(1);
@@ -234,7 +274,7 @@ describe('syncPeriodReminder without permission', () => {
   it.each(['denied', 'undetermined'] as const)('schedules nothing for %s', async (status) => {
     permission.getNotificationPermissionStatus.mockResolvedValue(status);
 
-    const result = await syncPeriodReminder(db, date('2026-09-18'));
+    const result = await syncPeriodReminder(db, TODAY);
 
     expect(scheduler.schedulePeriodReminder).not.toHaveBeenCalled();
     expect(result.scheduled).toBeNull();
@@ -244,14 +284,14 @@ describe('syncPeriodReminder without permission', () => {
     permission.getNotificationPermissionStatus.mockResolvedValue('denied');
     scheduler.cancelPeriodReminders.mockResolvedValue(1);
 
-    await expect(syncPeriodReminder(db, date('2026-09-18'))).resolves.toEqual({
+    await expect(syncPeriodReminder(db, TODAY)).resolves.toEqual({
       scheduled: null,
       cancelled: 1,
     });
   });
 
   it('asks for no permission of its own', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     // Reading is fine on any path; a dialog here would appear with no tap
     // behind it.
@@ -261,7 +301,7 @@ describe('syncPeriodReminder without permission', () => {
 
 describe('syncPeriodReminder leaves the rest of the queue alone', () => {
   it('never cancels anything by identifier of its own choosing', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     // Everything it removes goes through the one function that filters on type.
     expect(Object.keys(scheduler)).toContain('cancelPeriodReminders');
@@ -269,7 +309,7 @@ describe('syncPeriodReminder leaves the rest of the queue alone', () => {
   });
 
   it('writes nothing to the database', async () => {
-    await syncPeriodReminder(db, date('2026-09-18'));
+    await syncPeriodReminder(db, TODAY);
 
     expect(cycleRepository.saveCycleProfile).not.toHaveBeenCalled();
     expect(preferences.saveNotificationPreferences).not.toHaveBeenCalled();
@@ -286,14 +326,14 @@ describe('syncPeriodReminder when something fails', () => {
   ])('passes a failure in %s on', async (_label, mock) => {
     mock().mockRejectedValue(new Error('something broke'));
 
-    await expect(syncPeriodReminder(db, date('2026-09-18'))).rejects.toThrow('something broke');
+    await expect(syncPeriodReminder(db, TODAY)).rejects.toThrow('something broke');
   });
 });
 
 describe('syncPeriodReminderQuietly', () => {
   it('returns what the sync did', async () => {
-    await expect(syncPeriodReminderQuietly(db, date('2026-09-18'))).resolves.toEqual({
-      scheduled: '2026-09-28',
+    await expect(syncPeriodReminderQuietly(db, TODAY)).resolves.toEqual({
+      scheduled: REMINDER_DAY,
       cancelled: 0,
     });
   });
@@ -304,13 +344,13 @@ describe('syncPeriodReminderQuietly', () => {
   ])('swallows a failure in %s and says so with null', async (_label, mock) => {
     mock().mockRejectedValue(new Error('something broke'));
 
-    await expect(syncPeriodReminderQuietly(db, date('2026-09-18'))).resolves.toBeNull();
+    await expect(syncPeriodReminderQuietly(db, TODAY)).resolves.toBeNull();
   });
 
   it('leaves the database untouched when it fails', async () => {
     scheduler.schedulePeriodReminder.mockRejectedValue(new Error('queue is full'));
 
-    await syncPeriodReminderQuietly(db, date('2026-09-18'));
+    await syncPeriodReminderQuietly(db, TODAY);
 
     expect(cycleRepository.saveCycleProfile).not.toHaveBeenCalled();
   });

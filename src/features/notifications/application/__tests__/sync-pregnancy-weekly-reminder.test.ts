@@ -40,7 +40,6 @@ jest.mock('@/features/notifications/infrastructure/period-reminder-scheduler', (
   cancelPeriodReminders: jest.fn(),
   schedulePeriodReminder: jest.fn(),
   ensurePeriodReminderChannel: jest.fn(),
-  periodReminderMoment: jest.fn(),
 }));
 
 const pregnancyRepository = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');

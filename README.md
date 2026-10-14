@@ -965,8 +965,33 @@ npx jest src/path/to/__tests__/the.test.ts
 **Use `sed` or the editor. Do not use a `node -e` string replacement.** Every
 file in this repo has CRLF endings, so a pattern written with `\n` matches
 nothing and the script exits quietly having changed not one byte. That has now
-happened three times, in three separate rounds, each time producing a green run
+happened four times, in four separate rounds, each time producing a green run
 that was read as "the test does not hold the rule" and each time wrong.
+
+**`perl -0pi -e` fails the same way, and it is the more dangerous one.** It
+slurps the file and matches multi-line patterns, which is exactly what you
+reach for when removing a block — and `\n` in the pattern will not match
+`\r\n`. It reports nothing, exits 0, and the suite goes green.
+
+Worse, it sometimes works, which is how the rule came to be trusted. Several
+mutations in the notifications round applied cleanly with `perl -0pi` — but
+only because those files had already been rewritten to LF earlier in the same
+session. The first one aimed at an untouched file changed nothing and the test
+passed. The rule had been holding by luck in the rounds before it.
+
+If you need multi-line matching, normalise first and let git put the endings
+back on commit (`core.autocrlf` is `true` here, so the working copy is CRLF
+and the index is LF):
+
+```js
+// a mutation script that cannot match nothing by accident
+const s = fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+if (!s.includes(target)) throw new Error('not found');   // fail loudly
+fs.writeFileSync(p, s.replace(target, replacement));
+```
+
+The `throw` is the point. A mutation script that cannot tell you it matched
+nothing is the same hazard as a test that cannot fail.
 
 A minute spent proving the mutation is real is cheaper than a result that was
 never tested. The two rules together:
@@ -980,6 +1005,74 @@ three near-misses was a `String.replace` call given a counter as a third
 argument, which JavaScript ignores: the script printed `replacements: 0` while
 both replacements had in fact applied. A script's own summary is not evidence
 about the file. Read the file.
+
+### Tests that defend the thing they are named against
+
+Five tests in this repo have been found asserting the opposite of the property
+in their own name. Every one was green for its entire life, and none was caught
+by review. They share a tell worth knowing, because it is visible while you are
+writing the assertion:
+
+**The assertion names something only the author could see — an argument, a
+literal, a declared value, a branch that was taken — where the property is
+something a person would notice.**
+
+| test | what it asserted | what the name promised |
+|---|---|---|
+| the `lockscreenVisibility` channel test | the option was passed to `setNotificationChannelAsync` | that a reminder did not print its words on a locked screen |
+| `app-lock-messages.test.ts` | the copy contained `göremez` | that nothing there promised more than the lock does |
+| the day-cell `minHeight` test | a reservation existed | that the drawn label fitted inside it |
+| `notification-permission.test.ts` | `granted` was trusted over `status` | that the status reported what the system would deliver |
+| `sync-period-reminder-staleness.test.ts` | the staleness gate was reached | that no stale reminder could be queued |
+
+Each of those first columns is true. The channel option *was* passed — Android
+discarded it. The copy *did* contain `göremez` — that word was the overpromise.
+The reservation *was* 58px — the label drew 92. And each second column is what
+somebody would have found out by using the app.
+
+#### A mock is how the insulation gets installed
+
+Four of the five needed one to stay green. Replace the thing standing between
+the assertion and the outcome with something that always agrees, and the test
+can no longer fail for the reason it exists.
+`sync-period-reminder-staleness.test.ts` mocked `period-reminder-scheduler`
+wholesale and so reported a reminder "scheduled" for 1 February on a `today` in
+April, without complaint, for as long as it existed.
+
+This is not "mocks are bad", and the distinction is sharp enough to apply:
+
+- `sync-pregnancy-weekly-reminder.test.ts` also mocks
+  `period-reminder-scheduler`, and should keep doing so. It uses it for two
+  negative assertions — `cancelPeriodReminders` and `schedulePeriodReminder`
+  were never called — proving the weekly sync never reaches across to the
+  period queue. **There the mock is the instrument.** A real module would
+  weaken that assertion, not strengthen it.
+- `sync-period-reminder.test.ts` mocks the same module for nineteen
+  assertions that are about the use case's own contract — cancel counts, call
+  ordering, the discreet flag and the language being passed through — and that
+  is right too. What was wrong were its two remaining assertions, which named
+  a **date** as the outcome while mocking away the rule that decides whether a
+  date can be an outcome at all.
+
+So the question is not whether a boundary is mocked. It is whether the property
+in the test's name survives the mock. If the mock can make the assertion true
+on its own, the test is describing the code rather than the behaviour.
+
+#### One more tell: a fixture pinned to a calendar date
+
+`sync-period-reminder.test.ts` asserted a reminder scheduled for
+`2026-09-28`. That was a future date when it was written and a past one from
+29 September onwards, at which point the real scheduler would have refused it
+and only the mock still said yes. Anything whose correctness depends on "is
+this before or after now" counts from the clock:
+
+```ts
+const TODAY = getTodayLocalISODate();
+const record = addDays(TODAY, -10);   // not '2026-09-01'
+```
+
+A date written down stops meaning what it meant, silently, on a day nobody
+chose.
 
 ### Two scanners for defects nothing else can see
 
