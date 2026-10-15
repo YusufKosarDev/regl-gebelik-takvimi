@@ -208,6 +208,9 @@ describe('PregnancyStartScreen save', () => {
   it('opens the database through the shared connection', async () => {
     const screen = await render(<PregnancyStartScreen />);
 
+    // The mount already opened it once, for the prefill read.
+    db.openAppDatabase.mockClear();
+
     await fireEvent.press(screen.getByLabelText('Gebelik takibini başlat'));
 
     expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
@@ -313,7 +316,16 @@ describe('PregnancyStartScreen scope', () => {
 
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
-    ).toEqual(['Geri', 'Önceki gün', 'Sonraki gün', 'Gebelik takibini başlat']);
+    ).toEqual([
+      'Geri',
+      'Önceki gün',
+      'Sonraki gün',
+      // The month steps, added so a last period weeks back is two taps away
+      // rather than fifty; the words are the onboarding screen's own.
+      'Önceki ayı seç',
+      'Sonraki ayı seç',
+      'Gebelik takibini başlat',
+    ]);
   });
 
   it('shows nothing about the pregnancy before it has started', async () => {
@@ -372,5 +384,101 @@ describe('PregnancyStartScreen weekly reminder sync', () => {
     await render(<PregnancyStartScreen />);
 
     expect(reminderSync.syncPregnancyWeeklyReminderQuietly).not.toHaveBeenCalled();
+  });
+});
+
+jest.mock('@/features/cycle/data/cycle-repository', () => ({
+  loadCycleProfile: jest.fn(),
+  saveCycleProfile: jest.fn(),
+}));
+
+/**
+ * Where the date starts, and how far one tap moves it.
+ *
+ * The screen opened on today and moved a day per tap: a last period eight
+ * weeks back - the ordinary case for somebody arriving here - was about
+ * fifty-six taps away, while the app had the date in its own records the
+ * whole time. The stepper rule is unchanged: the range offered is exactly
+ * the range saving accepts.
+ */
+describe('where the date starts', () => {
+  const cycleRepository = jest.requireMock('@/features/cycle/data/cycle-repository') as {
+    loadCycleProfile: jest.Mock;
+  };
+
+  beforeEach(() => {
+    cycleRepository.loadCycleProfile.mockReset();
+    cycleRepository.loadCycleProfile.mockResolvedValue(null);
+  });
+
+  function recorded(startDates: readonly string[]) {
+    return {
+      settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+      periodRecords: startDates.map((startDate, index) => ({
+        id: `record-${index}`,
+        startDate: startDate as ISODate,
+        isOngoing: false,
+      })),
+    };
+  }
+
+  it('opens on the last recorded period start', async () => {
+    cycleRepository.loadCycleProfile.mockResolvedValue(
+      recorded(['2026-08-05', '2026-09-02'])
+    );
+
+    const screen = await render(<PregnancyStartScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 Eylül 2026')).toBeTruthy();
+    });
+  });
+
+  it('stays on today when nothing is recorded', async () => {
+    const screen = await render(<PregnancyStartScreen />);
+
+    await act(async () => {});
+
+    expect(screen.getByText('18 Eylül 2026')).toBeTruthy();
+  });
+
+  it('does not move a date the person already chose', async () => {
+    let release: () => void = () => undefined;
+
+    cycleRepository.loadCycleProfile.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve(recorded(['2026-09-02']));
+        })
+    );
+
+    const screen = await render(<PregnancyStartScreen />);
+
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+
+    await act(async () => {
+      release();
+    });
+
+    expect(screen.getByText('17 Eylül 2026')).toBeTruthy();
+  });
+
+  it('moves a month in one tap', async () => {
+    const screen = await render(<PregnancyStartScreen />);
+
+    await act(async () => {});
+    await fireEvent.press(screen.getByLabelText('Önceki ayı seç'));
+
+    expect(screen.getByText('18 Ağustos 2026')).toBeTruthy();
+  });
+
+  it('will not step a month into the future', async () => {
+    const screen = await render(<PregnancyStartScreen />);
+
+    await act(async () => {});
+
+    expect(
+      screen.getByLabelText('Sonraki ayı seç').props.accessibilityState.disabled
+    ).toBe(true);
   });
 });

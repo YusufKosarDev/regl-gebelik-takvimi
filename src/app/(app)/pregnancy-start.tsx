@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,13 +7,15 @@ import { BackButton } from '@/components/back-button';
 import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { loadCycleProfile } from '@/features/cycle/data/cycle-repository';
+import { onboardingMessages } from '@/features/onboarding/presentation/onboarding-messages';
 import { startPregnancyTracking } from '@/features/pregnancy/application/start-pregnancy-tracking';
 import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/application/sync-pregnancy-weekly-reminder';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
-import { addDays, daysBetween } from '@/utils/date';
+import { addDays, addMonths, daysBetween } from '@/utils/date';
 import { pregnancyLabels } from '@/features/pregnancy/presentation/pregnancy-labels';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
@@ -33,6 +35,10 @@ export default function PregnancyStartScreen() {
   const router = useRouter();
   const theme = useTheme();
   const pregnancy1 = useMessages(pregnancyLabels);
+  // The month-step words are the onboarding screen's own, reused rather than
+  // duplicated: two catalogues each holding "Önceki ay" is how one of them
+  // drifts.
+  const onboarding = useMessages(onboardingMessages);
   const language = useLanguage();
 
   // Read once for the screen, so the future check and the date the person picks
@@ -47,12 +53,70 @@ export default function PregnancyStartScreen() {
   // taps could both read `isSaving` as false before the re-render lands.
   const saveInFlight = useRef(false);
 
+  /** Whether a date has been chosen by hand, which the prefill must respect. */
+  const lmpTouched = useRef(false);
+
+  /**
+   * Starts from the last recorded period rather than from today.
+   *
+   * The question this screen asks is one the cycle records usually already
+   * answer, and the screen used to open on today regardless — a last period
+   * eight weeks back was about fifty-six taps away. The prefill is a
+   * convenience, so it is quiet about every failure, never moves a date
+   * already touched, and never offers a day the stepper itself would refuse.
+   */
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const db = await openAppDatabase();
+        const profile = await loadCycleProfile(db);
+
+        if (!active || lmpTouched.current || profile === null) {
+          return;
+        }
+
+        let lastStart: ISODate | null = null;
+
+        for (const record of profile.periodRecords) {
+          if (lastStart === null || daysBetween(lastStart, record.startDate) > 0) {
+            lastStart = record.startDate;
+          }
+        }
+
+        // No second touched-check here: nothing awaits between the guard
+        // above and this write, so one JS thread cannot change it in between.
+        if (lastStart !== null && daysBetween(lastStart, today) >= 0) {
+          setLmp(lastStart);
+        }
+      } catch {
+        // A convenience that could not be read; today stands.
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [today]);
+
   // A period that has not happened yet cannot be the one a pregnancy started
   // from. Nothing bounds how far back it may reach.
   const canGoForward = !isSaving && daysBetween(lmp, today) > 0;
 
+  // The month steps move by a calendar month and never past today, the same
+  // clamp the day step keeps: the range offered stays the range saving accepts.
+  const canMonthForward = !isSaving && daysBetween(addMonths(lmp, 1), today) >= 0;
+
   const changeLmp = (delta: number) => {
+    lmpTouched.current = true;
     setLmp(addDays(lmp, delta));
+    setHasSaveError(false);
+  };
+
+  const changeLmpByMonths = (delta: number) => {
+    lmpTouched.current = true;
+    setLmp(addMonths(lmp, delta));
     setHasSaveError(false);
   };
 
@@ -152,6 +216,45 @@ export default function PregnancyStartScreen() {
                   <ThemedText style={styles.dayButtonLabel}>›</ThemedText>
                 </Pressable>
               </View>
+
+              {/* A month per tap, for the ordinary case: the last period is
+                  weeks back, and a day stepper alone put it fifty-odd taps
+                  away. Same clamp as the day step - never past today. */}
+              <View style={styles.monthBar}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={onboarding.lastPeriodPreviousMonthLabel}
+                  accessibilityState={{ disabled: isSaving }}
+                  disabled={isSaving}
+                  onPress={() => changeLmpByMonths(-1)}
+                  style={({ pressed }) => [
+                    styles.monthButton,
+                    { borderColor: theme.backgroundSelected },
+                    isSaving && styles.disabled,
+                    pressed && !isSaving && styles.pressed,
+                  ]}>
+                  <ThemedText type="smallBold" style={ButtonLabel}>
+                    {onboarding.lastPeriodPreviousMonthText}
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={onboarding.lastPeriodNextMonthLabel}
+                  accessibilityState={{ disabled: !canMonthForward }}
+                  disabled={!canMonthForward}
+                  onPress={() => changeLmpByMonths(1)}
+                  style={({ pressed }) => [
+                    styles.monthButton,
+                    { borderColor: theme.backgroundSelected },
+                    !canMonthForward && styles.disabled,
+                    pressed && canMonthForward && styles.pressed,
+                  ]}>
+                  <ThemedText type="smallBold" style={ButtonLabel}>
+                    {onboarding.lastPeriodNextMonthText}
+                  </ThemedText>
+                </Pressable>
+              </View>
             </View>
 
             {hasSaveError && (
@@ -234,6 +337,20 @@ const styles = StyleSheet.create({
   dayButtonLabel: {
     fontSize: 24,
     lineHeight: 28,
+  },
+  monthBar: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  monthButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
   },
   selectedDate: {
     flexShrink: 1,
