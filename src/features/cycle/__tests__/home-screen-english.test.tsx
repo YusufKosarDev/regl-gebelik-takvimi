@@ -197,6 +197,34 @@ describe('the cycle length suggestion', () => {
     expect(screen.queryByText(homeMessages.en.cycleLengthSuggestionTitle)).toBeNull();
   });
 
+  it('does not call a durable accept failed when only the read back fails', async () => {
+    // Accepting writes the setting, then the screen re-reads everything. The
+    // read used to share a catch with the write, so its failure showed the
+    // card's failure notice over a setting that had in fact been saved.
+    const suggested = profileWithGaps(28, [31, 31, 31]);
+
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(suggested) // mount
+      .mockResolvedValueOnce(suggested) // inside updateCycleSettings
+      .mockRejectedValueOnce(new Error('read back failed'))
+      .mockResolvedValue(suggested);
+    getTodayMock.mockReturnValue(addDays(lastStartOf(suggested), 3));
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+
+    const screen = await render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('cycle-dashboard-loading')).toBeNull();
+    });
+
+    await fireEvent.press(
+      screen.getByLabelText(homeMessages.en.cycleLengthSuggestionAcceptLabel(31))
+    );
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(homeMessages.en.cycleLengthSuggestionFailed)).toBeNull();
+  });
+
   it('goes away when it is waved off', async () => {
     const screen = await renderWith(profileWithGaps(28, [31, 31, 31]));
 

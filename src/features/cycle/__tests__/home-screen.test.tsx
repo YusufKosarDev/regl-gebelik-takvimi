@@ -786,6 +786,52 @@ describe('HomeScreen period start double submit', () => {
   });
 });
 
+describe('HomeScreen period start save when the read back fails', () => {
+  // The write is durable before the screen re-reads it. That read used to
+  // share a catch with the write, so its failure was announced as the save
+  // failing - inviting a retry of a save that had already happened, which
+  // the overlap rule then rejects as a duplicate.
+  beforeEach(() => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile()) // mount
+      .mockResolvedValueOnce(profile()) // inside the use case
+      .mockRejectedValueOnce(new Error('read back failed'))
+      .mockResolvedValue(profile());
+  });
+
+  async function saveToday() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
+    await fireEvent.press(screen.getByLabelText('Kaydet'));
+
+    return screen;
+  }
+
+  it('does not report the durable save as failed', async () => {
+    const screen = await saveToday();
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Regl başlangıcı kaydedilemedi.')).toBeNull();
+  });
+
+  it('closes the confirmation, because there is nothing left to retry', async () => {
+    const screen = await saveToday();
+
+    expect(screen.queryByLabelText('Kaydet')).toBeNull();
+    expect(
+      screen.queryByText('Bugünü regl başlangıcı olarak kaydetmek istiyor musun?')
+    ).toBeNull();
+  });
+
+  it('keeps showing the data it had rather than an error screen', async () => {
+    const screen = await saveToday();
+
+    expect(screen.getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
+    expect(screen.queryByText('Bilgiler yüklenemedi.')).toBeNull();
+  });
+});
+
 describe('HomeScreen period start failure', () => {
   beforeEach(() => {
     repository.loadCycleProfile.mockResolvedValue(profile());

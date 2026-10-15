@@ -292,7 +292,17 @@ export default function HistoryScreen() {
       await syncWidgetSnapshotQuietly(db, now);
       await syncPeriodReminderQuietly(db, now);
 
-      await refresh();
+      // The delete is durable from here on, so the re-read gets its own
+      // catch: announcing its failure as the delete failing left the
+      // confirmation open over a record that no longer existed, offering a
+      // retry that could only fail again. The stale list is corrected by the
+      // change announcement or the next focus.
+      try {
+        await refresh();
+      } catch (error) {
+        logEvent('period history load failed', error);
+      }
+
       setRecordPendingDelete(null);
     } catch (error) {
       logEvent('period record delete failed', error);
@@ -331,7 +341,15 @@ export default function HistoryScreen() {
       await syncWidgetSnapshotQuietly(db, now);
       await syncPeriodReminderQuietly(db, now);
 
-      await refresh();
+      // The update is durable from here on - same reasoning as the delete
+      // above, so the re-read's failure closes the editor instead of keeping
+      // it open over a record the save may have replaced.
+      try {
+        await refresh();
+      } catch (error) {
+        logEvent('period history load failed', error);
+      }
+
       closePanels();
     } catch (error) {
       logEvent('period record update failed', error);
@@ -373,7 +391,15 @@ export default function HistoryScreen() {
       await syncWidgetSnapshotQuietly(db, now);
       await syncPeriodReminderQuietly(db, now);
 
-      await refresh();
+      // The start edit is the case this matters most for: the use case may
+      // have given the record a new id, so an editor left open by a failed
+      // re-read would retry against an id that no longer exists.
+      try {
+        await refresh();
+      } catch (error) {
+        logEvent('period history load failed', error);
+      }
+
       closePanels();
     } catch (error) {
       logEvent('period record update failed', error);

@@ -533,18 +533,29 @@ export default function HomeScreen() {
       await syncWidgetSnapshotQuietly(db, dashboard.today);
       await syncPeriodReminderQuietly(db, dashboard.today);
 
-      // Both halves of the screen come from one fresh read, so the summary and
-      // the calendar cannot end up describing different profiles.
-      const data = await readCycleData(dashboard.today);
+      // The write is durable from here on, so the re-read below gets its own
+      // catch: announcing its failure as the save failing invited a retry of
+      // a save that had already happened, which the overlap rule then refuses
+      // as a duplicate. The stale screen is corrected by the next focus or
+      // change announcement.
+      try {
+        // Both halves of the screen come from one fresh read, so the summary
+        // and the calendar cannot end up describing different profiles.
+        const data = await readCycleData(dashboard.today);
 
-      setHomeData(data.cycle);
-      setPregnancy(data.pregnancy);
-      setAvatar(data.avatar);
+        setHomeData(data.cycle);
+        setPregnancy(data.pregnancy);
+        setAvatar(data.avatar);
+
+        // After the read, so the sky blooms over the day it just learned about
+        // rather than over the one being replaced - which is also why there is
+        // no bloom when the read fails: the old day is still on screen.
+        celebrate();
+      } catch (error) {
+        logEvent('cycle data load failed', error);
+      }
+
       setIsConfirming(false);
-
-      // After the read, so the sky blooms over the day it just learned about
-      // rather than over the one being replaced.
-      celebrate();
     } catch (error) {
       logEvent('period record save failed', error);
 
@@ -587,11 +598,18 @@ export default function HomeScreen() {
       await syncWidgetSnapshotQuietly(db, dashboard.today);
       await syncPeriodReminderQuietly(db, dashboard.today);
 
-      const data = await readCycleData(dashboard.today);
+      // The setting is saved from here on; a failed re-read must not be
+      // reported as the acceptance failing. Same reasoning as the period
+      // save above.
+      try {
+        const data = await readCycleData(dashboard.today);
 
-      setHomeData(data.cycle);
-      setPregnancy(data.pregnancy);
-      setAvatar(data.avatar);
+        setHomeData(data.cycle);
+        setPregnancy(data.pregnancy);
+        setAvatar(data.avatar);
+      } catch (error) {
+        logEvent('cycle data load failed', error);
+      }
     } catch (error: unknown) {
       logEvent('cycle length suggestion failed', error);
       setSuggestionFailed(true);

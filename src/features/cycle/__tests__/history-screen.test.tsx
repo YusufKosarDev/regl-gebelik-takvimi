@@ -651,6 +651,50 @@ describe('HistoryScreen delete', () => {
   });
 });
 
+describe('HistoryScreen delete when the read back fails', () => {
+  // The delete is durable before the list re-reads it. That read used to
+  // share a catch with the write, so its failure was announced as the delete
+  // failing - and the confirmation stayed open over a record that no longer
+  // existed, offering a retry that could only fail again.
+  beforeEach(() => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }]))
+      .mockResolvedValueOnce(profile([{ id: 'period-2026-09-17', startDate: '2026-09-17' }]))
+      .mockRejectedValueOnce(new Error('read back failed'))
+      .mockResolvedValue(profile([]));
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  async function deleteIt() {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('17 Eylül 2026 regl kaydını sil'));
+    await fireEvent.press(screen.getByLabelText('Sil'));
+
+    return screen;
+  }
+
+  it('does not report the durable delete as failed', async () => {
+    const screen = await deleteIt();
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Kayıt silinemedi.')).toBeNull();
+  });
+
+  it('closes the confirmation, because the record is already gone', async () => {
+    const screen = await deleteIt();
+
+    expect(screen.queryByText('Bu regl kaydını silmek istiyor musun?')).toBeNull();
+    expect(screen.queryByLabelText('Sil')).toBeNull();
+  });
+
+  it('keeps the list it had rather than an error screen', async () => {
+    const screen = await deleteIt();
+
+    expect(screen.queryByText('Kayıtlar yüklenemedi.')).toBeNull();
+  });
+});
+
 describe('HistoryScreen delete failure', () => {
   beforeEach(() => {
     repository.loadCycleProfile.mockResolvedValue(
@@ -1204,6 +1248,56 @@ describe('HistoryScreen removing an end date', () => {
     expect(screen.getByText('Bitiş tarihi bilinmiyor')).toBeTruthy();
     expect(screen.queryByText('Devam ediyor')).toBeNull();
     expect(screen.queryByText('7 Eylül 2026')).toBeNull();
+  });
+});
+
+describe('HistoryScreen edit when the read back fails', () => {
+  // Same shape as the delete above: the update is durable, only the list's
+  // re-read failed. The start edit case matters most - the use case may give
+  // the record a new id, so an editor left open would retry against an id
+  // that no longer exists.
+  beforeEach(() => {
+    repository.saveCycleProfile.mockResolvedValue(undefined);
+  });
+
+  it('closes the end editor without calling the durable update failed', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02' }]))
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02' }]))
+      .mockRejectedValueOnce(new Error('read back failed'))
+      .mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-02', endDate: '2026-09-03' }]));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının bitiş tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Sonraki gün'));
+    await fireEvent.press(screen.getByLabelText('Bitiş tarihini kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Kayıt güncellenemedi.')).toBeNull();
+    expect(screen.queryByLabelText('Bitiş tarihini kaydet')).toBeNull();
+  });
+
+  it('closes the start editor without calling the durable update failed', async () => {
+    repository.loadCycleProfile
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02' }]))
+      .mockResolvedValueOnce(profile([{ id: 'a', startDate: '2026-09-02' }]))
+      .mockRejectedValueOnce(new Error('read back failed'))
+      .mockResolvedValue(profile([{ id: 'a', startDate: '2026-09-01' }]));
+
+    const screen = await renderScreen();
+
+    await fireEvent.press(
+      screen.getByLabelText('2 Eylül 2026 regl kaydının başlangıç tarihini düzenle')
+    );
+    await fireEvent.press(screen.getByLabelText('Önceki gün'));
+    await fireEvent.press(screen.getByLabelText('Başlangıç tarihini kaydet'));
+
+    expect(repository.saveCycleProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Kayıt güncellenemedi.')).toBeNull();
+    expect(screen.queryByLabelText('Başlangıç tarihini kaydet')).toBeNull();
   });
 });
 
