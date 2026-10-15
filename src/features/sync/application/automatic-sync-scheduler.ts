@@ -279,6 +279,57 @@ async function runAttempt(context: AutomaticSyncContext): Promise<CloudSyncOutco
   return outcome;
 }
 
+/** What the one sync a person asked for by name needs to be told. */
+export type ManualSyncInput = {
+  readonly db: SQLiteDatabase;
+  readonly uid: string;
+};
+
+/**
+ * The sync behind "Şimdi senkronize et": asked for by name, so the policy
+ * does not apply — but the flight is still the one flight.
+ *
+ * Two registries of in-flight syncs was a bug: a button sync and a scheduled
+ * one could interleave their local writes, and the loser of the remote
+ * compare-and-set would still have written its base. So the button's run is
+ * registered here, where the scheduler already keeps "one at a time" true:
+ * whoever arrives second — either of them — gets the first one's answer.
+ *
+ * It counts as an attempt, so the foreground floor holds afterwards, and it
+ * takes a waiting edit with it: the debounce was waiting to send exactly what
+ * this flight is about to send.
+ *
+ * Never rejects. The scheduler hands this same promise to callers that fire
+ * and forget, and a rejection there would be an unhandled one; a throw comes
+ * back as `null`, and the screen says what it says for any unknown failure.
+ */
+export async function runManualSync(input: ManualSyncInput): Promise<CloudSyncOutcome | null> {
+  if (state.inFlight !== null) {
+    return state.inFlight;
+  }
+
+  state.lastAttemptAtMs = now();
+  cancelPendingChange();
+
+  const attempt = (async (): Promise<CloudSyncOutcome | null> => {
+    try {
+      return await runCloudSync({ db: input.db, uid: input.uid });
+    } catch (error: unknown) {
+      logEvent('manual sync failed', error);
+
+      return null;
+    }
+  })();
+
+  state.inFlight = attempt;
+
+  try {
+    return await attempt;
+  } finally {
+    state.inFlight = null;
+  }
+}
+
 /**
  * The app is going away with an edit still waiting.
  *

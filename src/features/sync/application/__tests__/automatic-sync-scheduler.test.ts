@@ -23,6 +23,7 @@ import {
   onAutomaticSyncOutcome,
   requestAutomaticSync,
   resetAutomaticSyncForTests,
+  runManualSync,
   setAutomaticSyncContext,
 } from '../automatic-sync-scheduler';
 import { withAutomaticSyncSuspended } from '../automatic-sync-suspension';
@@ -566,6 +567,105 @@ describe('while the app is locked', () => {
 
     await requestAutomaticSync('sign-in');
 
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The button and the scheduler share one flight.
+ *
+ * Two registries of in-flight syncs was the bug: a button sync and a
+ * scheduled one could interleave their local writes, and the loser of the
+ * remote compare-and-set would still have written its base. One entry point,
+ * one flight, and whoever arrives second gets the first one's answer.
+ */
+describe('a sync somebody asked for by name', () => {
+  it('runs without a context and without the switch', async () => {
+    loadSyncPreferencesMock.mockResolvedValue({ automaticSyncEnabled: false });
+
+    const outcome = await runManualSync({ db, uid: 'uid-1' });
+
+    expect(outcome).toEqual({ kind: 'pushed' });
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+    expect(runCloudSyncMock).toHaveBeenCalledWith({ db, uid: 'uid-1' });
+  });
+
+  it('joins a sync that is already running rather than starting a second', async () => {
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+
+    let finish: (outcome: CloudSyncOutcome) => void = () => undefined;
+
+    runCloudSyncMock.mockImplementation(
+      () => new Promise<CloudSyncOutcome>((resolve) => {
+        finish = resolve;
+      })
+    );
+
+    const scheduled = requestAutomaticSync('sign-in');
+
+    await settle();
+
+    const manual = runManualSync({ db, uid: 'uid-1' });
+
+    await settle();
+
+    finish({ kind: 'pushed', revision: 2 } as CloudSyncOutcome);
+
+    expect(await manual).toEqual({ kind: 'pushed', revision: 2 });
+    expect(await scheduled).toEqual({ kind: 'pushed', revision: 2 });
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('is joined by the scheduler in exactly the same way', async () => {
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+
+    let finish: (outcome: CloudSyncOutcome) => void = () => undefined;
+
+    runCloudSyncMock.mockImplementation(
+      () => new Promise<CloudSyncOutcome>((resolve) => {
+        finish = resolve;
+      })
+    );
+
+    const manual = runManualSync({ db, uid: 'uid-1' });
+
+    await settle();
+
+    const scheduled = requestAutomaticSync('sign-in');
+
+    await settle();
+
+    finish({ kind: 'pushed', revision: 2 } as CloudSyncOutcome);
+
+    expect(await scheduled).toEqual({ kind: 'pushed', revision: 2 });
+    expect(await manual).toEqual({ kind: 'pushed', revision: 2 });
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts as an attempt, so the foreground floor holds afterwards', async () => {
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+
+    await runManualSync({ db, uid: 'uid-1' });
+
+    await expect(requestAutomaticSync('foreground')).resolves.toBeNull();
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries a waiting edit with it rather than leaving it queued', async () => {
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+
+    notifyLocalDataChanged('local');
+
+    expect(hasPendingLocalChange()).toBe(true);
+
+    await runManualSync({ db, uid: 'uid-1' });
+
+    expect(hasPendingLocalChange()).toBe(false);
+
+    jest.advanceTimersByTime(LOCAL_CHANGE_DEBOUNCE_MS);
+    await settle();
+
+    // The edit went with the manual sync; nothing fires behind it.
     expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
   });
 });

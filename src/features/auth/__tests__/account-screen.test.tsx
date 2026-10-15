@@ -87,13 +87,11 @@ jest.mock('@/features/notifications/application/sync-pregnancy-weekly-reminder',
 // The sync is faked too. What this pins is what the screen asks for, what it
 // says about each outcome, and which of the two paths — the button or the
 // scheduler — a given press goes down.
-jest.mock('@/features/sync/application/run-cloud-sync', () => ({
-  runCloudSync: jest.fn(),
-}));
-
-// The scheduler owns every automatic run. The screen only asks it for one.
+// The scheduler owns every run — the automatic ones and the one flight the
+// button asks for by name. The screen never runs a sync of its own.
 jest.mock('@/features/sync/application/automatic-sync-scheduler', () => ({
   requestAutomaticSync: jest.fn(),
+  runManualSync: jest.fn(),
   onAutomaticSyncOutcome: jest.fn(() => () => undefined),
 }));
 
@@ -151,7 +149,6 @@ const periodReminderSync = jest.requireMock(
 const pregnancyReminderSync = jest.requireMock(
   '@/features/notifications/application/sync-pregnancy-weekly-reminder'
 );
-const cloudSyncRun = jest.requireMock('@/features/sync/application/run-cloud-sync');
 const syncPreferences = jest.requireMock('@/features/sync/infrastructure/sync-preferences');
 const scheduler = jest.requireMock('@/features/sync/application/automatic-sync-scheduler');
 const lastSyncAt = jest.requireMock('@/features/sync/infrastructure/last-sync-at');
@@ -228,8 +225,8 @@ beforeEach(() => {
   periodReminderSync.syncPeriodReminderQuietly.mockResolvedValue(null);
   pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockReset();
   pregnancyReminderSync.syncPregnancyWeeklyReminderQuietly.mockResolvedValue(null);
-  cloudSyncRun.runCloudSync.mockReset();
-  cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'noop', revision: 3 });
+  scheduler.runManualSync.mockReset();
+  scheduler.runManualSync.mockResolvedValue({ kind: 'noop', revision: 3 });
   scheduler.requestAutomaticSync.mockReset();
   scheduler.requestAutomaticSync.mockResolvedValue(null);
   scheduler.onAutomaticSyncOutcome.mockReset();
@@ -1153,7 +1150,7 @@ describe('AccountScreen cloud backup, signed in', () => {
     expect(backup.saveCloudBackup).not.toHaveBeenCalled();
     expect(backup.loadCloudBackup).not.toHaveBeenCalled();
     expect(cloudSync.buildCloudSyncPayloadV1).not.toHaveBeenCalled();
-    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+    expect(scheduler.runManualSync).not.toHaveBeenCalled();
   });
 });
 
@@ -1679,6 +1676,29 @@ describe('AccountScreen confirming a restore', () => {
     expect(restore.restoreCloudBackup).toHaveBeenCalledTimes(1);
   });
 
+  it('holds the automatic gate shut while it writes', async () => {
+    // A scheduled sync that started mid-restore would decide from a phone
+    // that is half one history and half another. The suspension is the same
+    // one a wipe and a conflict resolution hold.
+    const { isAutomaticSyncSuspended } = jest.requireActual<
+      typeof import('@/features/sync/application/automatic-sync-suspension')
+    >('@/features/sync/application/automatic-sync-suspension');
+
+    let suspendedDuringWrite: boolean | null = null;
+
+    restore.restoreCloudBackup.mockImplementation(async () => {
+      suspendedDuringWrite = isAutomaticSyncSuspended();
+    });
+
+    const screen = await renderSignedIn();
+
+    await openPreview(screen);
+    await fireEvent.press(screen.getByLabelText('Geri yükle'));
+
+    expect(suspendedDuringWrite).toBe(true);
+    expect(isAutomaticSyncSuspended()).toBe(false);
+  });
+
   it('takes two presses: the first only shows what would change', async () => {
     const screen = await renderSignedIn();
 
@@ -1915,7 +1935,7 @@ describe('the automatic sync switch', () => {
       expect(scheduler.requestAutomaticSync).toHaveBeenCalled();
     });
 
-    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+    expect(scheduler.runManualSync).not.toHaveBeenCalled();
   });
 
   it('starts nothing by being switched off', async () => {
@@ -2040,7 +2060,7 @@ describe('syncing now', () => {
   it('does not sync by being opened', async () => {
     await renderSignedIn();
 
-    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+    expect(scheduler.runManualSync).not.toHaveBeenCalled();
   });
 
   it('does not sync by somebody signing in', async () => {
@@ -2058,7 +2078,7 @@ describe('syncing now', () => {
       expect(screen.getByLabelText('Çıkış yap')).toBeTruthy();
     });
 
-    expect(cloudSyncRun.runCloudSync).not.toHaveBeenCalled();
+    expect(scheduler.runManualSync).not.toHaveBeenCalled();
   });
 
   it('syncs the signed-in account when the button is pressed', async () => {
@@ -2067,7 +2087,23 @@ describe('syncing now', () => {
     await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
 
     await waitFor(() => {
-      expect(cloudSyncRun.runCloudSync).toHaveBeenCalledWith({
+      expect(scheduler.runManualSync).toHaveBeenCalledWith({
+        db: DATABASE,
+        uid: 'firebase-uid-1',
+      });
+    });
+  });
+
+  it('asks the scheduler for the one shared flight rather than running its own', async () => {
+    // Two registries of in-flight syncs was the bug: a button sync could
+    // interleave with a scheduled one. The scheduler's named entry is the
+    // single gate both go through.
+    const screen = await renderSignedIn();
+
+    await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
+
+    await waitFor(() => {
+      expect(scheduler.runManualSync).toHaveBeenCalledWith({
         db: DATABASE,
         uid: 'firebase-uid-1',
       });
@@ -2080,10 +2116,10 @@ describe('syncing now', () => {
     await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
 
     await waitFor(() => {
-      expect(cloudSyncRun.runCloudSync).toHaveBeenCalled();
+      expect(scheduler.runManualSync).toHaveBeenCalled();
     });
 
-    expect(JSON.stringify(cloudSyncRun.runCloudSync.mock.calls[0][0])).not.toContain(EMAIL);
+    expect(JSON.stringify(scheduler.runManualSync.mock.calls[0][0])).not.toContain(EMAIL);
   });
 
   it.each([
@@ -2092,7 +2128,7 @@ describe('syncing now', () => {
     [{ kind: 'pulled', revision: 4 }, 'Hesabındaki veriler telefona alındı.'],
     [{ kind: 'merged', revision: 5 }, 'İki taraftaki değişiklikler birleştirildi.'],
   ])('says what happened for $kind', async (outcome, message) => {
-    cloudSyncRun.runCloudSync.mockResolvedValue(outcome);
+    scheduler.runManualSync.mockResolvedValue(outcome);
 
     const screen = await renderSignedIn();
 
@@ -2102,7 +2138,7 @@ describe('syncing now', () => {
   });
 
   it('says plainly that nothing changed when there is a conflict', async () => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({
+    scheduler.runManualSync.mockResolvedValue({
       kind: 'conflict',
       reason: 'unresolved',
       conflicts: [
@@ -2124,7 +2160,7 @@ describe('syncing now', () => {
   });
 
   it('counts the conflicts without naming any of them', async () => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({
+    scheduler.runManualSync.mockResolvedValue({
       kind: 'conflict',
       reason: 'unresolved',
       conflicts: [
@@ -2148,7 +2184,7 @@ describe('syncing now', () => {
   });
 
   it('asks somebody to try again when the account moved first', async () => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'retry-required', actualRevision: 9 });
+    scheduler.runManualSync.mockResolvedValue({ kind: 'retry-required', actualRevision: 9 });
 
     const screen = await renderSignedIn();
 
@@ -2162,7 +2198,7 @@ describe('syncing now', () => {
     ['not-configured', 'Bulut hesabı şu anda yapılandırılmamış.'],
     ['local-failed', 'Telefondaki veriler okunamadı. Hiçbir veri değiştirilmedi.'],
   ])('says what went wrong for %s', async (failure, message) => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'error', failure });
+    scheduler.runManualSync.mockResolvedValue({ kind: 'error', failure });
 
     const screen = await renderSignedIn();
 
@@ -2172,7 +2208,7 @@ describe('syncing now', () => {
   });
 
   it('refreshes the widget and the reminders when the phone changed', async () => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'pulled', revision: 4 });
+    scheduler.runManualSync.mockResolvedValue({ kind: 'pulled', revision: 4 });
 
     const screen = await renderSignedIn();
 
@@ -2190,7 +2226,7 @@ describe('syncing now', () => {
   });
 
   it('leaves them alone when nothing on the phone changed', async () => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'pushed', revision: 4 });
+    scheduler.runManualSync.mockResolvedValue({ kind: 'pushed', revision: 4 });
 
     const screen = await renderSignedIn();
 
@@ -2203,7 +2239,7 @@ describe('syncing now', () => {
   });
 
   it('still reports the sync when a refresh afterwards refuses', async () => {
-    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'pulled', revision: 4 });
+    scheduler.runManualSync.mockResolvedValue({ kind: 'pulled', revision: 4 });
     widgetSync.syncWidgetSnapshotQuietly.mockRejectedValue(new Error('widget unavailable'));
 
     const screen = await renderSignedIn();
@@ -2231,7 +2267,7 @@ describe('syncing now', () => {
     await fireEvent.press(screen.getByLabelText('Şimdi senkronize et'));
     await screen.findByText('Her şey güncel. Telefonun ve hesabın aynı.');
 
-    expect(cloudSyncRun.runCloudSync).toHaveBeenCalledTimes(1);
+    expect(scheduler.runManualSync).toHaveBeenCalledTimes(1);
   });
 
   it('turns the button off while a sync is running', async () => {
@@ -2255,7 +2291,7 @@ describe('syncing now', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const error = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    cloudSyncRun.runCloudSync.mockResolvedValue({ kind: 'error', failure: 'network-failed' });
+    scheduler.runManualSync.mockResolvedValue({ kind: 'error', failure: 'network-failed' });
 
     const screen = await renderSignedIn();
 

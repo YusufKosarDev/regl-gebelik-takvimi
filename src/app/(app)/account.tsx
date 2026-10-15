@@ -54,8 +54,9 @@ import { syncPregnancyWeeklyReminderQuietly } from '@/features/notifications/app
 import {
   onAutomaticSyncOutcome,
   requestAutomaticSync,
+  runManualSync,
 } from '@/features/sync/application/automatic-sync-scheduler';
-import { runCloudSync } from '@/features/sync/application/run-cloud-sync';
+import { withAutomaticSyncSuspended } from '@/features/sync/application/automatic-sync-suspension';
 import { loadLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
 import { isConflictUnresolved } from '@/features/sync/infrastructure/unresolved-conflict';
 import {
@@ -527,7 +528,12 @@ export default function AccountScreen() {
     try {
       const db = await openAppDatabase();
 
-      await restoreCloudBackup(db, payload);
+      // The same gate a wipe and a conflict resolution hold: a scheduled sync
+      // that started mid-restore would decide from a phone that is half one
+      // history and half another.
+      await withAutomaticSyncSuspended(async () => {
+        await restoreCloudBackup(db, payload);
+      });
 
       setPreview(null);
       setPending(null);
@@ -637,7 +643,17 @@ export default function AccountScreen() {
 
     try {
       const db = await openAppDatabase();
-      const outcome = await runCloudSync({ db, uid: user.uid });
+      // The scheduler's named entry, not a run of this screen's own: the
+      // button and the automatic triggers share one flight, so neither can
+      // interleave with the other.
+      const outcome = await runManualSync({ db, uid: user.uid });
+
+      if (outcome === null) {
+        // The flight itself failed in a way `runCloudSync` could not name.
+        setSyncNotice(syncOutcomeMessageIn(sync1, { kind: 'error', failure: 'unknown' }));
+
+        return;
+      }
 
       setSyncNotice(syncOutcomeMessageIn(sync1, outcome));
       setSyncDetail(syncConflictCountMessageIn(sync1, outcome));

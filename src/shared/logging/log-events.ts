@@ -29,6 +29,7 @@ export const LOG_EVENTS = [
   'cycle length suggestion failed',
   'data export failed',
   'local data wipe failed',
+  'manual sync failed',
   'notification permission request failed',
   'notification preference change failed',
   'about link open failed',
