@@ -390,3 +390,62 @@ describe('endCurrentPeriod and the ongoing flag', () => {
     expect(updated.periodRecords.filter((record) => record.isOngoing)).toHaveLength(0);
   });
 });
+
+/** Ending a period may not run it into a record that follows it. */
+describe('endCurrentPeriod beside a later record', () => {
+  const repo = jest.requireMock('@/features/cycle/data/cycle-repository') as {
+    loadCycleProfile: jest.Mock;
+    saveCycleProfile: jest.Mock;
+  };
+  const { toISODate } = jest.requireActual<typeof import('@/utils/date')>('@/utils/date');
+
+  // An open record with a later closed one cannot be produced by this app's
+  // own buttons, but a merge from another device can hold one, and the end
+  // flow must not turn that into an overlap.
+  function openThenClosed() {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        {
+          id: 'record-open',
+          startDate: toISODate('2026-09-10'),
+          isOngoing: true,
+        },
+        {
+          id: 'record-later',
+          startDate: toISODate('2026-09-20'),
+          endDate: toISODate('2026-09-24'),
+          isOngoing: false,
+        },
+      ],
+    };
+  }
+
+  it('refuses an end that reaches the later record, and writes nothing', async () => {
+    repo.loadCycleProfile.mockResolvedValue(openThenClosed());
+    repo.saveCycleProfile.mockClear();
+
+    await expect(
+      endCurrentPeriod({} as never, {
+        endDate: toISODate('2026-09-21'),
+        today: toISODate('2026-10-01'),
+      })
+    ).rejects.toThrow(/overlap/);
+
+    expect(repo.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('still allows an end short of it', async () => {
+    repo.loadCycleProfile.mockResolvedValue(openThenClosed());
+
+    const updated = await endCurrentPeriod({} as never, {
+      endDate: toISODate('2026-09-15'),
+      today: toISODate('2026-10-01'),
+    });
+
+    const open = updated.periodRecords.find((record) => record.id === 'record-open');
+
+    expect(open?.endDate).toBe('2026-09-15');
+    expect(open?.isOngoing).toBe(false);
+  });
+});

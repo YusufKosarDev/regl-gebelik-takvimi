@@ -23,6 +23,7 @@ import { historyMessages } from '../presentation/history-messages';
  */
 export function EndDateEditor({
   record,
+  records,
   today,
   selectedEndDate,
   onSelectEndDate,
@@ -36,6 +37,8 @@ export function EndDateEditor({
   onRemove,
 }: {
   record: PeriodRecord;
+  /** Every record, so the stepper stops at the neighbour saving stops at. */
+  records: readonly PeriodRecord[];
   today: ISODate;
   selectedEndDate: ISODate;
   onSelectEndDate: (date: ISODate) => void;
@@ -53,7 +56,7 @@ export function EndDateEditor({
   const common = useMessages(appMessages);
   const language = useLanguage();
 
-  const maxDate = maxSelectableEndDate(record.startDate, today);
+  const maxDate = maxSelectableEndDate(record.startDate, today, records);
 
   const canGoBack = daysBetween(record.startDate, selectedEndDate) > 0;
   const canGoForward = daysBetween(selectedEndDate, maxDate) > 0;

@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { loadCycleProfile, saveCycleProfile } from '../data/cycle-repository';
 import { getUpdatedPeriodRecordId } from '../domain/period-record-id';
 import type { CycleProfile, PeriodRecord } from '../domain/types';
-import { validateCycleProfile } from '../domain/validation';
+import { assertNoOverlappingPeriodRecords, validateCycleProfile } from '../domain/validation';
 
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
@@ -146,6 +146,10 @@ export async function updatePeriodStartDate(
     }),
   };
 
+  // The write-path rule the profile validator deliberately leaves out: see
+  // its doc for why stored overlaps must stay readable while new ones are
+  // refused.
+  assertNoOverlappingPeriodRecords(updated.periodRecords);
   validateCycleProfile(updated);
   await saveCycleProfile(db, updated);
 

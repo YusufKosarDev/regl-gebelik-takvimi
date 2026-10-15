@@ -97,6 +97,35 @@ export function validatePeriodRecord(record: PeriodRecord): void {
   }
 }
 
+/**
+ * Refuses a set of records in which two periods share a day.
+ *
+ * Deliberately **not** part of `validateCycleProfile`: stored profiles are
+ * re-validated on every load, and records written before this rule existed —
+ * or merged in from another device — may overlap. A rule that locked
+ * somebody out of the history they already have would cost more than the
+ * corruption it prevents, so the read path keeps accepting what the write
+ * path now refuses. Every local write of period records calls this.
+ *
+ * A record with no end date bounds nothing beyond its start day: with
+ * nothing to measure against, a refusal would be a guess. The same stance
+ * `minSelectableStartDate` documents.
+ */
+export function assertNoOverlappingPeriodRecords(records: readonly PeriodRecord[]): void {
+  const sorted = [...records].sort((a, b) => daysBetween(b.startDate, a.startDate));
+
+  for (let index = 0; index + 1 < sorted.length; index += 1) {
+    const previous = sorted[index];
+    const next = sorted[index + 1];
+
+    if (previous.endDate !== undefined && daysBetween(next.startDate, previous.endDate) >= 0) {
+      throw new Error(
+        'Two period records overlap: one begins on or before the day the previous one ended.'
+      );
+    }
+  }
+}
+
 export function validateCycleProfile(profile: CycleProfile): void {
   validateCycleSettings(profile.settings);
 

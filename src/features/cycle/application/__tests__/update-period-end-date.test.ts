@@ -417,3 +417,61 @@ describe('updatePeriodEndDate purity', () => {
     expect(updated.periodRecords[2]).toBe(stored.periodRecords[2]);
   });
 });
+
+/** A corrected end may not run into the record that follows. */
+describe('updatePeriodEndDate beside a neighbouring record', () => {
+  const repo = jest.requireMock('@/features/cycle/data/cycle-repository') as {
+    loadCycleProfile: jest.Mock;
+    saveCycleProfile: jest.Mock;
+  };
+  const { toISODate } = jest.requireActual<typeof import('@/utils/date')>('@/utils/date');
+
+  function twoRecords() {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        {
+          id: 'record-earlier',
+          startDate: toISODate('2026-09-02'),
+          endDate: toISODate('2026-09-08'),
+          isOngoing: false,
+        },
+        {
+          id: 'record-later',
+          startDate: toISODate('2026-09-12'),
+          endDate: toISODate('2026-09-16'),
+          isOngoing: false,
+        },
+      ],
+    };
+  }
+
+  it('refuses an end on the day the next period begins, and writes nothing', async () => {
+    repo.loadCycleProfile.mockResolvedValue(twoRecords());
+    repo.saveCycleProfile.mockClear();
+
+    await expect(
+      updatePeriodEndDate({} as never, {
+        recordId: 'record-earlier',
+        endDate: toISODate('2026-09-12'),
+        today: toISODate('2026-10-01'),
+      })
+    ).rejects.toThrow(/overlap/);
+
+    expect(repo.saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('still allows the day before it begins', async () => {
+    repo.loadCycleProfile.mockResolvedValue(twoRecords());
+
+    const updated = await updatePeriodEndDate({} as never, {
+      recordId: 'record-earlier',
+      endDate: toISODate('2026-09-11'),
+      today: toISODate('2026-10-01'),
+    });
+
+    const earlier = updated.periodRecords.find((record) => record.id === 'record-earlier');
+
+    expect(earlier?.endDate).toBe('2026-09-11');
+  });
+});

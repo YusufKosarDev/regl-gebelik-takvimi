@@ -492,6 +492,7 @@ export default function HistoryScreen() {
                       <View {...revealEditor.targetProps}>
                       <StartDateEditor
                         record={record}
+                        records={records}
                         today={today}
                         selectedStartDate={selectedStartDate ?? record.startDate}
                         onSelectStartDate={setSelectedStartDate}
@@ -505,6 +506,7 @@ export default function HistoryScreen() {
                       <View {...revealEditor.targetProps}>
                       <EndDateEditor
                         record={record}
+                        records={records}
                         today={today}
                         selectedEndDate={selectedEndDate ?? record.startDate}
                         onSelectEndDate={setSelectedEndDate}

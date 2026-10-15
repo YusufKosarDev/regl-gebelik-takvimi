@@ -1,5 +1,6 @@
 import type { CycleProfile, CycleSettings, PeriodRecord } from '../types';
 import {
+  assertNoOverlappingPeriodRecords,
   validateCycleProfile,
   validateCycleSettings,
   validatePeriodRecord,
@@ -306,5 +307,88 @@ describe('validateCycleProfile and the ongoing flag', () => {
         ])
       )
     ).toThrow(/has 2 ongoing period records; at most 1 is valid/);
+  });
+});
+
+/**
+ * Two periods never share a day — on the write path.
+ *
+ * Deliberately its own function rather than a rule inside
+ * `validateCycleProfile`: stored profiles are re-validated on every load, and
+ * records written before this rule existed, or merged in from another device,
+ * may overlap. The rule that keeps new overlaps out must not lock somebody
+ * out of the history they already have.
+ */
+describe('assertNoOverlappingPeriodRecords', () => {
+  it('accepts periods with days between them', () => {
+    expect(() =>
+      assertNoOverlappingPeriodRecords([
+        record('a', '2026-09-02', '2026-09-07'),
+        record('b', '2026-09-30', '2026-10-04'),
+      ])
+    ).not.toThrow();
+  });
+
+  it('accepts a period starting the day after the previous one ended', () => {
+    expect(() =>
+      assertNoOverlappingPeriodRecords([
+        record('a', '2026-09-02', '2026-09-07'),
+        record('b', '2026-09-08'),
+      ])
+    ).not.toThrow();
+  });
+
+  it('refuses a start on the day the previous period ended', () => {
+    expect(() =>
+      assertNoOverlappingPeriodRecords([
+        record('a', '2026-09-02', '2026-09-07'),
+        record('b', '2026-09-07'),
+      ])
+    ).toThrow(/overlap/);
+  });
+
+  it('refuses a start inside the previous period', () => {
+    expect(() =>
+      assertNoOverlappingPeriodRecords([
+        record('a', '2026-09-02', '2026-09-10'),
+        record('b', '2026-09-05', '2026-09-08'),
+      ])
+    ).toThrow(/overlap/);
+  });
+
+  it('reads the records by their dates, not by their order in the array', () => {
+    expect(() =>
+      assertNoOverlappingPeriodRecords([
+        record('b', '2026-09-05', '2026-09-08'),
+        record('a', '2026-09-02', '2026-09-10'),
+      ])
+    ).toThrow(/overlap/);
+  });
+
+  it('lets a record with no end date bound nothing beyond its start', () => {
+    // With nothing to measure against, a refusal would be a guess. The same
+    // stance `minSelectableStartDate` documents.
+    expect(() =>
+      assertNoOverlappingPeriodRecords([
+        record('a', '2026-09-02'),
+        record('b', '2026-09-03', '2026-09-06'),
+      ])
+    ).not.toThrow();
+  });
+
+  it('stays out of validateCycleProfile, so stored overlaps remain readable', () => {
+    // The rule this row holds: the write path refuses what the read path must
+    // keep accepting. A profile that already holds an overlap - old data, or
+    // another device merged in - still loads.
+    const stored: CycleProfile = {
+      settings: settings(28, 5),
+      periodRecords: [
+        record('a', '2026-09-02', '2026-09-10'),
+        record('b', '2026-09-05', '2026-09-08'),
+      ],
+    };
+
+    expect(() => validateCycleProfile(stored)).not.toThrow();
+    expect(() => assertNoOverlappingPeriodRecords(stored.periodRecords)).toThrow(/overlap/);
   });
 });

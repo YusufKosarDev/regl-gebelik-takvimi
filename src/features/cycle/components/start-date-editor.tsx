@@ -32,6 +32,7 @@ import {
  */
 export function StartDateEditor({
   record,
+  records,
   today,
   selectedStartDate,
   onSelectStartDate,
@@ -41,6 +42,8 @@ export function StartDateEditor({
   onSave,
 }: {
   record: PeriodRecord;
+  /** Every record, so the steppers stop at the neighbours saving stops at. */
+  records: readonly PeriodRecord[];
   today: ISODate;
   selectedStartDate: ISODate;
   onSelectStartDate: (date: ISODate) => void;
@@ -54,8 +57,8 @@ export function StartDateEditor({
   const common = useMessages(appMessages);
   const language = useLanguage();
 
-  const maxDate = maxSelectableStartDate(record, today);
-  const minDate = minSelectableStartDate(record);
+  const maxDate = maxSelectableStartDate(record, today, records);
+  const minDate = minSelectableStartDate(record, records);
 
   // With no recorded end there is no maximum duration to measure against, so
   // nothing bounds how far back the person may reach.

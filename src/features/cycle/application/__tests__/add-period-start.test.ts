@@ -319,3 +319,54 @@ describe('addPeriodStart and the ongoing flag', () => {
     expect(stored).toEqual(snapshot);
   });
 });
+
+/**
+ * A start may not land inside a recorded period.
+ *
+ * Nothing used to refuse this: the counter restarted mid-period, the gap was
+ * silently discarded by the averages, and calendar, phases and predictions
+ * drifted apart without a word.
+ */
+describe('addPeriodStart into an existing record', () => {
+  const { toISODate } = jest.requireActual<typeof import('@/utils/date')>('@/utils/date');
+
+  function closedProfile() {
+    return {
+      settings: { averageCycleLengthDays: 30, averagePeriodLengthDays: 6 },
+      periodRecords: [
+        {
+          id: 'record-closed',
+          startDate: toISODate('2026-09-10'),
+          endDate: toISODate('2026-09-16'),
+          isOngoing: false,
+        },
+      ],
+    };
+  }
+
+  it('refuses a start inside a recorded period, and writes nothing', async () => {
+    loadCycleProfile.mockResolvedValue(closedProfile());
+
+    await expect(
+      addPeriodStart(db, { startDate: toISODate('2026-09-14'), today: TODAY })
+    ).rejects.toThrow(/overlap/);
+
+    expect(saveCycleProfile).not.toHaveBeenCalled();
+  });
+
+  it('refuses a start on the very day one ended', async () => {
+    loadCycleProfile.mockResolvedValue(closedProfile());
+
+    await expect(
+      addPeriodStart(db, { startDate: toISODate('2026-09-16'), today: TODAY })
+    ).rejects.toThrow(/overlap/);
+  });
+
+  it('accepts the day after it ended', async () => {
+    loadCycleProfile.mockResolvedValue(closedProfile());
+
+    const updated = await addPeriodStart(db, { startDate: toISODate('2026-09-17'), today: TODAY });
+
+    expect(updated.periodRecords).toHaveLength(2);
+  });
+});

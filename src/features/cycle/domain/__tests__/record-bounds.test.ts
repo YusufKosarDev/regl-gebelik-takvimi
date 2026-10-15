@@ -85,3 +85,93 @@ describe('minSelectableStartDate', () => {
     expect(floor! <= '2026-09-14').toBe(true);
   });
 });
+
+/**
+ * The steppers cannot offer a day inside the record next door.
+ *
+ * These bounds exist so "a control cannot offer a date that saving would then
+ * refuse" - and saving now refuses overlaps. The whole record list is passed
+ * so the bounds can find the neighbours; a record with no end date bounds
+ * nothing beyond its start, the same stance the floor already documents.
+ */
+describe('bounds beside a neighbouring record', () => {
+  const previous: PeriodRecord = {
+    id: 'previous',
+    startDate: toISODate('2026-08-25'),
+    endDate: toISODate('2026-09-01'),
+    isOngoing: false,
+  };
+
+  const next: PeriodRecord = {
+    id: 'next',
+    startDate: toISODate('2026-09-20'),
+    endDate: toISODate('2026-09-24'),
+    isOngoing: false,
+  };
+
+  it('keeps a start after the previous period ended', () => {
+    const edited: PeriodRecord = {
+      id: 'edited',
+      startDate: toISODate('2026-09-10'),
+      isOngoing: true,
+    };
+
+    expect(minSelectableStartDate(edited, [previous, edited])).toBe('2026-09-02');
+  });
+
+  it('keeps whichever floor is nearer: the duration limit or the neighbour', () => {
+    const edited: PeriodRecord = {
+      id: 'edited',
+      startDate: toISODate('2026-09-10'),
+      endDate: toISODate('2026-09-14'),
+      isOngoing: false,
+    };
+
+    // The duration floor alone would reach back to 26 August; the previous
+    // record ends on 1 September, so 2 September is as far as a start may go.
+    expect(minSelectableStartDate(edited, [previous, edited])).toBe('2026-09-02');
+  });
+
+  it('keeps an endless record from starting on top of the next one', () => {
+    const edited: PeriodRecord = {
+      id: 'edited',
+      startDate: toISODate('2026-09-10'),
+      isOngoing: false,
+    };
+
+    expect(maxSelectableStartDate(edited, toISODate('2026-12-31'), [edited, next])).toBe(
+      '2026-09-19'
+    );
+  });
+
+  it('keeps an end before the next period begins', () => {
+    expect(
+      maxSelectableEndDate(toISODate('2026-09-10'), toISODate('2026-12-31'), [next])
+    ).toBe('2026-09-19');
+  });
+
+  it('bounds nothing when there is no neighbour on that side', () => {
+    const edited: PeriodRecord = {
+      id: 'edited',
+      startDate: toISODate('2026-09-10'),
+      isOngoing: true,
+    };
+
+    expect(minSelectableStartDate(edited, [edited, next])).toBeNull();
+  });
+
+  it('lets a previous record with no end date bound nothing', () => {
+    const openEnded: PeriodRecord = {
+      id: 'open-ended',
+      startDate: toISODate('2026-08-25'),
+      isOngoing: false,
+    };
+    const edited: PeriodRecord = {
+      id: 'edited',
+      startDate: toISODate('2026-09-10'),
+      isOngoing: true,
+    };
+
+    expect(minSelectableStartDate(edited, [openEnded, edited])).toBeNull();
+  });
+});
