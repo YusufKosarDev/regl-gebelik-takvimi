@@ -1,5 +1,5 @@
 import type { PregnancyWeek } from './types';
-import { MAX_PREGNANCY_WEEK } from './weekly-content';
+import { MAX_PREGNANCY_WEEK, isEstimatedDueDay } from './weekly-content';
 
 /**
  * How far a tracked pregnancy has got, as far as the app can honestly tell.
@@ -47,6 +47,13 @@ export type PregnancyStage = 'not-started' | 'following' | 'past-due';
 export function stageFromWeek(week: PregnancyWeek | null): PregnancyStage {
   if (week === null) {
     return 'not-started';
+  }
+
+  // Week 41 day 1 is the estimated due date itself — the 1-based count puts
+  // LMP + 280 one step past the forty weeks — and the due day has not gone
+  // past anything. `past-due` begins the day after.
+  if (isEstimatedDueDay(week)) {
+    return 'following';
   }
 
   return week.week > MAX_PREGNANCY_WEEK ? 'past-due' : 'following';

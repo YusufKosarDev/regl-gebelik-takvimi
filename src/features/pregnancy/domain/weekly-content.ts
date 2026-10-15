@@ -1,19 +1,37 @@
 import type {
   PregnancyContentSize,
   PregnancyContentSource,
+  PregnancyWeek,
   PregnancyWeeklyContent,
 } from './types';
 
 /**
  * The weeks a pregnancy is written about.
  *
- * Week 1 starts at the last menstrual period, and 40 is the week the due date
- * falls in — 280 days is exactly 40 weeks. Pregnancies do run past it, but a
- * week with nothing written for it is the lookup's `null` rather than a number
+ * Week 1 starts at the last menstrual period, and the forty weeks cover days
+ * 1 to 280. The estimated due date is LMP + 280 days — day 281 — which the
+ * 1-based count puts a step past them, on week 41 day 1. This file used to
+ * claim 40 was the week the due date falls in; the arithmetic says otherwise,
+ * and `isEstimatedDueDay` below is how the rest of the app honours the
+ * intent that claim carried. Pregnancies do run past the due day, but a week
+ * with nothing written for it is the lookup's `null` rather than a number
  * this range has to stretch to cover.
  */
 export const MIN_PREGNANCY_WEEK = 1;
 export const MAX_PREGNANCY_WEEK = 40;
+
+/**
+ * Whether this is the estimated due day itself.
+ *
+ * Week 41 day 1 is not an approximation of it: the LMP is day 1, so day 281
+ * = LMP + 280 days = the Naegele due date, always and exactly. The day is
+ * special in two places — the stage does not call it past due, and the
+ * dashboard hands it week 40's pages — and both ask here rather than each
+ * restating the arithmetic.
+ */
+export function isEstimatedDueDay(week: PregnancyWeek): boolean {
+  return week.week === MAX_PREGNANCY_WEEK + 1 && week.day === 1;
+}
 
 function assertWeek(caller: string, week: number): void {
   if (!Number.isInteger(week)) {

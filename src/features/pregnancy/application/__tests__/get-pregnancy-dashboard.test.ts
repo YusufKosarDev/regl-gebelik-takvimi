@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { PREGNANCY_WEEKLY_CONTENT } from '../../data/pregnancy-weekly-content';
 import type { PregnancyProfile } from '../../domain/types';
-import { getPregnancyDashboard } from '../get-pregnancy-dashboard';
+import { getPregnancyDashboard, getWeeklyContentForWeek } from '../get-pregnancy-dashboard';
 
 import type { ISODate } from '@/types/iso-date';
 
@@ -113,6 +113,37 @@ describe('getPregnancyDashboard', () => {
     const dashboard = await getPregnancyDashboard(db, date('2028-03-01'));
 
     expect(dashboard?.pregnancyDay).toBe(4);
+  });
+
+  /**
+   * The estimated due day: LMP + 280 days, which the 1-based count makes day
+   * 281 — week 41, day 1. The weekly sources deliberately end at 40, and
+   * this is the day the "40 is the week the due date falls in" intent has to
+   * be made true: the due day reads week 40's pages, and only the day after
+   * runs out of them.
+   */
+  it('still has pages on the due day itself: week 40’s', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2027-06-09'));
+
+    expect(dashboard?.pregnancyWeek).toEqual({ week: 41, day: 1 });
+
+    const lastWritten = getWeeklyContentForWeek(40);
+
+    expect(lastWritten).not.toBeNull();
+    expect(dashboard?.weeklyContent).toEqual(lastWritten);
+  });
+
+  it('runs out of pages the day after the due day', async () => {
+    const dashboard = await getPregnancyDashboard(db, date('2027-06-10'));
+
+    expect(dashboard?.pregnancyWeek).toEqual({ week: 41, day: 2 });
+    expect(dashboard?.weeklyContent).toBeNull();
+  });
+
+  it('keeps the browsing lookup ending at week 40', async () => {
+    // The borrow is the dashboard's: somebody paging through the weeks is
+    // asking what is written for week 41, and the answer is still nothing.
+    expect(getWeeklyContentForWeek(41)).toBeNull();
   });
 
   it('reads through the repository once', async () => {
@@ -248,8 +279,11 @@ describe('getPregnancyDashboard when there is nothing written', () => {
   });
 
   it('carries no content past the last written week', async () => {
-    // Day 281 is week 41, past where the sources stop.
-    const dashboard = await getPregnancyDashboard(db, date('2027-06-09'));
+    // Day 282. Day 281 is week 41 too, but it is the estimated due day and
+    // borrows week 40's pages — this row used to pin that very day as empty,
+    // with no reason beyond the week number. Past the due day the sources
+    // have genuinely stopped.
+    const dashboard = await getPregnancyDashboard(db, date('2027-06-10'));
 
     expect(dashboard?.pregnancyWeek?.week).toBe(41);
     expect(dashboard?.weeklyContent).toBeNull();

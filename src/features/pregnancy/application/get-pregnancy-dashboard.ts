@@ -11,6 +11,7 @@ import {
   MAX_PREGNANCY_WEEK,
   MIN_PREGNANCY_WEEK,
   getPregnancyWeeklyContent,
+  isEstimatedDueDay,
 } from '../domain/weekly-content';
 
 import { getPregnancyProfile } from './get-pregnancy-profile';
@@ -64,12 +65,26 @@ export function getWeeklyContentForWeek(
   return getPregnancyWeeklyContent(pregnancyWeeklyContent[language], week);
 }
 
-/** The same question, asked about the week a pregnancy is currently in. */
+/**
+ * The same question, asked about the week a pregnancy is currently in.
+ *
+ * With one borrow: the estimated due day — week 41 day 1, exactly — reads
+ * week 40's pages. The sources end at 40 on purpose, and the morning of the
+ * due date is not the moment to run out of them; the day after is. Browsing
+ * (`getWeeklyContentForWeek`) does not borrow: what is written for week 41
+ * is still nothing.
+ */
 function weeklyContentFor(
   week: PregnancyWeek | null,
   language: Language
 ): PregnancyWeeklyContent | null {
-  return week === null ? null : getWeeklyContentForWeek(week.week, language);
+  if (week === null) {
+    return null;
+  }
+
+  const shownWeek = isEstimatedDueDay(week) ? MAX_PREGNANCY_WEEK : week.week;
+
+  return getWeeklyContentForWeek(shownWeek, language);
 }
 
 /**

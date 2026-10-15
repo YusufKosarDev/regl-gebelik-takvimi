@@ -27,8 +27,18 @@ describe('inside the weeks there is content for', () => {
 });
 
 describe('past the last week there is content for', () => {
-  it('is past due the week after', () => {
-    expect(stageFromWeek({ week: MAX_PREGNANCY_WEEK + 1, day: 1 })).toBe('past-due');
+  it('is not past due on the estimated due day itself', () => {
+    // Week 41 day 1 IS the estimated due date: the LMP is day 1, so day 281
+    // = LMP + 280 days = the Naegele due date, always and exactly. The rule
+    // this row holds is the stage's own: `past-due` says the count has gone
+    // PAST the due day, and the due day has not gone past itself — the app
+    // used to open that morning with "tracking has passed week 40" and no
+    // pages. The row that pinned `past-due` here carried no reasoning.
+    expect(stageFromWeek({ week: MAX_PREGNANCY_WEEK + 1, day: 1 })).toBe('following');
+  });
+
+  it('is past due from the day after', () => {
+    expect(stageFromWeek({ week: MAX_PREGNANCY_WEEK + 1, day: 2 })).toBe('past-due');
   });
 
   it('stays past due however long it goes on', () => {
