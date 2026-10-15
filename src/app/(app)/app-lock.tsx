@@ -9,12 +9,14 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { removeAppLock } from '@/features/app-lock/application/remove-app-lock';
 import { setAppLock } from '@/features/app-lock/application/set-app-lock';
+import { unlockWithPin } from '@/features/app-lock/application/unlock-with-pin';
 import { PinDots } from '@/features/app-lock/components/pin-dots';
 import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import { canUseBiometrics } from '@/features/app-lock/infrastructure/biometrics';
 import { blocksScreenshots } from '@/features/app-lock/infrastructure/screen-privacy';
 import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
+import { waitMessageIn } from '@/features/app-lock/presentation/wait-message';
 import { setDiscreetNotifications } from '@/features/notifications/application/set-discreet-notifications';
 import { currentUidOrNull } from '@/features/sync/application/use-automatic-sync';
 import { openAppDatabase } from '@/storage/db';
@@ -37,9 +39,19 @@ import { useAppLockStore } from '@/store/app-lock-store';
  * who has already picked and confirmed six digits has invested in the decision,
  * and a warning at that point is something to get past rather than something to
  * weigh.
+ *
+ * ## Removing or changing the lock proves the current PIN first
+ *
+ * The lock's whole point is that holding the phone is not enough, and a
+ * management step that removed it on one tap said otherwise. The check goes
+ * through `unlockWithPin` on purpose: the same counters and the same waits as
+ * the lock screen, so guessing here is no cheaper than guessing there.
  */
 
-type Step = 'warning' | 'choose' | 'confirm' | 'remove';
+type Step = 'warning' | 'verify' | 'choose' | 'confirm' | 'remove';
+
+/** What the verify step was opened for. */
+type VerifiedAction = 'change' | 'remove';
 
 /** Blanking the task switcher costs screenshots below Android 13. */
 /** Asked of the native side rather than inferred from Platform.Version. */
@@ -71,6 +83,7 @@ export default function AppLockScreen() {
   const [entered, setEntered] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [verifiedAction, setVerifiedAction] = useState<VerifiedAction>('remove');
 
   /**
    * Whether this phone has a fingerprint or face enrolled.
@@ -150,6 +163,78 @@ export default function AppLockScreen() {
     [biometricsAvailable, lock, markEnabled, router, uid, useBiometrics]
   );
 
+  const handleRemove = useCallback(async () => {
+    setIsSaving(true);
+
+    try {
+      await removeAppLock();
+      markDisabled();
+      router.back();
+    } catch (error: unknown) {
+      logEvent('app lock save failed', error);
+      setMessage(lock.setupSaveFailedMessage);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [lock, markDisabled, router]);
+
+  /**
+   * The current PIN, tried against the stored record.
+   *
+   * `unlockWithPin` rather than a comparison here, for the reason it exists:
+   * the counters are written before the answer comes back, so a wrong guess
+   * on this screen costs the same wait it costs on the lock screen, and
+   * killing the app does not undo it.
+   */
+  const verify = useCallback(
+    async (pin: string) => {
+      setIsSaving(true);
+
+      try {
+        const outcome = await unlockWithPin(pin);
+
+        if (outcome.kind === 'unlocked') {
+          if (verifiedAction === 'remove') {
+            await handleRemove();
+
+            return;
+          }
+
+          setMessage(null);
+          setFirst('');
+          setStep('choose');
+
+          return;
+        }
+
+        if (outcome.kind === 'waiting') {
+          setMessage(waitMessageIn(lock, outcome.remainingMs));
+
+          return;
+        }
+
+        if (outcome.kind === 'wrong') {
+          setMessage(lock.lockWrongPinMessage);
+
+          return;
+        }
+
+        // `no-lock` or `unreadable`: the record is already gone, or has been
+        // turned off by the store below. There is nothing left to prove a PIN
+        // against, and nothing left to manage.
+        markDisabled();
+        router.back();
+      } catch (error: unknown) {
+        logEvent('app lock save failed', error);
+        setMessage(lock.setupSaveFailedMessage);
+      } finally {
+        setEntered('');
+        setIsSaving(false);
+      }
+    },
+    [handleRemove, lock, markDisabled, router, verifiedAction]
+  );
+
   const handleDigit = useCallback(
     (digit: string) => {
       setMessage(null);
@@ -162,6 +247,12 @@ export default function AppLockScreen() {
         const next = current + digit;
 
         if (next.length < PIN_LENGTH) {
+          return next;
+        }
+
+        if (step === 'verify') {
+          void verify(next);
+
           return next;
         }
 
@@ -187,28 +278,13 @@ export default function AppLockScreen() {
         return '';
       });
     },
-    [finish, first, lock, step]
+    [finish, first, lock, step, verify]
   );
 
   const handleDelete = useCallback(() => {
     setMessage(null);
     setEntered((current) => current.slice(0, -1));
   }, []);
-
-  const handleRemove = useCallback(async () => {
-    setIsSaving(true);
-
-    try {
-      await removeAppLock();
-      markDisabled();
-      router.back();
-    } catch (error: unknown) {
-      logEvent('app lock save failed', error);
-      setMessage(lock.setupSaveFailedMessage);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [lock, markDisabled, router]);
 
   const backButton = (
     <BackButton />
@@ -360,15 +436,39 @@ export default function AppLockScreen() {
               </View>
             )}
 
+            {step === 'verify' && (
+              <View style={styles.section}>
+                <ThemedText accessibilityRole="header" type="smallBold" style={styles.stepTitle}>
+                  {lock.verifyCurrentPinTitle}
+                </ThemedText>
+
+                <PinDots entered={entered.length} />
+
+                {message !== null && (
+                  <ThemedText
+                    accessibilityRole="alert"
+                    type="small"
+                    themeColor="textSecondary"
+                    style={styles.stepTitle}>
+                    {message}
+                  </ThemedText>
+                )}
+
+                <PinPad onDigit={handleDigit} onDelete={handleDelete} disabled={isSaving} />
+              </View>
+            )}
+
             {step === 'remove' && (
               <View style={styles.section}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={lock.changePinLabel}
                   onPress={() => {
+                    setMessage(null);
                     setFirst('');
                     setEntered('');
-                    setStep('choose');
+                    setVerifiedAction('change');
+                    setStep('verify');
                   }}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
                   <ThemedText type="smallBold" style={ButtonLabel}>{lock.changePinLabel}</ThemedText>
@@ -388,7 +488,10 @@ export default function AppLockScreen() {
                   accessibilityState={{ disabled: isSaving }}
                   disabled={isSaving}
                   onPress={() => {
-                    void handleRemove();
+                    setMessage(null);
+                    setEntered('');
+                    setVerifiedAction('remove');
+                    setStep('verify');
                   }}
                   style={({ pressed }) => [
                     styles.primaryButton,

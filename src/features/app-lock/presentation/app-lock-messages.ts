@@ -205,6 +205,16 @@ const appLockMessagesTr = {
   removeLockDoneMessage: 'Uygulama kilidi kaldırıldı.',
 
   /**
+   * The step in front of removing or changing the lock.
+   *
+   * The lock's whole point is that holding the phone is not enough; a
+   * management screen that removed it on one tap said otherwise. The wrong-PIN
+   * and waiting sentences are the lock screen's own, and the attempt counters
+   * are the same ones — a wrong guess here costs what it costs there.
+   */
+  verifyCurrentPinTitle: "Önce mevcut PIN'ini gir",
+
+  /**
    * When the stored lock could not be read.
    *
    * It says the records are fine, because that is the thing somebody seeing
@@ -343,6 +353,8 @@ const appLockMessagesEn: AppLockMessages = {
   removeLockConsequence: 'The app will not ask for a PIN again.',
   removeLockConfirmLabel: 'Remove the lock',
   removeLockDoneMessage: 'The app lock was removed.',
+
+  verifyCurrentPinTitle: 'First, enter your current PIN',
 
   lockUnreadableMessage:
     'Your lock setting could not be read and has been switched off. Your records are where ' +
