@@ -57,6 +57,14 @@ describe('recording a settled sync', () => {
     expect(clearUnresolvedConflictMock).toHaveBeenCalledTimes(1);
   });
 
+  it('drops only its own account’s note', async () => {
+    // Two accounts share a phone; B settling a sync must not erase A's note.
+    // The clear is scoped by uid, and this pins that the uid actually goes.
+    await recordSyncSettled({ uid: 'uid-b', now });
+
+    expect(clearUnresolvedConflictMock).toHaveBeenCalledWith('uid-b');
+  });
+
   it('clears whether or not there was one to clear', async () => {
     // Reading first would be a round-trip to decide whether to do something
     // that is idempotent anyway.

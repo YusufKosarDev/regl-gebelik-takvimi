@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   UNRESOLVED_CONFLICT_STORAGE_KEY,
   clearUnresolvedConflict,
+  clearUnresolvedConflictForDevice,
   getUnresolvedConflict,
   isConflictUnresolved,
   markConflictUnresolved,
@@ -76,13 +77,47 @@ describe('asking whether one is waiting', () => {
 describe('clearing it', () => {
   it('lets automatic sync start again', async () => {
     await markConflictUnresolved('uid-1');
-    await clearUnresolvedConflict();
+    await clearUnresolvedConflict('uid-1');
 
     await expect(isConflictUnresolved('uid-1')).resolves.toBe(false);
   });
 
   it('does not mind being asked twice', async () => {
-    await expect(clearUnresolvedConflict()).resolves.toBeUndefined();
-    await expect(clearUnresolvedConflict()).resolves.toBeUndefined();
+    await expect(clearUnresolvedConflict('uid-1')).resolves.toBeUndefined();
+    await expect(clearUnresolvedConflict('uid-1')).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * The note belongs to one account.
+ *
+ * Two accounts can share a phone, and the module doc has always said a
+ * conflict in one must not stop the other syncing. The clear used to take
+ * whatever was stored: account B settling a sync erased account A's note,
+ * and A's conflict was then rediscovered and re-announced as if new.
+ */
+describe('clearing across two accounts', () => {
+  it('leaves another account’s note alone', async () => {
+    await markConflictUnresolved('uid-a');
+
+    await clearUnresolvedConflict('uid-b');
+
+    await expect(isConflictUnresolved('uid-a')).resolves.toBe(true);
+  });
+
+  it('clears its own', async () => {
+    await markConflictUnresolved('uid-a');
+
+    await clearUnresolvedConflict('uid-a');
+
+    await expect(isConflictUnresolved('uid-a')).resolves.toBe(false);
+  });
+
+  it('the device-wide clear takes whatever is there, for the wipe', async () => {
+    await markConflictUnresolved('uid-a');
+
+    await clearUnresolvedConflictForDevice();
+
+    await expect(isConflictUnresolved('uid-a')).resolves.toBe(false);
   });
 });

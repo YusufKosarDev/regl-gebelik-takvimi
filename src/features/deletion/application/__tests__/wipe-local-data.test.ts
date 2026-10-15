@@ -32,6 +32,7 @@ jest.mock('@/features/sync/infrastructure/last-sync-at', () => ({
 
 jest.mock('@/features/sync/infrastructure/unresolved-conflict', () => ({
   clearUnresolvedConflict: jest.fn(),
+  clearUnresolvedConflictForDevice: jest.fn(),
 }));
 
 jest.mock('@/features/sync/infrastructure/device-id', () => ({

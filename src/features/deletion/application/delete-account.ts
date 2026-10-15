@@ -90,7 +90,7 @@ function toDeletionFailure(error: unknown): DeletionFailure {
 }
 
 /** Clears what the deleted account left on this phone. Never fatal. */
-async function forgetAccountTraces(db: SQLiteDatabase): Promise<void> {
+async function forgetAccountTraces(db: SQLiteDatabase, uid: string): Promise<void> {
   // The app lock is not removed, only cut loose from the account that is now
   // gone. It was guarding records that are still here, and somebody who
   // deleted an account did not ask to stop having a PIN.
@@ -146,7 +146,7 @@ async function forgetAccountTraces(db: SQLiteDatabase): Promise<void> {
   // a stale marker is still a thing somebody could be shown, and there is no
   // conflict left to resolve.
   try {
-    await clearUnresolvedConflict();
+    await clearUnresolvedConflict(uid);
   } catch (error: unknown) {
     logEvent('sync state clear failed', error);
   }
@@ -203,7 +203,7 @@ async function resolveRefusedPassword(
   }
 
   // Gone. Finish what the interrupted deletion started.
-  await forgetAccountTraces(db);
+  await forgetAccountTraces(db, uid);
 
   try {
     await clearPendingAccountDeletion();
@@ -303,7 +303,7 @@ async function runDeleteAccount(input: DeleteAccountInput): Promise<AccountDelet
     logEvent('account delete failed', error);
   }
 
-  await forgetAccountTraces(db);
+  await forgetAccountTraces(db, user.uid);
 
   if (!wipeLocalDataToo) {
     return { kind: 'deleted' };

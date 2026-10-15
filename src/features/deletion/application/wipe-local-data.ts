@@ -8,7 +8,7 @@ import { cancelScheduledRemindersOfType } from '@/features/notifications/infrast
 import { withAutomaticSyncSuspended } from '@/features/sync/application/automatic-sync-suspension';
 import { clearDeviceId } from '@/features/sync/infrastructure/device-id';
 import { clearLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
-import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolved-conflict';
+import { clearUnresolvedConflictForDevice } from '@/features/sync/infrastructure/unresolved-conflict';
 import { clearSyncPreferences } from '@/features/sync/infrastructure/sync-preferences';
 import { deleteExportCache } from '@/features/export/infrastructure/export-cache';
 import {
@@ -171,7 +171,7 @@ async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   complete = (await bestEffort(clearSyncPreferences, 'local data wipe failed')) && complete;
   complete = (await bestEffort(clearLastSyncAt, 'local data wipe failed')) && complete;
   complete =
-    (await bestEffort(clearUnresolvedConflict, 'local data wipe failed')) && complete;
+    (await bestEffort(clearUnresolvedConflictForDevice, 'local data wipe failed')) && complete;
   complete = (await bestEffort(clearDeviceId, 'local data wipe failed')) && complete;
 
   // The app lock goes with everything else it was guarding. Leaving it would

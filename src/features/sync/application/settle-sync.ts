@@ -38,11 +38,11 @@ export async function recordSyncSettled(input: {
     logEvent('automatic sync failed', error);
   }
 
-  // Cleared unconditionally rather than only when one was set: reading first
-  // would be a second round-trip to storage to decide whether to do something
-  // idempotent, and a clear with nothing to clear costs nothing.
+  // Scoped to the account that settled: another account's note is another
+  // account's business, and clearing it here re-announced that conflict as
+  // if new. The clear itself stays idempotent.
   try {
-    await clearUnresolvedConflict();
+    await clearUnresolvedConflict(input.uid);
   } catch (error: unknown) {
     logEvent('automatic sync failed', error);
   }

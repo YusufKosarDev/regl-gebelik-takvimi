@@ -97,7 +97,7 @@ export default function SyncConflictScreen() {
         setNotice(conflict1.conflictNoRemoteMessage);
         setIsDone(true);
 
-        await clearUnresolvedConflict().catch(() => undefined);
+        await clearUnresolvedConflict(uid).catch(() => undefined);
       } else {
         setPreview(null);
         setNotice(conflict1.conflictLoadFailedMessage);

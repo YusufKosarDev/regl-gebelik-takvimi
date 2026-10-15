@@ -55,7 +55,22 @@ export async function isConflictUnresolved(uid: string): Promise<boolean> {
   return (await getUnresolvedConflict()) === uid;
 }
 
-/** Forgets the note, which lets automatic sync start again. */
-export async function clearUnresolvedConflict(): Promise<void> {
+/**
+ * Forgets the note, which lets automatic sync start again — for this account.
+ *
+ * Scoped on purpose: the note stores a uid so that two accounts on one phone
+ * stay independent, and a clear that took whatever was stored broke exactly
+ * that — account B settling a sync erased account A's note, and A's conflict
+ * was then rediscovered and re-announced as if new. The extra read this
+ * costs is the price of the module keeping its own stated promise.
+ */
+export async function clearUnresolvedConflict(uid: string): Promise<void> {
+  if ((await getUnresolvedConflict()) === uid) {
+    await AsyncStorage.removeItem(UNRESOLVED_CONFLICT_STORAGE_KEY);
+  }
+}
+
+/** The wipe's clear: the device is being emptied, whoever the note names. */
+export async function clearUnresolvedConflictForDevice(): Promise<void> {
   await AsyncStorage.removeItem(UNRESOLVED_CONFLICT_STORAGE_KEY);
 }
