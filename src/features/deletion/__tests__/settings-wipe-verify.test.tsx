@@ -262,7 +262,9 @@ describe('signed in, with no lock', () => {
   it('asks for the account password', async () => {
     const view = await openWipePanel();
 
-    expect(view.getByText('Silmek için hesap parolanı gir')).toBeTruthy();
+    // "Şifre" rather than "parola": the word every other screen of this app
+    // uses, the field placeholder right below it included.
+    expect(view.getByText('Silmek için hesap şifreni gir')).toBeTruthy();
     expect(view.getByPlaceholderText('Şifre')).toBeTruthy();
   });
 
@@ -305,7 +307,7 @@ describe('with neither a lock nor a session', () => {
     const view = await openWipePanel();
 
     expect(view.queryByText("Silmek için önce PIN'ini gir")).toBeNull();
-    expect(view.queryByText('Silmek için hesap parolanı gir')).toBeNull();
+    expect(view.queryByText('Silmek için hesap şifreni gir')).toBeNull();
 
     await act(async () => {
       fireEvent.press(view.getByLabelText('Her şeyi sil'));

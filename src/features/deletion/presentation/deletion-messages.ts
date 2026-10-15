@@ -173,7 +173,9 @@ const deletionMessagesTr = {
    */
   localWipeVerifyPinTitle: "Silmek için önce PIN'ini gir",
 
-  localWipeVerifyPasswordTitle: 'Silmek için hesap parolanı gir',
+  // "Şifre", not "parola": the word the rest of the app already uses, the
+  // password field right under this line included.
+  localWipeVerifyPasswordTitle: 'Silmek için hesap şifreni gir',
 
   localWipeCancelLabel: 'Vazgeç',
 
