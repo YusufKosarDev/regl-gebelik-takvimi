@@ -152,3 +152,38 @@ describe('useLanguage, against the stored preference', () => {
     expect(result.current).toBe('tr');
   });
 });
+
+/**
+ * A phone language changed while the app was backgrounded takes effect on
+ * the way back in.
+ *
+ * The doc has always promised this - the device is re-read on every render
+ * precisely so a backgrounded change is not wrong for the rest of the
+ * session - but nothing caused that render: with the preference on
+ * "system", the old language stayed up until something unrelated happened
+ * to re-render.
+ */
+describe('a language changed while backgrounded', () => {
+  const { armAppState, returnToForeground } = jest.requireActual<
+    typeof import('../../../jest/app-state-driver')
+  >('../../../jest/app-state-driver');
+  const { act } = jest.requireActual<
+    typeof import('@testing-library/react-native')
+  >('@testing-library/react-native');
+
+  it('is picked up when the app comes back', async () => {
+    armAppState();
+
+    const { result } = await renderHook(() => useLanguage());
+
+    expect(result.current).toBe('tr');
+
+    localization.getLocales.mockReturnValue([{ languageCode: 'de' }]);
+
+    await act(async () => {
+      returnToForeground();
+    });
+
+    expect(result.current).toBe('en');
+  });
+});

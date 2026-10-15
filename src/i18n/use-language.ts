@@ -1,3 +1,6 @@
+import { useEffect, useReducer } from 'react';
+import { AppState } from 'react-native';
+
 import { getDeviceLanguageCode } from './device-locale';
 import type { Language } from './language';
 import { resolveLanguage } from './language';
@@ -31,6 +34,26 @@ import { useAppStore } from '@/store/app-store';
  */
 export function useLanguage(): Language {
   const preference = useAppStore((state) => state.languagePreference);
+
+  // The per-render device read above only helps when a render happens. A
+  // phone language changed in the system settings happens while the app is
+  // backgrounded, and nothing re-rendered on the way back in — so, with the
+  // preference on "system", the old language stayed up until something
+  // unrelated moved. Coming to the foreground now nudges a re-render; the
+  // read itself is the same cached synchronous one as always.
+  const [, bump] = useReducer((count: number) => count + 1, 0);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        bump();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return resolveLanguage(preference, getDeviceLanguageCode());
 }
