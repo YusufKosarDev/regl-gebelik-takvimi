@@ -555,3 +555,46 @@ describe('a day whose read failed', () => {
     expect(repository.saveDailyEntry.mock.calls[0][1].date).toBe('2026-10-13');
   });
 });
+
+/**
+ * Tomorrow is not a day to log.
+ *
+ * The strip used to offer every day of the week, tomorrow included, and the
+ * save path took what it was given: a record dated in the future, counted
+ * by the history and invisible to the export, which ends at today. The
+ * domain deliberately keeps accepting future-dated entries - another
+ * device in a later timezone writes them legitimately and they arrive by
+ * sync - so the fence is this screen's: the strip will not offer the day,
+ * and a link that arrives carrying one opens on today instead.
+ */
+describe('days that have not happened yet', () => {
+  it('disables them on the strip', async () => {
+    const screen = await renderScreen();
+
+    const tomorrow = screen.getByLabelText('15 Ekim 2026');
+
+    expect(tomorrow.props.accessibilityState.disabled).toBe(true);
+
+    await fireEvent.press(tomorrow);
+
+    // Still on today: nothing was selected, nothing was re-read.
+    expect(screen.getByLabelText('14 Ekim 2026').props.accessibilityState.selected).toBe(true);
+    expect(repository.loadDailyEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves today and the past enabled', async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByLabelText('14 Ekim 2026').props.accessibilityState.disabled).toBe(false);
+    expect(screen.getByLabelText('12 Ekim 2026').props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('opens on today when a link hands it a future day', async () => {
+    paramsMock.mockReturnValue({ date: '2026-10-20' });
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText(/14 Ekim 2026/)).toBeTruthy();
+    expect(repository.loadDailyEntry).toHaveBeenCalledWith(expect.anything(), '2026-10-14');
+  });
+});

@@ -1178,3 +1178,33 @@ describe('CalendarScreen past the predicted period', () => {
     expect(screen.queryByText(new RegExp(homeMessages.tr.cycleNotStarted))).toBeNull();
   });
 });
+
+/**
+ * A day that has not happened yet cannot be logged from here.
+ *
+ * The link under the selected day used to render for every date, and the
+ * entry screen saved what it was handed: a record dated tomorrow, counted
+ * by the history and invisible to the export, which ends at today.
+ */
+describe('CalendarScreen on a day that has not happened yet', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('offers no way in to log it', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-25'));
+
+    expect(screen.queryByLabelText('Bu güne ekle')).toBeNull();
+    expect(screen.queryByLabelText('Bu günü düzenle')).toBeNull();
+  });
+
+  it('still offers it for today itself', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-17'));
+
+    expect(screen.getByLabelText('Bu güne ekle')).toBeTruthy();
+  });
+});

@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { ISODate } from '@/types/iso-date';
-import { addDays, getDayOfMonth, getISOWeekday } from '@/utils/date';
+import { addDays, daysBetween, getDayOfMonth, getISOWeekday } from '@/utils/date';
 
 /**
  * The week the day being logged sits in, as seven things to tap.
@@ -42,6 +42,7 @@ export function WeekStrip({
   weekdayLabels,
   dayLabelFor,
   disabled = false,
+  lastSelectableDate,
 }: {
   /** The day being edited. The week drawn is the one containing it. */
   readonly date: ISODate;
@@ -51,6 +52,12 @@ export function WeekStrip({
   /** The whole date, spoken. "8" is not a date. */
   readonly dayLabelFor: (date: ISODate) => string;
   readonly disabled?: boolean;
+  /**
+   * The last day worth offering — today, for the log. The week always shows
+   * seven, so the days past it are drawn but refuse the tap: a record dated
+   * tomorrow would be counted by the history and missed by the export.
+   */
+  readonly lastSelectableDate?: ISODate;
 }) {
   const theme = useTheme();
 
@@ -62,20 +69,23 @@ export function WeekStrip({
       {weekdayLabels.map((label, index) => {
         const day = addDays(monday, index);
         const isSelected = day === date;
+        const isBeyondLast =
+          lastSelectableDate !== undefined && daysBetween(lastSelectableDate, day) > 0;
+        const isDayDisabled = disabled || isBeyondLast;
 
         return (
           <Pressable
             key={day}
             accessibilityRole="button"
             accessibilityLabel={dayLabelFor(day)}
-            accessibilityState={{ selected: isSelected, disabled }}
-            disabled={disabled}
+            accessibilityState={{ selected: isSelected, disabled: isDayDisabled }}
+            disabled={isDayDisabled}
             onPress={() => onSelect(day)}
             style={({ pressed }) => [
               styles.day,
               isSelected && { backgroundColor: theme.primary },
-              disabled && styles.disabled,
-              pressed && !disabled && styles.pressed,
+              isDayDisabled && styles.disabled,
+              pressed && !isDayDisabled && styles.pressed,
             ]}>
             {/* The weekday word stays in the secondary colour whether or not
                 the day is selected: it is the same word on all seven and says

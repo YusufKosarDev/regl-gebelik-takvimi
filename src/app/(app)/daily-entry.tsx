@@ -25,7 +25,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { logEvent } from '@/shared/logging';
 import { openAppDatabase } from '@/storage/db';
 import type { ISODate } from '@/types/iso-date';
-import { isISODate } from '@/utils/date';
+import { daysBetween, isISODate } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { getTodayLocalISODate } from '@/utils/today';
 import { WeekStrip } from '@/features/daily-log/components/week-strip';
@@ -76,9 +76,17 @@ export default function DailyEntryScreen() {
    * arrived malformed.
    */
   const [date, setDate] = useState<ISODate>(() => {
+    const today = getTodayLocalISODate();
     const given = typeof params.date === 'string' && isISODate(params.date) ? params.date : null;
 
-    return (given as ISODate | null) ?? getTodayLocalISODate();
+    if (given === null) {
+      return today;
+    }
+
+    // A link carrying tomorrow opens on today, the same answer a malformed
+    // one gets: a record dated in the future would be counted by the history
+    // and missed by the export, so no entry point hands one out.
+    return daysBetween(today, given as ISODate) > 0 ? today : (given as ISODate);
   });
 
   const [entry, setEntry] = useState<DailyEntry>(() => emptyDailyEntry(date));
@@ -303,6 +311,7 @@ export default function DailyEntryScreen() {
               weekdayLabels={home.weekdayLabels}
               dayLabelFor={(day) => formatDisplayDate(day, language)}
               disabled={isBusy}
+              lastSelectableDate={getTodayLocalISODate()}
             />
 
             {/* The refusal belongs here rather than with the others.

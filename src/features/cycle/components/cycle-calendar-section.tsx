@@ -18,6 +18,7 @@ import { dailyLogMessages } from '@/features/daily-log/presentation/daily-log-me
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
+import { daysBetween } from '@/utils/date';
 import { formatDisplayDate } from '@/utils/format-date';
 import { SkyStrip } from './sky-strip';
 import type { SkyField } from '@/constants/sky';
@@ -188,9 +189,12 @@ export function CycleCalendarSection({
               </ThemedText>
             )}
 
-            {/* The way in for any day that is not today. The label
-                says which it is, so nobody has to guess whether
-                there is already something there. */}
+            {/* The way in for any day up to today. The label says which it
+                is, so nobody has to guess whether there is already something
+                there. Days that have not happened yet get no way in: a
+                record dated tomorrow would be counted by the history and
+                missed by the export, which ends at today. */}
+            {daysBetween(selectedDay.date, today) >= 0 && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
@@ -215,6 +219,7 @@ export function CycleCalendarSection({
                   : dailyLog.calendarDayAddLabel}
               </ThemedText>
             </Pressable>
+            )}
           </Surface>
         )}
       </View>
