@@ -59,7 +59,12 @@ export type RevealInView = {
   };
   /** Spread onto the panel, or onto a `View` wrapping the component that is one. */
   readonly targetProps: {
-    readonly ref: React.RefObject<View | null>;
+    /**
+     * A callback rather than a ref object, because the unmount matters:
+     * React calls it with `null` when the panel goes away, and that is the
+     * moment the one-shot flag below has always promised to clear.
+     */
+    readonly ref: (node: View | null) => void;
     readonly onLayout: (event: LayoutChangeEvent) => void;
   };
 };
@@ -82,6 +87,22 @@ export function useRevealInView(options: { readonly bottomInset: number }): Reve
    * opens it reveals again.
    */
   const hasRevealed = useRef(false);
+
+  /**
+   * Holds the panel and, on `null`, clears the one-shot flag.
+   *
+   * This is the half the doc above promised and the code never had: without
+   * it, the flag survived the panel, and the second opening of any panel on
+   * the same screen landed off-screen under the tab bar — the very defect
+   * the hook was written against.
+   */
+  const setTargetRef = useCallback((node: View | null) => {
+    targetRef.current = node;
+
+    if (node === null) {
+      hasRevealed.current = false;
+    }
+  }, []);
 
   const motionAllowed = useMotionAllowed();
 
@@ -138,6 +159,6 @@ export function useRevealInView(options: { readonly bottomInset: number }): Reve
       onScroll,
       scrollEventThrottle: 16,
     },
-    targetProps: { ref: targetRef, onLayout: onTargetLayout },
+    targetProps: { ref: setTargetRef, onLayout: onTargetLayout },
   };
 }
