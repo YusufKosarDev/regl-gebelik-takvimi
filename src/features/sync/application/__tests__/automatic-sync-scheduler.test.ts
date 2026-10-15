@@ -340,6 +340,102 @@ describe('an edit on this phone', () => {
   });
 });
 
+describe('an edit whose debounce elapses while the rules still say not yet', () => {
+  beforeEach(() => {
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+  });
+
+  /** Moves the scheduler's clock and the timers together, like real time does. */
+  async function elapse(ms: number): Promise<void> {
+    clock += ms;
+    jest.advanceTimersByTime(ms);
+    await settle();
+  }
+
+  it('waits out the rest of the floor and then sends the edit, instead of losing it', async () => {
+    // The debounce used to fire into the local-change floor, be refused as
+    // too-soon, and leave the edit with nothing to pick it up until the app
+    // was closed - so a record written shortly after a sync stayed on the
+    // phone indefinitely while the app sat open.
+    await requestAutomaticSync('sign-in');
+
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+
+    await elapse(10_000);
+    notifyLocalDataChanged();
+    await elapse(LOCAL_CHANGE_DEBOUNCE_MS);
+
+    // Fired at 40s after the attempt; the floor is two minutes.
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+    expect(hasPendingLocalChange()).toBe(true);
+
+    const floorOpensInMs = MINIMUM_INTERVAL_MS['local-change'] - 10_000 - LOCAL_CHANGE_DEBOUNCE_MS;
+
+    await elapse(floorOpensInMs - 1);
+
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+
+    await elapse(1);
+
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(2);
+    expect(hasPendingLocalChange()).toBe(false);
+  });
+
+  it('waits for a flight that outlives the floor, and sends the edit after it lands', async () => {
+    let finishFlight: (outcome: CloudSyncOutcome) => void = () => undefined;
+
+    runCloudSyncMock.mockImplementationOnce(
+      () =>
+        new Promise<CloudSyncOutcome>((resolve) => {
+          finishFlight = resolve;
+        })
+    );
+
+    void requestAutomaticSync('sign-in');
+    await settle();
+
+    // The edit lands while that sync is still in the air, long enough after
+    // its start that the floor is already open when the debounce fires.
+    await elapse(MINIMUM_INTERVAL_MS['local-change']);
+    notifyLocalDataChanged();
+    await elapse(LOCAL_CHANGE_DEBOUNCE_MS);
+
+    // Joining the running flight would not send this edit: that flight read
+    // the tables before it landed.
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+    expect(hasPendingLocalChange()).toBe(true);
+
+    finishFlight({ kind: 'pushed' } as CloudSyncOutcome);
+    await settle();
+    await elapse(1);
+
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(2);
+    expect(hasPendingLocalChange()).toBe(false);
+  });
+
+  it('does not poll when the refusal is not about time', async () => {
+    // Only too-soon and in-flight mean 'not yet'. A disabled switch, a lock
+    // or a conflict mean 'not now at all', and a timer that kept asking would
+    // be the interval this module promises not to have - those edits wait for
+    // the flush on the way out, as they always did.
+    loadSyncPreferencesMock.mockResolvedValue({ automaticSyncEnabled: false });
+
+    notifyLocalDataChanged();
+    await elapse(LOCAL_CHANGE_DEBOUNCE_MS);
+
+    expect(runCloudSyncMock).not.toHaveBeenCalled();
+    expect(hasPendingLocalChange()).toBe(true);
+    // Not merely quiet: no timer is waiting at all. A re-arm that kept the
+    // sync silent but the timer alive would still be the poll.
+    expect(jest.getTimerCount()).toBe(0);
+
+    await elapse(60 * 60 * 1000);
+
+    expect(runCloudSyncMock).not.toHaveBeenCalled();
+    expect(hasPendingLocalChange()).toBe(true);
+  });
+});
+
 describe('the flush on the way out', () => {
   beforeEach(() => {
     setAutomaticSyncContext({ db, uid: 'uid-1' });

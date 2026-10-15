@@ -12,7 +12,11 @@ import { logEvent } from '@/shared/logging';
 import { useAppLockStore } from '@/store/app-lock-store';
 
 import type { AutomaticSyncSkipReason, AutomaticSyncTrigger } from '../domain/automatic-sync-policy';
-import { LOCAL_CHANGE_DEBOUNCE_MS, decideAutomaticSync } from '../domain/automatic-sync-policy';
+import {
+  LOCAL_CHANGE_DEBOUNCE_MS,
+  MINIMUM_INTERVAL_MS,
+  decideAutomaticSync,
+} from '../domain/automatic-sync-policy';
 import { isConflictUnresolved } from '../infrastructure/unresolved-conflict';
 import { loadSyncPreferences } from '../infrastructure/sync-preferences';
 
@@ -139,11 +143,71 @@ function handleLocalDataChanged(origin: LocalDataChangeOrigin): void {
     clearTimeout(state.debounceTimer);
   }
 
-  state.debounceTimer = setTimeout(() => {
-    state.debounceTimer = null;
+  state.debounceTimer = setTimeout(fireDebouncedChange, LOCAL_CHANGE_DEBOUNCE_MS);
+}
 
-    void requestAutomaticSync('local-change');
-  }, LOCAL_CHANGE_DEBOUNCE_MS);
+/** How long the local-change floor still has to run; zero when it is open. */
+function localChangeFloorRemainingMs(): number {
+  if (state.lastAttemptAtMs === null) {
+    return 0;
+  }
+
+  return Math.max(0, MINIMUM_INTERVAL_MS['local-change'] - (now() - state.lastAttemptAtMs));
+}
+
+/** Re-arms the one-shot wait for an edit that is still unsent. */
+function rearmPendingChange(delayMs: number): void {
+  if (!state.changePending || state.debounceTimer !== null) {
+    return;
+  }
+
+  state.debounceTimer = setTimeout(fireDebouncedChange, delayMs);
+}
+
+/**
+ * The debounce elapsed. Send the edit, or wait out whichever rule says not yet.
+ *
+ * The debounce used to fire straight into `requestAutomaticSync`, where the
+ * floor refused it as too-soon — and nothing picked the edit up again until the
+ * flush on the way out, so a record written shortly after a sync sat on the
+ * phone for as long as the app stayed open.
+ *
+ * Only the two refusals that mean "not yet" re-arm: the floor, waited out to
+ * the millisecond it opens, and a sync still in the air, waited on to land —
+ * joining it would not send this edit, because that flight read the tables
+ * before the edit did. Every other refusal means "not now at all", and a timer
+ * that kept asking would be the interval this module promises not to have;
+ * those edits wait for the flush, as they always did. Each wait is one shot and
+ * exists only while an unsent edit does, so every sync is still the tail of
+ * something the person did.
+ */
+function fireDebouncedChange(): void {
+  state.debounceTimer = null;
+
+  if (state.context === null || !state.changePending) {
+    return;
+  }
+
+  const floorRemaining = localChangeFloorRemainingMs();
+
+  if (floorRemaining > 0) {
+    rearmPendingChange(floorRemaining);
+
+    return;
+  }
+
+  const flight = state.inFlight;
+
+  if (flight !== null) {
+    // Never rejects: both runners catch their own failures.
+    void flight.then(() => {
+      rearmPendingChange(Math.max(localChangeFloorRemainingMs(), 1));
+    });
+
+    return;
+  }
+
+  void requestAutomaticSync('local-change');
 }
 
 /**
