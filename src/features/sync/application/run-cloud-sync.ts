@@ -486,8 +486,18 @@ export async function runCloudSync(input: RunCloudSyncInput): Promise<CloudSyncO
   // Before anything is read or written. An account whose deletion has started
   // has no backup on purpose, and every decision below this line would read
   // that absence as "this phone has the only copy" and offer to push it.
-  if (await isAccountDeletionPending(uid)) {
-    return { kind: 'error', failure: 'deletion-pending' };
+  //
+  // Inside its own try, because the contract above says nothing here throws:
+  // this is an AsyncStorage read, and a storage fault must come back as a
+  // result like every other failure does.
+  try {
+    if (await isAccountDeletionPending(uid)) {
+      return { kind: 'error', failure: 'deletion-pending' };
+    }
+  } catch (error: unknown) {
+    logEvent('automatic sync failed', error);
+
+    return { kind: 'error', failure: 'unknown' };
   }
 
   const attempt: Attempt = {

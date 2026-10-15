@@ -1415,3 +1415,14 @@ describe('an account whose revision went backwards', () => {
     expect(syncState.saveSyncState).not.toHaveBeenCalled();
   });
 });
+
+describe('the never-throws contract', () => {
+  it('holds even when the pending-deletion read itself throws', async () => {
+    // That read ran outside the try: the two callers of today happened to
+    // catch, and any new caller relying on the documented contract would
+    // not. AsyncStorage is allowed to fail; the contract is not.
+    pendingDeletion.isAccountDeletionPending.mockRejectedValue(new Error('storage gone'));
+
+    await expect(sync()).resolves.toEqual({ kind: 'error', failure: 'unknown' });
+  });
+});
