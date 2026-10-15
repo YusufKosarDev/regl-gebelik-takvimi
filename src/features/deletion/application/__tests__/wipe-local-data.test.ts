@@ -7,6 +7,7 @@ import { wipeLocalData } from '../wipe-local-data';
 
 jest.mock('../../data/local-data-repository', () => ({
   clearAllLocalTables: jest.fn(),
+  checkpointWalAfterWipe: jest.fn(),
 }));
 
 jest.mock('../../infrastructure/pending-account-deletion', () => ({
@@ -53,8 +54,11 @@ jest.mock('@/shared/logging', () => ({
   describeValue: jest.fn(() => 'value'),
 }));
 
-const { clearAllLocalTables } = jest.requireMock('../../data/local-data-repository') as {
+const { clearAllLocalTables, checkpointWalAfterWipe } = jest.requireMock(
+  '../../data/local-data-repository'
+) as {
   clearAllLocalTables: jest.Mock;
+  checkpointWalAfterWipe: jest.Mock;
 };
 const { clearPendingAccountDeletion } = jest.requireMock(
   '../../infrastructure/pending-account-deletion'
@@ -85,6 +89,7 @@ const db = {} as SQLiteDatabase;
 
 function resolveAll(): void {
   clearAllLocalTables.mockResolvedValue(undefined);
+  checkpointWalAfterWipe.mockResolvedValue(undefined);
   clearPendingAccountDeletion.mockResolvedValue(undefined);
   cancelScheduledRemindersOfType.mockResolvedValue(1);
   widget.clearWidgetSnapshot.mockResolvedValue(undefined);
@@ -112,6 +117,45 @@ describe('wiping this device', () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
     expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
+  });
+
+  it('truncates the WAL straight after the tables, before anything else', async () => {
+    // The -wal file holds the pre-delete page images until a checkpoint, so
+    // a wipe that skipped this would leave a copy of the records on disk
+    // beside a database claiming to be empty.
+    const order: string[] = [];
+
+    clearAllLocalTables.mockImplementation(async () => {
+      order.push('tables');
+    });
+    checkpointWalAfterWipe.mockImplementation(async () => {
+      order.push('wal');
+    });
+    deleteExportCache.mockImplementation(() => {
+      order.push('export-cache');
+    });
+
+    const resetAppState = jest.fn().mockResolvedValue(undefined);
+
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({
+      kind: 'wiped',
+    });
+    expect(checkpointWalAfterWipe).toHaveBeenCalledWith(db);
+    expect(order).toEqual(['tables', 'wal', 'export-cache']);
+  });
+
+  it('reports partial when the WAL would not truncate, because the rows are already gone', async () => {
+    checkpointWalAfterWipe.mockRejectedValue(new Error('database is busy'));
+
+    const resetAppState = jest.fn().mockResolvedValue(undefined);
+
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({
+      kind: 'partial',
+    });
+    // The failure must not stop the steps after it: the export cache is still
+    // the records in plain text.
+    expect(deleteExportCache).toHaveBeenCalledTimes(1);
+    expect(resetAppState).toHaveBeenCalledTimes(1);
   });
 
   /**

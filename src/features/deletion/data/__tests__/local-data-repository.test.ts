@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { runMigrations } from '@/storage/migrations';
 
-import { WIPED_TABLES, clearAllLocalTables } from '../local-data-repository';
+import { WIPED_TABLES, checkpointWalAfterWipe, clearAllLocalTables } from '../local-data-repository';
 
 type DatabaseSpy = {
   readonly db: SQLiteDatabase;
@@ -87,12 +87,16 @@ describe('clearing every local table', () => {
     }
   });
 
-  it('issues exactly one statement per table and nothing else', async () => {
+  it('issues one statement per table plus the two secure_delete pragmas', async () => {
+    // Updated from "exactly one per table and nothing else" when the wipe
+    // gained `secure_delete`: the rule this count holds is still that no SQL
+    // other than the fixed list reaches the database - the two pragmas are
+    // part of that fixed list now.
     const { db, execAsync } = createDatabaseSpy();
 
     await clearAllLocalTables(db);
 
-    expect(execAsync).toHaveBeenCalledTimes(WIPED_TABLES.length);
+    expect(execAsync).toHaveBeenCalledTimes(WIPED_TABLES.length + 2);
   });
 
   it('does all of it inside one transaction', async () => {
@@ -106,9 +110,12 @@ describe('clearing every local table', () => {
   });
 
   it('runs every delete inside that transaction rather than around it', async () => {
+    // The pragmas sit outside the transaction on purpose: `secure_delete` has
+    // to be on before the first delete and back off whatever happens to the
+    // transaction, so neither belongs to its all-or-nothing.
     const order: string[] = [];
-    const execAsync = jest.fn(async () => {
-      order.push('delete');
+    const execAsync = jest.fn(async (sql: string) => {
+      order.push(sql.startsWith('DELETE') ? 'delete' : 'pragma');
     });
     const withTransactionAsync = jest.fn(async (task: () => Promise<void>) => {
       order.push('begin');
@@ -120,8 +127,8 @@ describe('clearing every local table', () => {
 
     await clearAllLocalTables(db);
 
-    expect(order[0]).toBe('begin');
-    expect(order[order.length - 1]).toBe('commit');
+    expect(order.indexOf('begin')).toBeLessThan(order.indexOf('delete'));
+    expect(order.lastIndexOf('delete')).toBeLessThan(order.indexOf('commit'));
     expect(order.filter((step) => step === 'delete')).toHaveLength(WIPED_TABLES.length);
   });
 
@@ -156,12 +163,61 @@ describe('clearing every local table', () => {
     expect(statements).not.toMatch(/DROP/i);
   });
 
+  it('zeroes freed pages while it deletes, and only while it deletes', async () => {
+    // A DELETE normally moves pages to the freelist with their contents
+    // intact, so "delete everything" left every record readable in the file
+    // by anything that can open it. `secure_delete` makes SQLite zero what it
+    // frees; it is scoped to the wipe because everyday deletes do not need to
+    // pay its write cost.
+    const { db, execAsync } = createDatabaseSpy();
+
+    await clearAllLocalTables(db);
+
+    const statements = execAsync.mock.calls.map((call) => call[0] as string);
+
+    expect(statements[0]).toBe('PRAGMA secure_delete = ON');
+    expect(statements[statements.length - 1]).toBe('PRAGMA secure_delete = OFF');
+  });
+
+  it('turns secure_delete back off even when a delete is refused', async () => {
+    const execAsync = jest.fn(async (sql: string) => {
+      if (sql.startsWith('DELETE')) {
+        throw new Error('database is locked');
+      }
+    });
+    const withTransactionAsync = jest.fn(async (task: () => Promise<void>) => {
+      await task();
+    });
+    const db = { execAsync, withTransactionAsync } as unknown as SQLiteDatabase;
+
+    await expect(clearAllLocalTables(db)).rejects.toThrow('database is locked');
+
+    const statements = execAsync.mock.calls.map((call) => call[0] as string);
+
+    expect(statements[statements.length - 1]).toBe('PRAGMA secure_delete = OFF');
+  });
+
   it('can be run twice, which is what makes a failed wipe safe to retry', async () => {
     const { db, execAsync } = createDatabaseSpy();
 
     await clearAllLocalTables(db);
     await clearAllLocalTables(db);
 
-    expect(execAsync).toHaveBeenCalledTimes(WIPED_TABLES.length * 2);
+    expect(execAsync).toHaveBeenCalledTimes((WIPED_TABLES.length + 2) * 2);
+  });
+});
+
+describe('truncating the WAL after a wipe', () => {
+  it('asks SQLite to checkpoint and truncate', async () => {
+    // The transaction's deletes land in the write-ahead log first, so after
+    // the commit the -wal file still holds the pre-delete page images - a
+    // copy of the records beside a database that claims to be empty. TRUNCATE
+    // both checkpoints and cuts the file to zero bytes.
+    const { db, execAsync } = createDatabaseSpy();
+
+    await checkpointWalAfterWipe(db);
+
+    expect(execAsync).toHaveBeenCalledWith('PRAGMA wal_checkpoint(TRUNCATE)');
+    expect(execAsync).toHaveBeenCalledTimes(1);
   });
 });

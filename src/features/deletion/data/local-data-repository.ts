@@ -61,10 +61,39 @@ export async function clearAllLocalTables(db: SQLiteDatabase): Promise<void> {
   // Nothing to announce: there is no data left to send, and the account is
   // deliberately not being touched by a wipe.
   await withLocalDataChangeSuppressed(async () => {
-    await db.withTransactionAsync(async () => {
-      for (const table of TABLES_TO_CLEAR) {
-        await db.execAsync(`DELETE FROM ${table}`);
-      }
-    });
+    // A DELETE normally moves pages to the freelist with their contents
+    // intact, which would leave every record readable in the file after
+    // "delete everything". `secure_delete` makes SQLite zero what it frees.
+    // On for the wipe only - everyday deletes do not need its write cost -
+    // and back off whatever the transaction does, which is why both pragmas
+    // sit outside it.
+    await db.execAsync('PRAGMA secure_delete = ON');
+
+    try {
+      await db.withTransactionAsync(async () => {
+        for (const table of TABLES_TO_CLEAR) {
+          await db.execAsync(`DELETE FROM ${table}`);
+        }
+      });
+    } finally {
+      await db.execAsync('PRAGMA secure_delete = OFF');
+    }
   });
+}
+
+/**
+ * Empties the write-ahead log the deletes just went through.
+ *
+ * The transaction's pages land in the `-wal` file first and stay there until
+ * a checkpoint, so without this the wipe leaves a copy of the pre-delete
+ * pages on disk beside a database that claims to be empty. TRUNCATE both
+ * checkpoints and cuts the file to zero bytes.
+ *
+ * Separate from `clearAllLocalTables` because the two fail differently: rows
+ * that would not delete mean nothing was wiped, a log that would not truncate
+ * means the wipe happened and one copy lingers - the caller reports the first
+ * as `failed` and the second as `partial`.
+ */
+export async function checkpointWalAfterWipe(db: SQLiteDatabase): Promise<void> {
+  await db.execAsync('PRAGMA wal_checkpoint(TRUNCATE)');
 }

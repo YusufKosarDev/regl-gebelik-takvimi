@@ -17,7 +17,7 @@ import {
 } from '@/features/widget/infrastructure/widget-snapshot-bridge';
 import { logEvent } from '@/shared/logging';
 
-import { clearAllLocalTables } from '../data/local-data-repository';
+import { checkpointWalAfterWipe, clearAllLocalTables } from '../data/local-data-repository';
 import type { LocalWipeOutcome } from '../domain/deletion-outcome';
 import { clearPendingAccountDeletion } from '../infrastructure/pending-account-deletion';
 
@@ -142,6 +142,13 @@ async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   }
 
   let complete = true;
+
+  // The write-ahead log still holds the pre-delete page images; truncating it
+  // is part of the data being gone, not bookkeeping. Best effort like the
+  // steps below because the rows themselves are already deleted - a lingering
+  // log is a `partial`, not a failure to wipe.
+  complete =
+    (await bestEffort(() => checkpointWalAfterWipe(db), 'local data wipe failed')) && complete;
 
   // The CSVs written for the share sheet are the records in plain text, and
   // they sit outside the tables the transaction just emptied. Straight after
