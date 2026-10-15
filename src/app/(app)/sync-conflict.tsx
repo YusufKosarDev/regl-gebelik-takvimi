@@ -23,6 +23,7 @@ import {
   conflictPresenceLabelIn,
   conflictRecordCountLabelIn,
 } from '@/features/sync/presentation/conflict-labels';
+import { syncFailureMessageIn, syncMessages } from '@/features/sync/presentation/sync-messages';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
@@ -52,20 +53,44 @@ import { getTodayLocalISODate } from '@/utils/today';
 
 type Choice = 'local' | 'remote';
 
+/**
+ * What the notice line is about, translated at render.
+ *
+ * A finished sentence in state stayed in the language it was written in after
+ * everything around it switched — and baking the catalogue into `load` to
+ * write one made a language change re-read the database and the network for
+ * words that were already on the screen.
+ */
+type Notice =
+  | { readonly kind: 'no-remote' }
+  | { readonly kind: 'load-failed' }
+  | { readonly kind: 'signed-out' }
+  | { readonly kind: 'failure'; readonly reason: string }
+  | { readonly kind: 'resolved'; readonly choice: Choice };
+
 export default function SyncConflictScreen() {
   const theme = useTheme();
   const conflict1 = useMessages(conflictLabels);
+  const sync1 = useMessages(syncMessages);
   const language = useLanguage();
   const auth = useAuthState();
 
   const [isLoading, setIsLoading] = useState(true);
   const [preview, setPreview] = useState<SyncConflictPreview | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [confirming, setConfirming] = useState<Choice | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isDone, setIsDone] = useState(false);
 
   const inFlight = useRef(false);
+
+  /**
+   * Which load is the current one. Bumped by every new read and by the
+   * effect's cleanup, so a read that outlives its session — or the screen —
+   * finds itself superseded and touches nothing: a preview built for one
+   * account must not appear over a screen that no longer has it.
+   */
+  const loadEpoch = useRef(0);
 
   const uid = auth.status === 'signed-in' ? auth.user.uid : null;
 
@@ -81,6 +106,8 @@ export default function SyncConflictScreen() {
       return;
     }
 
+    const epoch = ++loadEpoch.current;
+
     // Deliberately not setting `isLoading` here. It starts true, and the only
     // other caller is an event handler that sets it before asking — doing it in
     // this function would make the mount effect update state synchronously.
@@ -88,37 +115,66 @@ export default function SyncConflictScreen() {
       const db = await openAppDatabase();
       const result = await buildConflictPreview({ db, uid, deviceId: await getDeviceId() });
 
+      if (epoch !== loadEpoch.current) {
+        return;
+      }
+
       if (result.kind === 'ready') {
         setPreview(result.preview);
       } else if (result.kind === 'no-remote') {
         // Nothing to choose between any more. Clear the note so automatic sync
         // is not held up by a conflict that no longer exists.
         setPreview(null);
-        setNotice(conflict1.conflictNoRemoteMessage);
+        setNotice({ kind: 'no-remote' });
         setIsDone(true);
 
         await clearUnresolvedConflict(uid).catch(() => undefined);
       } else {
         setPreview(null);
-        setNotice(conflict1.conflictLoadFailedMessage);
+        setNotice({ kind: 'load-failed' });
       }
     } catch (error: unknown) {
       logEvent('sync conflict resolve failed', error);
+
+      if (epoch !== loadEpoch.current) {
+        return;
+      }
+
       setPreview(null);
-      setNotice(conflict1.conflictLoadFailedMessage);
+      setNotice({ kind: 'load-failed' });
     } finally {
-      setIsLoading(false);
+      if (epoch === loadEpoch.current) {
+        setIsLoading(false);
+      }
     }
-  }, [conflict1, uid]);
+  }, [uid]);
 
   useEffect(() => {
     // Reading both sides of the conflict is exactly what an effect is for: it
     // needs a database and the network, so it cannot happen during render, and
     // there is nothing to derive it from. `load` awaits before it touches
     // state; the rule cannot see that through an async function it can inline.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (uid === null) {
+      // Nothing will start a read without an account, and the spinner used to
+      // wait forever for the one that never came. The sentence is the account
+      // screen's own for a sync without a session.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPreview(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNotice({ kind: 'signed-out' });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsLoading(false);
+
+      return;
+    }
+
     void load();
-  }, [load]);
+
+    return () => {
+      // A read still in the air is for a screen or a session that is gone.
+      loadEpoch.current += 1;
+    };
+  }, [load, uid]);
 
   /**
    * Applies one side, after the second press.
@@ -143,7 +199,7 @@ export default function SyncConflictScreen() {
       const outcome = choice === 'local' ? await keepLocalData(input) : await keepRemoteData(input);
 
       if (outcome.kind === 'failed') {
-        setNotice(conflictFailureMessageIn(conflict1, outcome.reason));
+        setNotice({ kind: 'failure', reason: outcome.reason });
         setConfirming(null);
 
         // The cloud moved: show what it holds now rather than the stale view.
@@ -158,9 +214,7 @@ export default function SyncConflictScreen() {
 
       setConfirming(null);
       setIsDone(true);
-      setNotice(
-        outcome.kind === 'local-kept' ? conflict1.conflictKeepLocalDone : conflict1.conflictKeepRemoteDone
-      );
+      setNotice({ kind: 'resolved', choice: outcome.kind === 'local-kept' ? 'local' : 'remote' });
 
       // Only the cloud-wins path rewrote this phone. The widget and the
       // reminders are copies of what was just written, and best effort by
@@ -174,13 +228,30 @@ export default function SyncConflictScreen() {
       }
     } catch (error: unknown) {
       logEvent('sync conflict resolve failed', error);
-      setNotice(conflictFailureMessageIn(conflict1, 'unknown'));
+      setNotice({ kind: 'failure', reason: 'unknown' });
       setConfirming(null);
     } finally {
       inFlight.current = false;
       setIsBusy(false);
     }
   };
+
+  // Translated here, every render, so the line follows a language change
+  // instead of staying in the language it was first written in.
+  const noticeText =
+    notice === null
+      ? null
+      : notice.kind === 'no-remote'
+        ? conflict1.conflictNoRemoteMessage
+        : notice.kind === 'load-failed'
+          ? conflict1.conflictLoadFailedMessage
+          : notice.kind === 'signed-out'
+            ? syncFailureMessageIn(sync1, 'signed-out')
+            : notice.kind === 'failure'
+              ? conflictFailureMessageIn(conflict1, notice.reason)
+              : notice.choice === 'local'
+                ? conflict1.conflictKeepLocalDone
+                : conflict1.conflictKeepRemoteDone;
 
   const body = preview === null ? null : (
     <View style={styles.fields}>
@@ -248,9 +319,9 @@ export default function SyncConflictScreen() {
               )}
             </View>
 
-            {notice !== null && (
+            {noticeText !== null && (
               <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
-                {notice}
+                {noticeText}
               </ThemedText>
             )}
 

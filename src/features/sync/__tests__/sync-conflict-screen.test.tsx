@@ -1,8 +1,9 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import SyncConflictScreen from '@/app/(app)/sync-conflict';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
+import { useAppStore } from '@/store/app-store';
 
 /**
  * The screen that asks somebody to throw one version of their own period
@@ -335,6 +336,105 @@ describe('after a choice lands', () => {
     });
 
     expect(widgetSync.syncWidgetSnapshotQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('without a session', () => {
+  it('does not spin forever when nobody is signed in', async () => {
+    // The load used to return early on a null uid without ever turning the
+    // spinner off, so a screen opened after the session ended showed an
+    // indicator for a read that was never going to start.
+    authRepository.observeAuthUser.mockImplementation((listener: (u: AuthUser | null) => void) => {
+      listener(null);
+
+      return () => undefined;
+    });
+    authRepository.getCurrentAuthUser.mockReturnValue(null);
+
+    const screen = await render(<SyncConflictScreen />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('sync-conflict-loading')).toBeNull();
+    });
+
+    // The same sentence the account screen uses for a sync without a session.
+    expect(screen.getByText('Senkronizasyon için giriş yapman gerekiyor.')).toBeTruthy();
+    expect(previewBuilder.buildConflictPreview).not.toHaveBeenCalled();
+  });
+
+  it('drops a read that outlives the session it was started for', async () => {
+    // Otherwise the preview of one account's conflict appears over a screen
+    // that no longer has an account to resolve it for, and a press would call
+    // the resolver with data the session change invalidated.
+    let authListener: (u: AuthUser | null) => void = () => undefined;
+    let finishRead: (value: unknown) => void = () => undefined;
+
+    authRepository.observeAuthUser.mockImplementation((listener: (u: AuthUser | null) => void) => {
+      authListener = listener;
+      listener(USER);
+
+      return () => undefined;
+    });
+    previewBuilder.buildConflictPreview.mockReturnValue(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      })
+    );
+
+    const screen = await render(<SyncConflictScreen />);
+
+    await act(async () => {
+      authListener(null);
+    });
+    await act(async () => {
+      finishRead({ kind: 'ready', preview: PREVIEW });
+    });
+
+    expect(screen.queryByLabelText('Bu cihazdakini kullan')).toBeNull();
+    expect(screen.getByText('Senkronizasyon için giriş yapman gerekiyor.')).toBeTruthy();
+  });
+});
+
+describe('when the language changes while the screen is open', () => {
+  afterEach(async () => {
+    await act(async () => {
+      useAppStore.setState({ languagePreference: 'system' });
+    });
+  });
+
+  it('does not re-read both sides just to translate', async () => {
+    // The load used to depend on the catalogue, so switching language
+    // re-created it and the effect re-read the database and the network for
+    // words that were already on the screen.
+    const screen = await renderLoaded();
+
+    expect(previewBuilder.buildConflictPreview).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      useAppStore.setState({ languagePreference: 'en' });
+    });
+
+    expect(screen.getByLabelText('Keep the one on this device')).toBeTruthy();
+    expect(previewBuilder.buildConflictPreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('translates a notice that is already up', async () => {
+    // The notice was stored as a finished sentence, so it stayed in the old
+    // language after everything around it switched.
+    previewBuilder.buildConflictPreview.mockResolvedValue({ kind: 'no-remote' });
+
+    const screen = await render(<SyncConflictScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Çözülecek bir çakışma kalmadı/)).toBeTruthy();
+    });
+
+    await act(async () => {
+      useAppStore.setState({ languagePreference: 'en' });
+    });
+
+    expect(screen.getByText(/There is no conflict left to resolve/)).toBeTruthy();
+    expect(screen.queryByText(/Çözülecek bir çakışma kalmadı/)).toBeNull();
   });
 });
 
