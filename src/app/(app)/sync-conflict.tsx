@@ -160,9 +160,7 @@ export default function SyncConflictScreen() {
       // screen's own for a sync without a session.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreview(null);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNotice({ kind: 'signed-out' });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false);
 
       return;
