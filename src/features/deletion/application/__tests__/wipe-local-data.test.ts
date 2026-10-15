@@ -43,6 +43,10 @@ jest.mock('@/features/auth/data/auth-repository', () => ({
   signOut: jest.fn(),
 }));
 
+jest.mock('@/features/export/infrastructure/export-cache', () => ({
+  deleteExportCache: jest.fn(),
+}));
+
 jest.mock('@/shared/logging', () => ({
   logEvent: jest.fn(),
   describeValue: jest.fn(() => 'value'),
@@ -72,6 +76,9 @@ const auth = jest.requireMock('@/features/auth/data/auth-repository') as {
   signOut: jest.Mock;
 };
 const { logEvent } = jest.requireMock('@/shared/logging') as { logEvent: jest.Mock };
+const { deleteExportCache } = jest.requireMock(
+  '@/features/export/infrastructure/export-cache'
+) as { deleteExportCache: jest.Mock };
 
 const db = {} as SQLiteDatabase;
 
@@ -85,6 +92,9 @@ function resolveAll(): void {
   clearDeviceId.mockResolvedValue(undefined);
   auth.getCurrentAuthUser.mockReturnValue(null);
   auth.signOut.mockResolvedValue(undefined);
+  // `clearAllMocks` keeps implementations, so a test that made this throw
+  // would otherwise leak its failure into every test after it.
+  deleteExportCache.mockImplementation(() => undefined);
 }
 
 // Shared rather than made per test: it is the one input that is a plain
@@ -101,6 +111,32 @@ describe('wiping this device', () => {
     const resetAppState = jest.fn().mockResolvedValue(undefined);
 
     expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({ kind: 'wiped' });
+  });
+
+  /**
+   * The CSVs written for the share sheet are the records in plain text. A
+   * wipe that emptied the tables and left those files behind would keep the
+   * most readable copy of everything it promised to delete.
+   */
+  it('deletes the exported copies along with the tables', async () => {
+    const resetAppState = jest.fn().mockResolvedValue(undefined);
+
+    await wipeLocalData({ db, resetAppState, forgetAppLockState });
+
+    expect(deleteExportCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports partial, not failed, when only the export cache would not empty', async () => {
+    deleteExportCache.mockImplementation(() => {
+      throw new Error('EBUSY');
+    });
+
+    const resetAppState = jest.fn().mockResolvedValue(undefined);
+
+    expect(await wipeLocalData({ db, resetAppState, forgetAppLockState })).toEqual({
+      kind: 'partial',
+    });
+    expect(logEvent).toHaveBeenCalledWith('local data wipe failed', expect.anything());
   });
 
   /**

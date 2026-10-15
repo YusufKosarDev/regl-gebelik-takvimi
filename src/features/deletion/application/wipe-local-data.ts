@@ -10,6 +10,7 @@ import { clearDeviceId } from '@/features/sync/infrastructure/device-id';
 import { clearLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
 import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolved-conflict';
 import { clearSyncPreferences } from '@/features/sync/infrastructure/sync-preferences';
+import { deleteExportCache } from '@/features/export/infrastructure/export-cache';
 import {
   clearWidgetSnapshot,
   isWidgetSnapshotBridgeAvailable,
@@ -27,14 +28,15 @@ import { clearPendingAccountDeletion } from '../infrastructure/pending-account-d
  * data may happen before the data is actually gone.
  *
  *   1. the tables, in one transaction — all or nothing
- *   2. the reminders that would otherwise fire about records that no longer exist
- *   3. the widget, which is a copy of those records sitting on the home screen
- *   4. the small keys: sync preferences, device id, a half-finished deletion,
+ *   2. the exported CSVs in the cache, which are those records in plain text
+ *   3. the reminders that would otherwise fire about records that no longer exist
+ *   4. the widget, which is a copy of those records sitting on the home screen
+ *   5. the small keys: sync preferences, device id, a half-finished deletion,
  *      and the app lock, which was guarding what is now gone
- *   5. the session, if there is one
- *   6. the onboarding flag, last
+ *   6. the session, if there is one
+ *   7. the onboarding flag, last
  *
- * Step 6 is last because it is the switch. `RootLayout` mounts `(onboarding)`
+ * Step 7 is last because it is the switch. `RootLayout` mounts `(onboarding)`
  * the moment it flips, so flipping it earlier would show somebody a fresh
  * welcome screen sitting on top of a database still full of their records.
  *
@@ -140,6 +142,13 @@ async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   }
 
   let complete = true;
+
+  // The CSVs written for the share sheet are the records in plain text, and
+  // they sit outside the tables the transaction just emptied. Straight after
+  // the tables, for the same reason the tables go first: these are the data,
+  // not a copy of a copy.
+  complete =
+    (await bestEffort(async () => deleteExportCache(), 'local data wipe failed')) && complete;
 
   complete =
     (await bestEffort(

@@ -1,30 +1,22 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
+import { logEvent } from '@/shared/logging';
+
 import type { ExportFile } from '../application/build-export-files';
 
-/**
- * Where an export is written before it is handed to the share sheet.
- *
- * The cache directory, not documents: the file exists to be passed to another
- * app and has no life of its own afterwards. Android is free to reclaim it, and
- * that is the right outcome - a folder quietly filling with copies of somebody's
- * health records is the opposite of what this feature is for.
- *
- * A subfolder rather than the cache root so the app's own exports are
- * distinguishable from anything else cached, and so clearing them is one call.
- */
-const EXPORT_DIRECTORY = 'exports';
+import { EXPORT_DIRECTORY } from './export-cache';
 
 export type ShareOutcome = 'shared' | 'unavailable';
 
 /**
  * Writes a file and offers it to whatever the person wants to send it to.
  *
- * The only place `expo-file-system` and `expo-sharing` are used. Everything
- * above this builds strings; this is the part that touches the device, which is
- * why it is the only file in the feature with no unit test - there is nothing
- * here but two library calls and the decision of which URI to hand over.
+ * Written into the cache (`export-cache.ts` names the folder), handed to the
+ * sheet, and deleted when the sheet is done — whatever the sheet came back
+ * with. Waiting for the OS to reclaim the cache turned out to mean the file
+ * staying indefinitely, through "delete all my data" included, and a
+ * day-by-day CSV of somebody's records is the last file that should.
  *
  * ## Why the plain `file://` URI and not `contentUri`
  *
@@ -75,10 +67,22 @@ export async function shareTextFile(file: ExportFile): Promise<ShareOutcome> {
   target.create();
   target.write(file.contents);
 
-  await Sharing.shareAsync(target.uri, {
-    mimeType: file.mimeType,
-    dialogTitle: file.fileName,
-  });
+  try {
+    await Sharing.shareAsync(target.uri, {
+      mimeType: file.mimeType,
+      dialogTitle: file.fileName,
+    });
+  } finally {
+    // The receiving app has taken what it is going to take by the time the
+    // sheet resolves. A file that will not delete is logged by name — the
+    // wipe's own sweep is the second chance — and never fails the share that
+    // already happened.
+    try {
+      target.delete();
+    } catch (error: unknown) {
+      logEvent('data export failed', error);
+    }
+  }
 
   return 'shared';
 }
