@@ -2,9 +2,9 @@ rules_version = '2';
 
 // What may be read and written in this project.
 //
-// One rule, and everything else denied. A person's backup holds their period
-// history, their pregnancy and their avatar, and the only account that may
-// touch it is the one it belongs to.
+// One document per person, and everything else denied. A person's backup
+// holds their period history, their pregnancy and their avatar, and the only
+// account that may touch it is the one it belongs to.
 //
 // There is no rule allowing anyone to list `users`, to read another account's
 // document, or to reach anything outside this path: Firestore denies whatever
@@ -12,17 +12,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // users/{userId}/backups/current — written by "Yedek oluştur", read by
-    // "Yedeği kontrol et", and by nothing else.
+    // users/{userId}/backups/current — written by "Yedek oluştur" and by
+    // sync (manual and automatic), read by "Yedeği kontrol et", restore and
+    // sync, deleted by "Hesabı sil". Nothing else touches it.
     //
-    // `write` covers create, update *and* delete, which is what lets "Hesabı
-    // sil" remove someone's backup before their account goes. Narrowing this to
-    // `create, update` would leave every deleted account's document stranded:
-    // the rule is written in terms of a uid, and a deleted uid matches nothing,
-    // so nobody — including the owner — could ever read or remove it again.
+    // `delete` stays allowed, and it matters: "Hesabı sil" removes someone's
+    // backup before their account goes. Taking it away would leave every
+    // deleted account's document stranded — the rule is written in terms of a
+    // uid, and a deleted uid matches nothing, so nobody could ever remove it.
+    //
+    // Writes are counted. Every client write path puts a `revision` on the
+    // document and counts it up by one from what is stored; these rules make
+    // that a promise rather than a convention. The clients kept each other
+    // honest only in their own code before, and one build writing an
+    // uncounted document was enough to make another device misread the
+    // account's history. A write that does not count — no revision, a wrong
+    // step, a shape that is not the envelope — is refused here, whichever
+    // build or console it came from.
+    //
+    // Rollout note: a build older than the counted manual backup writes
+    // `{version, payload, updatedAt}` from "Yedek oluştur" and will be
+    // refused by these rules. Deploy them when the counted build is the one
+    // people have.
     match /users/{userId}/backups/{docId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+
+      function isOwner() {
+        return request.auth != null
+          && request.auth.uid == userId;
+      }
+
+      // The envelope every current write path produces. Lean on purpose:
+      // the payload's inside is validated by every client that reads it, and
+      // a rules copy of that validator would be a second one to keep true.
+      function isCountedEnvelope() {
+        return request.resource.data.version == 1
+          && request.resource.data.revision is int
+          && request.resource.data.revision >= 1
+          && request.resource.data.contentHash is string
+          && request.resource.data.payload is map;
+      }
+
+      // One past what is stored. A stored document with no readable revision
+      // is the legacy case every client reads as 0, so the only write allowed
+      // over it is revision 1 — the same number the clients compute.
+      function countsUpFromStored() {
+        return ('revision' in resource.data && resource.data.revision is int)
+          ? request.resource.data.revision == resource.data.revision + 1
+          : request.resource.data.revision == 1;
+      }
+
+      allow read: if isOwner();
+
+      allow delete: if isOwner();
+
+      allow create: if isOwner()
+                    && isCountedEnvelope()
+                    && request.resource.data.revision == 1;
+
+      allow update: if isOwner()
+                    && isCountedEnvelope()
+                    && countsUpFromStored();
     }
   }
 }
