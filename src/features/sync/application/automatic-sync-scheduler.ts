@@ -9,6 +9,7 @@ import type { LocalDataChangeOrigin } from '@/shared/data-change/local-data-chan
 import { onLocalDataChanged } from '@/shared/data-change/local-data-change';
 import { getTodayLocalISODate } from '@/utils/today';
 import { logEvent } from '@/shared/logging';
+import { useAppLockStore } from '@/store/app-lock-store';
 
 import type { AutomaticSyncSkipReason, AutomaticSyncTrigger } from '../domain/automatic-sync-policy';
 import { LOCAL_CHANGE_DEBOUNCE_MS, decideAutomaticSync } from '../domain/automatic-sync-policy';
@@ -218,6 +219,10 @@ async function shouldSkip(
     firebaseConfigured: isFirebaseConfigured(),
     deletionPending,
     conflictUnresolved,
+    // Read at decision time, not adoption time: the lock can close and open
+    // while a context stands, and the sign-in the PIN-recovery form performs
+    // arrives exactly while it is closed.
+    locked: useAppLockStore.getState().locked,
     suspended: isAutomaticSyncSuspended(),
     inFlight: state.inFlight !== null,
     nowMs: now(),

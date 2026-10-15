@@ -529,3 +529,43 @@ describe('when the account changes underneath a run', () => {
     expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * The app lock is a gate here too.
+ *
+ * The one sign-in a locked app offers is the PIN-recovery form. A session that
+ * form leaves behind must not be allowed to carry this phone's records to an
+ * account the person holding the phone happens to know the password for.
+ */
+describe('while the app is locked', () => {
+  const { useAppLockStore } = jest.requireActual<
+    typeof import('@/store/app-lock-store')
+  >('@/store/app-lock-store');
+
+  afterEach(() => {
+    useAppLockStore.setState({ locked: false });
+  });
+
+  it('refuses every trigger, the sign-in one included', async () => {
+    useAppLockStore.setState({ locked: true });
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+
+    await expect(requestAutomaticSync('sign-in')).resolves.toBeNull();
+    await expect(requestAutomaticSync('foreground')).resolves.toBeNull();
+
+    expect(runCloudSyncMock).not.toHaveBeenCalled();
+  });
+
+  it('syncs again once the lock is open', async () => {
+    useAppLockStore.setState({ locked: true });
+    setAutomaticSyncContext({ db, uid: 'uid-1' });
+
+    await expect(requestAutomaticSync('sign-in')).resolves.toBeNull();
+
+    useAppLockStore.setState({ locked: false });
+
+    await requestAutomaticSync('sign-in');
+
+    expect(runCloudSyncMock).toHaveBeenCalledTimes(1);
+  });
+});

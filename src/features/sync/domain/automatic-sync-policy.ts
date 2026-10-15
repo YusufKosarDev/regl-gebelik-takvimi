@@ -36,6 +36,10 @@ export type AutomaticSyncSkipReason =
   | 'deletion-pending'
   /** A conflict is waiting for a person. Nothing automatic may run past it. */
   | 'conflict-unresolved'
+  /** The app lock is closed. Whoever is holding the phone has not proved
+   * they are the owner, and the PIN-recovery form can put a live session
+   * under a locked app — one that must not carry these records anywhere. */
+  | 'locked'
   /** A wipe, a restore or a conflict resolution is running. */
   | 'suspended'
   /** One is already running; the caller should join it rather than start another. */
@@ -78,6 +82,8 @@ export type AutomaticSyncPolicyInput = {
   readonly firebaseConfigured: boolean;
   readonly deletionPending: boolean;
   readonly conflictUnresolved: boolean;
+  /** The app lock is currently closed. */
+  readonly locked: boolean;
   /** A wipe, restore or resolution is holding the gate. */
   readonly suspended: boolean;
   /** A sync is already running. */
@@ -122,6 +128,10 @@ export function decideAutomaticSync(input: AutomaticSyncPolicyInput): AutomaticS
 
   if (input.conflictUnresolved) {
     return { kind: 'skip', reason: 'conflict-unresolved' };
+  }
+
+  if (input.locked) {
+    return { kind: 'skip', reason: 'locked' };
   }
 
   if (input.suspended) {

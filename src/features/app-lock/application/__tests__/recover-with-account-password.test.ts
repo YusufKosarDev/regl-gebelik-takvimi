@@ -47,6 +47,7 @@ jest.mock('expo-crypto', () => ({
 
 jest.mock('@/features/auth/data/auth-repository', () => ({
   signInWithEmail: jest.fn(),
+  signOut: jest.fn(),
 }));
 
 const auth = jest.requireMock('@/features/auth/data/auth-repository');
@@ -59,6 +60,8 @@ const NOW = 1_800_000_000_000;
 beforeEach(() => {
   secureStore().clear();
   auth.signInWithEmail.mockReset();
+  auth.signOut.mockReset();
+  auth.signOut.mockResolvedValue(undefined);
 });
 
 describe('the happy path', () => {
@@ -71,6 +74,14 @@ describe('the happy path', () => {
     expect(await recoverWithAccountPassword('a@b.com', 'correct-horse')).toEqual({
       kind: 'recovered',
     });
+  });
+
+  // The session is the bound account's own: ending it would sign the owner
+  // out of the account they just proved they hold.
+  it('keeps the session that belongs to the bound account', async () => {
+    await recoverWithAccountPassword('a@b.com', 'correct-horse');
+
+    expect(auth.signOut).not.toHaveBeenCalled();
   });
 
   // Off, not reset to something the person does not know.
@@ -120,6 +131,29 @@ describe('a different account', () => {
 
     expect(secureStore().size).toBe(1);
     expect(await unlockWithPin(PIN, NOW)).toEqual({ kind: 'unlocked' });
+  });
+
+  // The sign-in that proved the wrong uid also created a live session for it.
+  // Left in place, the next automatic sync would push this phone's records to
+  // that account — the one outcome this whole path exists to prevent.
+  it('signs out of the session the check left behind', async () => {
+    auth.signInWithEmail.mockResolvedValue({ uid: 'uid-2', email: 'someone@else.com' });
+
+    await recoverWithAccountPassword('someone@else.com', 'their-password');
+
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+  });
+
+  // A failed sign-out is reported as the wrong account it is: the password was
+  // valid for some account, just not this phone's.
+  it('still reports wrong-account when the sign-out itself fails', async () => {
+    auth.signInWithEmail.mockResolvedValue({ uid: 'uid-2', email: 'someone@else.com' });
+    auth.signOut.mockRejectedValue(new AuthError('network-failed'));
+
+    expect(await recoverWithAccountPassword('someone@else.com', 'their-password')).toEqual({
+      kind: 'wrong-account',
+    });
+    expect(secureStore().size).toBe(1);
   });
 });
 

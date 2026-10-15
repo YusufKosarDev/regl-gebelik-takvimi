@@ -24,6 +24,7 @@ const RUNNABLE: AutomaticSyncPolicyInput = {
   firebaseConfigured: true,
   deletionPending: false,
   conflictUnresolved: false,
+  locked: false,
   suspended: false,
   inFlight: false,
   nowMs: 1_000_000,
@@ -102,6 +103,26 @@ describe('the refusals that mean never, for now', () => {
     }
   });
 
+  it('refuses while the app lock is closed, for every trigger', () => {
+    // Whoever is holding a locked phone has not proved they are the owner.
+    // The one sign-in a locked app offers is the PIN-recovery form, and a
+    // session it leaves behind must never carry this phone's records anywhere.
+    const triggers: readonly AutomaticSyncTrigger[] = [
+      'foreground',
+      'background-flush',
+      'sign-in',
+      'enabled',
+      'local-change',
+    ];
+
+    for (const trigger of triggers) {
+      expect(decideAutomaticSync(input({ trigger, locked: true }))).toEqual({
+        kind: 'skip',
+        reason: 'locked',
+      });
+    }
+  });
+
   it('refuses while a wipe, restore or resolution holds the gate', () => {
     expect(decideAutomaticSync(input({ suspended: true }))).toEqual({
       kind: 'skip',
@@ -150,6 +171,27 @@ describe('the order the rules are asked in', () => {
     );
 
     expect(decision).toEqual({ kind: 'skip', reason: 'conflict-unresolved' });
+  });
+
+  it('reports a conflict ahead of the lock', () => {
+    expect(decideAutomaticSync(input({ conflictUnresolved: true, locked: true }))).toEqual({
+      kind: 'skip',
+      reason: 'conflict-unresolved',
+    });
+  });
+
+  it('reports the lock ahead of being suspended, in flight or too soon', () => {
+    const decision = decideAutomaticSync(
+      input({
+        locked: true,
+        suspended: true,
+        inFlight: true,
+        trigger: 'foreground',
+        lastAttemptAtMs: RUNNABLE.nowMs,
+      })
+    );
+
+    expect(decision).toEqual({ kind: 'skip', reason: 'locked' });
   });
 
   it('reports a pending deletion ahead of a conflict', () => {
