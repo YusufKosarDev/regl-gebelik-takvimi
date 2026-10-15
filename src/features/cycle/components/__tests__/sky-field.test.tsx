@@ -84,7 +84,9 @@ describe('turning the setting on while the screen is open', () => {
     const view = await render(true);
     expect(asMock(withRepeat)).toHaveBeenCalledTimes(2);
 
-    view.rerender(
+    // Awaited like every other render here: unawaited, its act scope stays
+    // open and swallows the effects of whatever test runs next.
+    await view.rerender(
       <SkyField
         colors={Sky.light.fields.follicular}
         bloomKey={0}
@@ -100,5 +102,63 @@ describe('turning the setting on while the screen is open', () => {
     await settle();
 
     expect(asMock(cancelAnimation)).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * The bloom marks a recorded period, and nothing else.
+ *
+ * `useMotionAllowed` re-answers on every return to the foreground, so the
+ * effect that fires the bloom re-runs then too. It used to flare on each of
+ * those - every pocket-and-back replayed the one celebratory moment until it
+ * meant nothing. Only the key moving is a period being recorded.
+ */
+describe('the bloom', () => {
+  const { withSequence } = jest.requireMock('react-native-reanimated') as {
+    withSequence: jest.Mock;
+  };
+
+  function field(motionAllowed: boolean, bloomKey: number) {
+    return (
+      <SkyField
+        colors={Sky.light.fields.follicular}
+        bloomKey={bloomKey}
+        driftColor={Sky.light.drift}
+        bloomColor={Sky.light.bloom}
+        motionAllowed={motionAllowed}
+        testID="sky">
+        <Text>day</Text>
+      </SkyField>
+    );
+  }
+
+  beforeEach(() => {
+    withSequence.mockClear();
+  });
+
+  it('does not replay when motion merely comes back', async () => {
+    const view = await render(true);
+
+    await view.rerender(field(false, 0));
+    await settle();
+    await view.rerender(field(true, 0));
+    await settle();
+
+    expect(withSequence).not.toHaveBeenCalled();
+  });
+
+  it('plays when the key moves', async () => {
+    const view = await render(true);
+
+    await view.rerender(field(true, 1));
+    await settle();
+
+    expect(withSequence).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not play for the mount itself', async () => {
+    await render(true);
+
+    expect(withSequence).not.toHaveBeenCalled();
   });
 });

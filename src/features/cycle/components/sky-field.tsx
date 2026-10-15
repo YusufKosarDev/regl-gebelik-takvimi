@@ -214,16 +214,24 @@ export function SkyField({
   /* --------------------------------------------------------- the bloom -- */
 
   const bloom = useSharedValue(0);
-  const firstBloom = useRef(true);
+
+  /**
+   * The key as it was when this effect last acted on it.
+   *
+   * Initialised to the mount's key, which is also what keeps the mount from
+   * flaring: the mount is not an event. And it is what keeps everything else
+   * from flaring too — `motionAllowed` is a dependency and re-answers on
+   * every return to the foreground, so the effect re-runs then; only the key
+   * actually moving is a period being recorded.
+   */
+  const lastBloomKey = useRef(bloomKey);
 
   useEffect(() => {
-    // The mount is not an event. Without this the screen flares every time it
-    // is opened, which would make the one celebratory moment meaningless.
-    if (firstBloom.current) {
-      firstBloom.current = false;
-
+    if (lastBloomKey.current === bloomKey) {
       return;
     }
+
+    lastBloomKey.current = bloomKey;
 
     if (!motionAllowed) {
       // The haptic still fires - that is touch, not movement - and the field

@@ -78,6 +78,9 @@ const Animated = {
 // exactly like one that stopped. These let a test see the difference.
 const withRepeat = jest.fn(toValue);
 const cancelAnimation = jest.fn(() => undefined);
+// The bloom is a sequence, and whether it fired is likewise invisible under
+// Jest - a flare that resolves instantly looks like no flare at all.
+const withSequence = jest.fn((...values) => values[values.length - 1]);
 
 module.exports = {
   __esModule: true,
@@ -90,7 +93,7 @@ module.exports = {
   withSpring: toValue,
   withRepeat,
   withDelay: (_delay, value) => value,
-  withSequence: (...values) => values[values.length - 1],
+  withSequence,
   cancelAnimation,
   runOnJS: (fn) => fn,
   runOnUI: (fn) => fn,
