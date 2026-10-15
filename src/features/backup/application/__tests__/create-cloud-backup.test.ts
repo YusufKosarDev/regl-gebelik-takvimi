@@ -16,6 +16,10 @@ jest.mock('../../data/cloud-backup-repository', () => ({
   saveCloudBackup: jest.fn(),
 }));
 
+jest.mock('@/features/sync/infrastructure/device-id', () => ({
+  deviceIdProvider: jest.fn(),
+}));
+
 const { isAccountDeletionPending } = jest.requireMock(
   '@/features/deletion/infrastructure/pending-account-deletion'
 ) as { isAccountDeletionPending: jest.Mock };
@@ -24,6 +28,9 @@ const { buildCloudSyncPayloadV1 } = jest.requireMock(
 ) as { buildCloudSyncPayloadV1: jest.Mock };
 const { saveCloudBackup } = jest.requireMock('../../data/cloud-backup-repository') as {
   saveCloudBackup: jest.Mock;
+};
+const { deviceIdProvider } = jest.requireMock('@/features/sync/infrastructure/device-id') as {
+  deviceIdProvider: jest.Mock;
 };
 
 const db = {} as SQLiteDatabase;
@@ -35,12 +42,30 @@ beforeEach(() => {
   isAccountDeletionPending.mockResolvedValue(false);
   buildCloudSyncPayloadV1.mockResolvedValue(payload);
   saveCloudBackup.mockResolvedValue(undefined);
+  deviceIdProvider.mockResolvedValue('device-aaaa-1111');
 });
 
 describe('creating a backup normally', () => {
   it('writes it and says so', async () => {
     expect(await createCloudBackup({ db, user })).toEqual({ kind: 'saved' });
-    expect(saveCloudBackup).toHaveBeenCalledWith(user, payload);
+    expect(saveCloudBackup).toHaveBeenCalledWith(user, payload, 'device-aaaa-1111');
+  });
+
+  // The id feeds the revision bookkeeping the repository now writes, so the
+  // conflict screen can say which device wrote what.
+  it('stamps the write with this device, when the id can be read', async () => {
+    await createCloudBackup({ db, user });
+
+    expect(saveCloudBackup).toHaveBeenCalledWith(user, payload, 'device-aaaa-1111');
+  });
+
+  it('backs up anyway when the device id cannot be read', async () => {
+    // The id is bookkeeping; the backup is somebody's data. Failing the
+    // second for the first would have the priorities backwards.
+    deviceIdProvider.mockRejectedValue(new Error('no storage'));
+
+    expect(await createCloudBackup({ db, user })).toEqual({ kind: 'saved' });
+    expect(saveCloudBackup).toHaveBeenCalledWith(user, payload, null);
   });
 
   it('builds the payload from the privacy boundary', async () => {

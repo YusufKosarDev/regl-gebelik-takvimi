@@ -7,6 +7,7 @@ import { requireFirestore } from '../infrastructure/firestore';
 
 import { AuthError } from '@/features/auth/domain/auth-error';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
+import { cloudSyncContentHash } from '@/features/sync/domain/cloud-sync-hash';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import {
   unknownCloudSyncPayloadFields,
@@ -98,9 +99,24 @@ function assertNothingWouldBeDropped(document: unknown, outgoing: CloudSyncPaylo
     throw new OutdatedAppError(dropped);
   }
 }
+/**
+ * The revision this write should carry: one past whatever is stored.
+ *
+ * Lenient on purpose, like the guard above it. A document with no readable
+ * revision — legacy, or damaged — counts as the uncounted 0, so the write
+ * lands on 1 and still replaces it; refusing would take away the one path
+ * that repairs a damaged document.
+ */
+function nextRevisionAfter(document: unknown): number {
+  const stored = (document as { revision?: unknown } | null)?.revision;
+
+  return typeof stored === 'number' && Number.isInteger(stored) && stored >= 0 ? stored + 1 : 1;
+}
+
 export async function saveCloudBackup(
   user: AuthUser,
-  payload: CloudSyncPayloadV1
+  payload: CloudSyncPayloadV1,
+  deviceId: string | null = null
 ): Promise<void> {
   const path = backupPath(user);
 
@@ -112,13 +128,22 @@ export async function saveCloudBackup(
 
     await runTransaction(firestore, async (transaction) => {
       const snapshot = await transaction.get(reference);
+      const stored = snapshot.exists() ? snapshot.data() : null;
 
-      if (snapshot.exists()) {
-        assertNothingWouldBeDropped(snapshot.data(), payload);
+      if (stored !== null) {
+        assertNothingWouldBeDropped(stored, payload);
       }
 
+      // Counted like every other write to this document, and inside the same
+      // transaction that read what it counts from. A write without a revision
+      // would read back as 0 — ordered before every counted write — and a
+      // device whose base was further along would mistake this fresh backup
+      // for history, with `decideSync` drawing conclusions from that.
       transaction.set(reference, {
         version: CLOUD_BACKUP_VERSION,
+        revision: nextRevisionAfter(stored),
+        contentHash: cloudSyncContentHash(payload),
+        deviceId,
         payload,
         updatedAt: serverTimestamp(),
       });

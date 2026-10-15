@@ -1165,7 +1165,9 @@ describe('AccountScreen creating a backup', () => {
 
     expect(db.openAppDatabase).toHaveBeenCalledTimes(1);
     expect(cloudSync.buildCloudSyncPayloadV1).toHaveBeenCalledWith(DATABASE);
-    expect(backup.saveCloudBackup).toHaveBeenCalledWith(USER, PAYLOAD);
+    // The third argument is this installation's own label for the revision
+    // bookkeeping, not anything about the person or the hardware.
+    expect(backup.saveCloudBackup).toHaveBeenCalledWith(USER, PAYLOAD, expect.any(String));
   });
 
   it('says it worked', async () => {

@@ -4,6 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { isAccountDeletionPending } from '@/features/deletion/infrastructure/pending-account-deletion';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
+import { deviceIdProvider } from '@/features/sync/infrastructure/device-id';
 
 import { saveCloudBackup } from '../data/cloud-backup-repository';
 import { isOutdatedAppError } from '../domain/outdated-app-error';
@@ -48,8 +49,13 @@ export async function createCloudBackup(
     return { kind: 'refused-deletion-pending' };
   }
 
+  // The id is bookkeeping for the revision the repository writes; the backup
+  // is somebody's data. When the id cannot be read, the write goes ahead
+  // unstamped rather than not at all.
+  const deviceId = await deviceIdProvider().catch(() => null);
+
   try {
-    await saveCloudBackup(user, await buildCloudSyncPayloadV1(db));
+    await saveCloudBackup(user, await buildCloudSyncPayloadV1(db), deviceId);
   } catch (error) {
     // Refused rather than failed, like a pending deletion: the write was
     // stopped on purpose and retrying it changes nothing.

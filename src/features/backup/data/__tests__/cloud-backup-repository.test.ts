@@ -1,5 +1,6 @@
 import { AuthError } from '@/features/auth/domain/auth-error';
 import type { AuthUser } from '@/features/auth/domain/auth-user';
+import { cloudSyncContentHash } from '@/features/sync/domain/cloud-sync-hash';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import type { ISODate } from '@/types/iso-date';
 
@@ -191,12 +192,15 @@ describe('where a backup is kept', () => {
 });
 
 describe('saveCloudBackup', () => {
-  it('writes the payload under a version and a server time', async () => {
+  it('writes the payload under a version, a counted revision and a server time', async () => {
     await saveCloudBackup(USER, payload());
 
     expect(firestore.setDoc).toHaveBeenCalledTimes(1);
     expect(firestore.setDoc.mock.calls[0][1]).toEqual({
       version: 1,
+      revision: 1,
+      contentHash: cloudSyncContentHash(payload()),
+      deviceId: null,
       payload: payload(),
       updatedAt: { __serverTimestamp: true },
     });
@@ -208,14 +212,67 @@ describe('saveCloudBackup', () => {
     expect(firestore.serverTimestamp).toHaveBeenCalledTimes(1);
   });
 
-  it('writes those three fields and nothing else', async () => {
+  it('writes those six fields and nothing else', async () => {
     await saveCloudBackup(USER, payload());
 
     expect(Object.keys(firestore.setDoc.mock.calls[0][1]).sort()).toEqual([
+      'contentHash',
+      'deviceId',
       'payload',
+      'revision',
       'updatedAt',
       'version',
     ]);
+  });
+
+  /**
+   * The write is counted, like every other write to this document.
+   *
+   * A backup that wrote `{version, payload, updatedAt}` alone would read back
+   * as revision 0 — before every counted write — and another device whose
+   * base was ahead would see "remote changed, local unchanged" and pull it:
+   * a stale phone's button press silently replacing synced data on both
+   * sides. Counting up inside the same transaction is what makes the manual
+   * button an ordinary, ordered write.
+   */
+  it('counts the revision up from the one that is stored', async () => {
+    firestore.getDoc.mockResolvedValue(
+      snapshot(storedDocument({ revision: 5, contentHash: 'their-hash', deviceId: 'device-bb' }))
+    );
+
+    await saveCloudBackup(USER, payload());
+
+    expect(firestore.setDoc.mock.calls[0][1].revision).toBe(6);
+  });
+
+  it('gives a legacy document its first counted revision', async () => {
+    firestore.getDoc.mockResolvedValue(snapshot(storedDocument()));
+
+    await saveCloudBackup(USER, payload());
+
+    expect(firestore.setDoc.mock.calls[0][1].revision).toBe(1);
+  });
+
+  it('starts an empty account at revision one', async () => {
+    await saveCloudBackup(USER, payload());
+
+    expect(firestore.setDoc.mock.calls[0][1].revision).toBe(1);
+  });
+
+  it('writes the hash of exactly what it carries', async () => {
+    await saveCloudBackup(USER, payload());
+
+    expect(firestore.setDoc.mock.calls[0][1].contentHash).toBe(cloudSyncContentHash(payload()));
+  });
+
+  it('stamps the device it was given, and null when it was given none', async () => {
+    await saveCloudBackup(USER, payload(), 'device-aa');
+
+    expect(firestore.setDoc.mock.calls[0][1].deviceId).toBe('device-aa');
+
+    await saveCloudBackup(USER, payload());
+
+    expect(firestore.setDoc.mock.calls[1][1].deviceId).toBeNull();
   });
 
   it('refuses a payload the app itself would refuse', async () => {
