@@ -81,8 +81,8 @@ describe('every outcome names what happened to the data', () => {
     expect(brought).toMatch(/brought to this phone/i);
   });
 
-  it('says a conflict changed nothing, in both of its two shapes', () => {
-    for (const reason of ['no-base', 'unresolved'] as const) {
+  it('says a conflict changed nothing, in each of its three shapes', () => {
+    for (const reason of ['no-base', 'unresolved', 'revision-regressed'] as const) {
       const message = syncOutcomeMessageIn(
         syncMessages.en,
         outcome('conflict', { reason, conflicts: [] })
@@ -107,6 +107,16 @@ describe('every outcome names what happened to the data', () => {
 
     expect(noBase).not.toBe(unresolved);
     expect(noBase).toMatch(/never synced/i);
+  });
+
+  it('says the account looks older when the revision went backwards', () => {
+    const regressed = syncOutcomeMessageIn(
+      syncMessages.en,
+      outcome('conflict', { reason: 'revision-regressed', conflicts: [] })
+    );
+
+    expect(regressed).toMatch(/looks older/i);
+    expect(regressed).not.toMatch(/never synced/i);
   });
 
   it('does not make a lost race read as a fault', () => {

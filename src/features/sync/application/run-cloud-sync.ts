@@ -131,8 +131,16 @@ export type CloudSyncOutcome =
  * against. A three-way merge cannot be run at all, so there is nothing to list —
  * the question is the blunt one, whether to keep the phone's or the account's,
  * and it is not this function's to answer.
+ *
+ * `revision-regressed` is the third, and it is the blunt question for a
+ * different reason: the account's revision is below this device's base, so
+ * something rewrote it without knowing the count — an older build's backup
+ * button, or a console. The base describes an agreement that account no
+ * longer remembers, which disqualifies the merge too: a local side that
+ * still matches the base would hand every field to the regressed remote,
+ * and that is the pull the decision refused, through another door.
  */
-export type CloudSyncConflictOutcomeReason = 'unresolved' | 'no-base';
+export type CloudSyncConflictOutcomeReason = 'unresolved' | 'no-base' | 'revision-regressed';
 
 export type RunCloudSyncInput = {
   readonly db: SQLiteDatabase;
@@ -388,6 +396,13 @@ async function attemptSync(attempt: Attempt): Promise<CloudSyncOutcome> {
     // Nothing agreed to measure from. `decideSync` answers `conflict` here
     // rather than guessing, and so does this.
     return { kind: 'conflict', reason: 'no-base', conflicts: [] };
+  }
+
+  if (remote.revision < state.revision) {
+    // The account went backwards, so the base measures an agreement it no
+    // longer remembers. The merge must not run: see the reason's own doc —
+    // it would carry the regression through whenever the phone is unchanged.
+    return { kind: 'conflict', reason: 'revision-regressed', conflicts: [] };
   }
 
   const merged = mergeCloudSyncPayload({

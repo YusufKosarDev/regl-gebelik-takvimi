@@ -104,6 +104,15 @@ export function decideSync(input: CloudSyncInput): CloudSyncDecision {
     return 'conflict';
   }
 
+  // A revision below the base's is not merely "changed": something rewrote
+  // the account without knowing the count — an older build's backup button,
+  // or a console — and the agreement the base describes is one that account
+  // no longer remembers. Answering `pull` here is exactly the overwrite the
+  // rule above forbids, so the row goes to the answer that asks.
+  if (remote.revision < base.revision) {
+    return 'conflict';
+  }
+
   const localChanged = local.contentHash !== base.contentHash;
   const remoteChanged = hasRemoteChanged(base, remote);
 

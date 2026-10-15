@@ -678,11 +678,21 @@ describe('when the account moves underneath a push', () => {
 
         return envelope(5, AGREED);
       });
-    syncState.loadSyncState.mockImplementation(async () => {
-      calls.push('read base');
+    // The base catches up between the rounds, the way a settled account
+    // leaves it. It used to sit at 5 for both rounds, which made round one
+    // read as an account that had gone backwards — a state the sync now
+    // stops on by design — rather than as the race this test is about.
+    syncState.loadSyncState
+      .mockImplementationOnce(async () => {
+        calls.push('read base');
 
-      return base(5, AGREED);
-    });
+        return base(4, AGREED);
+      })
+      .mockImplementationOnce(async () => {
+        calls.push('read base');
+
+        return base(5, AGREED);
+      });
 
     await expect(sync()).resolves.toEqual({ kind: 'pushed', revision: 6 });
   });
@@ -1358,5 +1368,50 @@ describe('an edit that lands while the apply is running', () => {
     const lastRestore = restores[restores.length - 1][1];
 
     expect(lastRestore.dailyEntries).toEqual([entryA, entryB]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// An account whose revision went backwards
+// ---------------------------------------------------------------------------
+
+/**
+ * Something rewrote the account without knowing the count - an older build
+ * whose backup button wrote an uncounted document, or a console edit. The
+ * base this device holds measures an agreement that account no longer
+ * remembers, so even the three-way merge cannot be trusted with it: a local
+ * side that still matches the base would hand every field to the regressed
+ * remote, which is the pull the decision refused, through another door. The
+ * only honest move is the blunt question.
+ */
+describe('an account whose revision went backwards', () => {
+  it('asks a person rather than pulling the regression in', async () => {
+    arrange({ local: AGREED, agreed: base(7, AGREED), stored: envelope(3, IN_THE_ACCOUNT) });
+
+    await expect(sync()).resolves.toEqual({
+      kind: 'conflict',
+      reason: 'revision-regressed',
+      conflicts: [],
+    });
+  });
+
+  it('asks rather than merging it through when the phone changed too', async () => {
+    arrange({ local: ON_THE_PHONE, agreed: base(7, AGREED), stored: envelope(3, IN_THE_ACCOUNT) });
+
+    await expect(sync()).resolves.toEqual({
+      kind: 'conflict',
+      reason: 'revision-regressed',
+      conflicts: [],
+    });
+  });
+
+  it('writes nothing on either side', async () => {
+    arrange({ local: AGREED, agreed: base(7, AGREED), stored: envelope(3, IN_THE_ACCOUNT) });
+
+    await sync();
+
+    expect(restore.restoreCloudBackup).not.toHaveBeenCalled();
+    expect(cloud.pushRemoteSyncState).not.toHaveBeenCalled();
+    expect(syncState.saveSyncState).not.toHaveBeenCalled();
   });
 });

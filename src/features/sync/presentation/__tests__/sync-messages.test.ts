@@ -46,6 +46,7 @@ const OUTCOMES: readonly CloudSyncOutcome[] = [
   { kind: 'merged', revision: 6 },
   { kind: 'conflict', reason: 'unresolved', conflicts: [conflict('cycleSettings')] },
   { kind: 'conflict', reason: 'no-base', conflicts: [] },
+  { kind: 'conflict', reason: 'revision-regressed', conflicts: [] },
   { kind: 'retry-required', actualRevision: 7 },
   ...FAILURES.map((failure): CloudSyncOutcome => ({ kind: 'error', failure })),
 ];
@@ -114,9 +115,16 @@ describe('a conflict', () => {
 
   const noBase: CloudSyncOutcome = { kind: 'conflict', reason: 'no-base', conflicts: [] };
 
+  const regressed: CloudSyncOutcome = {
+    kind: 'conflict',
+    reason: 'revision-regressed',
+    conflicts: [],
+  };
+
   it.each([
     ['unresolved', unresolved],
     ['no-base', noBase],
+    ['revision-regressed', regressed],
   ])('tells somebody plainly that nothing changed (%s)', (_label, outcome) => {
     const message = syncOutcomeMessage(outcome);
 
@@ -124,8 +132,27 @@ describe('a conflict', () => {
     expect(message).toContain('hiçbir veri değiştirilmedi');
   });
 
+  it('says the account looks older when the revision went backwards', () => {
+    // Not the no-base sentence: telling somebody this device has never
+    // synced would be false, and false reassurance is worse than none.
+    const message = syncOutcomeMessage(regressed);
+
+    expect(message).toContain('daha eski');
+    expect(message).not.toContain('hiç senkronize edilmedi');
+  });
+
+  it('keeps the three conflict sentences apart', () => {
+    const distinct = new Set([
+      syncOutcomeMessage(unresolved),
+      syncOutcomeMessage(noBase),
+      syncOutcomeMessage(regressed),
+    ]);
+
+    expect(distinct.size).toBe(3);
+  });
+
   it('never reads as if the sync succeeded', () => {
-    for (const outcome of [unresolved, noBase]) {
+    for (const outcome of [unresolved, noBase, regressed]) {
       expect(syncOutcomeMessage(outcome)).not.toMatch(/tamamlandı|güncel|gönderildi|alındı/);
     }
   });

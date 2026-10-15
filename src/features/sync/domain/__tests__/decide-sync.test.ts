@@ -66,8 +66,23 @@ describe('a remote that moved without saying so', () => {
     ).toBe('conflict');
   });
 
-  it('counts a revision that went backwards as a change', () => {
-    expect(decideSync(input({ remote: { revision: 3, contentHash: H1 } }))).toBe('pull');
+  it('answers conflict, not pull, when the revision went backwards', () => {
+    // The rule this row holds is the module's own: nothing here may answer
+    // `pull` in a way that discards data it cannot account for, and where
+    // that cannot be ruled out, the answer is `conflict`. A revision that
+    // went backwards means something rewrote the account without knowing the
+    // count — an older build's backup button, or a console — so the base
+    // this device measures against describes an agreement the account no
+    // longer remembers. This row used to pin `pull`; it carried no reasoning
+    // of its own, and it was the door through which a stale, uncounted write
+    // could silently replace synced records.
+    expect(decideSync(input({ remote: { revision: 3, contentHash: H1 } }))).toBe('conflict');
+  });
+
+  it('still answers noop when the regressed document holds the same data', () => {
+    // Identical content is identical content; there is nothing to lose and
+    // nothing to ask about, whatever the bookkeeping says.
+    expect(decideSync(input({ remote: { revision: 3, contentHash: H0 } }))).toBe('noop');
   });
 
   it('counts a revision that moved with the same contents as no change to carry', () => {

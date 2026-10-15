@@ -70,6 +70,19 @@ const syncMessagesTr = {
     'kalacağını seçebilirsin.',
 
   /**
+   * Not the no-base sentence: telling somebody this device has never synced
+   * would be false here, and false reassurance is worse than none. What
+   * happened is that something rewrote the account without counting — an
+   * older build's backup button is the ordinary way — and the honest words
+   * are that the backup looks older than what this device last synced.
+   */
+  outcomeConflictRevisionRegressed:
+    'Çakışma bulundu; hiçbir veri değiştirilmedi. Hesaptaki yedek, bu cihazın ' +
+    'en son senkronize ettiğinden daha eski görünüyor — muhtemelen eski bir ' +
+    'uygulama sürümü yedek yazdı. "Çakışmayı çöz" ile hangi tarafın ' +
+    'kalacağını seçebilirsin.',
+
+  /**
    * Not a failure, and it does not read like one. The account changed while
    * this sync was working — the other phone got there first — and the answer is
    * simply to press it again.
@@ -212,6 +225,11 @@ const syncMessagesEn: SyncMessages = {
     'A conflict was found; nothing was changed. The same record was changed differently on ' +
     'each side. Use "Resolve the conflict" to choose which one to keep.',
 
+  outcomeConflictRevisionRegressed:
+    'A conflict was found; nothing was changed. The backup in your account looks older than ' +
+    'what this device last synced — most likely an older version of the app wrote a backup. ' +
+    'Use "Resolve the conflict" to choose which side to keep.',
+
   outcomeRetryRequired:
     'Your account was just updated from another device; nothing was changed. Try again.',
 
@@ -285,9 +303,16 @@ export function syncOutcomeMessageIn(
       return messages.outcomeMerged;
 
     case 'conflict':
-      return outcome.reason === 'no-base'
-        ? messages.outcomeConflictNoBase
-        : messages.outcomeConflictUnresolved;
+      switch (outcome.reason) {
+        case 'no-base':
+          return messages.outcomeConflictNoBase;
+
+        case 'revision-regressed':
+          return messages.outcomeConflictRevisionRegressed;
+
+        case 'unresolved':
+          return messages.outcomeConflictUnresolved;
+      }
 
     case 'retry-required':
       return messages.outcomeRetryRequired;
