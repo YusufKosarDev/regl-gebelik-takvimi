@@ -4,6 +4,8 @@ import { loadCycleProfile, saveCycleProfile } from '../data/cycle-repository';
 import type { CycleProfile } from '../domain/types';
 import { validateCycleProfile } from '../domain/validation';
 
+import { withCycleWriteLock } from './cycle-write-lock';
+
 export type DeletePeriodRecordInput = {
   readonly recordId: string;
 };
@@ -20,7 +22,16 @@ export type DeletePeriodRecordInput = {
  * onboarding can be wrong, and a record nobody can remove is a worse answer than
  * one they can.
  */
-export async function deletePeriodRecord(
+export function deletePeriodRecord(
+  db: SQLiteDatabase,
+  input: DeletePeriodRecordInput
+): Promise<CycleProfile> {
+  // One cycle mutation at a time: see the lock's own doc for the race the
+  // snapshot write cannot survive without it.
+  return withCycleWriteLock(() => runDeletePeriodRecord(db, input));
+}
+
+async function runDeletePeriodRecord(
   db: SQLiteDatabase,
   input: DeletePeriodRecordInput
 ): Promise<CycleProfile> {

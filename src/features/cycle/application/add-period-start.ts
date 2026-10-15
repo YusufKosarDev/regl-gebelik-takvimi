@@ -6,6 +6,8 @@ import { canonicalPeriodRecordId } from '../domain/period-record-id';
 import type { CycleProfile, PeriodRecord } from '../domain/types';
 import { assertNoOverlappingPeriodRecords, validateCycleProfile } from '../domain/validation';
 
+import { withCycleWriteLock } from './cycle-write-lock';
+
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
 
@@ -27,7 +29,16 @@ export type AddPeriodStartInput = {
  * The stored profile is read, extended and written back whole. Nothing is
  * mutated in place, so a rejected write leaves the caller's profile as it was.
  */
-export async function addPeriodStart(
+export function addPeriodStart(
+  db: SQLiteDatabase,
+  input: AddPeriodStartInput
+): Promise<CycleProfile> {
+  // One cycle mutation at a time: see the lock's own doc for the race the
+  // snapshot write cannot survive without it.
+  return withCycleWriteLock(() => runAddPeriodStart(db, input));
+}
+
+async function runAddPeriodStart(
   db: SQLiteDatabase,
   input: AddPeriodStartInput
 ): Promise<CycleProfile> {

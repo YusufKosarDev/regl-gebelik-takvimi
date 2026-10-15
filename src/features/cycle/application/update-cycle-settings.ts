@@ -4,6 +4,8 @@ import { loadCycleProfile, saveCycleProfile } from '../data/cycle-repository';
 import type { CycleProfile } from '../domain/types';
 import { validateCycleProfile } from '../domain/validation';
 
+import { withCycleWriteLock } from './cycle-write-lock';
+
 export type UpdateCycleSettingsInput = {
   readonly averageCycleLengthDays: number;
   readonly averagePeriodLengthDays: number;
@@ -21,7 +23,16 @@ export type UpdateCycleSettingsInput = {
  * to decide, checked by `validateCycleProfile` rather than restated here. That
  * keeps this and the onboarding steppers answering to the same rules.
  */
-export async function updateCycleSettings(
+export function updateCycleSettings(
+  db: SQLiteDatabase,
+  input: UpdateCycleSettingsInput
+): Promise<CycleProfile> {
+  // One cycle mutation at a time: see the lock's own doc for the race the
+  // snapshot write cannot survive without it.
+  return withCycleWriteLock(() => runUpdateCycleSettings(db, input));
+}
+
+async function runUpdateCycleSettings(
   db: SQLiteDatabase,
   input: UpdateCycleSettingsInput
 ): Promise<CycleProfile> {

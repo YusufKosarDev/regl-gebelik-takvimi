@@ -5,6 +5,8 @@ import { getOpenPeriodRecord } from '../domain/open-period';
 import type { CycleProfile } from '../domain/types';
 import { assertNoOverlappingPeriodRecords, validateCycleProfile } from '../domain/validation';
 
+import { withCycleWriteLock } from './cycle-write-lock';
+
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
 
@@ -26,7 +28,16 @@ export type EndCurrentPeriodInput = {
  * How long a record may span is the domain's rule, checked by
  * `validateCycleProfile` rather than restated here.
  */
-export async function endCurrentPeriod(
+export function endCurrentPeriod(
+  db: SQLiteDatabase,
+  input: EndCurrentPeriodInput
+): Promise<CycleProfile> {
+  // One cycle mutation at a time: see the lock's own doc for the race the
+  // snapshot write cannot survive without it.
+  return withCycleWriteLock(() => runEndCurrentPeriod(db, input));
+}
+
+async function runEndCurrentPeriod(
   db: SQLiteDatabase,
   input: EndCurrentPeriodInput
 ): Promise<CycleProfile> {

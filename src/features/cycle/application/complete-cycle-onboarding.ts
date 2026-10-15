@@ -5,6 +5,8 @@ import type { CycleOnboardingInput } from '../domain/onboarding';
 import { createInitialCycleProfile } from '../domain/onboarding';
 import type { CycleProfile } from '../domain/types';
 
+import { withCycleWriteLock } from './cycle-write-lock';
+
 /**
  * Turns onboarding answers into a stored profile.
  *
@@ -20,7 +22,16 @@ import type { CycleProfile } from '../domain/types';
  * replaced by a fallback profile — the caller has to decide, because a profile
  * that looks saved but is not would silently lose the user's first entry.
  */
-export async function completeCycleOnboarding(
+export function completeCycleOnboarding(
+  db: SQLiteDatabase,
+  input: CycleOnboardingInput
+): Promise<CycleProfile> {
+  // One cycle mutation at a time: see the lock's own doc for the race the
+  // snapshot write cannot survive without it.
+  return withCycleWriteLock(() => runCompleteCycleOnboarding(db, input));
+}
+
+async function runCompleteCycleOnboarding(
   db: SQLiteDatabase,
   input: CycleOnboardingInput
 ): Promise<CycleProfile> {
