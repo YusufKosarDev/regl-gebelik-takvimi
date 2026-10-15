@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -56,7 +57,15 @@ import {
   localWipeMessageIn,
 } from '@/features/deletion/presentation/deletion-messages';
 import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
+import { waitMessageIn } from '@/features/app-lock/presentation/wait-message';
+import { unlockWithPin } from '@/features/app-lock/application/unlock-with-pin';
+import { PinDots } from '@/features/app-lock/components/pin-dots';
+import { PinPad } from '@/features/app-lock/components/pin-pad';
+import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import { useAuthState } from '@/features/auth/application/use-auth-state';
+import { reauthenticateWithPassword } from '@/features/auth/data/auth-repository';
+import { toAuthError } from '@/features/auth/domain/auth-error';
+import { authErrorMessageIn, authMessages } from '@/features/auth/presentation/auth-messages';
 import { disclaimerMessages } from '@/features/disclaimer/presentation/disclaimer-messages';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { exportMessages } from '@/features/export/presentation/export-messages';
@@ -169,6 +178,14 @@ export default function SettingsScreen() {
   const [wipeNotice, setWipeNotice] = useState<string | null>(null);
   const wipeInFlight = useRef(false);
 
+  // The identity check in front of the wipe: the PIN when a lock is set, the
+  // account password when there is a session and no lock. With neither there
+  // is nothing to prove a person with, and the two-step confirm stands alone.
+  const authStrings = useMessages(authMessages);
+  const [wipePinEntered, setWipePinEntered] = useState('');
+  const [wipePassword, setWipePassword] = useState('');
+  const [wipeVerifyMessage, setWipeVerifyMessage] = useState<string | null>(null);
+
   /**
    * Empties this device.
    *
@@ -206,6 +223,94 @@ export default function SettingsScreen() {
       wipeInFlight.current = false;
       setIsWiping(false);
     }
+  };
+
+  /**
+   * The wipe behind the PIN.
+   *
+   * `unlockWithPin` rather than a comparison: the counters are written before
+   * the answer returns, so a wrong guess here costs the same wait it costs on
+   * the lock screen. A record that turns out to be gone has nothing left to
+   * check a PIN against — the six digits were typed at a deliberate prompt,
+   * which is no weaker a confirmation than the button it replaced.
+   */
+  const verifyWipePin = async (pin: string) => {
+    if (wipeInFlight.current) {
+      return;
+    }
+
+    try {
+      const outcome = await unlockWithPin(pin);
+
+      if (outcome.kind === 'waiting') {
+        setWipeVerifyMessage(waitMessageIn(lock, outcome.remainingMs));
+
+        return;
+      }
+
+      if (outcome.kind === 'wrong') {
+        setWipeVerifyMessage(lock.lockWrongPinMessage);
+
+        return;
+      }
+
+      await handleConfirmWipe();
+    } catch (error: unknown) {
+      logEvent('local data wipe failed', error);
+      setWipeVerifyMessage(localWipeMessageIn(deletion, { kind: 'failed', reason: 'unknown' }));
+    } finally {
+      setWipePinEntered('');
+    }
+  };
+
+  const handleWipePinDigit = (digit: string) => {
+    setWipeVerifyMessage(null);
+
+    setWipePinEntered((current) => {
+      if (current.length >= PIN_LENGTH) {
+        return current;
+      }
+
+      const next = current + digit;
+
+      if (next.length === PIN_LENGTH) {
+        void verifyWipePin(next);
+      }
+
+      return next;
+    });
+  };
+
+  const handleWipePinDelete = () => {
+    setWipeVerifyMessage(null);
+    setWipePinEntered((current) => current.slice(0, -1));
+  };
+
+  /**
+   * The wipe behind the account password.
+   *
+   * The same reauthentication deleting the account uses, and for the same
+   * reason: these are the two actions that destroy, and a session that has
+   * merely been left open must not be enough for either.
+   */
+  const handlePasswordWipe = async () => {
+    if (wipeInFlight.current || auth.status !== 'signed-in') {
+      return;
+    }
+
+    setWipeVerifyMessage(null);
+
+    try {
+      await reauthenticateWithPassword(auth.user.email ?? '', wipePassword);
+    } catch (error: unknown) {
+      setWipeVerifyMessage(authErrorMessageIn(authStrings, toAuthError(error).code));
+
+      return;
+    } finally {
+      setWipePassword('');
+    }
+
+    await handleConfirmWipe();
   };
 
   // Read on the way in, so the switches show what is stored. No permission is
@@ -929,6 +1034,9 @@ export default function SettingsScreen() {
                   accessibilityLabel={deletion.localWipeOpenLabel}
                   onPress={() => {
                     setWipeNotice(null);
+                    setWipeVerifyMessage(null);
+                    setWipePinEntered('');
+                    setWipePassword('');
                     setIsConfirmingWipe(true);
                   }}
                   style={({ pressed }) => [
@@ -984,24 +1092,106 @@ export default function SettingsScreen() {
                     </ThemedText>
                   </Pressable>
 
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={deletion.localWipeConfirmLabel}
-                    accessibilityState={{ disabled: isWiping }}
-                    disabled={isWiping}
-                    onPress={() => {
-                      void handleConfirmWipe();
-                    }}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      { borderColor: theme.backgroundSelected },
-                      isWiping && styles.disabled,
-                      pressed && !isWiping && styles.pressed,
-                    ]}>
-                    <ThemedText type="smallBold" style={ButtonLabel}>
-                      {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
-                    </ThemedText>
-                  </Pressable>
+                  {appLockEnabled && (
+                    <>
+                      <ThemedText
+                        accessibilityRole="header"
+                        type="smallBold"
+                        style={styles.wipeVerifyTitle}>
+                        {deletion.localWipeVerifyPinTitle}
+                      </ThemedText>
+
+                      <PinDots entered={wipePinEntered.length} />
+
+                      {wipeVerifyMessage !== null && (
+                        <ThemedText
+                          accessibilityRole="alert"
+                          type="small"
+                          themeColor="textSecondary"
+                          style={styles.wipeVerifyTitle}>
+                          {wipeVerifyMessage}
+                        </ThemedText>
+                      )}
+
+                      <PinPad
+                        onDigit={handleWipePinDigit}
+                        onDelete={handleWipePinDelete}
+                        disabled={isWiping}
+                      />
+                    </>
+                  )}
+
+                  {!appLockEnabled && auth.status === 'signed-in' && (
+                    <>
+                      <ThemedText accessibilityRole="header" type="smallBold">
+                        {deletion.localWipeVerifyPasswordTitle}
+                      </ThemedText>
+
+                      <TextInput
+                        style={[
+                          styles.wipePasswordInput,
+                          { borderColor: theme.backgroundSelected, color: theme.text },
+                        ]}
+                        placeholder={authStrings.passwordLabel}
+                        placeholderTextColor={theme.textSecondary}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoComplete="current-password"
+                        value={wipePassword}
+                        onChangeText={(value) => {
+                          setWipeVerifyMessage(null);
+                          setWipePassword(value);
+                        }}
+                        editable={!isWiping}
+                      />
+
+                      {wipeVerifyMessage !== null && (
+                        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary">
+                          {wipeVerifyMessage}
+                        </ThemedText>
+                      )}
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={deletion.localWipeConfirmLabel}
+                        accessibilityState={{ disabled: isWiping }}
+                        disabled={isWiping}
+                        onPress={() => {
+                          void handlePasswordWipe();
+                        }}
+                        style={({ pressed }) => [
+                          styles.secondaryButton,
+                          { borderColor: theme.backgroundSelected },
+                          isWiping && styles.disabled,
+                          pressed && !isWiping && styles.pressed,
+                        ]}>
+                        <ThemedText type="smallBold" style={ButtonLabel}>
+                          {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
+                        </ThemedText>
+                      </Pressable>
+                    </>
+                  )}
+
+                  {!appLockEnabled && auth.status !== 'signed-in' && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={deletion.localWipeConfirmLabel}
+                      accessibilityState={{ disabled: isWiping }}
+                      disabled={isWiping}
+                      onPress={() => {
+                        void handleConfirmWipe();
+                      }}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { borderColor: theme.backgroundSelected },
+                        isWiping && styles.disabled,
+                        pressed && !isWiping && styles.pressed,
+                      ]}>
+                      <ThemedText type="smallBold" style={ButtonLabel}>
+                        {isWiping ? deletion.localWipeBusyLabel : deletion.localWipeConfirmLabel}
+                      </ThemedText>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
@@ -1132,5 +1322,15 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  wipeVerifyTitle: {
+    textAlign: 'center',
+  },
+  wipePasswordInput: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    fontSize: 16,
   },
 });

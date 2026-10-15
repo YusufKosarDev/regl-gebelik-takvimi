@@ -161,6 +161,20 @@ const deletionMessagesTr = {
 
   localWipeBusyLabel: 'Siliniyor...',
 
+  /**
+   * The identity check in front of the wipe.
+   *
+   * Anyone holding the unlocked phone could reach this panel, and the wipe is
+   * the one action that cannot be undone and also removes its own evidence —
+   * it deletes the lock and signs the session out on its way. So it asks for
+   * whichever proof exists: the PIN when a lock is set, the account password
+   * when there is a session, and the plain two-step confirm when there is
+   * neither, because demanding a credential nobody holds would be theatre.
+   */
+  localWipeVerifyPinTitle: "Silmek için önce PIN'ini gir",
+
+  localWipeVerifyPasswordTitle: 'Silmek için hesap parolanı gir',
+
   localWipeCancelLabel: 'Vazgeç',
 
   localWipeFailedMessage:
@@ -255,6 +269,10 @@ const deletionMessagesEn: DeletionMessages = {
   localWipeConfirmLabel: 'Delete everything',
 
   localWipeBusyLabel: 'Deleting...',
+
+  localWipeVerifyPinTitle: 'To delete, first enter your PIN',
+
+  localWipeVerifyPasswordTitle: 'To delete, enter your account password',
 
   localWipeCancelLabel: 'Cancel',
 
