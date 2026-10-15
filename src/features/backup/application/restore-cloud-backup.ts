@@ -44,9 +44,39 @@ import {
  * afterwards, best effort, because a copy that could not be refreshed is not a
  * reason to put someone's data back the way it was.
  */
+/**
+ * The restore's precondition said no, so nothing was written.
+ *
+ * Its own class because the caller's answer is different in kind: a failed
+ * write is a fault to report, a failed precondition is a fact to act on — the
+ * phone is no longer what the caller's decision was made from, and the right
+ * move is to look again.
+ */
+export class RestorePreconditionError extends Error {
+  constructor() {
+    super('The restore was refused by its precondition.');
+
+    this.name = 'RestorePreconditionError';
+  }
+}
+
+export type RestoreCloudBackupOptions = {
+  /**
+   * A last look before the first write, asked inside the restore's own
+   * transaction. `false` rolls the (empty) transaction back and throws
+   * `RestorePreconditionError`.
+   *
+   * It exists for the sync orchestrator, whose pull/merge decision was made
+   * from a snapshot taken before its network reads: a record saved in that
+   * window must refuse this write rather than be erased by it.
+   */
+  readonly precondition?: () => Promise<boolean>;
+};
+
 export async function restoreCloudBackup(
   db: SQLiteDatabase,
-  payload: CloudSyncPayloadV1
+  payload: CloudSyncPayloadV1,
+  options?: RestoreCloudBackupOptions
 ): Promise<void> {
   validateCloudSyncPayloadV1(payload);
 
@@ -56,6 +86,10 @@ export async function restoreCloudBackup(
   // suppressed, and one `remote` announcement is made afterwards instead.
   await withLocalDataChangeSuppressed(async () => {
     await db.withTransactionAsync(async () => {
+      if (options?.precondition && !(await options.precondition())) {
+        throw new RestorePreconditionError();
+      }
+
       if (payload.cycleSettings === null) {
         await clearCycleSettings(db);
       } else {

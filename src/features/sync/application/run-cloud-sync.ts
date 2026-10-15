@@ -1,7 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { AuthError } from '@/features/auth/domain/auth-error';
-import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
+import {
+  RestorePreconditionError,
+  restoreCloudBackup,
+} from '@/features/backup/application/restore-cloud-backup';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import { isAccountDeletionPending } from '@/features/deletion/infrastructure/pending-account-deletion';
 import { logEvent } from '@/shared/logging';
@@ -93,9 +96,10 @@ export type CloudSyncFailure =
  * ordinary outcome: two phones used in the same week will produce them, and
  * something a person is going to be asked about is not an exception.
  *
- * `retry-required` is the same kind of thing. It means the account moved while
- * this sync was working — somebody else's write landed first — and the answer
- * is to look again, not to insist.
+ * `retry-required` is the same kind of thing. It means one of the two sides
+ * moved while this sync was working — somebody else's write landed in the
+ * account first, or an edit landed on this phone between the snapshot and the
+ * apply — and the answer is to look again, not to insist.
  */
 export type CloudSyncOutcome =
   /** Both sides already held the same thing. */
@@ -112,7 +116,7 @@ export type CloudSyncOutcome =
       readonly reason: CloudSyncConflictOutcomeReason;
       readonly conflicts: readonly CloudSyncConflict[];
     }
-  /** The account moved underneath this sync. Nothing was written. */
+  /** One side moved underneath this sync. Nothing it decided was kept. */
   | { readonly kind: 'retry-required'; readonly actualRevision: number }
   | { readonly kind: 'error'; readonly failure: CloudSyncFailure };
 
@@ -243,12 +247,41 @@ async function rememberAgreement(
   );
 }
 
-/** Writes a payload over what is on the phone, in one transaction. */
-async function applyToThisPhone(db: SQLiteDatabase, payload: CloudSyncPayloadV1): Promise<void> {
-  // The restore use case, reused rather than reimplemented: it is already the
-  // one operation that writes a whole payload atomically, and a second way to
-  // do it would be a second thing to keep correct.
-  await onThisPhone(() => restoreCloudBackup(db, payload));
+/**
+ * Writes a payload over what is on the phone, in one transaction — unless the
+ * phone has changed since `expectedLocalContentHash` was taken.
+ *
+ * The decision this write carries out was made from a snapshot, and the
+ * network reads between that snapshot and this moment take seconds on mobile
+ * data. A record saved in that window must not be erased by a pull or a merge
+ * that never saw it, so the restore re-reads the phone inside its own
+ * transaction and refuses the write when the hash no longer matches. The
+ * caller answers `phone-changed` with a fresh attempt, whose snapshot includes
+ * the edit.
+ */
+async function applyToThisPhone(
+  db: SQLiteDatabase,
+  payload: CloudSyncPayloadV1,
+  expectedLocalContentHash: string
+): Promise<'applied' | 'phone-changed'> {
+  try {
+    // The restore use case, reused rather than reimplemented: it is already the
+    // one operation that writes a whole payload atomically, and a second way to
+    // do it would be a second thing to keep correct.
+    await restoreCloudBackup(db, payload, {
+      precondition: async () =>
+        cloudSyncContentHash(await buildCloudSyncPayloadV1(db)) === expectedLocalContentHash,
+    });
+  } catch (error) {
+    if (error instanceof RestorePreconditionError) {
+      return 'phone-changed';
+    }
+
+    // The same labelling `onThisPhone` gives every other local failure.
+    throw new LocalStoreError();
+  }
+
+  return 'applied';
 }
 
 type Attempt = {
@@ -272,9 +305,15 @@ async function attemptSync(attempt: Attempt): Promise<CloudSyncOutcome> {
   const state = await onThisPhone(() => loadSyncState(db, uid));
   const remote = await loadRemoteSyncState(uid);
 
+  // Taken once and carried to the apply: it is both what the decision is made
+  // from and the thing the apply checks the phone still is. The pass never
+  // decides from a later reading — when the phone turns out to have moved, the
+  // whole pass is abandoned and the next one decides from a fresh snapshot.
+  const localContentHash = cloudSyncContentHash(local);
+
   const decision = decideSync({
     base: state === null ? null : { revision: state.revision, contentHash: state.contentHash },
-    local: { contentHash: cloudSyncContentHash(local) },
+    local: { contentHash: localContentHash },
     remote: remote === null ? null : { revision: remote.revision, contentHash: remote.contentHash },
   });
 
@@ -334,7 +373,12 @@ async function attemptSync(attempt: Attempt): Promise<CloudSyncOutcome> {
       return { kind: 'error', failure: 'unknown' };
     }
 
-    await applyToThisPhone(db, remote.payload);
+    if ((await applyToThisPhone(db, remote.payload, localContentHash)) === 'phone-changed') {
+      // "Unchanged" stopped being true while the remote reads were in flight.
+      // Nothing was written on either side; the next round sees the edit.
+      return { kind: 'retry-required', actualRevision: remote.revision };
+    }
+
     await rememberAgreement(db, uid, remote, now);
 
     return { kind: 'pulled', revision: remote.revision };
@@ -385,7 +429,14 @@ async function attemptSync(attempt: Attempt): Promise<CloudSyncOutcome> {
   // ahead and the base is not: the next sync reads both, finds them apart, and
   // merges again from the same base — which converges on what is already stored,
   // because that is what the merge produced.
-  await applyToThisPhone(db, merged.payload);
+  if ((await applyToThisPhone(db, merged.payload, localContentHash)) === 'phone-changed') {
+    // An edit landed between this pass's snapshot and its apply. The account
+    // already holds the merge and the base is still behind it, which is the
+    // same safe position as an apply that failed: the next round merges again
+    // from the old base, with the new edit in its snapshot.
+    return { kind: 'retry-required', actualRevision: stored.envelope.revision };
+  }
+
   await rememberAgreement(db, uid, stored.envelope, now);
 
   return { kind: 'merged', revision: stored.envelope.revision };

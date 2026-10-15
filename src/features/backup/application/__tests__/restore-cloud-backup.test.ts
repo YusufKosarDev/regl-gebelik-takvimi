@@ -3,7 +3,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 import type { ISODate } from '@/types/iso-date';
 
-import { restoreCloudBackup } from '../restore-cloud-backup';
+import { onLocalDataChanged } from '@/shared/data-change/local-data-change';
+
+import { RestorePreconditionError, restoreCloudBackup } from '../restore-cloud-backup';
 
 // The repositories are faked, so this file is about the order, the transaction
 // and what each field does — not about SQL.
@@ -250,6 +252,53 @@ describe('restoreCloudBackup with a backup that is missing things', () => {
       'saveNotificationPreferences',
       'commit',
     ]);
+  });
+});
+
+/**
+ * The caller can hand over a last look before anything is written.
+ *
+ * It exists for the sync orchestrator: its decision was made from a snapshot,
+ * and a record saved between that snapshot and this write must refuse the
+ * write rather than be erased by it.
+ */
+describe('restoreCloudBackup with a precondition', () => {
+  it('asks it inside the transaction, before the first write', async () => {
+    const precondition = jest.fn(async () => {
+      order.push('precondition');
+
+      return true;
+    });
+
+    await restoreCloudBackup(db, payload(), { precondition });
+
+    expect(order.slice(0, 3)).toEqual(['begin', 'precondition', 'writeCycleSettings']);
+    expect(order).toContain('commit');
+  });
+
+  it('rolls back, writes nothing and says so when the answer is no', async () => {
+    await expect(
+      restoreCloudBackup(db, payload(), { precondition: async () => false })
+    ).rejects.toBeInstanceOf(RestorePreconditionError);
+
+    expect(order).not.toContain('commit');
+    expect(cycle.writeCycleSettings).not.toHaveBeenCalled();
+    expect(cycle.replacePeriodRecords).not.toHaveBeenCalled();
+  });
+
+  it('announces no change when it refused, because nothing changed', async () => {
+    const heard: string[] = [];
+    const unsubscribe = onLocalDataChanged((origin) => {
+      heard.push(origin);
+    });
+
+    await restoreCloudBackup(db, payload(), { precondition: async () => false }).catch(
+      () => undefined
+    );
+
+    unsubscribe();
+
+    expect(heard).toEqual([]);
   });
 });
 

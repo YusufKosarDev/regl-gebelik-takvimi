@@ -35,9 +35,16 @@ jest.mock('@/features/privacy/application/build-cloud-sync-payload-v1', () => ({
   buildCloudSyncPayloadV1: jest.fn(),
 }));
 
-jest.mock('@/features/backup/application/restore-cloud-backup', () => ({
-  restoreCloudBackup: jest.fn(),
-}));
+jest.mock('@/features/backup/application/restore-cloud-backup', () => {
+  class RestorePreconditionError extends Error {
+    constructor() {
+      super('The restore was refused by its precondition.');
+      this.name = 'RestorePreconditionError';
+    }
+  }
+
+  return { RestorePreconditionError, restoreCloudBackup: jest.fn() };
+});
 
 jest.mock('../../data/sync-state-repository', () => ({
   loadSyncState: jest.fn(),
@@ -446,7 +453,13 @@ describe('when only the account changed', () => {
     arrange({ local: AGREED, agreed: base(4, AGREED), stored: envelope(5, IN_THE_ACCOUNT) });
 
     await expect(sync()).resolves.toEqual({ kind: 'pulled', revision: 5 });
-    expect(restore.restoreCloudBackup).toHaveBeenCalledWith(db, IN_THE_ACCOUNT);
+    // With a guard: the write is conditional on the phone still being what
+    // the decision saw.
+    expect(restore.restoreCloudBackup).toHaveBeenCalledWith(
+      db,
+      IN_THE_ACCOUNT,
+      expect.objectContaining({ precondition: expect.any(Function) })
+    );
   });
 
   it('sends nothing back', async () => {
@@ -506,7 +519,11 @@ describe('when both sides changed and the changes fit together', () => {
 
     await sync();
 
-    expect(restore.restoreCloudBackup).toHaveBeenCalledWith(db, BOTH);
+    expect(restore.restoreCloudBackup).toHaveBeenCalledWith(
+      db,
+      BOTH,
+      expect.objectContaining({ precondition: expect.any(Function) })
+    );
   });
 
   it('writes the account first, then the phone, then the base', async () => {
@@ -1222,5 +1239,124 @@ describe('telling the screens a sync finished', () => {
     await sync();
 
     expect(heard).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// An edit that lands while the apply is running
+// ---------------------------------------------------------------------------
+
+/**
+ * Between the snapshot a decision was made from and the write that carries it
+ * out, the person can save a record - the network reads in the middle take
+ * seconds on mobile data. The apply hands `restoreCloudBackup` a precondition
+ * that re-reads the phone inside the restore's own transaction; this mock
+ * honours that contract, and the orchestrator is expected to answer a refusal
+ * by looking again rather than by writing over the edit.
+ */
+describe('an edit that lands while the apply is running', () => {
+  const entryA = {
+    date: date('2026-09-10'),
+    flowId: 'light',
+    moodId: null,
+    symptomIds: [] as readonly string[],
+  };
+  const entryB = {
+    date: date('2026-09-11'),
+    flowId: null,
+    moodId: 'good',
+    symptomIds: [] as readonly string[],
+  };
+
+  const EDIT1 = payload({ dailyEntries: [entryA] });
+  const EDIT2 = payload({ dailyEntries: [entryA, entryB] });
+
+  beforeEach(() => {
+    restore.restoreCloudBackup.mockImplementation(
+      async (
+        _db: unknown,
+        _payload: unknown,
+        options?: { precondition?: () => Promise<boolean> }
+      ) => {
+        if (options?.precondition && !(await options.precondition())) {
+          throw new restore.RestorePreconditionError();
+        }
+
+        calls.push('write local');
+      }
+    );
+  });
+
+  it('merges rather than overwrites when the edit lands during a pull', async () => {
+    let reads = 0;
+
+    builder.buildCloudSyncPayloadV1.mockImplementation(async () => {
+      reads += 1;
+
+      // The decision's snapshot sees the agreed state; every later read sees
+      // the edit that landed while the remote reads were in flight.
+      return reads === 1 ? AGREED : ON_THE_PHONE;
+    });
+    syncState.loadSyncState.mockResolvedValue(base(1, AGREED));
+    cloud.loadRemoteSyncState.mockResolvedValue(envelope(2, IN_THE_ACCOUNT));
+
+    const outcome = await sync();
+
+    expect(outcome).toEqual({ kind: 'merged', revision: 3 });
+
+    // The pull was asked for and refused inside the transaction: the only
+    // write that actually landed carried the merge, not the account's copy.
+    expect(calls.filter((entry) => entry === 'write local')).toHaveLength(1);
+
+    const restores = restore.restoreCloudBackup.mock.calls;
+
+    expect(restores[restores.length - 1][1]).toEqual(BOTH);
+    expect(cloud.pushRemoteSyncState.mock.calls[0][0].payload).toEqual(BOTH);
+  });
+
+  it('carries an edit made during a merge into the next round', async () => {
+    let reads = 0;
+
+    builder.buildCloudSyncPayloadV1.mockImplementation(async () => {
+      reads += 1;
+
+      return reads === 1 ? EDIT1 : EDIT2;
+    });
+    syncState.loadSyncState.mockResolvedValue(base(1, AGREED));
+
+    // The account behaves like one: what the push stored is what the next
+    // read finds.
+    let stored: CloudBackupEnvelopeV1 | null = null;
+
+    cloud.loadRemoteSyncState.mockImplementation(async () => stored ?? envelope(2, IN_THE_ACCOUNT));
+    cloud.pushRemoteSyncState.mockImplementation(
+      async (input: {
+        expectedRevision: number;
+        payload: CloudSyncPayloadV1;
+        deviceId: string;
+      }) => {
+        stored = envelope(input.expectedRevision + 1, input.payload, {
+          deviceId: input.deviceId,
+          updatedAt: null,
+        });
+
+        return { kind: 'stored', envelope: stored };
+      }
+    );
+
+    const outcome = await sync();
+
+    expect(outcome).toEqual({ kind: 'merged', revision: 4 });
+
+    const pushes = cloud.pushRemoteSyncState.mock.calls;
+    const lastPush = pushes[pushes.length - 1][0].payload;
+
+    expect(lastPush.dailyEntries).toEqual([entryA, entryB]);
+    expect(lastPush.cycleSettings).toEqual(settings(28, 6));
+
+    const restores = restore.restoreCloudBackup.mock.calls;
+    const lastRestore = restores[restores.length - 1][1];
+
+    expect(lastRestore.dailyEntries).toEqual([entryA, entryB]);
   });
 });
