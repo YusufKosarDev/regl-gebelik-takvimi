@@ -197,8 +197,25 @@ export default function DailyEntryScreen() {
     [date, entry, saved]
   );
 
+  /**
+   * Whether the entry in hand is the day on screen.
+   *
+   * They part ways when a day's read fails: the header moves to the new day
+   * while `entry` still carries the old one. Saving then would write the old
+   * day under the new day's heading, and clearing would empty a day whose
+   * contents were never shown. Both writes refuse instead, and re-showing the
+   * load notice says why; picking any day that reads puts them back together.
+   */
+  const holdsShownDay = entry.date === date;
+
   const handleSave = async () => {
     if (inFlight.current) {
+      return;
+    }
+
+    if (!holdsShownDay) {
+      setNotice('load-failed');
+
       return;
     }
 
@@ -228,6 +245,12 @@ export default function DailyEntryScreen() {
 
   const handleClear = async () => {
     if (inFlight.current) {
+      return;
+    }
+
+    if (!holdsShownDay) {
+      setNotice('load-failed');
+
       return;
     }
 

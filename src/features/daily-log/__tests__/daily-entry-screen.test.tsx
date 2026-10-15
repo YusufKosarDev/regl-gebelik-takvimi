@@ -475,3 +475,83 @@ describe('where the strip says no', () => {
     expect(screen.queryAllByText(DAILY_UNSAVED_MESSAGE)).toHaveLength(1);
   });
 });
+
+/**
+ * A day whose read failed is a day this screen does not hold.
+ *
+ * After a failed load the header shows the new day while `entry` still
+ * carries the old one. Saving wrote the OLD day under the new day's
+ * heading, and clearing emptied a day whose contents were never shown.
+ * Neither write may happen while the entry in hand is not the day on
+ * screen.
+ */
+describe('a day whose read failed', () => {
+  const DAILY_LOAD_FAILED_MESSAGE = jest.requireActual<
+    typeof import('@/features/daily-log/presentation/daily-log-messages')
+  >('@/features/daily-log/presentation/daily-log-messages').DAILY_LOAD_FAILED_MESSAGE;
+
+  beforeEach(() => {
+    // Echo the requested day, the way the real repository does: the recovery
+    // test below needs day 13's read to come back as day 13.
+    repository.loadDailyEntry.mockImplementation(async (_db: unknown, requested: ISODate) =>
+      emptyDailyEntry(requested)
+    );
+  });
+
+  async function renderWithFailedPick() {
+    const screen = await renderScreen();
+
+    repository.loadDailyEntry.mockRejectedValueOnce(new Error('database is locked'));
+
+    await fireEvent.press(screen.getByLabelText('12 Ekim 2026'));
+
+    await waitFor(() => {
+      expect(screen.getByText(DAILY_LOAD_FAILED_MESSAGE)).toBeTruthy();
+    });
+
+    return screen;
+  }
+
+  it('never saves the previous day in its place', async () => {
+    const screen = await renderWithFailedPick();
+
+    await fireEvent.press(screen.getByLabelText(symptom('Baş ağrısı')));
+    await fireEvent.press(screen.getByLabelText(DAILY_SAVE_LABEL));
+
+    expect(repository.saveDailyEntry).not.toHaveBeenCalled();
+    expect(screen.getByText(DAILY_LOAD_FAILED_MESSAGE)).toBeTruthy();
+  });
+
+  it('does not clear the day it has never shown either', async () => {
+    // The clear button only exists while the stored day holds something, so
+    // the dangerous shape is: day 14 saved full, day 12's read fails, and
+    // the button - still describing day 14's marks - now sits under day
+    // 12's heading.
+    repository.loadDailyEntry.mockImplementation(async (_db: unknown, requested: ISODate) => ({
+      ...emptyDailyEntry(requested),
+      symptomIds: ['cramps'],
+    }));
+
+    const screen = await renderWithFailedPick();
+
+    await fireEvent.press(screen.getByLabelText(DAILY_CLEAR_LABEL));
+
+    expect(repository.clearDailyEntry).not.toHaveBeenCalled();
+  });
+
+  it('recovers by picking a day that reads', async () => {
+    const screen = await renderWithFailedPick();
+
+    await fireEvent.press(screen.getByLabelText('13 Ekim 2026'));
+
+    await waitFor(() => {
+      expect(screen.queryByText(DAILY_LOAD_FAILED_MESSAGE)).toBeNull();
+    });
+
+    await fireEvent.press(screen.getByLabelText(symptom('Baş ağrısı')));
+    await fireEvent.press(screen.getByLabelText(DAILY_SAVE_LABEL));
+
+    expect(repository.saveDailyEntry).toHaveBeenCalledTimes(1);
+    expect(repository.saveDailyEntry.mock.calls[0][1].date).toBe('2026-10-13');
+  });
+});
