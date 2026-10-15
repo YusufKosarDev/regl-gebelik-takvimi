@@ -4,8 +4,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import type { CycleRingDot } from '../application/build-cycle-day-ring';
 import { arcDayAt, arcPoints } from '../presentation/arc-day-at';
+import { homeMessages } from '../presentation/home-messages';
 
 import { useFontScale } from '@/hooks/use-font-scale';
+import { useMessages } from '@/i18n';
 
 /**
  * The month as an arc you can drag through.
@@ -75,6 +77,7 @@ export function CycleArc({
   readonly testID?: string;
 }) {
   const scale = useFontScale();
+  const home = useMessages(homeMessages);
 
   /**
    * The arc box's own width, measured.
@@ -148,8 +151,36 @@ export function CycleArc({
         hitSlop={{ top: 16, bottom: 16, left: 0, right: 0 }}
         style={[styles.root, { height }]}
         accessibilityRole="adjustable"
-        accessibilityLabel={`Cycle day ${selectedDay}`}
-        accessibilityValue={{ min: 1, max: dots.length, now: selectedDay }}>
+        // The same words the summary row uses, so the screen reader does not
+        // switch language on the one element that was hardcoded English.
+        accessibilityLabel={`${home.rowCycleDay} ${selectedDay}`}
+        accessibilityValue={{ min: 1, max: dots.length, now: selectedDay }}
+        // An "adjustable" promises these two to TalkBack/VoiceOver; without
+        // them the role announces a slider that no swipe can move. Stepping
+        // walks the dots array rather than adding one to the day, so it stays
+        // right even if days ever stop being 1..n. `onScrubEnd` is deliberately
+        // not fired: on the home screen it snaps the preview back to today,
+        // which would undo the step the moment it was announced.
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={(event) => {
+          const step =
+            event.nativeEvent.actionName === 'increment'
+              ? 1
+              : event.nativeEvent.actionName === 'decrement'
+                ? -1
+                : 0;
+
+          if (step === 0) {
+            return;
+          }
+
+          const index = dots.findIndex((dot) => dot.day === selectedDay);
+          const neighbour = index === -1 ? undefined : dots[index + step];
+
+          if (neighbour !== undefined) {
+            onScrub(neighbour.day);
+          }
+        }}>
         {points.map((point, index) => {
           const dot = dots[index];
           const isSelected = dot.day === selectedDay;
