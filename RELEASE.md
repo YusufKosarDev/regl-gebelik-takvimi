@@ -59,4 +59,5 @@ yapılır, haftalar sonra değil.
 - Kural dosyası: `firestore.rules` (rollout notu dosyanın kendi yorumunda da
   durur). Deploy komutu `firebase.json` üzerinden aynı dosyayı okur.
 - Kuralların metni `src/features/sync/__tests__/firestore-rules.test.ts`
-  ile pinlenir.
+  ile pinlenir; davranışı `rules-test/` altındaki emülatör testleriyle
+  kanıtlanır (`npm run test:rules`, CI'da her push'ta koşar).

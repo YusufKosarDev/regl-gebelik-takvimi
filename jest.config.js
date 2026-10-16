@@ -50,6 +50,12 @@ module.exports = {
    */
   testTimeout: 60000,
 
+  // The emulator suite in `rules-test/` runs only inside
+  // `firebase emulators:exec` (npm run test:rules) and has its own config.
+  // Left in the default sweep it would fail `npx jest` on every machine that
+  // has not started an emulator.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/rules-test/'],
+
   moduleNameMapper: {
     '\\.css$': '<rootDir>/jest/style-mock.js',
   },

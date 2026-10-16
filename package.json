@@ -37,6 +37,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
@@ -56,7 +57,8 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watchAll",
-    "rules:deploy": "npx --yes firebase-tools@15 deploy --only firestore:rules"
+    "rules:deploy": "npx --yes firebase-tools@15 deploy --only firestore:rules",
+    "test:rules": "npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-regl-rules \"jest -c rules-test/jest.config.js --ci\""
   },
   "private": true
 }
