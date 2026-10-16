@@ -41,7 +41,7 @@ updates:
     schedule:
       interval: weekly
 
-  - package-ecosystem: gradle
-    directory: /android
-    schedule:
-      interval: weekly
+# No gradle ecosystem: android/ is a prebuild product and is not in the
+# repository, and the local modules' build.gradle files pin nothing of their
+# own - their versions come through expo-modules-core, which the npm group
+# above already covers.

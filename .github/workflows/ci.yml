@@ -106,6 +106,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # android/ is a prebuild product, not a tracked directory (see
+      # .gitignore): continuous native generation means the Gradle project
+      # that hosts the modules has to be generated before it can be built.
+      - name: Generate the android project
+        run: npx expo prebuild --platform android --no-install
+
       # The widget renders someone's period data on their home screen and the
       # privacy module decides when the screen may be captured - the two local
       # modules whose tests exist in Kotlin and ran nowhere until this job.

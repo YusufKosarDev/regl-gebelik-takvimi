@@ -44,6 +44,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # android/ is a prebuild product, not a tracked directory (see
+      # .gitignore); it has to be generated before anything can be built.
+      - name: Generate the android project
+        run: npx expo prebuild --platform android --no-install
+
       # Release, not debug: the release build embeds the JS bundle, so the
       # emulator needs no Metro server. It is signed with the debug keystore
       # (see android/app/build.gradle), which installs fine on an emulator.
