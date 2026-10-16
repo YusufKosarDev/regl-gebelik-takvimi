@@ -6,6 +6,14 @@
 # everything Expo manages into one PR a person can judge as a unit, and the
 # rule stays: an Expo SDK upgrade is done with `npx expo install --fix`, not
 # by merging bot PRs one by one.
+#
+# A group is only as good as what it keeps together. `jest` and `@types/jest`
+# sat in the other group on the first run, and the result was a PR that could
+# not be installed at all: `jest-expo` 58 declares `jest@^30` as a peer, so
+# the bump to jest-expo and the bump to jest have to arrive in the same PR or
+# neither branch resolves. They are listed with jest-expo now, for the reason
+# the whole group exists - jest-expo pins jest's major the way Expo pins the
+# rest.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -22,6 +30,8 @@ updates:
           - 'react-native*'
           - '@react-native*/*'
           - 'jest-expo'
+          - 'jest'
+          - '@types/jest'
           - 'babel-preset-expo'
       everything-else:
         patterns:
@@ -34,6 +44,8 @@ updates:
           - 'react-native*'
           - '@react-native*/*'
           - 'jest-expo'
+          - 'jest'
+          - '@types/jest'
           - 'babel-preset-expo'
 
   - package-ecosystem: github-actions
