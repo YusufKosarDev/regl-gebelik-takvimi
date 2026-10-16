@@ -1,0 +1,87 @@
+# The Maestro smoke flow on an emulator: onboarding to a recorded period to
+# every tab (.maestro/smoke.yaml).
+#
+# Nightly and on demand rather than on every push, on purpose. The job boots
+# an emulator and builds a release APK - twenty-odd minutes and the flakiest
+# infrastructure CI has - so bolting it to every push would mostly teach
+# people to re-run red. The unit suites guard every push; this guards the
+# thing they cannot see, on a schedule, and before a release by hand
+# (workflow_dispatch) as RELEASE.md step 1 suggests.
+name: E2E smoke
+
+on:
+  schedule:
+    # 03:17 UTC: off the top of the hour, where GitHub delays scheduled runs
+    # the least.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Maestro smoke flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Release, not debug: the release build embeds the JS bundle, so the
+      # emulator needs no Metro server. It is signed with the debug keystore
+      # (see android/app/build.gradle), which installs fine on an emulator.
+      - name: Build the release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --console=plain
+
+      - name: Install Maestro
+        run: |
+          curl -Ls https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # KVM is available on ubuntu-latest since 2024, but only to runners
+      # that enable it.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the smoke flow on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
+            maestro test .maestro/smoke.yaml
+
+      # The screen recording and step log Maestro leaves behind are the only
+      # way to see WHAT failed on a machine nobody was watching.
+      - name: Upload Maestro artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-output
+          path: ~/.maestro/tests/
+          if-no-files-found: ignore

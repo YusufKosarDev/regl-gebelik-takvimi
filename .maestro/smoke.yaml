@@ -1,0 +1,63 @@
+# The one path through the app that has to work: onboarding to a recorded
+# period to every tab. Unit tests cannot see a button that renders fine and
+# sits under something else - the E1/E8 class of fault the emulator review
+# found - and this flow exists to catch exactly that class.
+#
+# Every text match is written as `turkish|english`, because Maestro treats
+# the text as a regular expression: the same flow passes on a Turkish phone
+# (the development emulator) and on the en-US emulator CI boots.
+#
+# Deliberately one flow and short. A smoke test earns its keep by running on
+# every change; a long script that re-tests what 7000 unit tests already
+# prove would only add minutes and flake.
+appId: com.yusufkosardev.regltakvimi
+---
+- launchApp:
+    clearState: true
+
+# Onboarding: welcome, disclaimer, the one question, and the summary. The
+# question's date is stepped back a day on purpose: the flow records its own
+# period start below, and a start on a day an existing record covers is not
+# even offered (resolvePeriodAction answers 'none') - the first run of this
+# flow caught exactly that dead-end button, live, before the fix.
+- tapOn: 'Başlayalım|Get started'
+- tapOn: 'Devam et|Continue'
+- tapOn: 'Önceki günü seç|Pick the previous day'
+- scrollUntilVisible:
+    element: 'Devam|Next'
+- tapOn: 'Devam|Next'
+- tapOn: 'Takibe başla|Start tracking'
+
+# The home screen, on real data: the hero names the cycle day.
+- extendedWaitUntil:
+    visible: 'Döngü günü|Cycle day'
+    timeout: 15000
+
+# Record a period start, through its confirmation.
+- scrollUntilVisible:
+    element: 'Regl başlangıcını kaydet|Record the start of your period'
+- tapOn: 'Regl başlangıcını kaydet|Record the start of your period'
+- tapOn: 'Kaydet|Save'
+
+# The write landed: the action button turned into the end action. Found by
+# scrolling, not by waiting - the card's own height changes with the save,
+# so where it sits relative to the viewport is not stable run to run.
+- scrollUntilVisible:
+    element: 'Regl bitti|Period ended'
+
+# ...and the hero at the top now names the phase the write put today in.
+# Matched as the whole element text, so 'Period' cannot accidentally match
+# the 'Period ended' button. The page is still scrolled to the card, so this
+# scrolls back up rather than asserting into the part it left behind.
+- scrollUntilVisible:
+    element: 'Regl|Period'
+    direction: UP
+
+# Every tab opens and shows something only that tab has.
+- tapOn: 'Takvim|Calendar'
+- assertVisible:
+    id: 'calendar-day-.*'
+- tapOn: 'Geçmiş|History'
+- assertVisible: 'En çok kaydettiklerin|What you log most'
+- tapOn: 'Profil|Profile'
+- assertVisible: 'Ortalama döngü süresi|Average cycle length'
