@@ -67,3 +67,39 @@ jobs:
       # one `rules:deploy` ships.
       - name: Test the rules against the emulator
         run: npm run test:rules
+
+  android:
+    name: Android module unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # Node before Gradle: expo-modules-autolinking resolves the module list
+      # through node_modules, so a Gradle sync without them fails at settings
+      # evaluation, not at a test.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The widget renders someone's period data on their home screen and the
+      # privacy module decides when the screen may be captured - the two local
+      # modules whose tests exist in Kotlin and ran nowhere until this job.
+      - name: Run the local modules' unit tests
+        working-directory: android
+        run: ./gradlew :widget-snapshot-bridge:testDebugUnitTest :screen-privacy:testDebugUnitTest --console=plain
