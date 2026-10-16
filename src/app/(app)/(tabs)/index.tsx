@@ -507,7 +507,7 @@ export default function HomeScreen() {
 
   const { outlook, ring } = derived;
 
-  const periodAction = resolvePeriodAction(profile);
+  const periodAction = resolvePeriodAction(profile, dashboard.today);
   const isEnding = periodAction === 'end';
 
   const handleSavePeriod = async () => {

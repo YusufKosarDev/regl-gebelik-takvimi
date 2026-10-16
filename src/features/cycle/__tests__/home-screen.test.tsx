@@ -885,9 +885,14 @@ describe('HomeScreen period start failure', () => {
     // `calendar-screen.test.tsx`. What this test is about stays.
   });
 
-  it('rejects a date already recorded without corrupting anything', async () => {
-    // Today is already on file and closed, so the screen still offers the start
-    // action and the use case is what refuses the duplicate date.
+  it('offers no start action on a day already recorded', async () => {
+    // Rewritten from "rejects a date already recorded": the screen used to
+    // offer the start and lean on the use case to refuse the duplicate. The
+    // rule both versions hold is the same - nothing may corrupt the records -
+    // but the button was a dead end: the neighbour-aware bounds make a start
+    // on a covered day impossible, so offering it only collected an error.
+    // The use case's own refusal is still pinned in validation.test.ts; this
+    // now pins that the screen does not sell the refused write.
     repository.loadCycleProfile.mockResolvedValue({
       settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
       periodRecords: [
@@ -902,10 +907,8 @@ describe('HomeScreen period start failure', () => {
 
     const screen = await renderScreen();
 
-    await fireEvent.press(screen.getByLabelText('Regl başlangıcını kaydet'));
-    await fireEvent.press(screen.getByLabelText('Kaydet'));
-
-    expect(screen.getByText('Regl başlangıcı kaydedilemedi.')).toBeTruthy();
+    expect(screen.queryByLabelText('Regl başlangıcını kaydet')).toBeNull();
+    expect(screen.queryByLabelText('Regl bitişini kaydet')).toBeNull();
     expect(repository.saveCycleProfile).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Döngü günü: 1. gün')).toBeTruthy();
   });
@@ -1099,7 +1102,12 @@ describe('HomeScreen period end save', () => {
     expect(repository.loadCycleProfile).toHaveBeenCalledTimes(3);
   });
 
-  it('offers the start action again', async () => {
+  it('offers no further action on the day the period ended', async () => {
+    // Rewritten from "offers the start action again", which pinned the old
+    // behaviour without a reason. The start it offered was a dead end: the
+    // neighbour-aware bounds put the earliest legal start at the end plus
+    // one, so pressing it on the same day could only collect the overlap
+    // refusal. The button comes back tomorrow, when it can succeed.
     repository.loadCycleProfile
       .mockResolvedValueOnce(profile(['2026-09-17'], { open: true }))
       .mockResolvedValueOnce(profile(['2026-09-17'], { open: true }))
@@ -1107,7 +1115,7 @@ describe('HomeScreen period end save', () => {
 
     const screen = await endToday();
 
-    expect(screen.getByText('Regl başladı')).toBeTruthy();
+    expect(screen.queryByText('Regl başladı')).toBeNull();
     expect(screen.queryByText('Regl bitti')).toBeNull();
   });
 
@@ -1315,7 +1323,11 @@ describe('HomeScreen through a whole period', () => {
     });
   });
 
-  it('offers to start again once the period has ended', async () => {
+  it('offers nothing further once the period has ended today', async () => {
+    // Rewritten from "offers to start again once the period has ended" - an
+    // unreasoned pin of a button that could not succeed on this day. The
+    // rule it holds now: the screen does not sell a write the bounds are
+    // certain to refuse; the start returns the day after the recorded end.
     repository.loadCycleProfile
       .mockResolvedValueOnce(withOngoingToday())
       .mockResolvedValueOnce(withOngoingToday())
@@ -1326,7 +1338,7 @@ describe('HomeScreen through a whole period', () => {
     await fireEvent.press(screen.getByLabelText('Regl bitişini kaydet'));
     await fireEvent.press(screen.getByLabelText('Kaydet'));
 
-    expect(screen.getByText('Regl başladı')).toBeTruthy();
+    expect(screen.queryByText('Regl başladı')).toBeNull();
     expect(screen.queryByText('Regl bitti')).toBeNull();
   });
 
