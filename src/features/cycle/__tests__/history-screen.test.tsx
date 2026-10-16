@@ -2344,6 +2344,26 @@ describe('HistoryScreen insights', () => {
 
     expect(screen.getByText(HISTORY_TITLE)).toBeTruthy();
   });
+
+  it('does not ask for a period record it already has', async () => {
+    // The only logged day sits two months before the only record, where the
+    // cycle places no phase. The summary used to answer with "en az bir regl
+    // kaydı gerekiyor" - asking for the record that is right there in the list
+    // below it. The honest cause is the days, and the sentence now names it.
+    dailyLogRepository.loadAllDailyEntries.mockResolvedValue([
+      { date: '2026-07-01' as ISODate, flowId: null, moodId: null, symptomIds: ['cramps'] },
+    ]);
+
+    const screen = await renderScreen();
+
+    expect(
+      screen.getByText(
+        'Günlük kayıtların, döngünün bir evresine yerleştirilemeyen günlere denk geliyor; ' +
+          'bu yüzden burada sayılamıyor.'
+      )
+    ).toBeTruthy();
+    expect(screen.queryByText(/en az bir regl kaydı gerekiyor/)).toBeNull();
+  });
 });
 
 /**

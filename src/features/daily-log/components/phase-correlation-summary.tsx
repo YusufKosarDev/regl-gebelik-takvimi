@@ -33,10 +33,17 @@ export function PhaseCorrelationSummary({
   symptoms,
   moods,
   hasPlacedDays,
+  hasPeriodRecords,
 }: {
   readonly symptoms: readonly PhaseCorrelation[];
   readonly moods: readonly PhaseCorrelation[];
   readonly hasPlacedDays: boolean;
+  /**
+   * Whether a period record exists at all. With none, the unplaced message
+   * asks for one; with one, asking again would blame a record that is right
+   * there, so the message names the real cause - the days themselves.
+   */
+  readonly hasPeriodRecords: boolean;
 }) {
   const history = useMessages(dailyLogHistoryMessages);
   const labels = useMessages(dailyLogCatalogueLabels);
@@ -75,7 +82,7 @@ export function PhaseCorrelationSummary({
 
       {!hasPlacedDays ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {history.summaryUnplaced}
+          {hasPeriodRecords ? history.summaryUnplacedWithRecords : history.summaryUnplaced}
         </ThemedText>
       ) : lines.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">

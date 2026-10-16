@@ -105,6 +105,17 @@ const dailyLogHistoryMessagesTr = {
   /** Said when there are records but no period to place them against. */
   summaryUnplaced:
     'Kayıtlarının hangi evreye denk geldiğini gösterebilmek için en az bir regl kaydı gerekiyor.',
+
+  /**
+   * Said when a period record exists and still nothing could be placed.
+   *
+   * The sentence above used to cover this case too, and it was wrong there:
+   * it asked for a record the person already had. The honest cause is the
+   * days themselves - entries falling where the cycle cannot place a phase.
+   */
+  summaryUnplacedWithRecords:
+    'Günlük kayıtların, döngünün bir evresine yerleştirilemeyen günlere denk geliyor; ' +
+    'bu yüzden burada sayılamıyor.',
 };
 
 export type DailyLogHistoryMessages = typeof dailyLogHistoryMessagesTr;
@@ -145,6 +156,10 @@ const dailyLogHistoryMessagesEn: DailyLogHistoryMessages = {
 
   summaryUnplaced:
     'At least one recorded period is needed before your entries can be placed in a phase.',
+
+  summaryUnplacedWithRecords:
+    'Your daily entries fall on days the cycle cannot place in a phase, so they cannot be ' +
+    'counted here.',
 };
 
 export const dailyLogHistoryMessages: Messages<DailyLogHistoryMessages> = {

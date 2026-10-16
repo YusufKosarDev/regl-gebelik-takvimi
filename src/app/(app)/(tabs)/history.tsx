@@ -483,6 +483,7 @@ export default function HistoryScreen() {
                   symptoms={log.symptomCorrelations}
                   moods={log.moodCorrelations}
                   hasPlacedDays={log.phased.some((day) => day.phase !== null)}
+                  hasPeriodRecords={(records?.length ?? 0) > 0}
                 />
               </>
             )}

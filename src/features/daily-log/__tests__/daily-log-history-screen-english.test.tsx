@@ -194,6 +194,23 @@ describe('what the summary refuses to say', () => {
     expect(screen.getByText(dailyLogHistoryMessages.en.summaryUnplaced)).toBeTruthy();
   });
 
+  it('does not ask for a period record it already has', async () => {
+    // Entries in January, two months before the only record: real days the
+    // cycle cannot place. Asking for "at least one recorded period" here
+    // blamed a record that exists; the sentence now names the days instead.
+    dailyLog.loadAllDailyEntries.mockResolvedValue([
+      entry('2026-01-05', ['cramps']),
+      entry('2026-01-06', ['cramps']),
+    ]);
+
+    const screen = await renderScreen();
+
+    expect(screen.getByText(dailyLogHistoryMessages.en.summaryUnplacedWithRecords)).toBeTruthy();
+    expect(screen.queryByText(dailyLogHistoryMessages.en.summaryUnplaced)).toBeNull();
+
+    expectNoTurkishCatalogueText(screen);
+  });
+
   it('never uses a word that turns a count into a cause', async () => {
     // The domain refuses the numbers that would be misleading; this is the
     // other half, and it is checked on what the screen actually rendered.

@@ -216,6 +216,7 @@ export default function DailyLogHistoryScreen() {
                   symptoms={data.symptomCorrelations}
                   moods={data.moodCorrelations}
                   hasPlacedDays={data.phased.some((entry) => entry.phase !== null)}
+                  hasPeriodRecords={(data.profile?.periodRecords.length ?? 0) > 0}
                 />
               </>
             )}
