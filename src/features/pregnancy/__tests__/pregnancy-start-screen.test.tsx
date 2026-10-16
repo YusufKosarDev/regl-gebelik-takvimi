@@ -37,6 +37,9 @@ const repository = jest.requireMock('@/features/pregnancy/data/pregnancy-reposit
 const reminderSync = jest.requireMock('@/features/notifications/application/sync-pregnancy-weekly-reminder');
 const useRouterMock = useRouter as unknown as jest.Mock;
 const getTodayMock = getTodayLocalISODate as unknown as jest.Mock;
+const cycleRepository = jest.requireMock('@/features/cycle/data/cycle-repository') as {
+  loadCycleProfile: jest.Mock;
+};
 
 let back: jest.Mock;
 
@@ -60,6 +63,16 @@ beforeEach(() => {
 
   getTodayMock.mockReset();
   getTodayMock.mockReturnValue('2026-09-18' as ISODate);
+
+  // Reset here, file-wide, rather than only inside the describe that writes
+  // recorded periods. The screen prefills the date from the last recorded
+  // period start, so a profile left behind by that describe changes where
+  // every later test's date starts - and under --randomize the order that
+  // exposes it comes up for free. Seed 971630358 failed "keeps the date that
+  // was picked", which expects today minus one and got the prefilled date
+  // instead.
+  cycleRepository.loadCycleProfile.mockReset();
+  cycleRepository.loadCycleProfile.mockResolvedValue(null);
 });
 
 describe('PregnancyStartScreen header', () => {
@@ -402,14 +415,9 @@ jest.mock('@/features/cycle/data/cycle-repository', () => ({
  * the range saving accepts.
  */
 describe('where the date starts', () => {
-  const cycleRepository = jest.requireMock('@/features/cycle/data/cycle-repository') as {
-    loadCycleProfile: jest.Mock;
-  };
-
-  beforeEach(() => {
-    cycleRepository.loadCycleProfile.mockReset();
-    cycleRepository.loadCycleProfile.mockResolvedValue(null);
-  });
+  // The mock and its put-back live in the file-wide setup now, with the
+  // reasoning: what this describe writes used to leak into every test after
+  // it.
 
   function recorded(startDates: readonly string[]) {
     return {
