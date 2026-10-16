@@ -85,7 +85,7 @@ jobs:
       # way to see WHAT failed on a machine nobody was watching.
       - name: Upload Maestro artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: maestro-output
           path: ~/.maestro/tests/
