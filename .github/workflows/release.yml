@@ -1,0 +1,51 @@
+# Starts a production AAB build on EAS, from a tag or by hand.
+#
+# The build itself runs on Expo's machines; this job only queues it and
+# reports the queue URL, so it needs no Android SDK and finishes in a minute.
+# It requires one secret: EXPO_TOKEN (see RELEASE.md, "Kurulum" - created at
+# expo.dev, stored in the repository's Actions secrets). Without the secret
+# the job fails at the first step with a clear message rather than half way
+# through a build.
+name: Release build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Queue the production AAB on EAS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Refuse to run without the token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN is not set. Create one at https://expo.dev/settings/access-tokens"
+            echo "and add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --no-wait: the queue position is the result. Waiting an hour of
+      # runner time for Expo's machines to finish adds cost and no signal;
+      # the build's own page is where its progress lives.
+      - name: Queue the build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli build --platform android --profile production --non-interactive --no-wait

@@ -1,0 +1,47 @@
+# Dependency update PRs, weekly, grouped so the inbox stays readable.
+#
+# Expo pins most of the React Native surface: `expo install` keeps those
+# versions in step with the SDK, and a lone bump from a bot can move one
+# package out of the set the SDK was tested with. So the npm ecosystem groups
+# everything Expo manages into one PR a person can judge as a unit, and the
+# rule stays: an Expo SDK upgrade is done with `npx expo install --fix`, not
+# by merging bot PRs one by one.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      expo-managed:
+        patterns:
+          - 'expo*'
+          - '@expo/*'
+          - 'react'
+          - 'react-dom'
+          - 'react-native*'
+          - '@react-native*/*'
+          - 'jest-expo'
+          - 'babel-preset-expo'
+      everything-else:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - 'expo*'
+          - '@expo/*'
+          - 'react'
+          - 'react-dom'
+          - 'react-native*'
+          - '@react-native*/*'
+          - 'jest-expo'
+          - 'babel-preset-expo'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly

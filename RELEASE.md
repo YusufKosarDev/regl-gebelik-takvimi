@@ -10,10 +10,18 @@ deploy edilmez.** Gerekçesi en altta.
 npx tsc --noEmit
 npx expo lint
 npx jest --ci
+npx expo-doctor
 ```
+
+`expo-doctor` ağa bakar (sürüm uyumu); CI'da değil burada koşmasının nedeni
+bu — yayın anında bir kez, taze bilgiyle.
 
 Üçü de temiz olmadan devam edilmez. `main` üzerindeki CI'ın da yeşil olduğunu
 kontrol et — yerel doğrulama CI'ın yerine geçmez, yanında durur.
+
+Yayından önce E2E smoke akışını da elle tetikle ve yeşilini bekle:
+GitHub → Actions → "E2E smoke" → Run workflow. (Her gece kendiliğinden de
+koşar; yayın günü taze bir koşu istemek ucuzdur.)
 
 ## 2. AAB üretimi
 
@@ -53,6 +61,42 @@ hâlâ eski build'de kalan biri "Yedek oluştur" dediğinde yazma reddedilir ve
 uygulama bunu genel yedek hatası olarak gösterir. Bu bilinen ve kabul edilmiş
 maliyettir — pencereyi küçük tutmak için deploy, yayılımın hemen ardından
 yapılır, haftalar sonra değil.
+
+## Kurulum (bir kez, panelden)
+
+Bu iki ayar GitHub panelinden yapılır; repo'daki dosyalar hazırdır ve ayar
+yapılana kadar sessizce beklerler.
+
+### EXPO_TOKEN (Release build workflow'u için)
+
+1. https://expo.dev/settings/access-tokens → **Create token** (adı örn.
+   `github-actions`, proje erişimi yeterli).
+2. GitHub'da repo → **Settings → Secrets and variables → Actions →
+   New repository secret** → Name: `EXPO_TOKEN`, Value: kopyaladığın token.
+3. Deneme: **Actions → Release build → Run workflow**. İş bir dakikada
+   "Queue the build" adımını geçip EAS kuyruğunun linkini yazmalı. Token
+   yoksa iş ilk adımda açık bir mesajla durur.
+
+Bundan sonra `v` ile başlayan bir tag push'u (örn. `v1.1.0`) production AAB
+build'ini kendiliğinden kuyruğa koyar.
+
+### main dalını koruma
+
+1. Repo → **Settings → Branches → Add branch ruleset** (ya da classic
+   "Add rule").
+2. Branch name pattern: `main`.
+3. İşaretle:
+   - **Require a pull request before merging** (onay sayısı 0 bırakılabilir —
+     tek geliştiricide amaç inceleme değil, CI kapısı).
+   - **Require status checks to pass** → şu üç kontrolü seç:
+     `Type check, lint and test`, `Firestore rules (emulator)`,
+     `Android module unit tests`.
+   - **Require branches to be up to date before merging**.
+4. "Do not allow bypassing the above settings"i işaretlersen bu kural sana da
+   uygulanır — acil durumda paneli gevşetmek gerekir; bilinçli seç.
+
+Bu açıldıktan sonra akış: dal → push → PR → CI yeşili → merge. `main`'e
+doğrudan push reddedilir.
 
 ## Notlar
 
