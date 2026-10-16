@@ -34,8 +34,17 @@ jobs:
       # No Firebase environment variables and no secrets. The suite does not
       # read them: without a project the app behaves as one with no accounts,
       # and the tests that care set their own values.
+      #
+      # --randomize because the order the files sit in is not a guarantee
+      # anybody meant to give: its first local run caught a store value
+      # leaking between describes. The seed is printed on failure; reproduce
+      # with `npx jest --ci --randomize --seed <n>`.
+      #
+      # --coverage enforces the floor in jest.config.js. The idle-memory limit
+      # recycles workers that balloon under instrumentation — one local
+      # coverage run lost a whole suite to a worker crash without it.
       - name: Test
-        run: npx jest --ci
+        run: npx jest --ci --randomize --coverage --workerIdleMemoryLimit=1GB
 
   rules:
     name: Firestore rules (emulator)

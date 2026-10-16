@@ -16,6 +16,15 @@ beforeEach(() => {
   localization.getLocales.mockReturnValue([{ languageCode: 'tr' }]);
   localization.getCalendars.mockReset();
   localization.getCalendars.mockReturnValue([{}]);
+
+  // The store is a module singleton, so what one test chooses the next test
+  // inherits. Put back here, file-wide, rather than only inside the describe
+  // that writes preferences: under --randomize those tests run in any order,
+  // and a leaked 'tr' made "follows a phone set to anything else" fail in
+  // whatever file position it drew. (Before the next test rather than after
+  // this one, because an afterEach would update a still-mounted subscriber
+  // outside act - see the note that used to live on the preference describe.)
+  useAppStore.setState({ languagePreference: 'system', hydrated: true });
 });
 
 const messages = {
@@ -103,16 +112,7 @@ describe('useMessages', () => {
  * wider than the language that gets shown.
  */
 describe('useLanguage, against the stored preference', () => {
-  // Put back before the next test rather than after this one.
-  //
-  // As an `afterEach` this ran while the hook from the test that just finished
-  // was still mounted - the library unmounts after the describe's own hooks -
-  // so resetting the preference was a state update on a live subscriber,
-  // outside `act`, and React said so. Here nothing is mounted yet and there is
-  // nothing to update.
-  beforeEach(() => {
-    useAppStore.setState({ languagePreference: 'system' });
-  });
+  // The put-back lives in the file-wide beforeEach now, with its reasoning.
 
   it('shows Turkish on an English phone when Turkish was chosen', async () => {
     localization.getLocales.mockReturnValue([{ languageCode: 'en' }]);

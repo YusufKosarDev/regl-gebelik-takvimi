@@ -56,6 +56,28 @@ module.exports = {
   // has not started an emulator.
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/rules-test/'],
 
+  // Everything under src, not only what some test happens to import — a file
+  // nothing imports is exactly the uncovered code worth seeing. Only in
+  // effect when coverage is collected (CI passes --coverage; a plain
+  // `npx jest` is unchanged).
+  collectCoverageFrom: ['src/**/*.{ts,tsx}'],
+
+  /**
+   * The floor, set just under what was measured on 16 October 2026:
+   * statements 93.81, branches 87.12, functions 92.74, lines 93.99. The job
+   * of these numbers is to notice a slide, not to demand a climb — raise them
+   * when the measured value has risen and stayed there, and never lower one
+   * to get a commit through: an honest drop needs the drop explained instead.
+   */
+  coverageThreshold: {
+    global: {
+      statements: 93,
+      branches: 86,
+      functions: 92,
+      lines: 93,
+    },
+  },
+
   moduleNameMapper: {
     '\\.css$': '<rootDir>/jest/style-mock.js',
   },
