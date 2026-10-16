@@ -72,6 +72,29 @@ export function assertPin(pin: string): void {
 }
 
 /**
+ * Whether this PIN is one of the shapes anybody tries first.
+ *
+ * Two shapes and no more: one key held down, or a straight run along the pad
+ * in either direction. Nothing subtler is claimed — this feeds a warning at
+ * setup, never a refusal, because the choice stays the person's own.
+ *
+ * A run that would wrap past 9 is not a run on the pad, so `890123` passes.
+ */
+export function isEasilyGuessedPin(pin: string): boolean {
+  if (!isValidPin(pin)) {
+    return false;
+  }
+
+  const steps = Array.from({ length: pin.length - 1 }, (_, index) =>
+    pin.charCodeAt(index + 1) - pin.charCodeAt(index)
+  );
+
+  return steps.every((step) => step === 0) ||
+    steps.every((step) => step === 1) ||
+    steps.every((step) => step === -1);
+}
+
+/**
  * Whether the two entries at setup match.
  *
  * A plain comparison, and deliberately not a timing-safe one: both sides are in

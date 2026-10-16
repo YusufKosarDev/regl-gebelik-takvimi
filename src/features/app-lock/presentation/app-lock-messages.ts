@@ -93,6 +93,15 @@ const appLockMessagesTr = {
 
   setupChoosePin: 'Bir PIN seç',
   setupConfirmPin: "PIN'i tekrar gir",
+
+  /**
+   * A warning, never a refusal. 111111 used to go through without a word;
+   * the choice is still the person's, but it is now an informed one.
+   */
+  setupWeakPinWarning:
+    'Bu PIN kolay tahmin ediliyor (tekrarlayan ya da ardışık rakamlar). ' +
+    'İstersen yine de kullanabilirsin.',
+
   setupMismatchMessage: 'İki PIN aynı değil. Tekrar dene.',
   setupSaveFailedMessage: 'Kilit kurulamadı. Tekrar dene.',
   setupDoneMessage: 'Uygulama kilidi açıldı.',
@@ -280,6 +289,11 @@ const appLockMessagesEn: AppLockMessages = {
 
   setupChoosePin: 'Choose a PIN',
   setupConfirmPin: 'Enter the PIN again',
+
+  setupWeakPinWarning:
+    'This PIN is easy to guess (repeated or sequential digits). You can still use it if ' +
+    'you want.',
+
   setupMismatchMessage: 'Those two PINs are not the same. Try again.',
   setupSaveFailedMessage: 'The lock could not be set up. Try again.',
   setupDoneMessage: 'The app lock is on.',

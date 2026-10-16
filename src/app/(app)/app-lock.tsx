@@ -12,7 +12,7 @@ import { setAppLock } from '@/features/app-lock/application/set-app-lock';
 import { unlockWithPin } from '@/features/app-lock/application/unlock-with-pin';
 import { PinDots } from '@/features/app-lock/components/pin-dots';
 import { PinPad } from '@/features/app-lock/components/pin-pad';
-import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
+import { PIN_LENGTH, isEasilyGuessedPin } from '@/features/app-lock/domain/pin';
 import { canUseBiometrics } from '@/features/app-lock/infrastructure/biometrics';
 import { blocksScreenshots } from '@/features/app-lock/infrastructure/screen-privacy';
 import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
@@ -419,6 +419,20 @@ export default function AppLockScreen() {
                 <ThemedText accessibilityRole="header" type="smallBold" style={styles.stepTitle}>
                   {step === 'choose' ? lock.setupChoosePin : lock.setupConfirmPin}
                 </ThemedText>
+
+                {/* Tied to the chosen PIN rather than the message line, which
+                    every digit clears: the warning has to survive the whole
+                    confirmation entry. A warning and never a refusal - the
+                    choice stays the person's own. */}
+                {step === 'confirm' && isEasilyGuessedPin(first) && (
+                  <ThemedText
+                    accessibilityRole="alert"
+                    type="small"
+                    themeColor="textSecondary"
+                    style={styles.stepTitle}>
+                    {lock.setupWeakPinWarning}
+                  </ThemedText>
+                )}
 
                 <PinDots entered={entered.length} />
 

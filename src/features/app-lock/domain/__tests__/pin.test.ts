@@ -1,4 +1,11 @@
-import { PIN_LENGTH, assertPin, checkPin, isValidPin, pinsMatch } from '../pin';
+import {
+  PIN_LENGTH,
+  assertPin,
+  checkPin,
+  isEasilyGuessedPin,
+  isValidPin,
+  pinsMatch,
+} from '../pin';
 
 /**
  * What counts as a PIN.
@@ -77,5 +84,31 @@ describe('pinsMatch', () => {
     expect(pinsMatch('123456', '123456')).toBe(true);
     expect(pinsMatch('123456', '123457')).toBe(false);
     expect(pinsMatch('123456', '654321')).toBe(false);
+  });
+});
+
+describe('isEasilyGuessedPin', () => {
+  // The two shapes anybody tries first against a stranger's phone: one key
+  // held down, or a run along the row. Nothing subtler is claimed - this
+  // feeds a warning, not a refusal.
+  it('names a single repeated digit', () => {
+    expect(isEasilyGuessedPin('111111')).toBe(true);
+    expect(isEasilyGuessedPin('000000')).toBe(true);
+    expect(isEasilyGuessedPin('999999')).toBe(true);
+  });
+
+  it('names a straight run, in either direction', () => {
+    expect(isEasilyGuessedPin('123456')).toBe(true);
+    expect(isEasilyGuessedPin('345678')).toBe(true);
+    expect(isEasilyGuessedPin('654321')).toBe(true);
+    expect(isEasilyGuessedPin('987654')).toBe(true);
+  });
+
+  it('leaves ordinary PINs alone', () => {
+    expect(isEasilyGuessedPin('135790')).toBe(false);
+    expect(isEasilyGuessedPin('112233')).toBe(false);
+    expect(isEasilyGuessedPin('121212')).toBe(false);
+    // A run that would need to wrap past 9 is not a run on the pad.
+    expect(isEasilyGuessedPin('890123')).toBe(false);
   });
 });

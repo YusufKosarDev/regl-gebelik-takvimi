@@ -193,3 +193,57 @@ describe('changing the PIN', () => {
     expect(setLock.setAppLock).not.toHaveBeenCalled();
   });
 });
+
+describe('choosing an easily guessed PIN', () => {
+  const WEAK_WARNING =
+    'Bu PIN kolay tahmin ediliyor (tekrarlayan ya da ardışık rakamlar). ' +
+    'İstersen yine de kullanabilirsin.';
+
+  beforeEach(() => {
+    // No lock yet, so the screen opens on the choose step.
+    useAppLockStore.setState({ enabled: false, locked: false, hydrated: true, unreadable: false });
+  });
+
+  it('warns about a repeated digit, without refusing it', async () => {
+    const view = await open();
+
+    await typePin(view, '111111');
+
+    expect(view.getByText(WEAK_WARNING)).toBeTruthy();
+
+    // Non-blocking by design: confirming it still sets the lock.
+    await typePin(view, '111111');
+
+    expect(setLock.setAppLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the warning up while the confirmation is typed', async () => {
+    // The warning is not the message line, which every digit clears - it is
+    // tied to the chosen PIN and stays until the choice does.
+    const view = await open();
+
+    await typePin(view, '123456');
+    await typePin(view, '123');
+
+    expect(view.getByText(WEAK_WARNING)).toBeTruthy();
+  });
+
+  it('says nothing about an ordinary PIN', async () => {
+    const view = await open();
+
+    await typePin(view, '135790');
+
+    expect(view.queryByText(WEAK_WARNING)).toBeNull();
+  });
+
+  it('drops the warning when a mismatch sends the choice back', async () => {
+    const view = await open();
+
+    await typePin(view, '111111');
+    await typePin(view, '222222');
+
+    // Back on the choose step with no chosen PIN, there is nothing to warn
+    // about yet; the mismatch message is doing the talking.
+    expect(view.queryByText(WEAK_WARNING)).toBeNull();
+  });
+});
