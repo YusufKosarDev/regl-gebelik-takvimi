@@ -1,3 +1,13 @@
+/**
+ * A deep relative path rather than an alias, for the reason written out in
+ * `features/app-lock/infrastructure/screen-privacy.ts` — the other import of
+ * this shape.
+ *
+ * Short version: an `@/modules/*` alias only resolves if it is listed before
+ * `@/*` in `tsconfig.json`, nothing enforces that order, and Metro's answer
+ * cannot be checked from a test run because this module is faked in every test
+ * that reaches it. A failure would surface as a release build with no widget.
+ */
 import WidgetSnapshotBridge from '../../../../modules/widget-snapshot-bridge/src/WidgetSnapshotBridgeModule';
 import type { WidgetSnapshotV1 } from '../domain/widget-snapshot-v1';
 import { parseWidgetSnapshotV1, serializeWidgetSnapshotV1 } from '../domain/widget-snapshot-v1';
