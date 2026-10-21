@@ -63,18 +63,31 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.{ts,tsx}'],
 
   /**
-   * The floor, set just under what was measured on 16 October 2026:
-   * statements 93.81, branches 87.12, functions 92.74, lines 93.99. The job
+   * The floor, set just under what was measured on 21 October 2026:
+   * statements 95.34, branches 88.41, functions 94.29, lines 95.55. The job
    * of these numbers is to notice a slide, not to demand a climb — raise them
    * when the measured value has risen and stayed there, and never lower one
    * to get a commit through: an honest drop needs the drop explained instead.
+   *
+   * Raised from 93/86/92/93 (measured 16 October 2026) by the review that
+   * brought the lock screen, `useAutomaticSync`, `screen-privacy`, the tabs
+   * layout and the Firestore adapter under test. Those were 36%, 0%, 18%, 0%
+   * and 0%; the first four are what the branch number moved on. The old floor
+   * would now pass with any of them deleted, which is the slide these numbers
+   * exist to catch.
+   *
+   * Three files are deliberately left uncovered and should not be read as a
+   * gap to close: `(app)/_layout.tsx`, `(lock)/_layout.tsx` and
+   * `(onboarding)/_layout.tsx` are each one line — `<Stack screenOptions={{
+   * headerShown: false }} />` — and the only test writable for them would
+   * assert that a Stack renders. That is a number moving, not a rule held.
    */
   coverageThreshold: {
     global: {
-      statements: 93,
-      branches: 86,
-      functions: 92,
-      lines: 93,
+      statements: 95,
+      branches: 88,
+      functions: 94,
+      lines: 95,
     },
   },
 
