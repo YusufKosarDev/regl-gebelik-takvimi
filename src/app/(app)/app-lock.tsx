@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -100,6 +100,21 @@ export default function AppLockScreen() {
    */
   const [useBiometrics, setUseBiometrics] = useState(true);
 
+  /**
+   * Guards the window between the sixth digit and the answer coming back.
+   *
+   * The pad is drawn disabled while `isSaving`, but that only takes effect on
+   * the next render — so two presses close enough together both reach a
+   * handler. For `finish` that is a lock written twice; for `verify` it is a
+   * wrong PIN counted twice, which halves the free attempts
+   * (`unlockWithPin` writes `afterWrongPin` to the record before it answers).
+   *
+   * A ref rather than state, because it has to be true *now*, in the same turn
+   * the second press would run in. The lock screen carries the same guard for
+   * the same reason; this screen was the one without it.
+   */
+  const inFlight = useRef(false);
+
   useEffect(() => {
     let active = true;
 
@@ -116,6 +131,11 @@ export default function AppLockScreen() {
 
   const finish = useCallback(
     async (pin: string) => {
+      if (inFlight.current) {
+        return;
+      }
+
+      inFlight.current = true;
       setIsSaving(true);
 
       try {
@@ -158,6 +178,7 @@ export default function AppLockScreen() {
       } finally {
         setEntered('');
         setIsSaving(false);
+        inFlight.current = false;
       }
     },
     [biometricsAvailable, lock, markEnabled, router, uid, useBiometrics]
@@ -188,6 +209,11 @@ export default function AppLockScreen() {
    */
   const verify = useCallback(
     async (pin: string) => {
+      if (inFlight.current) {
+        return;
+      }
+
+      inFlight.current = true;
       setIsSaving(true);
 
       try {
@@ -230,55 +256,80 @@ export default function AppLockScreen() {
       } finally {
         setEntered('');
         setIsSaving(false);
+        inFlight.current = false;
       }
     },
     [handleRemove, lock, markDisabled, router, verifiedAction]
   );
 
+  /**
+   * One key press.
+   *
+   * ## Why none of this is inside the `setEntered` updater
+   *
+   * It used to be: the branch below ran inside `setEntered((current) => …)`,
+   * calling `verify`, `finish`, `setFirst`, `setStep` and `setMessage` from
+   * within it. React requires a state updater to be **pure** and is free to
+   * run it again — guaranteed under StrictMode, and possible whenever a
+   * concurrent render replays a pending update queue. `reactCompiler` is on
+   * in `app.json` and leans on that contract too.
+   *
+   * Replaying this one meant two `unlockWithPin` calls for one wrong PIN,
+   * which is two failed attempts counted against a schedule that gives five
+   * free ones. So the next value is worked out here, `setEntered` is handed a
+   * plain value, and every side effect happens in this body where it belongs.
+   *
+   * `entered` is therefore a dependency, and has to stay one: read from a
+   * stale closure it would build the PIN out of digits from two different
+   * presses. The React Compiler does not relax that — the dependency array is
+   * still what governs.
+   */
   const handleDigit = useCallback(
     (digit: string) => {
+      if (entered.length >= PIN_LENGTH) {
+        return;
+      }
+
       setMessage(null);
 
-      setEntered((current) => {
-        if (current.length >= PIN_LENGTH) {
-          return current;
-        }
+      const next = entered + digit;
 
-        const next = current + digit;
+      if (next.length < PIN_LENGTH) {
+        setEntered(next);
 
-        if (next.length < PIN_LENGTH) {
-          return next;
-        }
+        return;
+      }
 
-        if (step === 'verify') {
-          void verify(next);
+      if (step === 'verify') {
+        setEntered(next);
+        void verify(next);
 
-          return next;
-        }
+        return;
+      }
 
-        if (step === 'choose') {
-          setFirst(next);
-          setStep('confirm');
+      if (step === 'choose') {
+        setEntered('');
+        setFirst(next);
+        setStep('confirm');
 
-          return '';
-        }
+        return;
+      }
 
-        if (next === first) {
-          void finish(next);
+      if (next === first) {
+        setEntered(next);
+        void finish(next);
 
-          return next;
-        }
+        return;
+      }
 
-        // Back to the start rather than asking again: somebody who mistyped
-        // the second one does not know which of the two was wrong.
-        setMessage(lock.setupMismatchMessage);
-        setFirst('');
-        setStep('choose');
-
-        return '';
-      });
+      // Back to the start rather than asking again: somebody who mistyped
+      // the second one does not know which of the two was wrong.
+      setEntered('');
+      setMessage(lock.setupMismatchMessage);
+      setFirst('');
+      setStep('choose');
     },
-    [finish, first, lock, step, verify]
+    [entered, finish, first, lock, step, verify]
   );
 
   const handleDelete = useCallback(() => {

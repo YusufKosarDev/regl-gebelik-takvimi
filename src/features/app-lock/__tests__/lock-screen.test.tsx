@@ -377,3 +377,107 @@ describe('the way out for somebody who has forgotten the PIN', () => {
     });
   });
 });
+
+/**
+ * Two presses of the sixth key in one turn.
+ *
+ * `handleDigit` used to branch inside a `setEntered` updater, where React
+ * processes queued updaters in sequence — so the second press read the first's
+ * result, saw six digits and did nothing. Moving the side effect out of the
+ * updater (which React requires, since an updater must be pure and may be
+ * replayed) reads `entered` from the closure, so two presses in one turn read
+ * the same value and both build the same sixth digit.
+ *
+ * The `checking` ref is what closes that. Its cost if it were missing is not a
+ * double render: `unlockWithPin` writes `afterWrongPin` to the record before it
+ * answers, so one wrong PIN would be counted twice.
+ */
+describe('two presses of the sixth key in one turn', () => {
+  it('checks the PIN once', async () => {
+    const view = await open();
+
+    await type(view, '12345');
+
+    const sixth = view.getByTestId('pin-key-6');
+
+    await act(async () => {
+      fireEvent.press(sixth);
+      fireEvent.press(sixth);
+    });
+
+    expect(unlockWithPin).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The countdown, which used to drift.
+ *
+ * The effect depended on how much was left, so it tore the interval down and
+ * built a new one on every tick — a real period of 1000 ms plus a render. Over
+ * the half-hour cap that accumulates into seconds of pad still refused after
+ * the wait has passed.
+ *
+ * It now depends on *whether* a wait is running and each tick reads the clock,
+ * so the remainder is measured rather than counted down. These tests move the
+ * clock rather than waiting, which is the only way to tell the two apart.
+ */
+describe('the countdown', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('counts down as the clock moves', async () => {
+    remainingLockWaitMs.mockResolvedValue(90_000);
+
+    const view = await open();
+
+    expect(view.getByText(waitMessage(90_000))).toBeTruthy();
+
+    await act(async () => {
+      jest.advanceTimersByTime(30_000);
+    });
+
+    expect(view.getByText(waitMessage(60_000))).toBeTruthy();
+  });
+
+  it('measures the remainder rather than counting its own ticks', async () => {
+    remainingLockWaitMs.mockResolvedValue(10_000);
+
+    const view = await open();
+
+    // Four seconds pass with no tick — a device that slept, or a JS thread
+    // that was busy — and then one tick arrives. A countdown that subtracted a
+    // second per tick would report nine seconds left; one that reads the clock
+    // reports five.
+    //
+    // Advancing the timers alone cannot tell the two apart, because it moves
+    // the fake clock by exactly as much as it fires. The gap has to be opened
+    // with `setSystemTime` for the assertion to mean anything.
+    await act(async () => {
+      jest.setSystemTime(Date.now() + 4_000);
+      jest.advanceTimersByTime(1_000);
+    });
+
+    expect(view.getByText(waitMessage(5_000))).toBeTruthy();
+    expect(view.queryByText(waitMessage(9_000))).toBeNull();
+  });
+
+  it('opens the pad and drops the sentence when the wait is over', async () => {
+    remainingLockWaitMs.mockResolvedValue(3_000);
+
+    const view = await open();
+
+    expect(view.getByTestId('pin-key-1').props.accessibilityState.disabled).toBe(true);
+
+    await act(async () => {
+      jest.advanceTimersByTime(3_000);
+    });
+
+    expect(view.getByTestId('pin-key-1').props.accessibilityState.disabled).toBe(false);
+    expect(view.queryByText(waitMessage(3_000))).toBeNull();
+  });
+});
