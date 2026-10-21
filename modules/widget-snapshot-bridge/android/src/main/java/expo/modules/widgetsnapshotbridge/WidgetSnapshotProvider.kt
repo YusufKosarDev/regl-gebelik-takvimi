@@ -148,7 +148,19 @@ class WidgetSnapshotProvider : AppWidgetProvider() {
 
       // One description for the whole card: it is one thing on the home screen,
       // and reading out four unlabelled fragments would not help anyone.
-      views.setContentDescription(R.id.widget_root, widgetContentDescription(snapshot, size))
+      //
+      // The empty wording comes from the resource rather than from the Kotlin
+      // constant, so a `values-en/` override reaches the screen reader as well
+      // as the card. Without this the two would say different things in
+      // different languages, which is worse than either on its own.
+      views.setContentDescription(
+        R.id.widget_root,
+        widgetContentDescription(
+          snapshot,
+          size,
+          context.getString(R.string.widget_snapshot_empty)
+        )
+      )
 
       // The avatar is decorative next to that description, and a second reading
       // of "Avatar" between the day and the phase is noise.
@@ -169,8 +181,11 @@ class WidgetSnapshotProvider : AppWidgetProvider() {
       views.setViewVisibility(R.id.widget_empty, View.GONE)
       views.setViewVisibility(R.id.widget_content, View.VISIBLE)
 
-      setTextOrHide(views, R.id.widget_cycle_day, widgetCycleDayLabel(snapshot.cycleDay))
-      setTextOrHide(views, R.id.widget_phase, widgetPhaseLabel(snapshot.phase))
+      // The snapshot's own words first, which are in the app's language. The
+      // two label functions are the fallback for a snapshot written before
+      // those fields existed; see their docs.
+      setTextOrHide(views, R.id.widget_cycle_day, cycleDayTextOf(snapshot))
+      setTextOrHide(views, R.id.widget_phase, phaseTextOf(snapshot))
       setTextOrHide(views, R.id.widget_message, snapshot.supportMessage)
       setTextOrHide(views, R.id.widget_moods, widgetMoodText(snapshot.moodLabels, size))
 

@@ -21,12 +21,14 @@ class WidgetSnapshotDataTest {
     cycleDay: String = "14",
     phase: String = "\"ovulatory\"",
     moods: String? = null,
+    labels: String? = null,
     message: String = "\"Kendine alan tanı.\"",
     avatar: String = """{"skinToneId":"skin-tone-4","hairStyleId":"bun","hairColorId":"red","outfitId":"dress","accessoryId":"glasses"}"""
   ): String {
     val moodPart = if (moods == null) "" else """"moodLabels":$moods,"""
+    val labelPart = if (labels == null) "" else "$labels,"
 
-    return """{"version":$version,"date":$date,"cycleDay":$cycleDay,"phase":$phase,$moodPart"supportMessage":$message,"avatar":$avatar}"""
+    return """{"version":$version,"date":$date,"cycleDay":$cycleDay,"phase":$phase,$labelPart$moodPart"supportMessage":$message,"avatar":$avatar}"""
   }
 
   @Test
@@ -272,5 +274,77 @@ class WidgetAvatarLookTest {
   @Test
   fun `gives the same look every time`() {
     assertEquals(widgetAvatarLook(avatar(accessoryId = "glasses")), widgetAvatarLook(avatar(accessoryId = "glasses")))
+  }
+}
+
+/**
+ * The finished words the app now sends, and the fallback for a snapshot that
+ * does not carry them.
+ *
+ * Building these here was the one thing this widget still decided for itself,
+ * and it decided them in Turkish on every device while `supportMessage` beside
+ * them arrived in the person's own language. The app sends them now; the two
+ * label functions stay as the fallback so an older snapshot still draws.
+ */
+class WidgetSnapshotLabelFieldsTest {
+
+  private fun json(labels: String?): String =
+    """{"version":1,"date":"2026-09-18","cycleDay":14,"phase":"ovulatory",""" +
+      (if (labels == null) "" else "$labels,") +
+      """"supportMessage":"Kendine alan tanı.","avatar":null}"""
+
+  @Test
+  fun `reads the words the app sent`() {
+    val snapshot = parseWidgetSnapshot(
+      json(""""cycleDayLabel":"Cycle day 14","phaseLabel":"Ovulation"""")
+    )!!
+
+    assertEquals("Cycle day 14", snapshot.cycleDayLabel)
+    assertEquals("Ovulation", snapshot.phaseLabel)
+  }
+
+  @Test
+  fun `prefers the words the app sent over its own`() {
+    val snapshot = parseWidgetSnapshot(
+      json(""""cycleDayLabel":"Cycle day 14","phaseLabel":"Ovulation"""")
+    )!!
+
+    assertEquals("Cycle day 14", cycleDayTextOf(snapshot))
+    assertEquals("Ovulation", phaseTextOf(snapshot))
+  }
+
+  @Test
+  fun `falls back to its own words for a snapshot without them`() {
+    val snapshot = parseWidgetSnapshot(json(null))!!
+
+    assertNull(snapshot.cycleDayLabel)
+    assertNull(snapshot.phaseLabel)
+    assertEquals("Döngünün 14. günü", cycleDayTextOf(snapshot))
+    assertEquals("Yumurtlama", phaseTextOf(snapshot))
+  }
+
+  @Test
+  fun `treats a blank or null label as absent`() {
+    for (labels in listOf(
+      """"cycleDayLabel":"","phaseLabel":"   """",
+      """"cycleDayLabel":null,"phaseLabel":null"""
+    )) {
+      val snapshot = parseWidgetSnapshot(json(labels))!!
+
+      // A blank would draw as a line with nothing on it, which is worse than
+      // the line being hidden. The fallback answers instead.
+      assertEquals("Döngünün 14. günü", cycleDayTextOf(snapshot))
+      assertEquals("Yumurtlama", phaseTextOf(snapshot))
+    }
+  }
+
+  @Test
+  fun `has nothing to say about a day with no cycle and no words`() {
+    val snapshot = parseWidgetSnapshot(
+      """{"version":1,"date":"2026-09-18","cycleDay":null,"phase":null,"supportMessage":null,"avatar":null}"""
+    )!!
+
+    assertNull(cycleDayTextOf(snapshot))
+    assertNull(phaseTextOf(snapshot))
   }
 }

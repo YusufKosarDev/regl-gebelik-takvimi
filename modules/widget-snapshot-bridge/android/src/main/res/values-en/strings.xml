@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget's own strings, in English.
+
+  These three are the only text on this card that cannot travel in the
+  snapshot. The widget's name and description are shown in the launcher's
+  picker, before any snapshot exists; the empty state is shown when there is no
+  snapshot to read.
+
+  So they are resolved by Android from the *device's* locale rather than from
+  the app's language preference. For the picker that is arguably the better
+  answer — it is the launcher's list, in the launcher's language. For the empty
+  state it is the only answer available, and it says "open the app", which is
+  the one instruction that still helps somebody who cannot read it.
+
+  Everything else on the card — the day, the phase, the moods, the support
+  sentence — comes from the snapshot and follows the app's own setting. See
+  `src/features/widget/presentation/widget-messages.ts`.
+
+  `values-night/colors.xml` beside this is the module's existing precedent for
+  a qualified resource folder.
+-->
+<resources>
+  <string name="widget_snapshot_label">My cycle</string>
+  <string name="widget_snapshot_description">Shows today\'s cycle summary on your home screen.</string>
+  <!-- The only thing that refreshes a stale widget today, so the empty state
+       asks for exactly that rather than apologising. -->
+  <string name="widget_snapshot_empty">Open the app to update the widget.</string>
+</resources>

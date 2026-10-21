@@ -96,23 +96,41 @@ fun widgetMoodText(moodLabels: List<String>, size: WidgetSizeClass): String? {
 /**
  * The whole card as one sentence, for a screen reader.
  *
- * Built from the same words that are on screen, and never from an id: a person
- * chose "Topuz", and `bun` read aloud on a home screen would be the app talking
- * to itself. A part that is not shown is not described either.
+ * Built from the same words that are on screen — through `cycleDayTextOf` and
+ * `phaseTextOf`, so the card and the reading cannot end up in two different
+ * languages — and never from an id: a person chose "Topuz", and `bun` read
+ * aloud on a home screen would be the app talking to itself. A part that is not
+ * shown is not described either.
+ *
+ * ## Why the empty wording is a parameter
+ *
+ * `WIDGET_EMPTY_DESCRIPTION` is a deliberate duplicate of
+ * `@string/widget_snapshot_empty`, kept so the visible text and the reading
+ * cannot drift and so this function can be tested without resources. A
+ * `values-en/` override breaks exactly that: the card would read English off
+ * the resource while this constant stayed Turkish.
+ *
+ * So the caller may pass the string it resolved. The default keeps every
+ * existing test calling this with two arguments, and keeps the constant as the
+ * answer where there are no resources to hand.
  */
-fun widgetContentDescription(snapshot: WidgetSnapshot?, size: WidgetSizeClass): String {
+fun widgetContentDescription(
+  snapshot: WidgetSnapshot?,
+  size: WidgetSizeClass,
+  emptyDescription: String = WIDGET_EMPTY_DESCRIPTION
+): String {
   if (snapshot == null) {
-    return WIDGET_EMPTY_DESCRIPTION
+    return emptyDescription
   }
 
   val parts = listOfNotNull(
-    widgetCycleDayLabel(snapshot.cycleDay),
-    widgetPhaseLabel(snapshot.phase),
+    cycleDayTextOf(snapshot),
+    phaseTextOf(snapshot),
     snapshot.supportMessage,
     widgetMoodText(snapshot.moodLabels, size)?.replace("\n", ", ")?.replace("• ", "")
   )
 
-  return if (parts.isEmpty()) WIDGET_EMPTY_DESCRIPTION else parts.joinToString(". ")
+  return if (parts.isEmpty()) emptyDescription else parts.joinToString(". ")
 }
 
 /**

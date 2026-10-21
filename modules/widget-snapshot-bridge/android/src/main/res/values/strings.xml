@@ -5,5 +5,11 @@
   <!-- The only thing that refreshes a stale widget today, so the empty state
        asks for exactly that rather than apologising. -->
   <string name="widget_snapshot_empty">Uygulamayı açarak widget\'ı güncelle.</string>
-  <string name="widget_snapshot_avatar_description">Avatar</string>
+  <!--
+    `widget_snapshot_avatar_description` was removed. Nothing referenced it:
+    no layout set it, and the provider overwrites the avatar's description with
+    "" on purpose — the avatar is decorative next to the card's one description,
+    and a second reading of "Avatar" between the day and the phase is noise.
+    An unused string is one more thing a translation has to carry.
+  -->
 </resources>

@@ -1,9 +1,13 @@
 import type { WidgetSnapshotV1 } from '../domain/widget-snapshot-v1';
 import { WIDGET_SNAPSHOT_VERSION, validateWidgetSnapshotV1 } from '../domain/widget-snapshot-v1';
 
+import type { WidgetMessages } from '../presentation/widget-messages';
+import { widgetCycleDayLabelIn, widgetPhaseLabelIn } from '../presentation/widget-messages';
+
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { CycleDashboard } from '@/features/cycle/application/get-cycle-dashboard';
 import type { CycleDailySupport } from '@/features/cycle/domain/daily-support';
+import type { CycleLabels } from '@/features/cycle/presentation/cycle-labels';
 import type { ISODate } from '@/types/iso-date';
 
 /**
@@ -20,6 +24,15 @@ export type WidgetSnapshotV1Input = {
   /** `null` on a day with no phase, and for a phase nothing is written for. */
   readonly dailySupport: CycleDailySupport | null;
   readonly avatar: AvatarConfig | null;
+  /**
+   * The two catalogue halves the card's words come from.
+   *
+   * Arguments, like `today` and for the same reason: this layer picks neither
+   * the language nor the moment. The caller resolves both, which keeps this
+   * function a pure mapping from facts to a snapshot.
+   */
+  readonly messages: WidgetMessages;
+  readonly labels: CycleLabels;
 };
 
 /**
@@ -45,13 +58,24 @@ export type WidgetSnapshotV1Input = {
  * Pure: every input is read and none is mutated.
  */
 export function buildWidgetSnapshotV1(input: WidgetSnapshotV1Input): WidgetSnapshotV1 {
-  const { today, cycleDashboard, dailySupport, avatar } = input;
+  const { today, cycleDashboard, dailySupport, avatar, messages, labels } = input;
+
+  const cycleDay = cycleDashboard?.cycleDay ?? null;
+  const phase = cycleDashboard?.phase ?? null;
+
+  // Left off entirely when there is nothing to name, for the same reason
+  // `moodLabels` is: a card hides the line it has nothing to put on, and an
+  // explicit `undefined` is not the same thing to `JSON.stringify`.
+  const cycleDayLabel = widgetCycleDayLabelIn(messages, cycleDay);
+  const phaseLabel = widgetPhaseLabelIn(labels, phase);
 
   const snapshot: WidgetSnapshotV1 = {
     version: WIDGET_SNAPSHOT_VERSION,
     date: today,
-    cycleDay: cycleDashboard?.cycleDay ?? null,
-    phase: cycleDashboard?.phase ?? null,
+    cycleDay,
+    phase,
+    ...(cycleDayLabel === null ? {} : { cycleDayLabel }),
+    ...(phaseLabel === null ? {} : { phaseLabel }),
     ...(dailySupport?.moodLabels === undefined ? {} : { moodLabels: dailySupport.moodLabels }),
     supportMessage: dailySupport?.supportMessage ?? null,
     avatar,

@@ -149,16 +149,33 @@ inputs from the store directly.
 
 ### What a language change does not reach immediately
 
-Two things keep the words they were already given, and both are visible to
-somebody who switches:
-
 - **A reminder already queued keeps the language it was scheduled in.** Android
   holds the notification text, not the app, so retranslating a pending reminder
   would mean cancelling and rescheduling it. The reminders reschedule on their
   own triggers, so the next one arrives in the new language.
-- **The widget follows at the next snapshot write.** It renders the last
-  snapshot the app wrote, so it changes when something writes one, not at the
-  moment the row is pressed.
+
+### What the widget shows, and the one part that follows the device instead
+
+The card's day, phase, moods and support sentence all travel in the snapshot,
+in the language the app is set to, and the language row rewrites the snapshot
+when it is pressed — so the card follows within a moment rather than waiting for
+some unrelated write.
+
+Three strings cannot travel that way, because they are shown when there is no
+snapshot to read: the widget's name and description in the launcher's picker,
+and the empty state. Those come from `res/values/` and `res/values-en/`, which
+Android resolves from the **device's** locale rather than from the app's
+preference. For the picker that is arguably the better answer — it is the
+launcher's list, in the launcher's language — and for the empty state it is the
+only one available.
+
+> This section used to say "the widget follows at the next snapshot write",
+> which was true about the timing and wrong about the language: the day and the
+> phase were built in Kotlin and were Turkish on every device, however the app
+> was set, while the support sentence beside them was already translated. They
+> are built in `src/features/widget/presentation/widget-messages.ts` now and
+> sent with the snapshot; the Kotlin keeps its own words only as the fallback
+> for a snapshot written before those fields existed.
 
 ### How a feature holds its strings
 
