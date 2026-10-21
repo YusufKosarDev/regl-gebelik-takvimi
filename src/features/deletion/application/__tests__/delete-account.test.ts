@@ -21,7 +21,7 @@ jest.mock('@/features/app-lock/application/remove-app-lock', () => ({
 }));
 
 jest.mock('@/features/sync/data/sync-state-repository', () => ({
-  clearAllSyncState: jest.fn(),
+  clearSyncState: jest.fn(),
 }));
 
 jest.mock('@/features/sync/infrastructure/sync-preferences', () => ({
@@ -67,8 +67,8 @@ const { deleteCloudBackup } = jest.requireMock(
 const { unbindAppLock } = jest.requireMock(
   '@/features/app-lock/application/remove-app-lock'
 ) as { unbindAppLock: jest.Mock };
-const { clearAllSyncState } = jest.requireMock('@/features/sync/data/sync-state-repository') as {
-  clearAllSyncState: jest.Mock;
+const { clearSyncState } = jest.requireMock('@/features/sync/data/sync-state-repository') as {
+  clearSyncState: jest.Mock;
 };
 const { clearSyncPreferences } = jest.requireMock(
   '@/features/sync/infrastructure/sync-preferences'
@@ -106,7 +106,7 @@ beforeEach(() => {
   auth.deleteAuthUser.mockResolvedValue(undefined);
   deleteCloudBackup.mockResolvedValue(undefined);
   unbindAppLock.mockResolvedValue(undefined);
-  clearAllSyncState.mockResolvedValue(undefined);
+  clearSyncState.mockResolvedValue(undefined);
   clearSyncPreferences.mockResolvedValue(undefined);
   clearDeviceId.mockResolvedValue(undefined);
   pending.markAccountDeletionPending.mockResolvedValue(undefined);
@@ -334,9 +334,45 @@ describe('what the deleted account leaves behind on this phone', () => {
     // that no longer exists.
     await deleteAccount(baseInput({ wipeLocalDataToo: false }));
 
-    expect(clearAllSyncState).toHaveBeenCalledWith(db);
+    expect(clearSyncState).toHaveBeenCalledWith(db, user.uid);
     expect(clearSyncPreferences).toHaveBeenCalledTimes(1);
     expect(clearDeviceId).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The row that is cleared is this account's, named by uid.
+   *
+   * This used to call `clearAllSyncState`, which empties the table. Two
+   * accounts can be used on one phone — `sync_state` is keyed by uid precisely
+   * "so that reading one can never answer with the other's" (migration 6) — so
+   * deleting one account took the other's base with it.
+   *
+   * Not data loss, which is why nothing noticed: a base is re-derivable. What
+   * it costs is what the base is for. Without one `decideSync` cannot run a
+   * three-way merge, so the second account's next sync asks the blunt question
+   * — keep the phone's, or keep the account's — instead of merging two weeks
+   * of edits that do not collide.
+   */
+  it('names the account it is forgetting, so a second one keeps its base', async () => {
+    await deleteAccount(baseInput({ wipeLocalDataToo: false }));
+
+    expect(clearSyncState).toHaveBeenCalledTimes(1);
+    expect(clearSyncState).toHaveBeenCalledWith(db, user.uid);
+
+    // The uid is the whole point: an unparameterised delete is the bug.
+    const [, uid] = clearSyncState.mock.calls[0] as [unknown, unknown];
+
+    expect(uid).toBe(user.uid);
+    expect(uid).not.toBeUndefined();
+  });
+
+  it('forgets a different account when a different one is deleted', async () => {
+    const other: AuthUser = { uid: 'uid-2', email: 'someone-else@example.test' };
+
+    await deleteAccount(baseInput({ wipeLocalDataToo: false, user: other }));
+
+    expect(clearSyncState).toHaveBeenCalledWith(db, other.uid);
+    expect(clearSyncState).not.toHaveBeenCalledWith(db, user.uid);
   });
 
   it('does not wipe the records when the box is unticked', async () => {
@@ -346,7 +382,7 @@ describe('what the deleted account leaves behind on this phone', () => {
   });
 
   it('still reports success when the sync bookkeeping will not clear', async () => {
-    clearAllSyncState.mockRejectedValue(new Error('database is locked'));
+    clearSyncState.mockRejectedValue(new Error('database is locked'));
 
     expect(await deleteAccount(baseInput())).toEqual({ kind: 'deleted' });
   });
@@ -454,7 +490,7 @@ describe('a refused password while a deletion was already under way', () => {
     it('clears the sync traces the dead account left behind', async () => {
       await deleteAccount(baseInput());
 
-      expect(clearAllSyncState).toHaveBeenCalledWith(db);
+      expect(clearSyncState).toHaveBeenCalledWith(db, user.uid);
       expect(clearSyncPreferences).toHaveBeenCalledTimes(1);
       expect(clearDeviceId).toHaveBeenCalledTimes(1);
     });
@@ -507,7 +543,7 @@ describe('a refused password while a deletion was already under way', () => {
     it('clears nothing', async () => {
       await deleteAccount(baseInput());
 
-      expect(clearAllSyncState).not.toHaveBeenCalled();
+      expect(clearSyncState).not.toHaveBeenCalled();
       expect(pending.clearPendingAccountDeletion).not.toHaveBeenCalled();
     });
   });
@@ -528,7 +564,7 @@ describe('a refused password while a deletion was already under way', () => {
       await deleteAccount(baseInput());
 
       expect(auth.signOut).not.toHaveBeenCalled();
-      expect(clearAllSyncState).not.toHaveBeenCalled();
+      expect(clearSyncState).not.toHaveBeenCalled();
       expect(pending.clearPendingAccountDeletion).not.toHaveBeenCalled();
     });
   });
@@ -590,7 +626,7 @@ describe('the app lock after the account is gone', () => {
     await deleteAccount(baseInput());
 
     expect(unbindAppLock).toHaveBeenCalled();
-    expect(clearAllSyncState).toHaveBeenCalled();
+    expect(clearSyncState).toHaveBeenCalled();
     expect(clearDeviceId).toHaveBeenCalled();
   });
 

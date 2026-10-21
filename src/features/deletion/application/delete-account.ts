@@ -11,7 +11,7 @@ import type { AuthUser } from '@/features/auth/domain/auth-user';
 import { toAuthError } from '@/features/auth/domain/auth-error';
 import { deleteCloudBackup } from '@/features/backup/data/cloud-backup-repository';
 import { withAutomaticSyncSuspended } from '@/features/sync/application/automatic-sync-suspension';
-import { clearAllSyncState } from '@/features/sync/data/sync-state-repository';
+import { clearSyncState } from '@/features/sync/data/sync-state-repository';
 import { clearLastSyncAt } from '@/features/sync/infrastructure/last-sync-at';
 import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolved-conflict';
 import { clearDeviceId } from '@/features/sync/infrastructure/device-id';
@@ -119,13 +119,34 @@ async function forgetAccountTraces(db: SQLiteDatabase, uid: string): Promise<voi
     logEvent('app lock save failed', error);
   }
 
-  // The only local database write in this function, and it takes a turn of the
-  // write queue like every other one. A lone statement issued while somebody
-  // else's transaction is open is swallowed into it, so a rollback elsewhere
-  // would leave a deleted account's `base_payload` — a whole copy of a period
-  // history — on disk under a deletion that reported success.
+  // ## This account's sync base, and only this account's
+  //
+  // It used to call `clearAllSyncState`, which empties the table. Two accounts
+  // can be used on one phone — the schema is built for it, and `sync_state` is
+  // keyed by uid precisely "so that reading one can never answer with the
+  // other's" (migration 6). Deleting one account took the other's base with
+  // it.
+  //
+  // Not data loss: a base is re-derivable. What it costs is the thing the base
+  // exists for. Without one `decideSync` cannot run a three-way merge, so the
+  // second account's next sync asks the blunt question — keep the phone's, or
+  // keep the account's — instead of merging two weeks of edits that do not
+  // actually collide.
+  //
+  // The uid is already a parameter of this function, and `clearSyncState` was
+  // already written and tested for exactly this. It simply had no caller.
+  //
+  // A wipe is the other case and is unaffected: it empties every table through
+  // `clearAllLocalTables`, `sync_state` among them, because then the phone is
+  // being emptied rather than one account being forgotten.
+  //
+  // It takes a turn of the write queue like every other write. A lone
+  // statement issued while somebody else's transaction is open is swallowed
+  // into it, so a rollback elsewhere would leave a deleted account's
+  // `base_payload` — a whole copy of a period history — on disk under a
+  // deletion that reported success.
   try {
-    await withLocalDbWriteLock(() => clearAllSyncState(db));
+    await withLocalDbWriteLock(() => clearSyncState(db, uid));
   } catch (error: unknown) {
     logEvent('sync state clear failed', error);
   }

@@ -149,25 +149,24 @@ export async function loadSyncState(
 /**
  * Removes one account's sync state.
  *
- * One statement against one uid, so signing out of one account leaves another
- * account's base exactly where it was.
+ * One statement against one uid, so deleting or signing out of one account
+ * leaves another account's base exactly where it was. That is the guarantee
+ * the table is keyed for — see migration 6, which says the uid is the key "so
+ * that reading one can never answer with the other's".
  *
  * Deleting a state that is not there is not an error here: the caller decides
  * whether there had to be one.
+ *
+ * ## There is no all-accounts version, and there was
+ *
+ * `clearAllSyncState` used to sit here, documented as the one a wipe would
+ * want. The wipe never called it — it empties every table through
+ * `clearAllLocalTables`, `sync_state` among them — and the only thing that did
+ * was the account deletion, which is about one uid and had that uid in hand.
+ * So the broad version's only effect was to take a second account's base with
+ * the first account's deletion, and it is gone rather than left to be reached
+ * for again.
  */
 export async function clearSyncState(db: SQLiteDatabase, uid: string): Promise<void> {
   await db.runAsync(DELETE_SYNC_STATE, uid);
-}
-
-/**
- * Forgets every account's sync base, not just one.
- *
- * `clearSyncState` takes a uid because everything else in this module does: a
- * sync is always about one account. A wipe is not. It is the phone being
- * emptied, and a row belonging to a second account that happened to be signed
- * in here once is exactly the row that would otherwise survive it — carrying
- * `base_payload`, which is a full copy of somebody's period history.
- */
-export async function clearAllSyncState(db: SQLiteDatabase): Promise<void> {
-  await db.runAsync('DELETE FROM sync_state');
 }
