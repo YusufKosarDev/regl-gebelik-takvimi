@@ -8,6 +8,7 @@ import {
 import { syncPeriodReminderQuietly } from './sync-period-reminder';
 import { syncPregnancyWeeklyReminderQuietly } from './sync-pregnancy-weekly-reminder';
 
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 import type { ISODate } from '@/types/iso-date';
 
 /**
@@ -42,13 +43,22 @@ import type { ISODate } from '@/types/iso-date';
  * Asks for no permission. This changes what a notification says, not whether one
  * is sent, and a system dialog here would be the app bargaining over being told
  * to say less.
+ *
+ * ## Only the write takes a turn of the write queue
+ *
+ * The two rebuilds below reach the notification queue over the bridge and take
+ * as long as that takes. Holding `withLocalDbWriteLock` across them would put
+ * every other write in the app behind a pair of native calls that have nothing
+ * to do with the database — so the span is the one statement that touches it.
+ * The read afterwards needs no turn: it is what the screen shows, and a stale
+ * answer there is a repaint, not a lost write.
  */
 export async function setDiscreetNotifications(
   db: SQLiteDatabase,
   enabled: boolean,
   today: ISODate
 ): Promise<boolean> {
-  await saveDiscreetNotifications(db, enabled);
+  await withLocalDbWriteLock(() => saveDiscreetNotifications(db, enabled));
 
   await syncPeriodReminderQuietly(db, today);
   await syncPregnancyWeeklyReminderQuietly(db);

@@ -4,6 +4,8 @@ import { clearPregnancyProfile } from '../data/pregnancy-repository';
 
 import { getPregnancyProfile } from './get-pregnancy-profile';
 
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
+
 /**
  * Stops tracking the pregnancy and removes what was stored about it.
  *
@@ -15,7 +17,14 @@ import { getPregnancyProfile } from './get-pregnancy-profile';
  * different record of a different thing, and ending a pregnancy is not a reason
  * to lose them.
  */
-export async function stopPregnancyTracking(db: SQLiteDatabase): Promise<void> {
+export function stopPregnancyTracking(db: SQLiteDatabase): Promise<void> {
+  // One local database write at a time, and the read belongs inside it: the
+  // check below and the delete that depends on it have to see the same stored
+  // state. See `storage/local-db-write-lock.ts`.
+  return withLocalDbWriteLock(() => runStopPregnancyTracking(db));
+}
+
+async function runStopPregnancyTracking(db: SQLiteDatabase): Promise<void> {
   const profile = await getPregnancyProfile(db);
 
   if (profile === null) {

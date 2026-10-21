@@ -10,6 +10,7 @@ import { getPregnancyProfile } from './get-pregnancy-profile';
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
 import { describeValue } from '@/shared/logging';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 
 const DUE_DATE_SOURCES: readonly PregnancyDueDateSource[] = ['lmp', 'adjusted'];
 
@@ -39,7 +40,17 @@ export type UpdatePregnancyDueDateInput = {
  * No upper bound: how far ahead a due date may sit is the domain's business, and
  * it does not set one.
  */
-export async function updatePregnancyDueDate(
+export function updatePregnancyDueDate(
+  db: SQLiteDatabase,
+  input: UpdatePregnancyDueDateInput
+): Promise<PregnancyProfile> {
+  // One local database write at a time, and the read belongs inside it: the
+  // stored profile this corrects is read, edited and written back, which two
+  // of them interleaving would undo. See `storage/local-db-write-lock.ts`.
+  return withLocalDbWriteLock(() => runUpdatePregnancyDueDate(db, input));
+}
+
+async function runUpdatePregnancyDueDate(
   db: SQLiteDatabase,
   input: UpdatePregnancyDueDateInput
 ): Promise<PregnancyProfile> {

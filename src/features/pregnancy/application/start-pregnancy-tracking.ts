@@ -5,6 +5,7 @@ import { calculateEstimatedDueDate } from '../domain/due-date';
 import type { PregnancyProfile } from '../domain/types';
 import { validatePregnancyProfile } from '../domain/validation';
 
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
 
@@ -29,7 +30,19 @@ export type StartPregnancyTrackingInput = {
  * a pregnancy started from, and dating from it would put the due date and every
  * week count wrong.
  */
-export async function startPregnancyTracking(
+export function startPregnancyTracking(
+  db: SQLiteDatabase,
+  input: StartPregnancyTrackingInput
+): Promise<PregnancyProfile> {
+  // One local database write at a time. There is no read to protect here — the
+  // due date comes from the formula, not from what is stored — but a single
+  // statement issued while somebody else's transaction is open on this app's
+  // one connection is swallowed into it, and committed or rolled back with
+  // work it has nothing to do with. See `storage/local-db-write-lock.ts`.
+  return withLocalDbWriteLock(() => runStartPregnancyTracking(db, input));
+}
+
+async function runStartPregnancyTracking(
   db: SQLiteDatabase,
   input: StartPregnancyTrackingInput
 ): Promise<PregnancyProfile> {

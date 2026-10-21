@@ -5,8 +5,7 @@ import { getOpenPeriodRecord } from '../domain/open-period';
 import type { CycleProfile } from '../domain/types';
 import { assertNoOverlappingPeriodRecords, validateCycleProfile } from '../domain/validation';
 
-import { withCycleWriteLock } from './cycle-write-lock';
-
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 import type { ISODate } from '@/types/iso-date';
 import { daysBetween, isISODate } from '@/utils/date';
 
@@ -34,7 +33,7 @@ export function endCurrentPeriod(
 ): Promise<CycleProfile> {
   // One cycle mutation at a time: see the lock's own doc for the race the
   // snapshot write cannot survive without it.
-  return withCycleWriteLock(() => runEndCurrentPeriod(db, input));
+  return withLocalDbWriteLock(() => runEndCurrentPeriod(db, input));
 }
 
 async function runEndCurrentPeriod(

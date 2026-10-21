@@ -17,6 +17,7 @@ import { clearUnresolvedConflict } from '@/features/sync/infrastructure/unresolv
 import { clearDeviceId } from '@/features/sync/infrastructure/device-id';
 import { clearSyncPreferences } from '@/features/sync/infrastructure/sync-preferences';
 import { logEvent } from '@/shared/logging';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 
 import type { AccountDeletionOutcome, DeletionFailure } from '../domain/deletion-outcome';
 import {
@@ -118,8 +119,13 @@ async function forgetAccountTraces(db: SQLiteDatabase, uid: string): Promise<voi
     logEvent('app lock save failed', error);
   }
 
+  // The only local database write in this function, and it takes a turn of the
+  // write queue like every other one. A lone statement issued while somebody
+  // else's transaction is open is swallowed into it, so a rollback elsewhere
+  // would leave a deleted account's `base_payload` — a whole copy of a period
+  // history — on disk under a deletion that reported success.
   try {
-    await clearAllSyncState(db);
+    await withLocalDbWriteLock(() => clearAllSyncState(db));
   } catch (error: unknown) {
     logEvent('sync state clear failed', error);
   }

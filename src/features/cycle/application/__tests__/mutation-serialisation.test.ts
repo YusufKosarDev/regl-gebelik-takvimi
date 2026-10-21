@@ -1,10 +1,13 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { addPeriodStart } from '../add-period-start';
-import { resetCycleWriteLockForTests, withCycleWriteLock } from '../cycle-write-lock';
 import { updateCycleSettings } from '../update-cycle-settings';
 
 import type { CycleProfile } from '@/features/cycle/domain/types';
+import {
+  resetLocalDbWriteLockForTests,
+  withLocalDbWriteLock,
+} from '@/storage/local-db-write-lock';
 import { toISODate } from '@/utils/date';
 
 /**
@@ -48,7 +51,7 @@ async function settle(): Promise<void> {
 }
 
 beforeEach(() => {
-  resetCycleWriteLockForTests();
+  resetLocalDbWriteLockForTests();
   loadCycleProfile.mockReset();
   saveCycleProfile.mockReset();
   saveCycleProfile.mockResolvedValue(undefined);
@@ -129,19 +132,19 @@ describe('two mutations arriving together', () => {
 
 describe('the lock itself', () => {
   it('runs the next caller even when the previous one failed', async () => {
-    const failed = withCycleWriteLock(async () => {
+    const failed = withLocalDbWriteLock(async () => {
       throw new Error('validation said no');
     });
 
     await expect(failed).rejects.toThrow('validation said no');
 
-    await expect(withCycleWriteLock(async () => 'ran')).resolves.toBe('ran');
+    await expect(withLocalDbWriteLock(async () => 'ran')).resolves.toBe('ran');
   });
 
   it('hands each caller its own result', async () => {
     const [a, b] = await Promise.all([
-      withCycleWriteLock(async () => 'a'),
-      withCycleWriteLock(async () => 'b'),
+      withLocalDbWriteLock(async () => 'a'),
+      withLocalDbWriteLock(async () => 'b'),
     ]);
 
     expect(a).toBe('a');

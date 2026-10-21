@@ -5,7 +5,7 @@ import type { CycleOnboardingInput } from '../domain/onboarding';
 import { createInitialCycleProfile } from '../domain/onboarding';
 import type { CycleProfile } from '../domain/types';
 
-import { withCycleWriteLock } from './cycle-write-lock';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 
 /**
  * Turns onboarding answers into a stored profile.
@@ -28,7 +28,7 @@ export function completeCycleOnboarding(
 ): Promise<CycleProfile> {
   // One cycle mutation at a time: see the lock's own doc for the race the
   // snapshot write cannot survive without it.
-  return withCycleWriteLock(() => runCompleteCycleOnboarding(db, input));
+  return withLocalDbWriteLock(() => runCompleteCycleOnboarding(db, input));
 }
 
 async function runCompleteCycleOnboarding(
