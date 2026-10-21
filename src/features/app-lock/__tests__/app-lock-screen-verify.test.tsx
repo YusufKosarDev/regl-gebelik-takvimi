@@ -247,3 +247,64 @@ describe('choosing an easily guessed PIN', () => {
     expect(view.queryByText(WEAK_WARNING)).toBeNull();
   });
 });
+
+/**
+ * Two presses in one turn, and why the guard is not belt-and-braces.
+ *
+ * `handleDigit` used to branch inside a `setEntered` updater, and React
+ * processes queued updaters in sequence — so a second press read the first's
+ * result, saw six digits already and did nothing. The clamp did the work.
+ *
+ * Moving the side effects out of the updater (which React requires, since an
+ * updater must be pure and may be replayed) reads `entered` from the closure
+ * instead. Two presses in the same turn now read the *same* value, both build
+ * the same sixth digit, and both would call through. The pad is drawn disabled
+ * while `isSaving`, but that only lands on the next render.
+ *
+ * So the `inFlight` ref is what closes the window the refactor opened. Its
+ * cost if it were missing is not a cosmetic double render: `unlockWithPin`
+ * writes `afterWrongPin` to the record before it answers, so one wrong PIN
+ * would be counted twice and five free attempts would become two and a half.
+ */
+describe('two presses of the sixth key in one turn', () => {
+  it('verifies the current PIN once', async () => {
+    const view = await open();
+
+    await act(async () => {
+      fireEvent.press(view.getByLabelText('Kilidi kaldır'));
+    });
+
+    await typePin(view, PIN.slice(0, 5));
+
+    const sixth = view.getByTestId(`pin-key-${PIN[5]}`);
+
+    await act(async () => {
+      fireEvent.press(sixth);
+      fireEvent.press(sixth);
+    });
+
+    expect(unlock.unlockWithPin).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes a new lock once', async () => {
+    const view = await open();
+
+    await act(async () => {
+      fireEvent.press(view.getByLabelText("PIN'i değiştir"));
+    });
+
+    await typePin(view, PIN);
+    // Past the verify step; now choosing and confirming a new one.
+    await typePin(view, '135790');
+    await typePin(view, '13579');
+
+    const sixth = view.getByTestId('pin-key-0');
+
+    await act(async () => {
+      fireEvent.press(sixth);
+      fireEvent.press(sixth);
+    });
+
+    expect(setLock.setAppLock).toHaveBeenCalledTimes(1);
+  });
+});

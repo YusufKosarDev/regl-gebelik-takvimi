@@ -19,7 +19,7 @@ import { PinPad } from '@/features/app-lock/components/pin-pad';
 import { attemptsBeforeWait } from '@/features/app-lock/domain/attempt-policy';
 import { PIN_LENGTH } from '@/features/app-lock/domain/pin';
 import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messages';
-import { waitMessage } from '@/features/app-lock/presentation/wait-message';
+import { waitMessageIn } from '@/features/app-lock/presentation/wait-message';
 import { useAppLockStore } from '@/store/app-lock-store';
 
 /**
@@ -42,7 +42,19 @@ export default function LockScreen() {
 
   const [entered, setEntered] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [remainingWaitMs, setRemainingWaitMs] = useState(0);
+  /**
+   * The moment the wait is over, not how much of it is left.
+   *
+   * Storing the remainder meant the effect below depended on it, so the
+   * interval was torn down and rebuilt on every tick — a real period of
+   * 1000 ms plus a render. Over the half-hour cap that drift accumulates into
+   * seconds of pad that stays refused after the wait has actually passed.
+   *
+   * A deadline is read against the clock instead, so a tick that arrives late
+   * reports the truth rather than one more second. `0` means nothing is being
+   * waited out.
+   */
+  const [waitUntilMs, setWaitUntilMs] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
   const [canRetryBiometrics, setCanRetryBiometrics] = useState(false);
 
@@ -59,37 +71,80 @@ export default function LockScreen() {
   // fast tap cannot start a second check against the same counters.
   const checking = useRef(false);
 
+  /**
+   * The clock reading the remainder is measured against.
+   *
+   * Only moved by the tick below and by `startWait`, so the derived remainder
+   * changes a second at a time rather than on every render.
+   */
+  const [now, setNow] = useState(() => Date.now());
+
+  const remainingWaitMs = waitUntilMs === 0 ? 0 : Math.max(0, waitUntilMs - now);
   const isWaiting = remainingWaitMs > 0;
 
   /**
    * Counts the wait down.
    *
-   * A second at a time rather than by recomputing on render: the screen is
-   * otherwise static, and a person watching a wait wants to see it move.
+   * A tick reads the clock rather than subtracting a second from its own
+   * previous answer, and the effect depends on *whether* a wait is running
+   * rather than on how much is left — so the interval is set up once per wait
+   * instead of once per tick. Rebuilding it every second made the real period
+   * 1000 ms plus a render, which over the half-hour cap drifts into seconds of
+   * pad that stays refused after the wait has actually passed.
    */
   useEffect(() => {
-    if (remainingWaitMs <= 0) {
+    if (!isWaiting) {
       return;
     }
 
     const timer = setInterval(() => {
-      setRemainingWaitMs((current) => {
-        const next = Math.max(0, current - 1000);
-
-        // The one place that knows the wait just ended, so the one place that
-        // can take the sentence about it off the screen.
-        if (next === 0) {
-          setMessage(null);
-        }
-
-        return next;
-      });
+      setNow(Date.now());
     }, 1000);
 
     return () => {
       clearInterval(timer);
     };
-  }, [remainingWaitMs]);
+  }, [isWaiting]);
+
+  /**
+   * Begins a wait of `remainingMs` from this moment.
+   *
+   * Both pieces of state move together, and that is the point: `now` is
+   * otherwise only moved by the tick, so a wait that starts minutes after the
+   * screen opened would be measured against a stale reading of the clock and
+   * show more time left than there is.
+   *
+   * The message is cleared rather than set. Whatever is on screen is about the
+   * attempt that caused this wait, and the wait sentence below replaces it for
+   * as long as it runs — so clearing here is what stops the old sentence
+   * reappearing the moment the wait ends.
+   */
+  const startWait = useCallback((remainingMs: number) => {
+    const from = Date.now();
+
+    setNow(from);
+    setWaitUntilMs(from + remainingMs);
+    setMessage(null);
+  }, []);
+
+  /**
+   * What is actually shown.
+   *
+   * The wait sentence is derived rather than stored, because it is a function
+   * of how much is left: storing it meant every tick had to rewrite it and the
+   * end of a wait had to remember to erase it, which is a `setState` in an
+   * effect for something the render can simply work out.
+   *
+   * ## It goes through the catalogue
+   *
+   * `waitMessageIn(lock, …)`, not `waitMessage(…)` — that one is the
+   * Turkish-only wrapper kept for assertions, and this screen was calling it
+   * in all five places a wait can begin. Every wait sentence on the lock
+   * screen was Turkish however the app was set. The setup screen next door has
+   * always used the catalogue; this one had not, and nothing caught it because
+   * a wait is not a state the English screen sweep can reach.
+   */
+  const shownMessage = isWaiting ? waitMessageIn(lock, remainingWaitMs) : message;
 
   const submit = useCallback(
     async (pin: string) => {
@@ -119,8 +174,7 @@ export default function LockScreen() {
         }
 
         if (outcome.kind === 'waiting') {
-          setRemainingWaitMs(outcome.remainingMs);
-          setMessage(waitMessage(outcome.remainingMs));
+          startWait(outcome.remainingMs);
 
           return;
         }
@@ -137,8 +191,7 @@ export default function LockScreen() {
         if (outcome.attempts.lockedUntil !== null) {
           const remaining = Math.max(0, outcome.attempts.lockedUntil - Date.now());
 
-          setRemainingWaitMs(remaining);
-          setMessage(waitMessage(remaining));
+          startWait(remaining);
         }
       } finally {
         // Cleared on every path. What somebody typed does not sit in memory
@@ -148,7 +201,7 @@ export default function LockScreen() {
         setIsChecking(false);
       }
     },
-    [lock, unlock]
+    [lock, startWait, unlock]
   );
 
   /**
@@ -167,8 +220,7 @@ export default function LockScreen() {
     }
 
     if (outcome.kind === 'waiting') {
-      setRemainingWaitMs(outcome.remainingMs);
-      setMessage(waitMessage(outcome.remainingMs));
+      startWait(outcome.remainingMs);
 
       return;
     }
@@ -188,7 +240,7 @@ export default function LockScreen() {
       setCanRetryBiometrics(true);
       setMessage(lock.biometricFailedMessage);
     }
-  }, [lock, unlock]);
+  }, [lock, startWait, unlock]);
 
   /**
    * Once, on arrival.
@@ -216,15 +268,14 @@ export default function LockScreen() {
     // spend a PIN to find that out.
     void remainingLockWaitMs().then((remaining) => {
       if (active && remaining > 0) {
-        setRemainingWaitMs(remaining);
-        setMessage(waitMessage(remaining));
+        startWait(remaining);
       }
     });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [startWait]);
 
   useEffect(() => {
     let active = true;
@@ -243,8 +294,7 @@ export default function LockScreen() {
       }
 
       if (outcome.kind === 'waiting') {
-        setRemainingWaitMs(outcome.remainingMs);
-        setMessage(waitMessage(outcome.remainingMs));
+        startWait(outcome.remainingMs);
 
         return;
       }
@@ -266,27 +316,38 @@ export default function LockScreen() {
     return () => {
       active = false;
     };
-  }, [lock, unlock]);
+  }, [lock, startWait, unlock]);
 
+  /**
+   * One key press.
+   *
+   * `submit` is called from here rather than from inside a `setEntered`
+   * updater. React requires an updater to be pure and may run it again — under
+   * StrictMode always, and whenever a concurrent render replays a pending
+   * update queue — so a side effect in there is a second `unlockWithPin` for
+   * one PIN, which costs a second failed attempt out of the five free ones.
+   * `reactCompiler` is on in `app.json` and leans on the same contract.
+   *
+   * `entered` is a dependency because the value is read from the closure now.
+   * Dropping it would build the PIN out of digits from two different presses.
+   */
   const handleDigit = useCallback(
     (digit: string) => {
+      if (entered.length >= PIN_LENGTH) {
+        return;
+      }
+
       setMessage(null);
 
-      setEntered((current) => {
-        if (current.length >= PIN_LENGTH) {
-          return current;
-        }
+      const next = entered + digit;
 
-        const next = current + digit;
+      setEntered(next);
 
-        if (next.length === PIN_LENGTH) {
-          void submit(next);
-        }
-
-        return next;
-      });
+      if (next.length === PIN_LENGTH) {
+        void submit(next);
+      }
     },
-    [submit]
+    [entered, submit]
   );
 
   const handleDelete = useCallback(() => {
@@ -305,13 +366,13 @@ export default function LockScreen() {
 
             <PinDots entered={entered.length} />
 
-            {message !== null && (
+            {shownMessage !== null && (
               <ThemedText
                 accessibilityRole="alert"
                 type="small"
                 themeColor="textSecondary"
                 style={styles.message}>
-                {message}
+                {shownMessage}
               </ThemedText>
             )}
           </View>
