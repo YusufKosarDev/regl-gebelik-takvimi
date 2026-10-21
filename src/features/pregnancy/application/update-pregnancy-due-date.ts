@@ -37,8 +37,11 @@ export type UpdatePregnancyDueDateInput = {
  * produces — anything else claiming to be calculated is a mistake rather than a
  * correction.
  *
- * No upper bound: how far ahead a due date may sit is the domain's business, and
- * it does not set one.
+ * How far ahead a due date may sit is the domain's business. It sets a loose one
+ * now — `assertAdjustedDueDateInRange`, a year from the last menstrual period —
+ * which is checked here rather than in `validatePregnancyProfile` because that
+ * validator also runs on every read, and a rule added there would make an
+ * already-stored profile unloadable. Its own doc has the argument.
  */
 export function updatePregnancyDueDate(
   db: SQLiteDatabase,

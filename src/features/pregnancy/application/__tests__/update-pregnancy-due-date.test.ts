@@ -141,14 +141,41 @@ describe('updatePregnancyDueDate adjusting the date', () => {
     expect(savePregnancyProfile).not.toHaveBeenCalled();
   });
 
-  it('sets no upper bound on how far ahead the date may sit', async () => {
+  /**
+   * This case used to be `sets no upper bound on how far ahead the date may
+   * sit`, and accepted 2030.
+   *
+   * The absence was a division of responsibility rather than a decision that no
+   * bound should exist: this use case's doc said how far ahead a due date may
+   * sit "is the domain's business, and it does not set one". The domain sets one
+   * now — `assertAdjustedDueDateInRange` — so the layering is unchanged and the
+   * answer is different.
+   *
+   * It is a loose bound and makes no clinical claim. What it refuses is the
+   * class of thing nobody meant, which is what 2030 was.
+   */
+  it('accepts a date a long way ahead but still inside a pregnancy', async () => {
+    // Nearly a year out: further than any scan would move it, and still a date
+    // somebody could mean.
     const result = await updatePregnancyDueDate(db, {
-      estimatedDueDate: date('2030-01-01'),
+      estimatedDueDate: date('2027-08-01'),
       source: 'adjusted',
       today: TODAY,
     });
 
-    expect(result.estimatedDueDate).toBe('2030-01-01');
+    expect(result.estimatedDueDate).toBe('2027-08-01');
+  });
+
+  it('refuses a year that was plainly mistyped', async () => {
+    await expect(
+      updatePregnancyDueDate(db, {
+        estimatedDueDate: date('2030-01-01'),
+        source: 'adjusted',
+        today: TODAY,
+      })
+    ).rejects.toThrow(/more than 365 days/);
+
+    expect(savePregnancyProfile).not.toHaveBeenCalled();
   });
 });
 
