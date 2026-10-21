@@ -1,4 +1,8 @@
-import type { CloudSyncFailure, CloudSyncOutcome } from '../application/run-cloud-sync';
+import type {
+  CloudSyncConflictOutcomeReason,
+  CloudSyncFailure,
+  CloudSyncOutcome,
+} from '../application/run-cloud-sync';
 
 import type { Messages } from '@/i18n';
 import { plural } from '@/i18n';
@@ -276,12 +280,71 @@ const syncMessagesEn: SyncMessages = {
 
 export const syncMessages: Messages<SyncMessages> = { tr: syncMessagesTr, en: syncMessagesEn };
 
+/**
+ * The branch that cannot be reached, which is the point.
+ *
+ * Handed a value the switch above it has already covered, its parameter types
+ * as `never` and the call compiles. Add a variant and the value is no longer
+ * `never`, so the call stops compiling — at the switch that forgot it, by
+ * name, before anything ships.
+ *
+ * It throws as well, because a build that reaches here has been handed a value
+ * from outside TypeScript: a stored outcome from a later version, or a payload
+ * nothing validated. A sentence invented for it would be this module guessing.
+ *
+ * Local rather than shared. One use, and the repo's habit is a small named
+ * helper beside the thing that needs it — `fail` in `lock-record.ts` and in
+ * `widget-snapshot-v1.ts` are the same shape.
+ */
+function assertNever(value: never): never {
+  throw new Error(`Unhandled sync outcome: ${JSON.stringify(value)}.`);
+}
+
 /** What to say about a failure, and the plainest thing for anything unknown. */
 export function syncFailureMessageIn(
   messages: SyncMessages,
   failure: CloudSyncFailure | string
 ): string {
   return messages.failures[failure as CloudSyncFailure] ?? messages.failures.unknown;
+}
+
+/**
+ * What to say about a conflict, by the reason it could not be settled.
+ *
+ * ## Why this is its own function
+ *
+ * It was an inner `switch` inside `syncOutcomeMessageIn`, and the `case
+ * 'conflict':` arm fell through to `case 'retry-required':` after it. Harmless
+ * while the reason union had exactly three values that all returned — and a
+ * trap the moment it gained a fourth. The inner switch would stop being
+ * exhaustive, control would drop into the next arm, and somebody would be told
+ * their sync needs retrying when the truth was a conflict nobody had worded
+ * yet.
+ *
+ * TypeScript could not catch that. A fallthrough is legal, so the compiler had
+ * nothing to object to: the arm *was* handled, just wrongly.
+ *
+ * Pulled out, the exhaustiveness is checkable again — and `assertNever` below
+ * is what makes the compiler the thing that checks it. Adding a fourth reason
+ * is now a build error here rather than a wrong sentence on somebody's screen.
+ */
+function conflictReasonMessageIn(
+  messages: SyncMessages,
+  reason: CloudSyncConflictOutcomeReason
+): string {
+  switch (reason) {
+    case 'no-base':
+      return messages.outcomeConflictNoBase;
+
+    case 'revision-regressed':
+      return messages.outcomeConflictRevisionRegressed;
+
+    case 'unresolved':
+      return messages.outcomeConflictUnresolved;
+
+    default:
+      return assertNever(reason);
+  }
 }
 
 /** What to say about one finished sync. */
@@ -303,22 +366,16 @@ export function syncOutcomeMessageIn(
       return messages.outcomeMerged;
 
     case 'conflict':
-      switch (outcome.reason) {
-        case 'no-base':
-          return messages.outcomeConflictNoBase;
-
-        case 'revision-regressed':
-          return messages.outcomeConflictRevisionRegressed;
-
-        case 'unresolved':
-          return messages.outcomeConflictUnresolved;
-      }
+      return conflictReasonMessageIn(messages, outcome.reason);
 
     case 'retry-required':
       return messages.outcomeRetryRequired;
 
     case 'error':
       return syncFailureMessageIn(messages, outcome.failure);
+
+    default:
+      return assertNever(outcome);
   }
 }
 

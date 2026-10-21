@@ -52,6 +52,32 @@ jest.mock('@/storage/app-state-storage', () => ({
   clearAppState: jest.fn(),
 }));
 
+// The splash screen, which the layout holds up at module scope and lets go
+// once there is something on screen.
+//
+// The factory builds its own spies and the handle comes back through
+// `jest.requireMock`, because `jest.mock` is hoisted above the imports and the
+// layout calls `preventAutoHideAsync` as it loads — a factory closing over a
+// `const` declared below would run while that `const` is still in its temporal
+// dead zone, and the first version of this failed with
+// "preventAutoHideAsync is not a function" for exactly that reason.
+//
+// `jest-expo` has no mock of its own for this module, and the real one no-ops
+// quietly enough that a test built on it would assert nothing — which is how
+// this behaviour came to be untested in the first place.
+jest.mock('expo-splash-screen', () => ({
+  // Resolved by default, because the layout calls this as it loads and the
+  // real one answers a promise. A bare `jest.fn()` returns undefined and the
+  // `.catch` on it throws before any test runs.
+  preventAutoHideAsync: jest.fn(() => Promise.resolve(true)),
+  hideAsync: jest.fn(() => Promise.resolve()),
+}));
+
+const mockSplash = jest.requireMock('expo-splash-screen') as {
+  preventAutoHideAsync: jest.Mock;
+  hideAsync: jest.Mock;
+};
+
 // The root layout mounts automatic sync, which reaches Firebase. This file is
 // about which screen the app lands on, and a session it never opens has no
 // bearing on that.
@@ -99,6 +125,11 @@ function primeLock(options: { enabled: boolean; locked: boolean }) {
 
 beforeEach(() => {
   primeLock({ enabled: false, locked: false });
+
+  // `preventAutoHideAsync` is deliberately not reset: it is called once, at
+  // module scope, before any test runs, and resetting would erase the only
+  // record that it happened.
+  mockSplash.hideAsync.mockClear();
 });
 
 describe('RootLayout hydration', () => {
@@ -288,5 +319,54 @@ describe('RootLayout locking', () => {
         await unmount();
       }
     }
+  });
+});
+
+/**
+ * The splash, and the flicker it used to leave.
+ *
+ * `expo-splash-screen` was configured in `app.json` and never asked to wait, so
+ * it hid itself on the first frame — and the first frame is the loading
+ * placeholder, because the fonts and two AsyncStorage reads have not landed
+ * yet. Every cold start went splash, flash of spinner, app.
+ *
+ * `preventAutoHideAsync` runs at module scope rather than in an effect, because
+ * an effect runs after the first render and the splash is already gone by then.
+ */
+describe('RootLayout and the splash screen', () => {
+  it('asks for the splash to be held', () => {
+    // At module scope, so it has already happened by the time any test runs.
+    expect(mockSplash.preventAutoHideAsync).toHaveBeenCalled();
+  });
+
+  it('keeps the splash up while the app is still reading its state', async () => {
+    primeStore({ hydrated: false, onboardingCompleted: false });
+
+    await render(<RootLayout />);
+
+    expect(mockSplash.hideAsync).not.toHaveBeenCalled();
+  });
+
+  it('lets the splash go once there is something to show', async () => {
+    primeStore({ hydrated: true, onboardingCompleted: true });
+
+    await render(<RootLayout />);
+
+    expect(mockSplash.hideAsync).toHaveBeenCalled();
+  });
+
+  it('lets it go when the state could not be read at all', async () => {
+    // A hydration error puts a message on screen. Leaving the splash over it
+    // would be an app that looks like it hung rather than one explaining
+    // itself.
+    primeStore({
+      hydrated: false,
+      onboardingCompleted: false,
+      hydrate: jest.fn().mockRejectedValue(new Error('storage said no')),
+    });
+
+    await render(<RootLayout />);
+
+    expect(mockSplash.hideAsync).toHaveBeenCalled();
   });
 });

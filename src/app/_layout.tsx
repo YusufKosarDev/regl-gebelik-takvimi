@@ -1,5 +1,6 @@
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
@@ -24,6 +25,36 @@ import { useAppStore } from '@/store/app-store';
  * screen, including the ones a deep link opens directly.
  */
 export { ErrorBoundary } from '@/components/error-boundary';
+
+/**
+ * Holds the splash up until the app has something to show.
+ *
+ * `expo-splash-screen` was configured in `app.json` and never asked to wait, so
+ * it hid itself on the first frame — and the first frame is the spinner below,
+ * because the fonts and two AsyncStorage reads have not landed yet. Every cold
+ * start went splash, flash of spinner, app.
+ *
+ * ## Why this is at module scope and not in an effect
+ *
+ * The splash hides on the first render. An effect runs after it, which is too
+ * late to prevent anything. This is the shape Expo's own guide uses.
+ *
+ * The rejection is swallowed deliberately: a splash that could not be held is
+ * the flicker this removes, and refusing to start the app over it would be
+ * strictly worse than the thing being fixed.
+ */
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+/**
+ * Lets the splash go, whatever happened.
+ *
+ * Called when the app can draw and also when it cannot — a hydration error puts
+ * a message on screen, and leaving the splash over it would be an app that
+ * looks like it hung instead of one that is explaining itself.
+ */
+function hideSplash(): void {
+  void SplashScreen.hideAsync().catch(() => undefined);
+}
 
 /**
  * Startup gate.
@@ -108,6 +139,24 @@ export default function RootLayout() {
   useEffect(() => {
     void applyScreenPrivacy(appLockEnabled);
   }, [appLockEnabled]);
+
+  /**
+   * Hands the screen over once there is something on it.
+   *
+   * Both conditions, because both end the placeholder: everything hydrated, or
+   * the read failed and the message below is what the person gets instead.
+   * Holding the splash over either would read as a hang.
+   *
+   * The spinner stays as what shows if this somehow does not fire — a visible
+   * placeholder is a better failure than a splash that never lifts.
+   */
+  const ready = (hydrated && lockHydrated && fontsLoaded) || hasHydrationError;
+
+  useEffect(() => {
+    if (ready) {
+      hideSplash();
+    }
+  }, [ready]);
 
   // Without this the screen would spin forever when the read fails. What went
   // wrong is not shown: the thrown text is written by whatever failed, and a

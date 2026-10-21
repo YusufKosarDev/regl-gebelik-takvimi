@@ -1,8 +1,9 @@
-import { calculateEstimatedDueDate } from '../due-date';
+import { calculateEstimatedDueDate, MAX_ADJUSTED_DUE_DATE_DAYS } from '../due-date';
 import type { PregnancyDueDateSource, PregnancyProfile } from '../types';
-import { validatePregnancyProfile } from '../validation';
+import { assertAdjustedDueDateInRange, validatePregnancyProfile } from '../validation';
 
 import type { ISODate } from '@/types/iso-date';
+import { addDays } from '@/utils/date';
 
 const date = (value: string) => value as ISODate;
 
@@ -200,5 +201,74 @@ describe('validatePregnancyProfile purity', () => {
     expect(() => validatePregnancyProfile(stored)).toThrow();
 
     expect(JSON.stringify(stored)).toBe(before);
+  });
+});
+
+/**
+ * How far ahead an entered due date may sit.
+ *
+ * ## Why this is a separate assertion and not part of the validator
+ *
+ * `validatePregnancyProfile` runs on the **read** path —
+ * `loadPregnancyProfile` puts every stored row through it, and so does the sync
+ * merge. A new rule there would make an already-stored profile unloadable, and
+ * lock somebody out of a pregnancy over a date they entered months ago.
+ *
+ * `assertNoOverlappingPeriodRecords` in the cycle domain documents the same
+ * bargain and settles it the same way. The last two cases here are the ones
+ * that would fail if somebody ever moved this rule into the validator, which is
+ * the mistake worth a test of its own.
+ */
+describe('an adjusted due date, on the way in', () => {
+  const LMP = '2026-09-02';
+  const atOffset = (days: number) =>
+    adjusted(LMP, addDays(date(LMP), days) as unknown as string);
+
+  it('accepts the day the pregnancy began', () => {
+    expect(() => assertAdjustedDueDateInRange(atOffset(0))).not.toThrow();
+  });
+
+  it('accepts the counted due date, which is what a scan usually agrees with', () => {
+    expect(() => assertAdjustedDueDateInRange(adjusted(LMP, calculateEstimatedDueDate(date(LMP))))).not.toThrow();
+  });
+
+  it('accepts the last day inside the bound', () => {
+    expect(() => assertAdjustedDueDateInRange(atOffset(MAX_ADJUSTED_DUE_DATE_DAYS))).not.toThrow();
+  });
+
+  it('refuses a date before the pregnancy began', () => {
+    expect(() => assertAdjustedDueDateInRange(atOffset(-1))).toThrow();
+  });
+
+  it('refuses the first day past the bound', () => {
+    expect(() => assertAdjustedDueDateInRange(atOffset(MAX_ADJUSTED_DUE_DATE_DAYS + 1))).toThrow();
+  });
+
+  it('refuses a year that was plainly mistyped', () => {
+    // The class of thing this exists for: nobody means a due date in 2031.
+    expect(() => assertAdjustedDueDateInRange(adjusted(LMP, '2031-06-09'))).toThrow();
+  });
+
+  it('says nothing about a calculated date, which has no room to be wrong', () => {
+    // Its due date has to *be* the formula's output, which the validator
+    // already enforces, so there is nothing left for this to check.
+    expect(() => assertAdjustedDueDateInRange(fromLmp(LMP))).not.toThrow();
+  });
+});
+
+describe('a stored profile outside the bound', () => {
+  it('still loads, because the read path refuses nothing new', () => {
+    // Somebody entered this before the rule existed. Refusing it now would
+    // lock them out of their own pregnancy, which costs more than the bad date.
+    const stored = adjusted('2026-09-02', '2031-06-09');
+
+    expect(() => validatePregnancyProfile(stored)).not.toThrow();
+  });
+
+  it('is only refused when it is being written again', () => {
+    const stored = adjusted('2026-09-02', '2031-06-09');
+
+    expect(() => validatePregnancyProfile(stored)).not.toThrow();
+    expect(() => assertAdjustedDueDateInRange(stored)).toThrow();
   });
 });

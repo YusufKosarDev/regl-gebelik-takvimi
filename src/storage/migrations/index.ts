@@ -283,10 +283,15 @@ async function migrateToVersion6(db: SQLiteDatabase): Promise<void> {
  * span at all. Putting flow on the record would have meant either inventing a
  * period to hold a spot or losing it.
  *
- * `ON DELETE CASCADE` with `PRAGMA foreign_keys` left as the connection finds
- * it: the repository deletes the symptoms itself in the same transaction, so
- * the rows go whether or not the pragma is on. The clause states the
- * relationship for anyone reading the schema.
+ * `ON DELETE CASCADE` is belt and braces rather than the mechanism: the
+ * repository deletes the symptoms itself in the same transaction, so the rows
+ * go either way. The clause states the relationship for anyone reading the
+ * schema.
+ *
+ * (This used to say the pragma was "left as the connection finds it". It is
+ * not: `db.ts` sets `PRAGMA foreign_keys = ON` on every connection, and has
+ * since before these tables existed. The behaviour described was right and the
+ * reason given for it was wrong.)
  */
 const MIGRATION_V7 = `
   CREATE TABLE daily_entries (

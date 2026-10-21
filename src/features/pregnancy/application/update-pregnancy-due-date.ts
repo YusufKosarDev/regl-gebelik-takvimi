@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { savePregnancyProfile } from '../data/pregnancy-repository';
 import { calculateEstimatedDueDate } from '../domain/due-date';
 import type { PregnancyDueDateSource, PregnancyProfile } from '../domain/types';
-import { validatePregnancyProfile } from '../domain/validation';
+import { assertAdjustedDueDateInRange, validatePregnancyProfile } from '../domain/validation';
 
 import { getPregnancyProfile } from './get-pregnancy-profile';
 
@@ -114,6 +114,9 @@ async function runUpdatePregnancyDueDate(
   };
 
   validatePregnancyProfile(updated);
+  // Write path only: the read path must go on loading a profile stored before
+  // this rule existed. See the assertion's own doc.
+  assertAdjustedDueDateInRange(updated);
   await savePregnancyProfile(db, updated);
 
   return updated;

@@ -124,8 +124,17 @@ export function periodReminderMoment(date: ISODate): number {
  * about tomorrow in front of someone at a time nothing was decided for. Nothing
  * is scheduled, and the next cycle change reconsiders it with a fresh estimate.
  *
- * The queue is left with at most one of these: existing ones are cancelled
- * first, so a second call cannot leave two.
+ * ## This does not cancel anything, and calling it twice leaves two
+ *
+ * It used to say the opposite — "existing ones are cancelled first, so a second
+ * call cannot leave two" — which was a true guarantee attributed to the wrong
+ * function. `cancelPeriodReminders` is right there and this never calls it.
+ *
+ * The guarantee belongs to `syncPeriodReminder`, which cancels and then
+ * schedules, and whose doc sets out why that order and not the other. Anything
+ * reaching for this function directly has to do the same, and has to read that
+ * reasoning first: scheduling before cancelling would close one gap and open a
+ * worse one.
  *
  * `discreet` picks the wording. It defaults to the sentence the app has always
  * sent, so a caller that has not thought about it cannot accidentally make
