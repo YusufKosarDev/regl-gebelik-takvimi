@@ -34,6 +34,40 @@ const REQUIRED_ARGUMENTS = {
   formatDisplayMonth: 3,
 };
 
+/**
+ * Functions that are Turkish by construction and have a catalogue-taking twin.
+ *
+ * ## Why these needed a rule of their own
+ *
+ * The trap above has a second shape this rule did not cover. Instead of an
+ * optional trailing language, some presentation modules export a *pair*: a
+ * `…In(messages, …)` that takes the catalogue half, and a bare one that calls it
+ * with the Turkish half. The bare one exists so assertions written before the
+ * second language go on proving the Turkish output is unchanged.
+ *
+ * Calling it from a screen is valid TypeScript, passes every test — because
+ * `jest/expo-localization-mock.js` pins the suite to a Turkish phone, so the
+ * Turkish answer and the correct answer agree — and renders Turkish to an
+ * English reader. Exactly the hole the argument check closes for dates, in a
+ * shape the argument check cannot see: the call is not missing anything.
+ *
+ * It is not hypothetical. `(lock)/index.tsx` built every wait sentence with
+ * `waitMessage(…)` in all five places a wait can begin, so the lock screen —
+ * the one screen whose job is to be understood by whoever is holding the phone
+ * — counted down in Turkish however the app was set. Nothing caught it: a wait
+ * is not a state the English screen sweep can reach, since that renders each
+ * screen as it arrives and no further.
+ *
+ * So: these may be called from tests, which is what they are for, and nowhere
+ * else. No production call site remains — the list is a floor, not a backlog.
+ */
+const TURKISH_ONLY = {
+  waitMessage: 'waitMessageIn(messages, …)',
+  getCyclePhaseLabel: 'getCyclePhaseLabelIn(labels, …)',
+  getFertilityLevelLabel: 'getFertilityLevelLabelIn(labels, …)',
+  getCalendarDayAccessibilityLabel: 'getCalendarDayAccessibilityLabelIn(labels, …)',
+};
+
 /** Tests pin the Turkish default on purpose, so they may call the short form. */
 function isTest(filename) {
   const posix = filename.replace(/\\/g, '/');
@@ -54,6 +88,8 @@ module.exports = {
         messages: {
           missingLanguage:
             "{{name}} was called without a language, so it will render Turkish whatever the reader's phone says. Pass useLanguage() from the component, or the language of the catalogue half this function is written on.",
+          turkishOnly:
+            "{{name}} is the Turkish-only wrapper, kept for assertions. Outside a test it renders Turkish whatever the reader's phone says. Call {{instead}} with the catalogue half the screen is already reading.",
         },
       },
 
@@ -67,6 +103,18 @@ module.exports = {
         return {
           CallExpression(node) {
             if (node.callee.type !== 'Identifier') {
+              return;
+            }
+
+            const instead = TURKISH_ONLY[node.callee.name];
+
+            if (instead !== undefined) {
+              context.report({
+                node,
+                messageId: 'turkishOnly',
+                data: { name: node.callee.name, instead },
+              });
+
               return;
             }
 

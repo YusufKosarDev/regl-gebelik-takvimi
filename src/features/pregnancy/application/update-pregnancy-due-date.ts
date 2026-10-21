@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { savePregnancyProfile } from '../data/pregnancy-repository';
 import { calculateEstimatedDueDate } from '../domain/due-date';
 import type { PregnancyDueDateSource, PregnancyProfile } from '../domain/types';
-import { validatePregnancyProfile } from '../domain/validation';
+import { assertAdjustedDueDateInRange, validatePregnancyProfile } from '../domain/validation';
 
 import { getPregnancyProfile } from './get-pregnancy-profile';
 
@@ -37,8 +37,11 @@ export type UpdatePregnancyDueDateInput = {
  * produces — anything else claiming to be calculated is a mistake rather than a
  * correction.
  *
- * No upper bound: how far ahead a due date may sit is the domain's business, and
- * it does not set one.
+ * How far ahead a due date may sit is the domain's business. It sets a loose one
+ * now — `assertAdjustedDueDateInRange`, a year from the last menstrual period —
+ * which is checked here rather than in `validatePregnancyProfile` because that
+ * validator also runs on every read, and a rule added there would make an
+ * already-stored profile unloadable. Its own doc has the argument.
  */
 export function updatePregnancyDueDate(
   db: SQLiteDatabase,
@@ -114,6 +117,9 @@ async function runUpdatePregnancyDueDate(
   };
 
   validatePregnancyProfile(updated);
+  // Write path only: the read path must go on loading a profile stored before
+  // this rule existed. See the assertion's own doc.
+  assertAdjustedDueDateInRange(updated);
   await savePregnancyProfile(db, updated);
 
   return updated;

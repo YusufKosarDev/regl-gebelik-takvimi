@@ -1,3 +1,26 @@
+/**
+ * A deep relative path rather than an alias, and that is a decision.
+ *
+ * `tsconfig.json` has no `@/modules/*`, and adding one was tried and taken back
+ * out. It can be made to work, but only by listing it *before* `@/*`: both end
+ * up in Jest's `moduleNameMapper` (jest-expo generates it from the same paths),
+ * patterns are applied in insertion order, and `^@/(.*)$` listed first swallows
+ * `@/modules/…` and maps it into `src/modules/…`, which does not exist.
+ * TypeScript is fine either way — it matches longest-prefix first — so `tsc`
+ * stays green while the resolver does not.
+ *
+ * That makes the whole thing rest on the order of two keys in a JSON file,
+ * which nothing enforces and which anybody tidying it alphabetically would
+ * undo. And the one resolver that actually matters here is Metro's, which
+ * cannot be checked from a test run: these two modules are faked in every test
+ * that reaches them, so a resolution failure would show up for the first time
+ * in a release build — as an app with no screen privacy and no widget, silently.
+ *
+ * A nicer-looking import line is not worth a silent privacy regression. If
+ * somebody picks this up again, the order is the trap and `expo run:android`
+ * with a lock set and a widget on the home screen is the only thing that
+ * settles it.
+ */
 import ScreenPrivacy from '../../../../modules/screen-privacy/src/ScreenPrivacyModule';
 
 import { logEvent } from '@/shared/logging';
