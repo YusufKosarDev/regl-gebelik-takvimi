@@ -1,5 +1,8 @@
-# The Maestro smoke flow on an emulator: onboarding to a recorded period to
-# every tab (.maestro/smoke.yaml).
+# The Maestro flows on an emulator, from `.maestro/`:
+#
+#   - smoke.yaml     onboarding to a recorded period to every tab
+#   - app-lock.yaml  setting a PIN, and getting back in through it
+#   - language.yaml  switching to English and the interface following
 #
 # Nightly and on demand rather than on every push, on purpose. The job boots
 # an emulator and builds a release APK - twenty-odd minutes and the flakiest
@@ -77,9 +80,14 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
+          # The whole directory rather than one file: there are three flows
+          # now and a fourth should not need this line edited. It also means
+          # nothing may be added to `.maestro/` that is not a runnable flow —
+          # a shared subflow would be picked up and run on its own, which is
+          # why the onboarding taps are repeated in each file instead.
           script: |
             adb install -r android/app/build/outputs/apk/release/app-release.apk
-            maestro test .maestro/smoke.yaml
+            maestro test .maestro/
 
       # The screen recording and step log Maestro leaves behind are the only
       # way to see WHAT failed on a machine nobody was watching.

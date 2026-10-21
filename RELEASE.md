@@ -50,6 +50,20 @@ Yayından önce E2E smoke akışını da elle tetikle ve yeşilini bekle:
 GitHub → Actions → "E2E smoke" → Run workflow. (Her gece kendiliğinden de
 koşar; yayın günü taze bir koşu istemek ucuzdur.)
 
+Üç akış koşar — `smoke` (onboarding → regl kaydı → her sekme), `app-lock`
+(PIN kur → soğuk açılış → PIN ile gir) ve `language` (İngilizceye geç, arayüz
+takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
+**görmedikleri iki şey kalıyor** ve onlar elle bakılır:
+
+- **Ana ekran widget'ı.** Maestro bir widget'ı launcher'a ekleyemez. Kartın
+  günü, fazı ve destek cümlesi artık snapshot'ta taşınıyor ve `language`
+  akışının okuduğunu kanıtladığı kataloglardan üretiliyor — ama kartın kendisi
+  ancak cihazda görülür. Uygulamayı İngilizceye al, widget'ı ekle, **tamamının**
+  İngilizce olduğunu gör.
+- **Ekran gizliliği.** Kilit açıkken uygulamanın görev değiştiricide (task
+  switcher) önizlemesinin boş olması. Hiçbir otomatik testle sınanamaz: PIN kur,
+  uygulamayı arka plana al, kare düğmesine bas, önizlemenin boş olduğunu gör.
+
 ## 2. AAB üretimi
 
 ```
@@ -70,6 +84,35 @@ bekle.** Yayılım bitmeden 4. adıma geçilmez.
 ```
 npm run rules:deploy
 ```
+
+### ⚠️ İlk sürümde bu sıra TERSİNE çevrilir
+
+Aşağıdaki "Sıra neden bu?" bölümünün gerekçesinin tamamı **sahada eski bir
+build olmasına** dayanır: sayaçtan önceki build "Yedek oluştur" ile sayaçsız
+zarf yazar, yeni kurallar onu reddeder, dolayısıyla kurallar herkes güncel
+build'i alana kadar bekler.
+
+**İlk sürümde sahada hiçbir build yoktur**, yani reddedilecek kimse de yoktur.
+O gerekçe geçersizdir ve sırayı olduğu gibi uygulamak tersine çevrilmiş bir
+risk doğurur: ilk kullanıcıların yedeği ve sync'i, kurallar deploy edilene
+kadar projede **o an canlı olan** kurallara çarpar — ki bu, repo'daki
+`firestore.rules` olmak zorunda değildir.
+
+Bu yüzden ilk sürümde:
+
+```
+1. npm run rules:deploy        ← AAB üretmeden ÖNCE
+2. eas build --profile production
+3. Play Console'a yükle, yayılımı başlat
+```
+
+Ve deploy'dan önce kuralların gerçekten yerine geçtiği doğrulanır — en kolayı
+`npm run test:rules` ile emülatörde kanıtlamak, ardından Firebase Console →
+Firestore → Rules ekranında canlı metnin `firestore.rules` ile aynı olduğunu
+görmek.
+
+Yukarıdaki 4-adımlı sıra **ikinci sürümden itibaren** geçerlidir; o noktadan
+sonra sahada eski build vardır ve gerekçe yeniden doğrudur.
 
 ## Sıra neden bu?
 

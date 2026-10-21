@@ -1,0 +1,136 @@
+# Setting the app lock and then getting back in through it.
+#
+# The lock screen is the one screen standing between somebody and another
+# person's health records, and until this flow existed nothing drove it on a
+# real device. It has 26 unit tests — but those render the screen with the use
+# cases faked, so they cannot see a PIN that fails to reach SecureStore, a pad
+# that is covered by something, or a lock that does not actually close.
+#
+# ## Why a cold start rather than backgrounding
+#
+# `useAppLock` closes the lock after a 15-second grace window, which an E2E
+# flow can only wait out with a sleep — and a flow that depends on wall-clock
+# timing is a flow that goes red on a slow runner for no reason.
+#
+# A cold start needs no waiting: `app-lock-store`'s hydrate sets `locked` from
+# the record unconditionally, because "a cold start is locked whenever there is
+# a lock". `stopApp` then `launchApp` is therefore both the simpler and the
+# stricter check — it proves the record survived the process dying.
+#
+# ## Its own file rather than more steps in smoke.yaml
+#
+# `smoke.yaml` says it is deliberately one short flow, kept that way so it can
+# run on every change. This is a second question, and it costs its own
+# onboarding to ask; the six onboarding taps are repeated here rather than
+# extracted, because a subflow in this directory would be picked up and run as
+# a flow in its own right by `maestro test .maestro/`.
+#
+# Every text match is written as `turkish|english`, because Maestro treats the
+# text as a regular expression and CI boots an en-US emulator while the
+# development one is Turkish.
+appId: com.yusufkosardev.regltakvimi
+---
+- launchApp:
+    clearState: true
+
+# Onboarding, as smoke.yaml does it — a lock cannot be set before there is an
+# app behind it.
+- tapOn: 'Başlayalım|Get started'
+- tapOn: 'Devam et|Continue'
+- tapOn: 'Önceki günü seç|Pick the previous day'
+- scrollUntilVisible:
+    element: 'Devam|Next'
+- tapOn: 'Devam|Next'
+- tapOn: 'Takibe başla|Start tracking'
+
+- extendedWaitUntil:
+    visible: 'Döngü günü|Cycle day'
+    timeout: 15000
+
+# The lock is set from the profile tab.
+- tapOn: 'Profil|Profile'
+- scrollUntilVisible:
+    element: 'Uygulama kilidini kur|Set up the app lock'
+- tapOn: 'Uygulama kilidini kur|Set up the app lock'
+
+# Nobody signed in, so the setup opens on the account-less warning rather than
+# on the keypad: without an account a forgotten PIN cannot be recovered, and
+# the screen says so before it lets anybody choose one.
+- scrollUntilVisible:
+    element: 'Hesapsız devam et|Carry on without one'
+- tapOn: 'Hesapsız devam et|Carry on without one'
+
+# Choose it. 135790 on purpose: `isEasilyGuessedPin` flags repeated and
+# consecutive digits, and a warning on screen would be one more thing for this
+# flow to scroll past.
+- assertVisible: 'Bir PIN seç|Choose a PIN'
+- tapOn:
+    id: 'pin-key-1'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-7'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-0'
+
+# Confirm it. There is no save button — the sixth digit of the confirmation is
+# what writes the lock and sends the screen back.
+- assertVisible: "PIN'i tekrar gir|Enter the PIN again"
+- tapOn:
+    id: 'pin-key-1'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-7'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-0'
+
+# Back on the profile, and the row has changed: the lock is stored, not just
+# typed. This is the assertion that fails if the write never reached
+# SecureStore.
+- extendedWaitUntil:
+    visible: 'Uygulama kilidini yönet|Manage the app lock'
+    timeout: 15000
+
+# Kill it and open it again. A cold start with a stored lock is locked.
+- stopApp
+- launchApp
+
+- extendedWaitUntil:
+    visible: "PIN'ini gir|Enter your PIN"
+    timeout: 20000
+
+# Nothing about the cycle is on this screen. A lock screen that named the day
+# would be answering the question it exists to refuse, so the two things the
+# home screen leads with must both be absent.
+- assertNotVisible: 'Döngü günü|Cycle day'
+- assertVisible:
+    id: 'pin-pad'
+
+# The right PIN opens it.
+- tapOn:
+    id: 'pin-key-1'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-7'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-0'
+
+# ...and the records are there, which is the whole point of the lock being a
+# screen rather than something that deletes anything.
+- extendedWaitUntil:
+    visible: 'Döngü günü|Cycle day'
+    timeout: 20000

@@ -1,0 +1,81 @@
+# Switching the language, and the interface following it.
+#
+# ## What this is actually checking
+#
+# Not the catalogues — `*-messages-parity.test.ts` and
+# `every-screen-english.test.tsx` already pin every string and every screen's
+# English half. What no test could reach is the chain in between on a real
+# device: a press on this row writes a preference, the store notifies, every
+# mounted screen re-reads through `useMessages`, and the words change. Those are
+# four separate mechanisms and the unit tests fake the first and the last.
+#
+# It is also the nearest thing to a check on the widget's localisation, which
+# cannot be driven from here at all: a home screen widget cannot be added to a
+# launcher by Maestro. The card's words now travel in the snapshot and are built
+# from the same catalogues this flow proves are being read, so a green run here
+# is evidence about the half of that fix that is reachable.
+#
+# ## Why it taps `English` without knowing the starting language
+#
+# The two languages name themselves in both catalogues — `Türkçe` and `English`
+# are the same strings whichever language the app is in, deliberately, because
+# somebody looking for their own language should find it written the way they
+# write it. Only "follow the phone" is translated. So this one tap works on the
+# Turkish development emulator and on the en-US one CI boots.
+#
+# Which also means the assertions afterwards are unambiguous: the interface must
+# be in English regardless of where it started, so they are written as plain
+# English text rather than as `turkish|english` alternations.
+appId: com.yusufkosardev.regltakvimi
+---
+- launchApp:
+    clearState: true
+
+# Onboarding, as smoke.yaml does it. Repeated rather than extracted: a subflow
+# in this directory would be picked up and run as a flow of its own by
+# `maestro test .maestro/`.
+- tapOn: 'Başlayalım|Get started'
+- tapOn: 'Devam et|Continue'
+- tapOn: 'Önceki günü seç|Pick the previous day'
+- scrollUntilVisible:
+    element: 'Devam|Next'
+- tapOn: 'Devam|Next'
+- tapOn: 'Takibe başla|Start tracking'
+
+- extendedWaitUntil:
+    visible: 'Döngü günü|Cycle day'
+    timeout: 15000
+
+# The language row lives on the profile tab, below the lock and above the
+# section that empties the phone.
+- tapOn: 'Profil|Profile'
+- scrollUntilVisible:
+    element: 'English'
+- tapOn: 'English'
+
+# The screen that is open changes under the press. `Average cycle length` is
+# the heading this tab leads with, and the section title is the row's own.
+- extendedWaitUntil:
+    visible: 'Average cycle length'
+    timeout: 15000
+- assertVisible: 'Language'
+
+# So does the tab bar, which is a different tree from the screen and reads the
+# catalogue through its own `useMessages`.
+- assertVisible: 'Profile'
+- assertVisible: 'Calendar'
+
+# And so does a screen that was mounted before the press and is only being
+# returned to now — which is the part a per-screen test cannot show.
+- tapOn: 'Cycle'
+- extendedWaitUntil:
+    visible: 'Cycle day'
+    timeout: 15000
+- assertNotVisible: 'Döngü günü'
+
+# Back again, and the choice is still the one that was made: it was written,
+# not just shown.
+- tapOn: 'Profile'
+- scrollUntilVisible:
+    element: 'Language'
+- assertVisible: 'Average cycle length'
