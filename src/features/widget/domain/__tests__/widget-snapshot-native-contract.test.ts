@@ -26,6 +26,8 @@ const SNAPSHOT_KEYS = [
   'date',
   'cycleDay',
   'phase',
+  'cycleDayLabel',
+  'phaseLabel',
   'moodLabels',
   'supportMessage',
   'avatar',
@@ -55,6 +57,8 @@ function snapshot(): WidgetSnapshotV1 {
     date: '2026-09-18' as ISODate,
     cycleDay: 14,
     phase: 'ovulatory',
+    cycleDayLabel: 'Döngünün 14. günü',
+    phaseLabel: 'Yumurtlama',
     moodLabels: ['Yorgunluk olabilir'],
     supportMessage: 'Kendine alan tanı.',
     avatar: avatar(),
@@ -99,6 +103,32 @@ describe('the JSON the widget is handed', () => {
     void moodLabels;
 
     expect(serializeWidgetSnapshotV1(rest)).not.toContain('moodLabels');
+  });
+
+  it('writes absent labels as absent keys, which the widget reads as its own', () => {
+    const { cycleDayLabel, phaseLabel, ...rest } = snapshot();
+
+    void cycleDayLabel;
+    void phaseLabel;
+
+    const text = serializeWidgetSnapshotV1(rest);
+
+    // The Kotlin falls back to `widgetCycleDayLabel` / `widgetPhaseLabel` for
+    // this shape, which is how a snapshot written before these fields existed
+    // still draws rather than losing two lines.
+    expect(text).not.toContain('cycleDayLabel');
+    expect(text).not.toContain('phaseLabel');
+  });
+
+  it('names the fallback the widget uses when they are absent', () => {
+    // Deleting either function would leave the absent-label case drawing
+    // nothing, and nothing else in the suite reaches that path.
+    expect(kotlin).toContain('fun widgetCycleDayLabel(');
+    expect(kotlin).toContain('fun widgetPhaseLabel(');
+    // And the one place the card and the screen reader both ask, so they
+    // cannot end up in two different languages.
+    expect(kotlin).toContain('fun cycleDayTextOf(');
+    expect(kotlin).toContain('fun phaseTextOf(');
   });
 
   it('writes the phase as one of the four the widget can name', () => {

@@ -1,3 +1,4 @@
+import type { WidgetSnapshotV1Input } from '../build-widget-snapshot-v1';
 import { buildWidgetSnapshotV1 } from '../build-widget-snapshot-v1';
 
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
@@ -8,6 +9,8 @@ import type { CycleDailySupport } from '@/features/cycle/domain/daily-support';
 import { getCycleDailySupport } from '@/features/cycle/domain/daily-support';
 import { CYCLE_PHASES } from '@/features/cycle/domain/phases';
 import type { CycleProfile } from '@/features/cycle/domain/types';
+import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
+import { widgetMessages } from '@/features/widget/presentation/widget-messages';
 import type { ISODate } from '@/types/iso-date';
 import { parseWidgetSnapshotV1, serializeWidgetSnapshotV1 } from '@/features/widget/domain/widget-snapshot-v1';
 
@@ -45,9 +48,24 @@ function avatar(overrides: Partial<AvatarConfig> = {}): AvatarConfig {
   };
 }
 
+/**
+ * The builder with the Turkish catalogues.
+ *
+ * Every case written before the card's words moved out of Kotlin asserts
+ * Turkish, so the default here is Turkish and those cases are untouched. The
+ * two language cases at the bottom pass their own halves.
+ */
+function build(input: Omit<WidgetSnapshotV1Input, 'messages' | 'labels'>) {
+  return buildWidgetSnapshotV1({
+    ...input,
+    messages: widgetMessages.tr,
+    labels: cycleLabels.tr,
+  });
+}
+
 describe('buildWidgetSnapshotV1 with everything to hand', () => {
   it('stamps the version', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -58,7 +76,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
   });
 
   it('records the day it was asked about', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -71,7 +89,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
   it('copies the cycle day and phase the dashboard reported', () => {
     const cycleDashboard = dashboard();
 
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard,
       dailySupport: support(),
@@ -85,7 +103,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
   it('computes nothing of its own', () => {
     // A dashboard that disagrees with the date proves the builder copies rather
     // than calculates: it reports the dashboard's day, not the date's.
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard('2026-09-03'),
       dailySupport: support('menstrual'),
@@ -100,7 +118,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
   it('copies the support message', () => {
     const dailySupport = support();
 
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport,
@@ -113,7 +131,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
   it('copies the moods', () => {
     const dailySupport = support();
 
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport,
@@ -126,7 +144,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
   it('carries the avatar through as it was given', () => {
     const chosen = avatar({ accessoryId: 'glasses' });
 
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -138,7 +156,7 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
 
   it('carries no source or fertility field across', () => {
     // The widget's contract is not the dashboard's; only the listed fields go.
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -148,18 +166,96 @@ describe('buildWidgetSnapshotV1 with everything to hand', () => {
     expect(Object.keys(snapshot).sort()).toEqual([
       'avatar',
       'cycleDay',
+      'cycleDayLabel',
       'date',
       'moodLabels',
       'phase',
+      'phaseLabel',
       'supportMessage',
       'version',
     ]);
   });
 });
 
+/**
+ * The words the card prints, which used to be built in Kotlin.
+ *
+ * The Turkish half is asserted against the exact strings the Kotlin `when` and
+ * template produced, because the point of moving them was the English half —
+ * not a reworded Turkish card.
+ */
+describe('buildWidgetSnapshotV1 and the card’s own words', () => {
+  function wordsIn(language: 'tr' | 'en') {
+    return buildWidgetSnapshotV1({
+      today: date('2026-09-18'),
+      cycleDashboard: dashboard(),
+      dailySupport: support(),
+      avatar: avatar(),
+      messages: widgetMessages[language],
+      labels: cycleLabels[language],
+    });
+  }
+
+  it('names the day and the phase in Turkish exactly as the Kotlin did', () => {
+    const snapshot = wordsIn('tr');
+
+    expect(snapshot.cycleDayLabel).toBe('Döngünün 18. günü');
+    expect(snapshot.phaseLabel).toBe('Luteal');
+  });
+
+  it('names them in English when that is the language', () => {
+    const snapshot = wordsIn('en');
+
+    expect(snapshot.cycleDayLabel).toBe('Cycle day 18');
+    expect(snapshot.phaseLabel).toBe('Luteal');
+  });
+
+  it('names the menstrual phase differently in each', () => {
+    // 'Regl' and 'Period' — the one phase whose two words are not the same,
+    // so this is what proves the catalogue is actually being read.
+    expect(
+      buildWidgetSnapshotV1({
+        today: date('2026-09-02'),
+        cycleDashboard: dashboard('2026-09-02'),
+        dailySupport: support('menstrual'),
+        avatar: avatar(),
+        messages: widgetMessages.tr,
+        labels: cycleLabels.tr,
+      }).phaseLabel
+    ).toBe('Regl');
+
+    expect(
+      buildWidgetSnapshotV1({
+        today: date('2026-09-02'),
+        cycleDashboard: dashboard('2026-09-02'),
+        dailySupport: support('menstrual'),
+        avatar: avatar(),
+        messages: widgetMessages.en,
+        labels: cycleLabels.en,
+      }).phaseLabel
+    ).toBe('Period');
+  });
+
+  it('leaves both keys off when there is no cycle to name', () => {
+    const snapshot = build({
+      today: date('2026-09-18'),
+      cycleDashboard: null,
+      dailySupport: null,
+      avatar: null,
+    });
+
+    // A card hides the line it has nothing to put on, so the absence is the
+    // key not being there rather than a null or an empty string.
+    expect('cycleDayLabel' in snapshot).toBe(false);
+    expect('phaseLabel' in snapshot).toBe(false);
+    expect(serializeWidgetSnapshotV1(snapshot)).not.toContain('cycleDayLabel');
+    expect(serializeWidgetSnapshotV1(snapshot)).not.toContain('phaseLabel');
+  });
+});
+
 describe('buildWidgetSnapshotV1 with a phase that says nothing about mood', () => {
   it('leaves the key off entirely', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-14'),
       cycleDashboard: dashboard('2026-09-14'),
       dailySupport: support('ovulatory'),
@@ -171,7 +267,7 @@ describe('buildWidgetSnapshotV1 with a phase that says nothing about mood', () =
   });
 
   it('still carries the message', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-14'),
       cycleDashboard: dashboard('2026-09-14'),
       dailySupport: support('ovulatory'),
@@ -183,7 +279,7 @@ describe('buildWidgetSnapshotV1 with a phase that says nothing about mood', () =
   });
 
   it('writes no mood key into the JSON either', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-14'),
       cycleDashboard: dashboard('2026-09-14'),
       dailySupport: support('ovulatory'),
@@ -196,7 +292,7 @@ describe('buildWidgetSnapshotV1 with a phase that says nothing about mood', () =
 
 describe('buildWidgetSnapshotV1 with nothing recorded', () => {
   it('reports no cycle day and no phase', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: null,
       dailySupport: null,
@@ -208,7 +304,7 @@ describe('buildWidgetSnapshotV1 with nothing recorded', () => {
   });
 
   it('reports no message and no moods', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: null,
       dailySupport: null,
@@ -220,7 +316,7 @@ describe('buildWidgetSnapshotV1 with nothing recorded', () => {
   });
 
   it('still records the date and the version', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: null,
       dailySupport: null,
@@ -232,7 +328,7 @@ describe('buildWidgetSnapshotV1 with nothing recorded', () => {
   });
 
   it('still round-trips', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: null,
       dailySupport: null,
@@ -245,7 +341,7 @@ describe('buildWidgetSnapshotV1 with nothing recorded', () => {
 
 describe('buildWidgetSnapshotV1 with some of it missing', () => {
   it('keeps the cycle when there is no avatar', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -259,7 +355,7 @@ describe('buildWidgetSnapshotV1 with some of it missing', () => {
   it('keeps the avatar when there is no cycle', () => {
     const chosen = avatar();
 
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: null,
       dailySupport: null,
@@ -271,7 +367,7 @@ describe('buildWidgetSnapshotV1 with some of it missing', () => {
   });
 
   it('keeps the phase when nothing is written for it', () => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: null,
@@ -285,7 +381,7 @@ describe('buildWidgetSnapshotV1 with some of it missing', () => {
 
   it('reports a day with no phase as having none', () => {
     // Before the first recorded period there is no cycle day to be on.
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date('2026-08-25'),
       cycleDashboard: dashboard('2026-08-25'),
       dailySupport: null,
@@ -304,7 +400,7 @@ describe('buildWidgetSnapshotV1 across the phases', () => {
     ['2026-09-14', 'ovulatory'],
     ['2026-09-20', 'luteal'],
   ] as const)('builds a readable snapshot for %s', (today, phase) => {
-    const snapshot = buildWidgetSnapshotV1({
+    const snapshot = build({
       today: date(today),
       cycleDashboard: dashboard(today),
       dailySupport: support(phase),
@@ -319,7 +415,7 @@ describe('buildWidgetSnapshotV1 across the phases', () => {
 describe('buildWidgetSnapshotV1 refusing what it could not write', () => {
   it('refuses a date that is not one', () => {
     expect(() =>
-      buildWidgetSnapshotV1({
+      build({
         today: date('2026-02-30'),
         cycleDashboard: null,
         dailySupport: null,
@@ -330,7 +426,7 @@ describe('buildWidgetSnapshotV1 refusing what it could not write', () => {
 
   it('refuses an avatar the editor would not save', () => {
     expect(() =>
-      buildWidgetSnapshotV1({
+      build({
         today: date('2026-09-18'),
         cycleDashboard: null,
         dailySupport: null,
@@ -345,7 +441,7 @@ describe('buildWidgetSnapshotV1 purity', () => {
     const cycleDashboard = dashboard();
     const before = JSON.stringify(cycleDashboard);
 
-    buildWidgetSnapshotV1({
+    build({
       today: date('2026-09-18'),
       cycleDashboard,
       dailySupport: support(),
@@ -359,7 +455,7 @@ describe('buildWidgetSnapshotV1 purity', () => {
     const dailySupport = support();
     const before = JSON.stringify(dailySupport);
 
-    buildWidgetSnapshotV1({
+    build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport,
@@ -372,7 +468,7 @@ describe('buildWidgetSnapshotV1 purity', () => {
   it('does not change the shipped content it read that support from', () => {
     const before = JSON.stringify(CYCLE_DAILY_SUPPORT);
 
-    buildWidgetSnapshotV1({
+    build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -386,7 +482,7 @@ describe('buildWidgetSnapshotV1 purity', () => {
     const chosen = avatar({ accessoryId: 'glasses' });
     const before = JSON.stringify(chosen);
 
-    buildWidgetSnapshotV1({
+    build({
       today: date('2026-09-18'),
       cycleDashboard: dashboard(),
       dailySupport: support(),
@@ -405,7 +501,7 @@ describe('buildWidgetSnapshotV1 purity', () => {
     };
     const before = JSON.stringify(input);
 
-    buildWidgetSnapshotV1(input);
+    build(input);
 
     expect(JSON.stringify(input)).toBe(before);
   });
@@ -418,6 +514,6 @@ describe('buildWidgetSnapshotV1 purity', () => {
       avatar: avatar(),
     };
 
-    expect(buildWidgetSnapshotV1(input)).toEqual(buildWidgetSnapshotV1(input));
+    expect(build(input)).toEqual(build(input));
   });
 });

@@ -103,10 +103,30 @@ describe('syncWidgetSnapshot writing the snapshot', () => {
       date: '2026-09-18',
       cycleDay: 18,
       phase: 'luteal',
+      // The two the Kotlin used to build for itself. The suite renders as a
+      // Turkish phone, so these are the exact strings the `when` and the
+      // template produced before the words moved.
+      cycleDayLabel: 'Döngünün 18. günü',
+      phaseLabel: 'Luteal',
       moodLabels: expect.arrayContaining(['Ruh hali dalgalanmaları olabilir']),
       supportMessage: expect.stringContaining('Regl öncesi günlerde'),
       avatar: avatar(),
     });
+  });
+
+  it('writes the words in the language it is given', async () => {
+    await syncWidgetSnapshot(db, date('2026-09-18'), 'en');
+
+    expect(written()).toEqual(
+      expect.objectContaining({
+        cycleDayLabel: 'Cycle day 18',
+        phaseLabel: 'Luteal',
+        // The support text comes from `getCycleHomeData`, which was already
+        // being handed the language — this is what used to leave the card half
+        // in English under a Turkish day and phase.
+        supportMessage: expect.not.stringContaining('Regl öncesi günlerde'),
+      })
+    );
   });
 
   it.each([

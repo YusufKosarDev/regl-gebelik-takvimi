@@ -381,6 +381,30 @@ export default function SettingsScreen() {
    * Reads the reminders too, and only reads them: asking the system for
    * permission while a screen is opening would be a dialog nobody asked for.
    */
+  /**
+   * Rewrites the widget's snapshot after the language changes.
+   *
+   * The widget renders the last snapshot the app wrote, so without this its day
+   * and phase keep the old language until something unrelated happens to write
+   * one — which, for somebody who changes the language and puts the phone down,
+   * could be days.
+   *
+   * Quiet and fire-and-forget: the preference is already stored by the time
+   * this runs, and failing the language change because a copy of the data could
+   * not be refreshed would undo the thing that worked over the thing that did
+   * not. `syncWidgetSnapshotQuietly` resolves the language itself, which by now
+   * is the one that was just chosen.
+   */
+  const refreshWidgetLanguage = useCallback(() => {
+    void (async () => {
+      const db = await openAppDatabase();
+
+      await syncWidgetSnapshotQuietly(db, getTodayLocalISODate());
+    })().catch((error: unknown) => {
+      logEvent('widget sync failed', error);
+    });
+  }, []);
+
   const readSettings = useCallback(async () => {
     const db = await openAppDatabase();
 
@@ -966,7 +990,7 @@ export default function SettingsScreen() {
                 settings that are about the app rather than about the records,
                 and somebody who has landed in a language they cannot read is
                 looking for this before they look for anything else. */}
-            <ConnectedLanguagePicker />
+            <ConnectedLanguagePicker onChanged={refreshWidgetLanguage} />
 
             {/* Directly above the section that empties the phone, because the
                 two are the same question from opposite ends: somebody about to

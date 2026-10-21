@@ -7,13 +7,18 @@ import {
   saveWidgetSnapshot,
 } from '../infrastructure/widget-snapshot-bridge';
 
+import { widgetMessages } from '../presentation/widget-messages';
+
 import { buildWidgetSnapshotV1 } from './build-widget-snapshot-v1';
 
 import { isAppLockEnabled } from '@/features/app-lock/application/remove-app-lock';
 import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import { getCycleHomeData } from '@/features/cycle/application/get-cycle-home-data';
-import type { ISODate } from '@/types/iso-date';
+import { cycleLabels } from '@/features/cycle/presentation/cycle-labels';
+import { currentLanguage } from '@/i18n';
+import type { Language } from '@/i18n/language';
 import { logEvent } from '@/shared/logging';
+import type { ISODate } from '@/types/iso-date';
 
 /**
  * Brings the stored widget snapshot up to date with the database.
@@ -43,10 +48,23 @@ import { logEvent } from '@/shared/logging';
  * Stated at setup as a consequence rather than discovered later
  * (`SETUP_WIDGET_NOTE`), and unconditional: a second switch would be one more
  * thing to explain and one more way to end up with a lock that does not lock.
+ *
+ * ## The language is resolved here, not threaded in
+ *
+ * `currentLanguage()` by default, which is what `getCycleHomeData` already does
+ * and documents: two of the callers are not screens — the automatic sync
+ * scheduler and the background flush — and neither can call a hook. The card's
+ * words are whatever the language is at the moment it is written, which is
+ * exactly what a stored snapshot means.
+ *
+ * Overridable, so a test can say which language without moving the device, and
+ * so the settings screen can pass the language it has just switched to rather
+ * than racing the store.
  */
 export async function syncWidgetSnapshot(
   db: SQLiteDatabase,
-  today: ISODate
+  today: ISODate,
+  language: Language = currentLanguage()
 ): Promise<WidgetSnapshotV1 | null> {
   if (await isAppLockEnabled()) {
     await clearWidgetSnapshot();
@@ -54,13 +72,18 @@ export async function syncWidgetSnapshot(
     return null;
   }
 
-  const [home, avatar] = await Promise.all([getCycleHomeData(db, today), loadAvatarConfig(db)]);
+  const [home, avatar] = await Promise.all([
+    getCycleHomeData(db, today, language),
+    loadAvatarConfig(db),
+  ]);
 
   const snapshot = buildWidgetSnapshotV1({
     today,
     cycleDashboard: home?.dashboard ?? null,
     dailySupport: home?.dailySupport ?? null,
     avatar,
+    messages: widgetMessages[language],
+    labels: cycleLabels[language],
   });
 
   await saveWidgetSnapshot(snapshot);
@@ -86,14 +109,15 @@ export async function syncWidgetSnapshot(
  */
 export async function syncWidgetSnapshotQuietly(
   db: SQLiteDatabase,
-  today: ISODate
+  today: ISODate,
+  language: Language = currentLanguage()
 ): Promise<WidgetSnapshotV1 | null> {
   if (!isWidgetSnapshotBridgeAvailable()) {
     return null;
   }
 
   try {
-    return await syncWidgetSnapshot(db, today);
+    return await syncWidgetSnapshot(db, today, language);
   } catch (error) {
     logEvent('widget sync failed', error);
 

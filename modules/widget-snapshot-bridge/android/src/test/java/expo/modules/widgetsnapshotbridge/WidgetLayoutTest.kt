@@ -132,13 +132,29 @@ class WidgetMoodTextTest {
 
 class WidgetContentDescriptionTest {
 
+  /**
+   * A snapshot with no finished labels, so these cases keep describing the
+   * Turkish fallback they were written against. The two label cases below pass
+   * their own.
+   */
   private fun snapshot(
     cycleDay: Int? = 1,
     phase: String? = "menstrual",
+    cycleDayLabel: String? = null,
+    phaseLabel: String? = null,
     moods: List<String> = listOf("Kramplar olabilir"),
     message: String? = "Kendine alan tanı.",
     avatar: WidgetAvatar? = WidgetAvatar("skin-tone-4", "bun", "red", "dress", "glasses")
-  ) = WidgetSnapshot("2026-09-18", cycleDay, phase, moods, message, avatar)
+  ) = WidgetSnapshot(
+    "2026-09-18",
+    cycleDay,
+    phase,
+    cycleDayLabel,
+    phaseLabel,
+    moods,
+    message,
+    avatar
+  )
 
   @Test
   fun `describes the whole card in one sentence`() {
@@ -176,7 +192,7 @@ class WidgetContentDescriptionTest {
 
   @Test
   fun `describes a snapshot with nothing known as the empty state`() {
-    val bare = WidgetSnapshot("2026-09-18", null, null, emptyList(), null, null)
+    val bare = WidgetSnapshot("2026-09-18", null, null, null, null, emptyList(), null, null)
 
     assertEquals(WIDGET_EMPTY_DESCRIPTION, widgetContentDescription(bare, WidgetSizeClass.MEDIUM))
   }

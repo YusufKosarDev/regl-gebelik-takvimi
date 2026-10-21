@@ -133,8 +133,27 @@ const styles = StyleSheet.create({
  *
  * A failed write leaves the shown choice alone: `setLanguagePreference` writes
  * before it updates memory, so the row keeps showing what is actually stored.
+ *
+ * ## `onChanged` exists for the home screen widget
+ *
+ * The widget renders the last snapshot the app wrote, so its words stay in the
+ * old language until something writes a new one. Changing the language is
+ * exactly the moment to, and this is the only place that knows it happened.
+ *
+ * It is a callback rather than a call, because doing it here would put the
+ * widget bridge, `getCycleHomeData` and the database behind a picker in
+ * `components/` — which is for pieces that reach no feature. The settings
+ * screen already holds all three.
+ *
+ * Fired after the write resolves, so whatever runs in it reads the language
+ * that was actually stored rather than racing it. Not fired on a failed write:
+ * nothing changed, so there is nothing to refresh.
  */
-export function ConnectedLanguagePicker() {
+export function ConnectedLanguagePicker({
+  onChanged,
+}: {
+  readonly onChanged?: () => void;
+} = {}) {
   const preference = useAppStore((state) => state.languagePreference);
   const setLanguagePreference = useAppStore((state) => state.setLanguagePreference);
 
@@ -142,7 +161,11 @@ export function ConnectedLanguagePicker() {
     <LanguagePicker
       preference={preference}
       onChange={(next) => {
-        void setLanguagePreference(next).catch(() => undefined);
+        void setLanguagePreference(next)
+          .then(() => {
+            onChanged?.();
+          })
+          .catch(() => undefined);
       }}
     />
   );

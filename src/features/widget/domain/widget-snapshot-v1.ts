@@ -37,6 +37,38 @@ export type WidgetSnapshotV1 = {
   readonly cycleDay: number | null;
   readonly phase: CyclePhase | null;
 
+  /**
+   * The same two things as words, in the language the app is set to.
+   *
+   * ## Why both the id and the sentence
+   *
+   * `cycleDay` and `phase` stay because they are the facts — a later widget may
+   * want to draw the day as a ring rather than print it, and an id is what a
+   * `when` can branch on. These are what the current card prints.
+   *
+   * The words used to be built in Kotlin, from a `when` over the phase id and a
+   * string template over the day. That was Turkish on every device however the
+   * app was set, while `supportMessage` and `moodLabels` in the same snapshot
+   * arrived in the person's own language — so the card read half in one and
+   * half in the other. It was also the one thing the widget still had to look
+   * up for itself, which is what the paragraph above says it should never have
+   * to do.
+   *
+   * ## Optional, and that is not a version bump
+   *
+   * Absent means "work it out yourself", which is what the Kotlin side still
+   * does — so a snapshot written by the build before this one still draws, in
+   * Turkish, exactly as it did. Fields that only *appeared* are the case this
+   * contract already allows for; a different `version` is the marker for fields
+   * that moved.
+   *
+   * `null` is not a value here. A day with no phase has no line on the card
+   * rather than a line saying it has no phase, so the absence is carried by the
+   * key not being there.
+   */
+  readonly cycleDayLabel?: string;
+  readonly phaseLabel?: string;
+
   readonly moodLabels?: readonly string[];
   readonly supportMessage: string | null;
 
@@ -133,6 +165,24 @@ function assertMoodLabels(moodLabels: unknown): void {
   });
 }
 
+/**
+ * One of the two finished labels, when the snapshot carries it.
+ *
+ * Absent is valid and skipped — the widget falls back to working the word out
+ * itself. What is refused is a key that is there and empty: a blank label would
+ * draw as a line with nothing on it, which is worse than the line being
+ * omitted, and it is how a formatter that was handed `undefined` fails.
+ */
+function assertLabel(field: 'cycleDayLabel' | 'phaseLabel', label: unknown): void {
+  if (label === undefined) {
+    return;
+  }
+
+  if (typeof label !== 'string' || label.trim() === '') {
+    fail(field, label, 'a blank');
+  }
+}
+
 function assertSupportMessage(supportMessage: unknown): void {
   if (supportMessage === null) {
     return;
@@ -180,6 +230,8 @@ export function validateWidgetSnapshotV1(snapshot: WidgetSnapshotV1): void {
   assertDate(snapshot.date);
   assertCycleDay(snapshot.cycleDay);
   assertPhase(snapshot.phase);
+  assertLabel('cycleDayLabel', snapshot.cycleDayLabel);
+  assertLabel('phaseLabel', snapshot.phaseLabel);
   assertMoodLabels(snapshot.moodLabels);
   assertSupportMessage(snapshot.supportMessage);
   assertAvatar(snapshot.avatar);

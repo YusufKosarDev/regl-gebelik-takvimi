@@ -26,6 +26,22 @@ data class WidgetSnapshot(
   val date: String,
   val cycleDay: Int?,
   val phase: String?,
+  /**
+   * The day and the phase as finished words, in the app's own language.
+   *
+   * `null` when the snapshot does not carry them, which is what a build older
+   * than these fields writes. The provider then falls back to
+   * `widgetCycleDayLabel` and `widgetPhaseLabel` below and the card reads in
+   * Turkish, exactly as it did before — so an old snapshot still draws rather
+   * than losing two lines.
+   *
+   * New snapshots always carry them when there is anything to name. Building
+   * them here was the one thing this widget still decided for itself, and it
+   * decided it in Turkish on every device while `supportMessage` beside it
+   * arrived in the person's own language.
+   */
+  val cycleDayLabel: String?,
+  val phaseLabel: String?,
   val moodLabels: List<String>,
   val supportMessage: String?,
   val avatar: WidgetAvatar?
@@ -41,6 +57,8 @@ private const val KEY_VERSION = "version"
 private const val KEY_DATE = "date"
 private const val KEY_CYCLE_DAY = "cycleDay"
 private const val KEY_PHASE = "phase"
+private const val KEY_CYCLE_DAY_LABEL = "cycleDayLabel"
+private const val KEY_PHASE_LABEL = "phaseLabel"
 private const val KEY_MOOD_LABELS = "moodLabels"
 private const val KEY_SUPPORT_MESSAGE = "supportMessage"
 private const val KEY_AVATAR = "avatar"
@@ -141,6 +159,10 @@ fun parseWidgetSnapshot(stored: String?): WidgetSnapshot? {
       // counted from 1, so anything below that is read as "not known".
       cycleDay = json.optInt(KEY_CYCLE_DAY, 0).takeIf { it >= 1 },
       phase = json.optText(KEY_PHASE),
+      // `optText` answers null for absent, JSON null and blank alike, which is
+      // the three ways these can fail to be a usable label.
+      cycleDayLabel = json.optText(KEY_CYCLE_DAY_LABEL),
+      phaseLabel = json.optText(KEY_PHASE_LABEL),
       moodLabels = parseMoodLabels(json.optJSONArray(KEY_MOOD_LABELS)),
       supportMessage = json.optText(KEY_SUPPORT_MESSAGE),
       avatar = parseAvatar(json.optJSONObject(KEY_AVATAR))
@@ -153,9 +175,20 @@ fun parseWidgetSnapshot(stored: String?): WidgetSnapshot? {
 /**
  * The Turkish name of a phase, or `null` for one this widget does not know.
  *
- * The same four words the app uses. A phase id it cannot name is left off the
- * card rather than printed raw — `luteal` on a home screen is the app talking to
- * itself.
+ * ## This is now the fallback, not the source
+ *
+ * The app sends `phaseLabel` with the snapshot, in whatever language it is set
+ * to, and the provider prefers it. This is what draws a snapshot written before
+ * that field existed: Turkish, which is what those snapshots were showing
+ * anyway, so nothing changes for them.
+ *
+ * It also stays because it is the only place in this file that matches on the
+ * four phase ids, and `widget-snapshot-native-contract.test.ts` reads this file
+ * to check all four are still accounted for. Losing the branch would lose that
+ * check along with it.
+ *
+ * A phase id it cannot name is left off the card rather than printed raw —
+ * `luteal` on a home screen is the app talking to itself.
  */
 fun widgetPhaseLabel(phase: String?): String? = when (phase) {
   "menstrual" -> "Regl"
@@ -165,9 +198,33 @@ fun widgetPhaseLabel(phase: String?): String? = when (phase) {
   else -> null
 }
 
-/** "Döngünün 14. günü", or `null` when there is no day to name. */
+/**
+ * "Döngünün 14. günü", or `null` when there is no day to name.
+ *
+ * The fallback for `cycleDayLabel`, on the same terms as `widgetPhaseLabel`
+ * above: it draws a snapshot written before the field existed, in the language
+ * that snapshot was already being drawn in.
+ */
 fun widgetCycleDayLabel(cycleDay: Int?): String? =
   cycleDay?.let { "Döngünün $it. günü" }
+
+/**
+ * The cycle day as the card prints it, whatever the snapshot carries.
+ *
+ * The snapshot's own `cycleDayLabel` when it has one — that is the app's
+ * language. Otherwise the Turkish fallback, for a snapshot written before the
+ * field existed.
+ *
+ * One function so the card and the screen reader cannot disagree: they both ask
+ * here, and before this the provider and `widgetContentDescription` each called
+ * the label function separately.
+ */
+fun cycleDayTextOf(snapshot: WidgetSnapshot): String? =
+  snapshot.cycleDayLabel ?: widgetCycleDayLabel(snapshot.cycleDay)
+
+/** The phase as the card prints it, on the same terms as the cycle day. */
+fun phaseTextOf(snapshot: WidgetSnapshot): String? =
+  snapshot.phaseLabel ?: widgetPhaseLabel(snapshot.phase)
 
 /** At most a few moods, joined the way a sentence would join them. */
 fun widgetMoodSummary(moodLabels: List<String>): String? {
