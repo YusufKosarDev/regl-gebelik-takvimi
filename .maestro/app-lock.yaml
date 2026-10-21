@@ -35,6 +35,14 @@ appId: com.yusufkosardev.regltakvimi
 
 # Onboarding, as smoke.yaml does it — a lock cannot be set before there is an
 # app behind it.
+#
+# Waited for rather than tapped straight away. `clearState` means this is a
+# first launch: the database is created, migrations run and two typefaces load
+# before anything is on screen, and `tapOn`'s own timeout is shorter than that
+# on a cold CI emulator.
+- extendedWaitUntil:
+    visible: 'Başlayalım|Get started'
+    timeout: 30000
 - tapOn: 'Başlayalım|Get started'
 - tapOn: 'Devam et|Continue'
 - tapOn: 'Önceki günü seç|Pick the previous day'
@@ -64,6 +72,25 @@ appId: com.yusufkosardev.regltakvimi
 # consecutive digits, and a warning on screen would be one more thing for this
 # flow to scroll past.
 - assertVisible: 'Bir PIN seç|Choose a PIN'
+
+# The pad has to be brought into view first, and finding that out is what this
+# flow is for.
+#
+# The setup screen is a ScrollView, and above the keypad sit the title, the
+# description, the honesty note about files not being encrypted, the
+# write-it-down note, the different-PIN hint, the biometric note and the step
+# heading. At 1080x1920 that leaves the pad's lower rows below the fold: the
+# first run of this flow tapped 1, 3 and 5 and then failed on `pin-key-7`,
+# which is exactly the "renders fine and sits under something else" fault
+# smoke.yaml's own comment says these flows exist to catch.
+#
+# Scrolled to the delete key, which is the last thing in the pad, so every
+# digit above it is on screen. The pad is about four rows tall and fits once
+# the prose is scrolled off.
+- scrollUntilVisible:
+    element:
+      id: 'pin-key-delete'
+
 - tapOn:
     id: 'pin-key-1'
 - tapOn:
@@ -79,7 +106,15 @@ appId: com.yusufkosardev.regltakvimi
 
 # Confirm it. There is no save button — the sixth digit of the confirmation is
 # what writes the lock and sends the screen back.
+#
+# Scrolled again: the step heading changes and the weak-PIN warning can appear
+# between the prose and the pad, so where the pad sits is not the same as it
+# was a moment ago.
 - assertVisible: "PIN'i tekrar gir|Enter the PIN again"
+- scrollUntilVisible:
+    element:
+      id: 'pin-key-delete'
+
 - tapOn:
     id: 'pin-key-1'
 - tapOn:
