@@ -7,6 +7,7 @@ import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { chooseAvatar } from '@/features/avatar/application/choose-avatar';
 import { AvatarPreview } from '@/features/avatar/components/AvatarPreview';
 import {
   avatarCatalogue,
@@ -15,7 +16,7 @@ import {
   AVATAR_OUTFITS,
   AVATAR_SKIN_TONES,
 } from '@/features/avatar/data/avatar-catalog';
-import { loadAvatarConfig, saveAvatarConfig } from '@/features/avatar/data/avatar-repository';
+import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { AvatarOption } from '@/features/avatar/domain/avatar-option';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
@@ -206,7 +207,7 @@ export default function AvatarScreen() {
     try {
       const db = await openAppDatabase();
 
-      await saveAvatarConfig(db, config);
+      await chooseAvatar(db, config);
 
       // The write is already durable, and the widget only holds a copy of it,
       // so a failed update here must not undo what was just saved.

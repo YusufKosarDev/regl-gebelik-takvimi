@@ -36,6 +36,23 @@ let connection: Promise<SQLiteDatabase> | null = null;
  * A failing migration rejects. It is deliberately not caught, retried or
  * recovered from by wiping the database: health data is not something to discard
  * because a schema step failed, and the caller has to decide what to do.
+ *
+ * ## Why the migrations need no write lock, and what that rests on
+ *
+ * Every other write in this app takes `withLocalDbWriteLock` — see
+ * `local-db-write-lock.ts` for the interleaving that makes it necessary. The
+ * migrations do not, and cannot be made to: a caller inside the lock that then
+ * awaited `openAppDatabase()` would wait on a turn it is already holding, which
+ * hangs rather than throws.
+ *
+ * They are safe without it because nothing can hold this connection before they
+ * finish. `openAppDatabase` stores the in-flight promise and resolves it only
+ * after `runMigrations` returns, and it is the only way any code in this app
+ * obtains a `SQLiteDatabase` — so there is nothing to interleave with.
+ *
+ * That is the premise, and it is the thing to check first if it ever stops
+ * being true: a second path to the connection would need the lock, or, better,
+ * would not exist.
  */
 async function openAndInitialize(): Promise<SQLiteDatabase> {
   // `useNewConnection` is left at its default of false on purpose: expo-sqlite

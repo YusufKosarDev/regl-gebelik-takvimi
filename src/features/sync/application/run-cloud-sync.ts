@@ -8,6 +8,7 @@ import {
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import { isAccountDeletionPending } from '@/features/deletion/infrastructure/pending-account-deletion';
 import { logEvent } from '@/shared/logging';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 import { markConflictUnresolved } from '../infrastructure/unresolved-conflict';
 import type { CloudSyncPayloadV1 } from '@/features/privacy/domain/cloud-sync-payload-v1';
 
@@ -244,14 +245,21 @@ async function rememberAgreement(
   envelope: CloudBackupEnvelopeV1,
   now: () => string
 ): Promise<void> {
+  // A turn of the write queue for the one statement, not for the sync around
+  // it: `runCloudSync` reaches Firestore, and holding the queue across a
+  // round trip on mobile data would stall every other write in the app. The
+  // statement still needs its turn — a lone write issued while somebody
+  // else's transaction is open is swallowed into it.
   await onThisPhone(() =>
-    saveSyncState(db, {
-      uid,
-      revision: envelope.revision,
-      contentHash: envelope.contentHash,
-      basePayload: envelope.payload,
-      updatedAt: envelope.updatedAt ?? now(),
-    })
+    withLocalDbWriteLock(() =>
+      saveSyncState(db, {
+        uid,
+        revision: envelope.revision,
+        contentHash: envelope.contentHash,
+        basePayload: envelope.payload,
+        updatedAt: envelope.updatedAt ?? now(),
+      })
+    )
   );
 }
 

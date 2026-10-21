@@ -55,6 +55,11 @@ GoogleService-Info.plist
 .env.*
 !.env.example
 
+# Coverage reports, which `npx jest --coverage` writes and CI regenerates. The
+# lint config already ignores the directory; this keeps it out of `git add` too,
+# so running the verification command in RELEASE.md leaves nothing behind.
+coverage/
+
 # typescript
 *.tsbuildinfo
 

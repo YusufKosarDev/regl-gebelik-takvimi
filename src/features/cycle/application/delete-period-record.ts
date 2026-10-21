@@ -4,7 +4,7 @@ import { loadCycleProfile, saveCycleProfile } from '../data/cycle-repository';
 import type { CycleProfile } from '../domain/types';
 import { validateCycleProfile } from '../domain/validation';
 
-import { withCycleWriteLock } from './cycle-write-lock';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 
 export type DeletePeriodRecordInput = {
   readonly recordId: string;
@@ -28,7 +28,7 @@ export function deletePeriodRecord(
 ): Promise<CycleProfile> {
   // One cycle mutation at a time: see the lock's own doc for the race the
   // snapshot write cannot survive without it.
-  return withCycleWriteLock(() => runDeletePeriodRecord(db, input));
+  return withLocalDbWriteLock(() => runDeletePeriodRecord(db, input));
 }
 
 async function runDeletePeriodRecord(

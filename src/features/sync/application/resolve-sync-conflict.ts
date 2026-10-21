@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { restoreCloudBackup } from '@/features/backup/application/restore-cloud-backup';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import { logEvent } from '@/shared/logging';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 
 import { loadRemoteSyncState, pushRemoteSyncState } from '../data/cloud-sync-repository';
 import { saveSyncState } from '../data/sync-state-repository';
@@ -131,14 +132,20 @@ export async function keepLocalData(
 
       // The account now holds this. The base has to say so, or the next sync
       // measures from something that is no longer true.
+      //
+      // One turn of the write queue for the statement, not for the resolution
+      // around it: this function reaches Firestore, and the queue must not be
+      // held across that.
       try {
-        await saveSyncState(db, {
-          uid,
-          revision: stored.envelope.revision,
-          contentHash: cloudSyncContentHash(payload),
-          basePayload: payload,
-          updatedAt: stored.envelope.updatedAt ?? stamp(),
-        });
+        await withLocalDbWriteLock(() =>
+          saveSyncState(db, {
+            uid,
+            revision: stored.envelope.revision,
+            contentHash: cloudSyncContentHash(payload),
+            basePayload: payload,
+            updatedAt: stored.envelope.updatedAt ?? stamp(),
+          })
+        );
       } catch (error: unknown) {
         // The write landed; a base that is behind is re-derived next time.
         logEvent('sync conflict resolve failed', error);
@@ -195,14 +202,20 @@ export async function keepRemoteData(
       return { kind: 'failed', reason: 'local-failed' };
     }
 
+    // Its own turn of the write queue, after the restore above has released
+    // its own. Two sequential spans rather than one: the gap between them is
+    // the already-documented safe one, where the base is behind rather than
+    // ahead and the next sync re-derives it.
     try {
-      await saveSyncState(db, {
-        uid,
-        revision: remote.revision,
-        contentHash: remote.contentHash,
-        basePayload: remote.payload,
-        updatedAt: remote.updatedAt ?? stamp(),
-      });
+      await withLocalDbWriteLock(() =>
+        saveSyncState(db, {
+          uid,
+          revision: remote.revision,
+          contentHash: remote.contentHash,
+          basePayload: remote.payload,
+          updatedAt: remote.updatedAt ?? stamp(),
+        })
+      );
     } catch (error: unknown) {
       logEvent('sync conflict resolve failed', error);
     }

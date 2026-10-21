@@ -7,8 +7,9 @@ import { BackButton } from '@/components/back-button';
 import { ButtonLabel, ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { clearDay, recordDay } from '@/features/daily-log/application/record-day';
 import { ChoiceGrid } from '@/features/daily-log/components/choice-grid';
-import { clearDailyEntry, loadDailyEntry, saveDailyEntry } from '@/features/daily-log/data/daily-log-repository';
+import { loadDailyEntry } from '@/features/daily-log/data/daily-log-repository';
 import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import {
   FLOW_LEVELS,
@@ -239,7 +240,7 @@ export default function DailyEntryScreen() {
     try {
       const db = await openAppDatabase();
 
-      await saveDailyEntry(db, entry);
+      await recordDay(db, entry);
 
       router.back();
     } catch (error) {
@@ -268,7 +269,7 @@ export default function DailyEntryScreen() {
     try {
       const db = await openAppDatabase();
 
-      await clearDailyEntry(db, date);
+      await clearDay(db, date);
 
       setEntry(emptyDailyEntry(date));
       setSaved(emptyDailyEntry(date));

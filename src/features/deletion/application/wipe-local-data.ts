@@ -16,6 +16,7 @@ import {
   isWidgetSnapshotBridgeAvailable,
 } from '@/features/widget/infrastructure/widget-snapshot-bridge';
 import { logEvent } from '@/shared/logging';
+import { withLocalDbWriteLock } from '@/storage/local-db-write-lock';
 
 import { checkpointWalAfterWipe, clearAllLocalTables } from '../data/local-data-repository';
 import type { LocalWipeOutcome } from '../domain/deletion-outcome';
@@ -132,23 +133,37 @@ export async function wipeLocalData(input: WipeLocalDataInput): Promise<LocalWip
 async function runWipe(input: WipeLocalDataInput): Promise<LocalWipeOutcome> {
   const { db, resetAppState, forgetAppLockState } = input;
 
-  // The one step that decides whether this is a wipe at all.
-  try {
-    await clearAllLocalTables(db);
-  } catch (error: unknown) {
-    logEvent('local data wipe failed', error);
+  // ## Both database steps in one turn of the write queue
+  //
+  // `clearAllLocalTables` flips `PRAGMA secure_delete` around its own
+  // transaction, and that pragma is connection-wide — another writer landing
+  // inside it would inherit it. `checkpointWalAfterWipe` is stricter still: it
+  // cannot truncate the log while any transaction is open on the connection,
+  // so a foreign `BEGIN` turns a wipe that worked into a reported `partial`
+  // with the pre-delete pages still on disk. Neither is safe to interleave,
+  // and they are adjacent, so they share one span.
+  //
+  // The two failure meanings stay inside it: the table clear is the one step
+  // that decides whether this is a wipe at all, and the checkpoint is best
+  // effort because the rows are already deleted by then — a lingering log is a
+  // `partial`, not a failure to wipe.
+  const checkpointed = await withLocalDbWriteLock(async () => {
+    try {
+      await clearAllLocalTables(db);
+    } catch (error: unknown) {
+      logEvent('local data wipe failed', error);
 
+      return null;
+    }
+
+    return bestEffort(() => checkpointWalAfterWipe(db), 'local data wipe failed');
+  });
+
+  if (checkpointed === null) {
     return { kind: 'failed', reason: 'local-failed' };
   }
 
-  let complete = true;
-
-  // The write-ahead log still holds the pre-delete page images; truncating it
-  // is part of the data being gone, not bookkeeping. Best effort like the
-  // steps below because the rows themselves are already deleted - a lingering
-  // log is a `partial`, not a failure to wipe.
-  complete =
-    (await bestEffort(() => checkpointWalAfterWipe(db), 'local data wipe failed')) && complete;
+  let complete = checkpointed;
 
   // The CSVs written for the share sheet are the records in plain text, and
   // they sit outside the tables the transaction just emptied. Straight after

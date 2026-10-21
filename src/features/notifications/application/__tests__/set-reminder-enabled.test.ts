@@ -2,6 +2,11 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { setReminderEnabled } from '../set-reminder-enabled';
 
+import {
+  resetLocalDbWriteLockForTests,
+  withLocalDbWriteLock,
+} from '@/storage/local-db-write-lock';
+
 // Only the database and the system permission are faked. The domain rules and
 // the enable/disable decision stay real.
 jest.mock('@/features/notifications/data/notification-preferences-repository', () => ({
@@ -33,6 +38,7 @@ beforeEach(() => {
   repository.saveNotificationPreferences.mockResolvedValue(undefined);
   permission.ensureNotificationPermission.mockReset();
   permission.ensureNotificationPermission.mockResolvedValue('granted');
+  resetLocalDbWriteLockForTests();
 });
 
 /** What was handed to the repository on the first write. */
@@ -111,6 +117,98 @@ describe('setReminderEnabled when permission is refused', () => {
     const result = await setReminderEnabled(db, 'pregnancyWeeklyReminderEnabled', true);
 
     expect(result.preferences.periodReminderEnabled).toBe(true);
+  });
+});
+
+/**
+ * The write queue, and the one place this function is deliberately outside it.
+ *
+ * The read and the write used to sit on either side of a system permission
+ * dialog, so the copy written back was as old as however long somebody left
+ * that dialog open — and the other switch changed in the meantime was
+ * overwritten. That is the lost update `storage/local-db-write-lock.ts` exists
+ * for, and the function's own doc claimed it could not happen.
+ *
+ * It cannot be fixed by locking the whole function: a dialog nobody answers
+ * would hold every write in the app behind it. So the dialog is outside, and
+ * the read and the write are one turn.
+ */
+describe('setReminderEnabled and the write queue', () => {
+  /** Several turns, so "not yet" means the queue rather than a race. */
+  const settle = async () => {
+    for (let turn = 0; turn < 8; turn += 1) {
+      await Promise.resolve();
+    }
+  };
+
+  it('asks for permission without holding the queue', async () => {
+    let answerDialog!: (status: 'granted') => void;
+
+    permission.ensureNotificationPermission.mockReturnValue(
+      new Promise((resolve) => {
+        answerDialog = resolve;
+      })
+    );
+
+    const switching = setReminderEnabled(db, 'periodReminderEnabled', true);
+
+    await settle();
+
+    // The dialog is open. Another write must still be able to run — this is
+    // what locking the whole function would have broken.
+    await expect(
+      withLocalDbWriteLock(async () => 'somebody else got through')
+    ).resolves.toBe('somebody else got through');
+
+    answerDialog('granted');
+    await switching;
+
+    expect(repository.saveNotificationPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads and writes in one turn, so a stale copy cannot be written back', async () => {
+    let release!: () => void;
+    const held = withLocalDbWriteLock(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
+
+    const switching = setReminderEnabled(db, 'periodReminderEnabled', true);
+
+    await settle();
+
+    // Permission is resolved by now; the read has not happened, because the
+    // read is inside the turn rather than before it.
+    expect(repository.loadNotificationPreferences).not.toHaveBeenCalled();
+
+    release();
+    await held;
+    await switching;
+
+    expect(repository.loadNotificationPreferences).toHaveBeenCalledTimes(1);
+    expect(repository.saveNotificationPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the preferences as they are after the dialog, not before it', async () => {
+    // The behaviour change this restructure carries. On a refusal the read now
+    // happens after the dialog, so what the screen is told is what is stored
+    // when it is told — not what was stored before somebody spent a minute on
+    // a system prompt. Nothing is written either way.
+    permission.ensureNotificationPermission.mockImplementation(async () => {
+      repository.loadNotificationPreferences.mockResolvedValue({
+        periodReminderEnabled: true,
+        pregnancyWeeklyReminderEnabled: false,
+      });
+
+      return 'denied';
+    });
+
+    const result = await setReminderEnabled(db, 'pregnancyWeeklyReminderEnabled', true);
+
+    expect(result.preferences.periodReminderEnabled).toBe(true);
+    expect(repository.saveNotificationPreferences).not.toHaveBeenCalled();
   });
 });
 
