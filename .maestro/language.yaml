@@ -40,9 +40,9 @@ appId: com.yusufkosardev.regltakvimi
 - launchApp:
     clearState: true
 
-# Onboarding, as smoke.yaml does it. Repeated rather than extracted: a subflow
-# in this directory would be picked up and run as a flow of its own by
-# `maestro test .maestro/`.
+# Onboarding, as smoke.yaml does it. Repeated rather than extracted - see the
+# note in app-lock.yaml: the workflow now names each flow, so a shared subflow
+# would be possible and the repetition is debt rather than a constraint.
 #
 # Waited for rather than tapped straight away. `clearState` means this is a
 # first launch — database created, migrations run, two typefaces loaded — and

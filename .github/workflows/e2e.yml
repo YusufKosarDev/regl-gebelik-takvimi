@@ -10,6 +10,24 @@
 # people to re-run red. The unit suites guard every push; this guards the
 # thing they cannot see, on a schedule, and before a release by hand
 # (workflow_dispatch) as RELEASE.md step 1 suggests.
+#
+# ## One emulator per flow, and why it is not one emulator for all three
+#
+# The first version built the APK and ran `maestro test .maestro/` in a single
+# job. The flows passed in order and then the emulator process itself died
+# mid-flow - adb went `device offline` and `emu kill` could not reach port
+# 5554 - which failed the flow that was running and every flow after it, for
+# a reason that had nothing to do with the app.
+#
+# A software-rendered emulator that has been driven for four minutes is the
+# least reliable thing in this job, so each flow now gets a fresh one and they
+# run in parallel. Three consequences, all wanted: a crash costs one flow
+# instead of three, a failure names the flow it belongs to, and the APK is
+# built once in a job that boots no emulator at all - so nothing is holding a
+# Gradle daemon's heap while an emulator needs memory.
+#
+# The cost is that `.maestro/` is no longer run as a directory: a new flow
+# needs a line in the matrix below, or it silently never runs.
 name: E2E smoke
 
 on:
@@ -20,10 +38,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
-    name: Maestro smoke flow
+  apk:
+    name: Release APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Check out the repository
@@ -59,6 +77,45 @@ jobs:
         working-directory: android
         run: ./gradlew :app:assembleRelease --console=plain
 
+      - name: Upload the APK for the flow jobs
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 1
+
+  flows:
+    name: ${{ matrix.flow }}
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      # Every flow is asking its own question, so one going red should not
+      # cancel the answers to the others.
+      fail-fast: false
+      matrix:
+        flow: [smoke, app-lock, language]
+
+    steps:
+      # The flows themselves, and nothing else from the repository - this job
+      # builds nothing.
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # Maestro runs on the JVM.
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Download the APK
+        uses: actions/download-artifact@v8
+        with:
+          name: release-apk
+
       - name: Install Maestro
         run: |
           curl -Ls https://get.maestro.mobile.dev | bash
@@ -73,28 +130,44 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run the smoke flow on an emulator
+      - name: Run ${{ matrix.flow }} on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          # The whole directory rather than one file: there are three flows
-          # now and a fourth should not need this line edited. It also means
-          # nothing may be added to `.maestro/` that is not a runnable flow —
-          # a shared subflow would be picked up and run on its own, which is
-          # why the onboarding taps are repeated in each file instead.
+          # 4 GB rather than the 2.5 GB the emulator picks for itself. The APK
+          # is built in another job, so this one has the box to itself and the
+          # memory is free; an emulator that is not short of it is one less
+          # explanation to rule out when it dies.
+          ram-size: 4096M
+          # One flow, named - see the header on why this is not the whole
+          # directory any more.
+          #
+          # logcat is captured here rather than left to Maestro. Maestro
+          # writes the device log into the flow's own output directory, which
+          # it cannot do once the device has gone: the run that prompted this
+          # left a log for the first flow and nothing for the one that
+          # crashed. Started before the flow and left running, this file holds
+          # everything up to the moment the device stopped answering, which is
+          # the evidence that was missing.
           script: |
-            adb install -r android/app/build/outputs/apk/release/app-release.apk
-            maestro test .maestro/
+            adb install -r app-release.apk
+            adb logcat -c
+            adb logcat > "$RUNNER_TEMP/logcat-${{ matrix.flow }}.txt" &
+            maestro test ".maestro/${{ matrix.flow }}.yaml"
 
-      # The screen recording and step log Maestro leaves behind are the only
-      # way to see WHAT failed on a machine nobody was watching.
+      # The screen recording and step log Maestro leaves behind, the device
+      # log above, and the emulator's own crash record - the only way to see
+      # WHAT failed on a machine nobody was watching.
       - name: Upload Maestro artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: maestro-output
-          path: ~/.maestro/tests/
+          name: maestro-output-${{ matrix.flow }}
+          path: |
+            ~/.maestro/tests/
+            ${{ runner.temp }}/logcat-${{ matrix.flow }}.txt
+            /tmp/android-runner/
           if-no-files-found: ignore

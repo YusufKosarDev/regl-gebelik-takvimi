@@ -22,8 +22,11 @@
 # `smoke.yaml` says it is deliberately one short flow, kept that way so it can
 # run on every change. This is a second question, and it costs its own
 # onboarding to ask; the six onboarding taps are repeated here rather than
-# extracted, because a subflow in this directory would be picked up and run as
-# a flow in its own right by `maestro test .maestro/`.
+# extracted into a subflow. That was once forced - the workflow ran
+# `maestro test .maestro/`, which would have run a subflow as a flow in its
+# own right - and is now only a debt: the workflow names each flow, so a
+# shared `subflows/` file would be possible. Extracting it is its own change,
+# not one to make in the run that is answering why an emulator died.
 #
 # Every text match is written as `turkish|english`, because Maestro treats the
 # text as a regular expression and CI boots an en-US emulator while the
