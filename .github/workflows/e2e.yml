@@ -131,6 +131,10 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Run ${{ matrix.flow }} on an emulator
+        id: first
+        # Not the job's verdict: the step after this one decides whether a
+        # failure is the app's or the emulator's.
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -142,32 +146,69 @@ jobs:
           # memory is free; an emulator that is not short of it is one less
           # explanation to rule out when it dies.
           ram-size: 4096M
-          # One flow, named - see the header on why this is not the whole
-          # directory any more.
-          #
-          # logcat is captured here rather than left to Maestro. Maestro
-          # writes the device log into the flow's own output directory, which
-          # it cannot do once the device has gone: the run that prompted this
-          # left a log for the first flow and nothing for the one that
-          # crashed. Started before the flow and left running, this file holds
-          # everything up to the moment the device stopped answering, which is
-          # the evidence that was missing.
-          script: |
-            adb install -r app-release.apk
-            adb logcat -c
-            adb logcat > "$RUNNER_TEMP/logcat-${{ matrix.flow }}.txt" &
-            maestro test ".maestro/${{ matrix.flow }}.yaml"
+          script: sh .github/scripts/e2e-flow.sh ${{ matrix.flow }} 1
+
+      # Only an emulator that disappeared is retried.
+      #
+      # Twice now the emulator process has died mid-flow: adb went `device
+      # offline` or `device 'emulator-5554' not found`, and `emu kill` could
+      # not reach port 5554 afterwards. The device log this job captures shows
+      # nothing on the device side when it happens - no FATAL, no ANR, no
+      # kill, no tombstone; the app is mid-render and the log simply stops. A
+      # host emulator that vanishes under a working app is not a finding about
+      # the app, and a second emulator is the only way to ask the question
+      # again.
+      #
+      # A flow that failed on the app - an element that is not there, an
+      # assertion that is false - is NOT retried. Retrying that would turn an
+      # intermittent fault in the app, which is exactly what these flows exist
+      # to catch, into a green run; and a flow that is simply wrong would cost
+      # two emulators to say so.
+      - name: Decide whether the emulator died or the flow did
+        id: triage
+        if: steps.first.outcome == 'failure'
+        run: |
+          log="$RUNNER_TEMP/maestro-${{ matrix.flow }}-1.txt"
+          if [ -f "$log" ] && grep -qE "device offline|device '[^']*' not found|device unauthorized" "$log"; then
+            echo 'The device stopped answering. Retrying on a fresh emulator.'
+            echo 'retry=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'The flow failed on the app, or Maestro never started. Not retrying.'
+            echo 'retry=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run ${{ matrix.flow }} again on a fresh emulator
+        if: steps.triage.outputs.retry == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          ram-size: 4096M
+          script: sh .github/scripts/e2e-flow.sh ${{ matrix.flow }} 2
+
+      # `continue-on-error` above means the job would otherwise end green on a
+      # flow that genuinely failed.
+      - name: Fail the job on a flow that failed on the app
+        if: steps.triage.outputs.retry == 'false'
+        run: exit 1
 
       # The screen recording and step log Maestro leaves behind, the device
-      # log above, and the emulator's own crash record - the only way to see
-      # WHAT failed on a machine nobody was watching.
+      # log and Maestro's own output for each attempt, and the emulator's
+      # crash record - the only way to see WHAT failed on a machine nobody was
+      # watching.
+      #
+      # Also uploaded when a retry rescued the flow: the job is green then, and
+      # the crash that made it necessary would otherwise leave no trace at all.
       - name: Upload Maestro artifacts on failure
-        if: failure()
+        if: failure() || steps.triage.outputs.retry == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: maestro-output-${{ matrix.flow }}
           path: |
             ~/.maestro/tests/
-            ${{ runner.temp }}/logcat-${{ matrix.flow }}.txt
+            ${{ runner.temp }}/logcat-${{ matrix.flow }}-*.txt
+            ${{ runner.temp }}/maestro-${{ matrix.flow }}-*.txt
             /tmp/android-runner/
           if-no-files-found: ignore
