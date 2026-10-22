@@ -1,0 +1,150 @@
+# Switching the language, and the interface following it.
+#
+# ## What this is actually checking
+#
+# Not the catalogues — `*-messages-parity.test.ts` and
+# `every-screen-english.test.tsx` already pin every string and every screen's
+# English half. What no test could reach is the chain in between on a real
+# device: a press on this row writes a preference, the store notifies, every
+# mounted screen re-reads through `useMessages`, and the words change. Those are
+# four separate mechanisms and the unit tests fake the first and the last.
+#
+# It is also the nearest thing to a check on the widget's localisation, which
+# cannot be driven from here at all: a home screen widget cannot be added to a
+# launcher by Maestro. The card's words now travel in the snapshot and are built
+# from the same catalogues this flow proves are being read, so a green run here
+# is evidence about the half of that fix that is reachable.
+#
+# ## Why it goes to Turkish first, which is the whole point
+#
+# CI boots an en-US emulator, so the app opens in English with the preference
+# on "follow the phone". A flow that pressed `English` and then asserted that
+# the interface was English would pass on a device where nothing had happened:
+# it could not tell a working write from a dead one. The first version of this
+# flow was exactly that, and it would have stayed green through anything.
+#
+# So it goes the other way first. `Türkçe` is pressed on an English phone, and
+# what follows asserts Turkish in exact words — the section's own title, the one
+# option whose label is a sentence rather than a name, the tab bar, and a second
+# screen opened afterwards. Then the app is killed and opened again, and it has
+# to come back Turkish: on an English phone, that is the stored preference being
+# read rather than the system language being followed or a value left in memory.
+# Only then is `English` pressed, and the same chain is asserted the other way.
+#
+# Assertions name one language rather than `turkish|english`, because by the
+# time they run this flow has decided which language the app is in. The
+# alternation is only used before the first switch, where the phone decides.
+#
+# ## The two languages name themselves
+#
+# `Türkçe` and `English` are the same strings in both catalogues, deliberately:
+# somebody looking for their own language should find it written the way they
+# write it. Only "follow the phone" is translated — which is why it is what
+# these assertions use to tell the two catalogues apart.
+#
+# ## Why the picker is scrolled to the middle
+#
+# `scrollUntilVisible` stops the moment it calls the element visible, and the
+# tab bar floats over the content rather than sitting under it. The first run of
+# this flow that got this far stopped with nine pixels of the language row
+# showing past the bar, counted that as visible, and tapped at a point the bar
+# was covering — which selected the Cycle tab, and the next assertion failed on
+# the home screen. `centerElement` keeps scrolling until the row is near the
+# middle of the screen, where nothing is over it.
+#
+# ## Every selector here matches exactly one element
+#
+# Maestro matches the whole text, not a part of it: `Filters.textMatches` hands
+# the element's text to `Regex.matches`. So `English` does not also match
+# `Your phone's language`, and a selector can only be ambiguous if two elements
+# carry the identical string. Two do: `Profil` is the profile screen's own
+# heading as well as its tab, and `Takvim` is a section on the home screen as
+# well as a tab — which is why the tab is pressed from the home screen, where
+# only the bar carries the word.
+appId: com.yusufkosardev.regltakvimi
+---
+- launchApp:
+    clearState: true
+
+# Onboarding, as smoke.yaml does it. Repeated rather than extracted — see the
+# note in app-lock.yaml: the workflow now names each flow, so a shared subflow
+# would be possible and the repetition is debt rather than a constraint.
+#
+# Waited for rather than tapped straight away. `clearState` means this is a
+# first launch — database created, migrations run, two typefaces loaded — and
+# `tapOn`'s own timeout is shorter than that on a CI emulator that has just
+# booted. The first version of this flow failed here.
+- extendedWaitUntil:
+    visible: 'Başlayalım|Get started'
+    timeout: 30000
+- tapOn: 'Başlayalım|Get started'
+- tapOn: 'Devam et|Continue'
+- tapOn: 'Önceki günü seç|Pick the previous day'
+- scrollUntilVisible:
+    element: 'Devam|Next'
+- tapOn: 'Devam|Next'
+- tapOn: 'Takibe başla|Start tracking'
+
+- extendedWaitUntil:
+    visible: 'Döngü günü|Cycle day'
+    timeout: 15000
+
+# The language row lives on the profile tab, below the lock and above the
+# section that empties the phone.
+- tapOn: 'Profil|Profile'
+- scrollUntilVisible:
+    element: 'Türkçe'
+    centerElement: true
+
+# Into Turkish, from whatever the phone said.
+- tapOn: 'Türkçe'
+
+# The screen under the press changes, and this is the strongest of the checks:
+# it was mounted before the row was pressed, so it has to re-read rather than
+# simply render in the new language on its way in.
+- extendedWaitUntil:
+    visible: 'Dil'
+    timeout: 15000
+- assertVisible: 'Telefonun dili'
+- assertNotVisible: 'Language'
+
+# So does the tab bar, which is a different tree from the screen and reads the
+# catalogue through its own `useMessages`.
+- assertVisible: 'Takvim'
+- assertVisible: 'Geçmiş'
+
+# A screen opened after the change is in the new language too.
+- tapOn: 'Geçmiş'
+- extendedWaitUntil:
+    visible: 'En çok kaydettiklerin'
+    timeout: 15000
+- assertNotVisible: 'What you log most'
+
+# Kill it and open it again. The phone is still an English one, so Turkish
+# after a cold start is the preference being read back from storage.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: 'Döngü günü'
+    timeout: 20000
+- assertNotVisible: 'Cycle day'
+- assertVisible: 'Profil'
+
+# ...and back again, which is the same chain in the other direction. The row
+# still says `English` in a Turkish interface, because the languages name
+# themselves.
+- tapOn: 'Profil'
+- scrollUntilVisible:
+    element: 'English'
+    centerElement: true
+- tapOn: 'English'
+
+- extendedWaitUntil:
+    visible: 'Language'
+    timeout: 15000
+# The apostrophe in `Your phone's language` is a typographic one in the
+# catalogue; `.` matches it without this file having to carry the character.
+- assertVisible: 'Your phone.s language'
+- assertNotVisible: 'Telefonun dili'
+- assertVisible: 'Calendar'
+- assertVisible: 'History'

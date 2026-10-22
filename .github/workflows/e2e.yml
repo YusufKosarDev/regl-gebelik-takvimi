@@ -1,5 +1,8 @@
-# The Maestro smoke flow on an emulator: onboarding to a recorded period to
-# every tab (.maestro/smoke.yaml).
+# The Maestro flows on an emulator, from `.maestro/`:
+#
+#   - smoke.yaml     onboarding to a recorded period to every tab
+#   - app-lock.yaml  setting a PIN, and getting back in through it
+#   - language.yaml  switching to English and the interface following
 #
 # Nightly and on demand rather than on every push, on purpose. The job boots
 # an emulator and builds a release APK - twenty-odd minutes and the flakiest
@@ -7,6 +10,24 @@
 # people to re-run red. The unit suites guard every push; this guards the
 # thing they cannot see, on a schedule, and before a release by hand
 # (workflow_dispatch) as RELEASE.md step 1 suggests.
+#
+# ## One emulator per flow, and why it is not one emulator for all three
+#
+# The first version built the APK and ran `maestro test .maestro/` in a single
+# job. The flows passed in order and then the emulator process itself died
+# mid-flow - adb went `device offline` and `emu kill` could not reach port
+# 5554 - which failed the flow that was running and every flow after it, for
+# a reason that had nothing to do with the app.
+#
+# A software-rendered emulator that has been driven for four minutes is the
+# least reliable thing in this job, so each flow now gets a fresh one and they
+# run in parallel. Three consequences, all wanted: a crash costs one flow
+# instead of three, a failure names the flow it belongs to, and the APK is
+# built once in a job that boots no emulator at all - so nothing is holding a
+# Gradle daemon's heap while an emulator needs memory.
+#
+# The cost is that `.maestro/` is no longer run as a directory: a new flow
+# needs a line in the matrix below, or it silently never runs.
 name: E2E smoke
 
 on:
@@ -17,10 +38,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
-    name: Maestro smoke flow
+  apk:
+    name: Release APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Check out the repository
@@ -56,6 +77,45 @@ jobs:
         working-directory: android
         run: ./gradlew :app:assembleRelease --console=plain
 
+      - name: Upload the APK for the flow jobs
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 1
+
+  flows:
+    name: ${{ matrix.flow }}
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      # Every flow is asking its own question, so one going red should not
+      # cancel the answers to the others.
+      fail-fast: false
+      matrix:
+        flow: [smoke, app-lock, language]
+
+    steps:
+      # The flows themselves, and nothing else from the repository - this job
+      # builds nothing.
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # Maestro runs on the JVM.
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Download the APK
+        uses: actions/download-artifact@v8
+        with:
+          name: release-apk
+
       - name: Install Maestro
         run: |
           curl -Ls https://get.maestro.mobile.dev | bash
@@ -70,23 +130,85 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run the smoke flow on an emulator
+      - name: Run ${{ matrix.flow }} on an emulator
+        id: first
+        # Not the job's verdict: the step after this one decides whether a
+        # failure is the app's or the emulator's.
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            adb install -r android/app/build/outputs/apk/release/app-release.apk
-            maestro test .maestro/smoke.yaml
+          # 4 GB rather than the 2.5 GB the emulator picks for itself. The APK
+          # is built in another job, so this one has the box to itself and the
+          # memory is free; an emulator that is not short of it is one less
+          # explanation to rule out when it dies.
+          ram-size: 4096M
+          script: sh .github/scripts/e2e-flow.sh ${{ matrix.flow }} 1
 
-      # The screen recording and step log Maestro leaves behind are the only
-      # way to see WHAT failed on a machine nobody was watching.
+      # Only an emulator that disappeared is retried.
+      #
+      # Twice now the emulator process has died mid-flow: adb went `device
+      # offline` or `device 'emulator-5554' not found`, and `emu kill` could
+      # not reach port 5554 afterwards. The device log this job captures shows
+      # nothing on the device side when it happens - no FATAL, no ANR, no
+      # kill, no tombstone; the app is mid-render and the log simply stops. A
+      # host emulator that vanishes under a working app is not a finding about
+      # the app, and a second emulator is the only way to ask the question
+      # again.
+      #
+      # A flow that failed on the app - an element that is not there, an
+      # assertion that is false - is NOT retried. Retrying that would turn an
+      # intermittent fault in the app, which is exactly what these flows exist
+      # to catch, into a green run; and a flow that is simply wrong would cost
+      # two emulators to say so.
+      - name: Decide whether the emulator died or the flow did
+        id: triage
+        if: steps.first.outcome == 'failure'
+        run: |
+          log="$RUNNER_TEMP/maestro-${{ matrix.flow }}-1.txt"
+          if [ -f "$log" ] && grep -qE "device offline|device '[^']*' not found|device unauthorized" "$log"; then
+            echo 'The device stopped answering. Retrying on a fresh emulator.'
+            echo 'retry=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'The flow failed on the app, or Maestro never started. Not retrying.'
+            echo 'retry=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run ${{ matrix.flow }} again on a fresh emulator
+        if: steps.triage.outputs.retry == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          ram-size: 4096M
+          script: sh .github/scripts/e2e-flow.sh ${{ matrix.flow }} 2
+
+      # `continue-on-error` above means the job would otherwise end green on a
+      # flow that genuinely failed.
+      - name: Fail the job on a flow that failed on the app
+        if: steps.triage.outputs.retry == 'false'
+        run: exit 1
+
+      # The screen recording and step log Maestro leaves behind, the device
+      # log and Maestro's own output for each attempt, and the emulator's
+      # crash record - the only way to see WHAT failed on a machine nobody was
+      # watching.
+      #
+      # Also uploaded when a retry rescued the flow: the job is green then, and
+      # the crash that made it necessary would otherwise leave no trace at all.
       - name: Upload Maestro artifacts on failure
-        if: failure()
+        if: failure() || steps.triage.outputs.retry == 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: maestro-output
-          path: ~/.maestro/tests/
+          name: maestro-output-${{ matrix.flow }}
+          path: |
+            ~/.maestro/tests/
+            ${{ runner.temp }}/logcat-${{ matrix.flow }}-*.txt
+            ${{ runner.temp }}/maestro-${{ matrix.flow }}-*.txt
+            /tmp/android-runner/
           if-no-files-found: ignore
