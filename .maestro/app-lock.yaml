@@ -59,9 +59,17 @@ appId: com.yusufkosardev.regltakvimi
     timeout: 15000
 
 # The lock is set from the profile tab.
+#
+# Scrolled to the middle rather than merely into view. The tab bar floats over
+# this screen's content, and `scrollUntilVisible` stops the moment it calls the
+# element visible - which, as language.yaml's header records, it will do for a
+# row showing nine pixels past the bar, leaving the tap to land on the bar.
+# This row is further up the screen than that one and has never been caught by
+# it, but it is the same screen and the same hazard.
 - tapOn: 'Profil|Profile'
 - scrollUntilVisible:
     element: 'Uygulama kilidini kur|Set up the app lock'
+    centerElement: true
 - tapOn: 'Uygulama kilidini kur|Set up the app lock'
 
 # Nobody signed in, so the setup opens on the account-less warning rather than
