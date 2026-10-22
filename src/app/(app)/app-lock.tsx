@@ -81,10 +81,44 @@ export default function AppLockScreen() {
     enabled ? 'remove' : currentUidOrNull() === null ? 'warning' : 'choose'
   );
   const [first, setFirst] = useState('');
-  const [entered, setEntered] = useState('');
+  const [entered, setEnteredState] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [verifiedAction, setVerifiedAction] = useState<VerifiedAction>('remove');
+
+  /**
+   * What has been typed, readable inside a batch.
+   *
+   * ## Why a ref and not a `setEntered` updater
+   *
+   * `handleDigit` works the next value out in its body and hands `setEntered` a
+   * plain value, for the reason that handler's own note gives: an updater has
+   * to be **pure**, React may run it again, and the branch in there used to
+   * mean two `unlockWithPin` calls for one wrong PIN — a second failed attempt
+   * out of the five free ones. That decision stands, and an updater here would
+   * undo it.
+   *
+   * A plain value read from the closure is not enough on its own. React batches
+   * updates made in the same tick, so two presses that land in one both see the
+   * same `entered` and the second overwrites the first instead of extending it:
+   * a sixth digit is swallowed and the step never advances, or a delete arriving
+   * with its replacement digit is silently undone. The dependency array does not
+   * reach it — that gives each *render* a fresh closure, and this is two calls
+   * inside one.
+   *
+   * So the value is mirrored here: written beside the state, read in the body.
+   * No updater, no side effect inside one, and a batch sees the latest value.
+   *
+   * `setEntered` below is the only writer. Every existing call site goes
+   * through it unchanged, which is what keeps the ref and the state from
+   * drifting — nothing calls `setEnteredState` directly.
+   */
+  const enteredRef = useRef('');
+
+  const setEntered = useCallback((next: string) => {
+    enteredRef.current = next;
+    setEnteredState(next);
+  }, []);
 
   /**
    * Whether this phone has a fingerprint or face enrolled.
@@ -215,7 +249,7 @@ export default function AppLockScreen() {
         inFlight.current = false;
       }
     },
-    [biometricsAvailable, lock, markEnabled, router, uid, useBiometrics]
+    [biometricsAvailable, lock, markEnabled, router, setEntered, uid, useBiometrics]
   );
 
   const handleRemove = useCallback(async () => {
@@ -312,7 +346,7 @@ export default function AppLockScreen() {
         inFlight.current = false;
       }
     },
-    [handleRemove, lock, markDisabled, router, verifiedAction]
+    [handleRemove, lock, markDisabled, router, setEntered, verifiedAction]
   );
 
   /**
@@ -332,20 +366,21 @@ export default function AppLockScreen() {
    * free ones. So the next value is worked out here, `setEntered` is handed a
    * plain value, and every side effect happens in this body where it belongs.
    *
-   * `entered` is therefore a dependency, and has to stay one: read from a
-   * stale closure it would build the PIN out of digits from two different
-   * presses. The React Compiler does not relax that — the dependency array is
-   * still what governs.
+   * The value itself comes from `enteredRef`, not from the closure. A closure
+   * read was correct per render and wrong inside one: two presses batched into
+   * a single render both saw the same `entered`, and the second overwrote the
+   * first instead of extending it. The ref's own note above says what that
+   * cost and why a ref rather than a return to the updater.
    */
   const handleDigit = useCallback(
     (digit: string) => {
-      if (entered.length >= PIN_LENGTH) {
+      if (enteredRef.current.length >= PIN_LENGTH) {
         return;
       }
 
       setMessage(null);
 
-      const next = entered + digit;
+      const next = enteredRef.current + digit;
 
       if (next.length < PIN_LENGTH) {
         setEntered(next);
@@ -382,13 +417,13 @@ export default function AppLockScreen() {
       setFirst('');
       setStep('choose');
     },
-    [entered, finish, first, lock, step, verify]
+    [finish, first, lock, setEntered, step, verify]
   );
 
   const handleDelete = useCallback(() => {
     setMessage(null);
-    setEntered((current) => current.slice(0, -1));
-  }, []);
+    setEntered(enteredRef.current.slice(0, -1));
+  }, [setEntered]);
 
   const backButton = (
     <BackButton />
