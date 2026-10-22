@@ -147,8 +147,23 @@ export default function RootLayout() {
    * the read failed and the message below is what the person gets instead.
    * Holding the splash over either would read as a hang.
    *
-   * The spinner stays as what shows if this somehow does not fire — a visible
-   * placeholder is a better failure than a splash that never lifts.
+   * ## There is no fallback below this, and there used to be a claim of one
+   *
+   * This said the spinner was what showed if the effect never fired. It is
+   * not. The splash is drawn by the system *over* the React tree, and
+   * `hideSplash` has exactly one caller — the effect below. So if `ready`
+   * never turns true, the spinner renders underneath a splash nobody lifted
+   * and the app simply looks stopped.
+   *
+   * The case that reaches it: `useAutomaticSync`, `useAppLock` and
+   * `registerForegroundNotificationHandler` all run above, before this gate.
+   * A throw out of any of them is caught by the `ErrorBoundary` this file
+   * re-exports, which renders its message — under the splash. The person is
+   * shown an explanation they cannot see.
+   *
+   * Left as it is for now, and described rather than implied: making the
+   * claim true means another `hideSplash` caller — from the boundary, or on a
+   * timeout — which is a behaviour change, not a comment.
    */
   const ready = (hydrated && lockHydrated && fontsLoaded) || hasHydrationError;
 
