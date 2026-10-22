@@ -19,6 +19,7 @@ import { appLockMessages } from '@/features/app-lock/presentation/app-lock-messa
 import { waitMessageIn } from '@/features/app-lock/presentation/wait-message';
 import { setDiscreetNotifications } from '@/features/notifications/application/set-discreet-notifications';
 import { currentUidOrNull } from '@/features/sync/application/use-automatic-sync';
+import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
 import { openAppDatabase } from '@/storage/db';
 import { getTodayLocalISODate } from '@/utils/today';
 import { useTheme } from '@/hooks/use-theme';
@@ -145,6 +146,39 @@ export default function AppLockScreen() {
           biometricsEnabled: biometricsAvailable === true && useBiometrics,
         });
 
+        // ## The widget goes blank here, not eventually
+        //
+        // `setupWidgetNote` promises it on this screen, before the PIN is
+        // chosen: "Kilit açıldığında ana ekran widget'ı boşalır." A widget is
+        // not locked, so a live one beside a lock is decoration.
+        //
+        // `syncWidgetSnapshot` has always refused to write while the lock is
+        // on. What was missing was a caller at this moment: the home screen
+        // syncs once per session and this screen did not sync at all, so the
+        // card kept showing the cycle day and phase until some later write or
+        // the next cold start happened to clear it. The promise was made here
+        // and kept somewhere else, after the phone had already been locked.
+        //
+        // `syncWidgetSnapshotQuietly` rather than `clearWidgetSnapshot`: the
+        // rule that the lock wins lives in `syncWidgetSnapshot`, which reads
+        // the record and clears instead of writing. Asking it to bring the
+        // widget in line keeps that rule in one place — and it is the same
+        // call that fills the card again in `handleRemove`, which is why
+        // neither direction needs a switch of its own.
+        //
+        // Its own `try`, not the one below: the reminders and the widget are
+        // two leaks, and a reminder queue that could not be rebuilt must not
+        // leave the card showing the cycle day. Quiet, and after the record is
+        // stored, for the reason the rewording is: the lock is what the person
+        // asked for and it is already durable.
+        try {
+          const db = await openAppDatabase();
+
+          await syncWidgetSnapshotQuietly(db, getTodayLocalISODate());
+        } catch (error: unknown) {
+          logEvent('widget sync failed', error);
+        }
+
         // Setting a lock is the same statement this makes: the phone can end up
         // in somebody else's hands. A reminder that then prints "regl dönemin
         // yaklaşıyor" on the lock screen would walk straight past the lock, and
@@ -189,6 +223,25 @@ export default function AppLockScreen() {
 
     try {
       await removeAppLock();
+
+      // The other direction of the same promise. Without it the card stays
+      // blank after the lock comes off — until the next write, or the next
+      // cold start — and somebody who turned the lock off to get their widget
+      // back would read that as a broken widget.
+      //
+      // The same call as in the setup path: the lock is off by now, so
+      // `syncWidgetSnapshot` writes instead of clearing. `removeAppLock` is
+      // deliberately not the place for this — it "removes the record and
+      // nothing else", and a repository that started refreshing home screens
+      // would stop being that.
+      try {
+        const db = await openAppDatabase();
+
+        await syncWidgetSnapshotQuietly(db, getTodayLocalISODate());
+      } catch (error: unknown) {
+        logEvent('widget sync failed', error);
+      }
+
       markDisabled();
       router.back();
     } catch (error: unknown) {
