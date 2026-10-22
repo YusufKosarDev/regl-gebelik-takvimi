@@ -24,8 +24,13 @@ import {
  *
  * Every path that writes the local database takes the lock exactly once, at the
  * highest layer whose work inside it is nothing but local database work. The
- * corollary this guards is the one that makes "exactly once" achievable:
+ * corollary that makes "exactly once" achievable is:
  * **nothing under a `data/` folder takes it.**
+ *
+ * Both halves are scanned here, and for a while only the corollary was. A
+ * missing lock and a nested one are the same silent hang, so a guard that
+ * watched one direction left the other to be noticed by somebody holding a
+ * frozen phone.
  *
  * Repositories are the leaves. A repository function cannot know whether its
  * caller already holds the turn — `restoreCloudBackup` calls nine of them from
@@ -68,6 +73,111 @@ function dataLayerFiles(): readonly string[] {
     )
     .map((file) => relative(SOURCE_ROOT, file).split(sep).join('/'));
 }
+
+/**
+ * The local-database write functions a repository exports.
+ *
+ * Two things make one, and both are mechanical: the name begins with a write
+ * verb, and the signature takes a `SQLiteDatabase`.
+ *
+ * The second half is what keeps the scan honest. `saveCloudBackup`,
+ * `deleteCloudBackup` and `deleteAuthUser` are all repository functions whose
+ * names begin with a write verb, and none of them touches SQLite — they write
+ * to Firestore. Matching on the name alone flagged `create-cloud-backup.ts`,
+ * which correctly takes no lock because it makes no local write. A guard whose
+ * first finding is a false one gets an exception list, and an exception list is
+ * how a guard stops being read.
+ */
+function localWriteFunctions(): readonly string[] {
+  const names = new Set<string>();
+
+  for (const file of dataLayerFiles()) {
+    const source = readFileSync(join(SOURCE_ROOT, file), 'utf8');
+
+    for (const match of source.matchAll(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g)) {
+      const name = match[1];
+
+      if (!/^(save|write|clear|replace|delete|update|insert|set|remove|add)[A-Z]/.test(name)) {
+        continue;
+      }
+
+      // The parameter list only, which is everything up to the body.
+      const bodyAt = source.indexOf('{', match.index);
+      const signature = source.slice(match.index, bodyAt === -1 ? source.length : bodyAt);
+
+      if (signature.includes('SQLiteDatabase')) {
+        names.add(name);
+      }
+    }
+  }
+
+  return [...names].sort();
+}
+
+/** Every module outside `data/`, as a path relative to `src/`. */
+function callerFiles(): readonly string[] {
+  return filesUnder(SOURCE_ROOT)
+    .filter(
+      (file) =>
+        !/[\\/]data[\\/]/.test(file) &&
+        !file.includes('__tests__') &&
+        (file.endsWith('.ts') || file.endsWith('.tsx'))
+    )
+    .map((file) => relative(SOURCE_ROOT, file).split(sep).join('/'));
+}
+
+/**
+ * The names a module imports, from its `import { … }` lists.
+ *
+ * Imports rather than any mention of the name: a comment that discusses
+ * `saveDailyEntry` is not a write, and a guard that cannot tell the difference
+ * would be reporting prose.
+ */
+function importedNames(source: string): readonly string[] {
+  return [...source.matchAll(/import\s*(?:type\s*)?\{([^}]*)\}\s*from/g)].flatMap((match) =>
+    match[1]
+      .split(',')
+      .map((part) => part.trim().split(/\s+as\s+/)[0].trim())
+      .filter((name) => name.length > 0)
+  );
+}
+
+/**
+ * What this half catches, and what it does not.
+ *
+ * It catches the regression it exists for: a module that imports a local write
+ * and never takes the lock — a new write path, or a lock deleted out of an old
+ * one. That is the shape the review found missing, and the shape that hangs the
+ * app with no error to assert on.
+ *
+ * It does not catch a module that locks one of its writes and not another: the
+ * grain is the file, because a module's mention of the lock is all a text scan
+ * can see. That is the same grain the corollary below works at, where a `data/`
+ * file may not mention the lock at all, and it is the honest limit of a scan.
+ * Reading inside functions needs the AST; if this ever has to go that far, it
+ * is a sign the layering stopped being obvious, which is its own problem.
+ */
+describe('every local write path takes the write lock', () => {
+  it('finds the write functions to look for', () => {
+    // A set that came back empty would make every case below pass by matching
+    // nothing — the same quiet pass the folder rename would cause above.
+    expect(localWriteFunctions().length).toBeGreaterThan(10);
+  });
+
+  it.each(callerFiles())('%s takes the lock if it writes', (file) => {
+    const source = readFileSync(join(SOURCE_ROOT, file), 'utf8');
+    const writes = importedNames(source).filter((name) =>
+      localWriteFunctions().includes(name)
+    );
+
+    // Nothing to say about a module that makes no local write.
+    if (writes.length === 0) {
+      return;
+    }
+
+    expect([file, writes, source.includes(LOCK_NAME)]).toEqual([file, writes, true]);
+  });
+});
 
 describe('the data layer never takes the write lock', () => {
   it('finds the repositories to scan', () => {
