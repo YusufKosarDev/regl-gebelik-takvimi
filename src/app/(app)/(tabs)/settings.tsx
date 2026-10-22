@@ -376,12 +376,6 @@ export default function SettingsScreen() {
   const syncedPermission = useRef<NotificationPermissionStatus | null>(null);
 
   /**
-   * Stable, so the mount effect can depend on it.
-   *
-   * Reads the reminders too, and only reads them: asking the system for
-   * permission while a screen is opening would be a dialog nobody asked for.
-   */
-  /**
    * Rewrites the widget's snapshot after the language changes.
    *
    * The widget renders the last snapshot the app wrote, so without this its day
@@ -405,6 +399,12 @@ export default function SettingsScreen() {
     });
   }, []);
 
+  /**
+   * Stable, so the mount effect can depend on it.
+   *
+   * Reads the reminders too, and only reads them: asking the system for
+   * permission while a screen is opening would be a dialog nobody asked for.
+   */
   const readSettings = useCallback(async () => {
     const db = await openAppDatabase();
 
