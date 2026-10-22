@@ -1378,17 +1378,23 @@ prebuild and restore it afterwards.
 
 This account is on the EAS free plan, which allows a limited number of Android
 builds per month. **The quota was spent on 13 October 2026 and resets on 1
-November**, so `eas build --platform android` fails until then with:
+November**, so `eas build --platform android` fails until then with this —
+quoted as it read on 14 October, which is why the countdown in it is not
+today's:
 
 ```
 This account has used its Android builds from the Free plan this month,
 which will reset in 18 days (on Sun Nov 01 2026).
 ```
 
+The reset date is the durable half; the number of days is whatever the day it
+is run.
+
 That bears on the release schedule, not only on a device pass: there is no new
 cloud build before November without upgrading the plan.
 
-Gradle builds the same source locally in the meantime:
+Gradle builds the same source locally in the meantime, but **not from a
+toolchain path with a space in it** — see the next section before running it:
 
 ```sh
 cd android && ./gradlew assembleRelease
@@ -1400,6 +1406,67 @@ about packaging: it is signed with a different key and built in a different
 environment from an EAS build, so size, signing and anything install-related
 are not comparable. `android/` is generated and gitignored, so the first run
 after a clean checkout takes considerably longer.
+
+#### A space in the SDK path breaks the native link, silently
+
+On 22 October 2026 a clean `prebuild` + `assembleRelease` on this machine
+failed, and not in the JS step:
+
+```
+> Task :react-native-screens:buildCMakeRelWithDebInfo[arm64-v8a] FAILED
+> Task :react-native-worklets:buildCMakeRelWithDebInfo[arm64-v8a][worklets] FAILED
+ld.lld: error: undefined symbol: operator new(unsigned long)
+ld.lld: error: undefined symbol: __cxa_throw
+ld.lld: error: undefined symbol: std::__ndk1::__shared_weak_count::__release_weak()
+```
+
+The chain, each link checked rather than assumed:
+
+1. The default SDK lives under `C:\Users\Yusuf Kosar\…`, so the compiler path
+   contains a space. CMake records the long path but writes the Windows 8.3
+   short form into `build.ninja`, as `CLANG_~1.EXE`.
+2. The NDK toolchain adds `-no-canonical-prefixes`, so clang does **not**
+   resolve `argv[0]` back to its real name.
+3. clang picks the C or the C++ driver from `argv[0]`. `CLANG_~1.EXE` has no
+   `++` in it, so it runs as the C driver.
+4. The C driver does not add `-lc++`. libc++ is never linked, and every
+   `operator new`, `__cxa_*` and `std::__ndk1::*` symbol is undefined.
+
+Measured directly, with the same object file and the same target:
+
+| Invocation | `-lc++` passed |
+|---|---|
+| short name, no flag | yes |
+| short name + `-no-canonical-prefixes` | **no** |
+| long name + `-no-canonical-prefixes` | yes |
+
+Three things that look like the cause and are not: the 8.3 name on its own
+(harmless without the flag), a dropped `ANDROID_STL` setting (`c++_shared` is
+requested and the NDK's branch for it is deliberately empty, because the driver
+is what links libc++), and `cmd.exe` quoting (the real failure resolved every
+path it was given). The same link command run by hand succeeds.
+
+The fix is to give Gradle a path with no space in it. A junction is enough and
+is reversible:
+
+```sh
+# once, from an elevated-or-not shell; creates a link, copies nothing
+cmd /c mklink /J C:\AndroidSdk "%LOCALAPPDATA%\Android\Sdk"
+```
+
+```properties
+# android/local.properties
+sdk.dir=C:/AndroidSdk
+```
+
+Then `./gradlew :app:assembleRelease` completes — 7m43s from cold on this
+machine, and CMake records `C:/AndroidSdk/.../clang++.exe` instead of the short
+name. `ANDROID_HOME` does **not** override `sdk.dir`, and changing either after
+a configure needs the stale CMake caches removed
+(`node_modules/*/android/.cxx`) or the old path is reused.
+
+Linux CI never hits this: there is no 8.3 shortening, which is why
+`e2e.yml` builds the same release APK on every nightly without complaint.
 
 #### The Hermes step was blocked once and has not been since
 
@@ -1415,6 +1482,20 @@ with a policy update — but it is not a blocker, and leaving it written as one
 would have had somebody arranging a second machine for a problem that is not
 there. A TODO that has quietly stopped being true is worse than no TODO: it is
 read as a current state of the build.
+
+That paragraph used to be the whole story of local release builds, and read as
+"this works here now". It is not the whole story: on 22 October a clean
+`prebuild` + `assembleRelease` failed on the same machine at the native link
+step, for the path reason above and not for this one. The Hermes step was not
+what refused.
+
+Why the October runs did not hit it is **not established**. The SDK path had
+the same space in it then. The dependency realignment in #16 is a candidate —
+it could have brought `react-native-screens` and `react-native-worklets`
+versions that compile their C++ from source where the earlier ones did not —
+but that was not verified, and it is written here as the open question it is
+rather than as the explanation. The 49s–1m02s figures belong to those runs; the
+first green run after the junction took 7m43s from cold.
 
 ### App versions and the version code
 
