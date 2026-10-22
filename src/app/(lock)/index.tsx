@@ -40,8 +40,45 @@ export default function LockScreen() {
   const lock = useMessages(appLockMessages);
   const unlock = useAppLockStore((state) => state.unlock);
 
-  const [entered, setEntered] = useState('');
+  const [entered, setEnteredState] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+
+  /**
+   * What has been typed, readable inside a batch.
+   *
+   * ## Why a ref and not a `setEntered` updater
+   *
+   * The next value is worked out in the handler body and `setEntered` is handed
+   * a plain value. That is deliberate: the branch used to run inside
+   * `setEntered((current) => …)`, calling `submit` from in there. React requires
+   * an updater to be **pure** and is free to run it again — guaranteed under
+   * StrictMode, possible whenever a concurrent render replays a pending update
+   * queue — and `reactCompiler` is on in `app.json` and leans on the same
+   * contract. Replaying it meant two `unlockWithPin` calls for one PIN, which
+   * is two failed attempts counted against a schedule that gives five free
+   * ones. Going back to an updater would bring that back.
+   *
+   * A plain value alone is not enough either. React batches updates made in the
+   * same tick, so two presses that land in one — two thumbs, or a correction
+   * typed as fast as the thing it corrects — both read the same `entered` from
+   * the same closure, and the second overwrites the first instead of extending
+   * it. A sixth digit is swallowed and nothing is ever submitted; a delete
+   * followed by a digit is undone and the six digits sent are not the six on
+   * screen. The dependency array does not reach this: it gives each *render* a
+   * fresh closure, and this is two calls inside one.
+   *
+   * So the value is mirrored here. Written beside the state, read in the body:
+   * no updater, no side effect inside one, and a batch sees the latest value.
+   *
+   * `setEntered` below is the only writer, which is what keeps the two from
+   * drifting — nothing calls `setEnteredState` directly.
+   */
+  const enteredRef = useRef('');
+
+  const setEntered = useCallback((next: string) => {
+    enteredRef.current = next;
+    setEnteredState(next);
+  }, []);
   /**
    * The moment the wait is over, not how much of it is left.
    *
@@ -201,7 +238,7 @@ export default function LockScreen() {
         setIsChecking(false);
       }
     },
-    [lock, startWait, unlock]
+    [lock, setEntered, startWait, unlock]
   );
 
   /**
@@ -328,18 +365,19 @@ export default function LockScreen() {
    * one PIN, which costs a second failed attempt out of the five free ones.
    * `reactCompiler` is on in `app.json` and leans on the same contract.
    *
-   * `entered` is a dependency because the value is read from the closure now.
-   * Dropping it would build the PIN out of digits from two different presses.
+   * The value comes from `enteredRef`, not from the closure, so two presses
+   * that land in one batch still build on each other. See the ref's own note
+   * for why that is neither a stale read nor a reason to go back to an updater.
    */
   const handleDigit = useCallback(
     (digit: string) => {
-      if (entered.length >= PIN_LENGTH) {
+      if (enteredRef.current.length >= PIN_LENGTH) {
         return;
       }
 
       setMessage(null);
 
-      const next = entered + digit;
+      const next = enteredRef.current + digit;
 
       setEntered(next);
 
@@ -347,13 +385,13 @@ export default function LockScreen() {
         void submit(next);
       }
     },
-    [entered, submit]
+    [setEntered, submit]
   );
 
   const handleDelete = useCallback(() => {
     setMessage(null);
-    setEntered((current) => current.slice(0, -1));
-  }, []);
+    setEntered(enteredRef.current.slice(0, -1));
+  }, [setEntered]);
 
   return (
     <ThemedView style={styles.screen}>
