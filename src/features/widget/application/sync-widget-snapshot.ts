@@ -57,9 +57,25 @@ import type { ISODate } from '@/types/iso-date';
  * words are whatever the language is at the moment it is written, which is
  * exactly what a stored snapshot means.
  *
- * Overridable, so a test can say which language without moving the device, and
- * so the settings screen can pass the language it has just switched to rather
- * than racing the store.
+ * Overridable so a test can say which language without moving the device. No
+ * caller passes it: the settings screen calls this with two arguments after a
+ * language change and lets `currentLanguage()` answer.
+ *
+ * That is correct, and it rests on something outside this file. It is not that
+ * the screen threads the new language in — it does not — but that
+ * `setLanguagePreference` writes the store synchronously, before the promise
+ * the screen awaits resolves, so by the time this runs `currentLanguage()` is
+ * already the language that was just chosen. Written down because it is a
+ * dependency on another module's ordering rather than on anything visible
+ * here: if that write ever moves after the resolve, the widget starts being
+ * rewritten in the language the person just left, and nothing in this file
+ * would look wrong.
+ *
+ * Nothing pins that ordering, which is the reason it is written down rather
+ * than merely relied on. `app-store.test.ts` awaits the action and then reads
+ * the store, so it passes either way — an `await` gives a deferred write all
+ * the microtasks it needs. A test that caught a reversal would have to read the
+ * store in the action's own `then`, and there is no such test today.
  */
 export async function syncWidgetSnapshot(
   db: SQLiteDatabase,
