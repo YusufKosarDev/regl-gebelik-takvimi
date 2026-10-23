@@ -74,7 +74,7 @@ private const val NEUTRAL_HAIR = 0xFF8E8A86.toInt()
 private const val NEUTRAL_OUTFIT = 0xFF9A9A9A.toInt()
 
 private val SKIN_COLORS = mapOf(
-  "skin-tone-1" to (0xFFF6DFCE.toInt() to 0xFFE8C9B3.toInt()),
+  "skin-tone-1" to (0xFFF7DFCE.toInt() to 0xFFE8C9B3.toInt()),
   "skin-tone-2" to (0xFFEFC9A9.toInt() to 0xFFDDB08C.toInt()),
   "skin-tone-3" to (0xFFD9A277.toInt() to 0xFFC2885E.toInt()),
   "skin-tone-4" to (0xFFB77C52.toInt() to 0xFF9E653F.toInt()),
