@@ -326,8 +326,19 @@ describe('HomeScreen with a saved profile', () => {
 
     expect(getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
     expect(getByLabelText('Döngü evresi: Luteal')).toBeTruthy();
-    expect(getByLabelText('Doğurganlık tahmini: Düşük')).toBeTruthy();
     expect(getByLabelText('Sonraki regl tahmini: 29 Eylül 2026')).toBeTruthy();
+
+    // The fertility row speaks its note too, which is the one row that has
+    // one. This assertion used to read 'Doğurganlık tahmini: Düşük' and was
+    // pinning the bug: the sentence saying the estimate is not a method of
+    // contraception was drawn on screen and dropped from the spoken row.
+    // `cycle-summary.test.tsx` holds the rule; this holds it on the screen.
+    expect(
+      getByLabelText(
+        'Doğurganlık tahmini: Düşük. Doğurganlık bilgileri tahminidir ve gebelikten '
+          + 'korunma yöntemi olarak kullanılmamalıdır.'
+      )
+    ).toBeTruthy();
   });
 
   it('opens the database once and reads the clock once', async () => {
