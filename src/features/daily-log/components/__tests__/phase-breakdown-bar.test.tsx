@@ -10,6 +10,8 @@ import {
 } from '../phase-breakdown-bar';
 
 import { CyclePhaseColors } from '@/constants/theme';
+import { CYCLE_PHASES } from '@/features/cycle/domain/phases';
+import { cycleLabels, getCyclePhaseLabelIn } from '@/features/cycle/presentation/cycle-labels';
 import type { PhaseTally } from '@/features/daily-log/domain/symptom-phase-correlation';
 
 /**
@@ -185,6 +187,138 @@ describe('the bar as drawn', () => {
     const spoken = view.getByLabelText(/Luteal/);
 
     expect(spoken).toBeTruthy();
+  });
+});
+
+/**
+ * What a screen reader hears, and how many times it hears it.
+ *
+ * The bar carried the four counts as one sentence and the legend carried the
+ * same four as four separate text nodes, so every count was announced twice:
+ * six stops per bar where two would do, and on the records summary that is the
+ * baseline plus one per symptom.
+ *
+ * The legend is the channel that does not depend on telling four hues apart -
+ * `phase-palette-distinctness.test.ts` measured the closest pair at a contrast
+ * ratio of 1.17 - and that argument is about **seeing**. A screen reader is
+ * already getting the numbers from the bar's own label. So the drawn legend
+ * stays exactly as it is and is hidden from assistive technology, which leaves
+ * one spoken stop per bar carrying all four counts together. Together matters:
+ * the screen exists so a reader can compare a distribution against the
+ * baseline, and four numbers delivered in one breath are comparable in a way
+ * four separate stops are not.
+ */
+describe('the bar is announced once', () => {
+  /**
+   * The stops a screen reader would make, in tree order.
+   *
+   * Counting `accessibilityLabel`s alone is what the first version of this test
+   * did, and it passed against the duplicated tree: the legend's counts are
+   * rendered text rather than labels, so the two channels were never compared.
+   * This walks the way the platform does instead - a hidden subtree is skipped,
+   * a node with a label is one stop and swallows its children, and anything
+   * else contributes the text it renders.
+   */
+  function spokenStops(tree: unknown): string[] {
+    const out: string[] = [];
+
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+
+        return;
+      }
+
+      if (typeof node === 'string') {
+        out.push(node);
+
+        return;
+      }
+
+      if (node === null || typeof node !== 'object') {
+        return;
+      }
+
+      const typed = node as { props?: Record<string, unknown>; children?: unknown };
+      const props = typed.props ?? {};
+
+      if (
+        props.accessibilityElementsHidden === true
+        || props.importantForAccessibility === 'no-hide-descendants'
+      ) {
+        return;
+      }
+
+      if (typeof props.accessibilityLabel === 'string') {
+        out.push(props.accessibilityLabel);
+
+        return;
+      }
+
+      walk(typed.children);
+    };
+
+    walk(tree);
+
+    return out;
+  }
+
+  it('says the counts once rather than once per channel', async () => {
+    const view = await render(
+      <PhaseBreakdownBar tally={tally({ luteal: 9, menstrual: 3 })} testID="bar" />
+    );
+
+    const heard = spokenStops(view.toJSON()).filter((stop) => stop.includes('Luteal'));
+
+    expect(heard).toHaveLength(1);
+
+    // And that one stop carries all four, so nothing was deduplicated by
+    // dropping it. The phase words come from the catalogue rather than being
+    // typed here: the Turkish for `menstrual` is "Regl", not "Menstrual".
+    for (const phase of CYCLE_PHASES) {
+      const word = getCyclePhaseLabelIn(cycleLabels.tr, phase);
+
+      expect([word, heard[0].includes(word)]).toEqual([word, true]);
+    }
+  });
+
+  it('hides the legend from assistive technology without removing it', async () => {
+    const view = await render(
+      <PhaseBreakdownBar tally={tally({ luteal: 9, menstrual: 3 })} testID="bar" />
+    );
+
+    // `includeHiddenElements` because the thing being asserted is that this
+    // element is hidden: the default queries skip anything hidden from
+    // assistive technology, so without it a passing fix looks like a missing
+    // element.
+    const legend = view.getByTestId('bar-legend', { includeHiddenElements: true });
+
+    // Both attributes, like `icon.tsx` and the arc's decorations: one is the
+    // iOS half and one is the Android half, and this app ships Android.
+    expect(legend.props.accessibilityElementsHidden).toBe(true);
+    expect(legend.props.importantForAccessibility).toBe('no-hide-descendants');
+
+    // Still drawn, because hiding it from a screen reader is not the same as
+    // taking away the channel that does not need four hues told apart.
+    expect(texts(view.toJSON()).join(' | ')).toContain('9');
+  });
+
+  /**
+   * A role, so the sentence is not mistaken for body text.
+   *
+   * Without one it is an `accessible` View with a label: TalkBack reads the
+   * words and says nothing about what they describe. `image` is what
+   * `AvatarPreview` uses for the other thing in this app that is a drawn
+   * graphic with a spoken description, and it tells the listener that what
+   * they are hearing is a description of a picture rather than a line of the
+   * page.
+   */
+  it('says it is a graphic', async () => {
+    const view = await render(
+      <PhaseBreakdownBar tally={tally({ luteal: 9, menstrual: 3 })} testID="bar" />
+    );
+
+    expect(view.getByLabelText(/Luteal/).props.accessibilityRole).toBe('image');
   });
 });
 

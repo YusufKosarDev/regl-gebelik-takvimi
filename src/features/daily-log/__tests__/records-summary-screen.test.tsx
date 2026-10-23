@@ -135,6 +135,25 @@ describe('the records summary with enough of one symptom', () => {
 
     expect(view.queryByText(tr.belowThresholdNote)).toBeNull();
   });
+
+  /**
+   * Each bar's row is a heading, so the bars are something to jump between.
+   *
+   * Without it the screen is one flat run and the only way to reach the fourth
+   * symptom with a screen reader is to hear the first three. The bar itself
+   * carries all four counts in one spoken stop - `phase-breakdown-bar.tsx` says
+   * why - which only helps if there is a way to get to the right bar.
+   */
+  it('heads each bar, so a screen reader can move between them', async () => {
+    const view = await open();
+
+    const headings = view
+      .getAllByRole('header')
+      .map((node) => node.props.children)
+      .filter((text): text is string => typeof text === 'string');
+
+    expect(headings).toContain(tr.barHeading('Kramp', MIN_ENTRIES_FOR_CORRELATION));
+  });
 });
 
 describe('the records summary with too little of one symptom', () => {

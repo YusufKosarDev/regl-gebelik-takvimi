@@ -30,12 +30,32 @@ import { useMessages } from '@/i18n';
  * hue far more than by lightness. Somebody who cannot separate those hues sees
  * one bar. `sky.ts` reached the same conclusion about the calendar and said
  * what to do — "the calendar also keeps its letters and shapes" — so the bar is
- * never the only carrier: each phase's count is in the legend beneath it, and
- * the whole thing has one accessible sentence.
+ * never the only carrier: each phase's count is in the legend beneath it.
  *
  * All four phases are listed, including the ones at zero. A phase that holds
  * none of the days is information, and leaving it out would make the reader
  * work out which of the four is missing.
+ *
+ * ## The legend is drawn for the eye and hidden from a screen reader
+ *
+ * That argument is entirely about *seeing*: the legend exists because four
+ * hues are not a reliable channel. A screen reader is not reading hues — it is
+ * reading the bar's own label, which already carries all four counts.
+ *
+ * With both in the tree every count was announced twice, once from the bar's
+ * sentence and once from the legend's text: six stops per bar where two do,
+ * and on the records summary that is the baseline plus one per symptom. So the
+ * legend stays exactly as drawn and is marked hidden, leaving one spoken stop
+ * per bar with the four counts together — which is the form that matches what
+ * the screen is for. A reader is here to compare a distribution against the
+ * baseline, and four numbers in one breath are comparable in a way four
+ * separate stops are not.
+ *
+ * The bar takes `image` for its role. Without one it was an `accessible` View
+ * with a label, which TalkBack reads out as though it were a line of the page;
+ * `image` is what `AvatarPreview` uses for the other drawn graphic with a
+ * spoken description, and it tells the listener that what they are hearing
+ * describes a picture.
  */
 
 /**
@@ -133,7 +153,11 @@ export function PhaseBreakdownBar({
 
   return (
     <View testID={testID}>
-      <View accessible accessibilityLabel={spoken} style={styles.bar}>
+      <View
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={spoken}
+        style={styles.bar}>
         {segments.map((segment) => (
           <View
             key={segment.phase}
@@ -147,8 +171,14 @@ export function PhaseBreakdownBar({
       </View>
 
       {/* Every phase, including the empty ones: the text is the channel that
-          does not depend on telling four hues apart. */}
-      <View style={styles.legend}>
+          does not depend on telling four hues apart — which is a channel for
+          the eye. The bar above already speaks all four counts, so repeating
+          them here would announce every number twice. */}
+      <View
+        testID={testID === undefined ? undefined : `${testID}-legend`}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.legend}>
         {CYCLE_PHASES.map((phase) => (
           <View key={phase} style={styles.legendRow}>
             <View style={[styles.swatch, { backgroundColor: colours[`${phase}Accent`] }]} />
