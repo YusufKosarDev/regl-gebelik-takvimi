@@ -17,7 +17,7 @@ const CATEGORIES: readonly [string, readonly AvatarOption[], number][] = [
   ['hair styles', AVATAR_HAIR_STYLES, 12],
   // Also the colours a covering can be, which is the same list.
   ['hair colors', AVATAR_HAIR_COLORS, 9],
-  ['outfits', AVATAR_OUTFITS, 4],
+  ['outfits', AVATAR_OUTFITS, 6],
   ['accessories', AVATAR_ACCESSORIES, 3],
 ];
 

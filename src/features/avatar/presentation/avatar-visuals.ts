@@ -136,6 +136,16 @@ const OUTFIT_PALETTES: Readonly<Record<string, AvatarOutfitPalette>> = {
   sweatshirt: { base: '#8F7C9C', trim: '#6F5E7C' },
   shirt: { base: '#6F9080', trim: '#547063' },
   dress: { base: '#A8798A', trim: '#875B6B' },
+
+  /**
+   * Two warm garments, where the first four were all cool.
+   *
+   * The cool half of the wheel was the crowded one: a teal and a slate blue
+   * both measured 41 against the t-shirt, under the 45 the shipped four
+   * manage. Warm leaves the closest pair exactly where it was.
+   */
+  tunic: { base: '#A8925C', trim: '#8A7746' },
+  vest: { base: '#A85F5F', trim: '#8A4848' },
 };
 
 /**
@@ -242,6 +252,21 @@ const OUTFIT_SHAPES: Readonly<Record<string, AvatarOutfitShape>> = {
   sweatshirt: { width: 0.95, neckline: 'round', corner: 0.3 },
   shirt: { width: 0.84, neckline: 'placket', corner: 0.1 },
   dress: { width: 0.7, neckline: 'strap', corner: 0.24 },
+
+  /** Wide and buttoned, which is the shirt's neckline on a looser body. */
+  tunic: { width: 0.9, neckline: 'placket', corner: 0.28 },
+
+  /**
+   * Narrow and round-necked, which is a fitted knit over something else.
+   *
+   * It began as straps, like the dress, and drew 5px from it at `small`: two
+   * strap garments differ only in their width and their corners, and the width
+   * had to move by 0.15 of the canvas before the gap cleared 10px — which
+   * would have made a vest broader than a sweatshirt or narrower than a head.
+   * A different neckline separates them outright instead, because it is a
+   * different set of shapes rather than the same ones nudged.
+   */
+  vest: { width: 0.62, neckline: 'round', corner: 0.05 },
 };
 
 const ACCESSORY_KINDS: Readonly<Record<string, AvatarAccessoryKind>> = {

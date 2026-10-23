@@ -96,6 +96,8 @@ const avatarCatalogueTr = {
     { id: 'sweatshirt', label: 'Sweatshirt' },
     { id: 'shirt', label: 'Gömlek' },
     { id: 'dress', label: 'Elbise' },
+    { id: 'tunic', label: 'Tunik' },
+    { id: 'vest', label: 'Yelek' },
   ] as readonly AvatarOption[],
 
   accessories: [
@@ -151,6 +153,8 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'sweatshirt', label: 'Sweatshirt' },
     { id: 'shirt', label: 'Shirt' },
     { id: 'dress', label: 'Dress' },
+    { id: 'tunic', label: 'Tunic' },
+    { id: 'vest', label: 'Vest' },
   ],
 
   accessories: [
