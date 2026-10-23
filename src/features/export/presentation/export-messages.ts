@@ -45,10 +45,14 @@ const exportMessagesTr = {
    * the one of the three that depends on no renderer: `printToFileAsync` hands
    * the HTML to the platform's WebView, and when that fails there has to be a
    * readable format left.
+   *
+   * The three are listed in the order the buttons are in. Somebody reading this
+   * note looks down at the buttons to find the one it is describing, and a list
+   * that runs the other way makes them do the matching themselves.
    */
   threeFilesNote:
-    'Üç dosya ayrı ayrı paylaşılır: PDF yazdırmak için, özet okumak için, '
-    + 'CSV ise hesap tablosu için.',
+    'Üç dosya ayrı ayrı paylaşılır: özet okumak için, CSV hesap tablosu için, '
+    + 'PDF ise yazdırmak için.',
 
   preparingMessage: 'Hazırlanıyor...',
   shareFailedMessage: 'Dosya paylaşılamadı.',
@@ -159,8 +163,8 @@ const exportMessagesEn: ExportMessages = {
   pdfButtonLabel: 'Share a summary of your records as a printable PDF',
 
   threeFilesNote:
-    'The three files are shared separately: the PDF to print, the summary to read, '
-    + 'the CSV for a spreadsheet.',
+    'The three files are shared separately: the summary to read, the CSV for a '
+    + 'spreadsheet, the PDF to print.',
 
   preparingMessage: 'Preparing…',
   shareFailedMessage: 'That file could not be shared.',
