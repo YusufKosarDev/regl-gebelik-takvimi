@@ -22,6 +22,82 @@ function config(overrides: Partial<AvatarConfig> = {}): AvatarConfig {
 
 const HEX = /^#[0-9A-F]{6}$/i;
 
+/**
+ * How far apart two of the shape's numbers have to be to count as different.
+ *
+ * Measured rather than picked. `avatar-visuals` states the rule — every style
+ * differs from every other in at least two of its numbers — and the shipped
+ * catalogue satisfies it exactly at this threshold: raise it to 0.08 and
+ * `medium`/`long` collapse to a single difference, which means 0.06 is the
+ * largest value at which the rule the file claims is actually true of it.
+ *
+ * A boolean needs no threshold: `knot` and `scallop` are either drawn or not.
+ */
+const SHAPE_DELTA = 0.06;
+
+/** The fields in which two hair shapes visibly disagree. */
+function shapeDifferences(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): readonly string[] {
+  return Object.keys(left).filter((field) => {
+    const a = left[field];
+    const b = right[field];
+
+    if (typeof a === 'boolean' || typeof b === 'boolean') {
+      return a !== b;
+    }
+
+    return Math.abs(Number(a) - Number(b)) >= SHAPE_DELTA;
+  });
+}
+
+/**
+ * The rule `avatar-visuals` writes down, held to mechanically.
+ *
+ * "Every style differs from every other in at least two of the five numbers, so
+ * none of them is a near-copy of its neighbour at the small size." It was a
+ * comment and nothing else, which is the state a rule is in just before a new
+ * style quietly breaks it — and a near-copy is not something a reviewer notices
+ * in a table of decimals.
+ *
+ * Generic over the shape's fields on purpose: a sixth number added later is
+ * covered without this being edited.
+ */
+describe('the hair styles are told apart by at least two numbers each', () => {
+  const shapes = AVATAR_HAIR_STYLES.map((style) => ({
+    id: style.id,
+    shape: resolveAvatarVisuals(config({ hairStyleId: style.id })).hairShape as unknown as Record<
+      string,
+      unknown
+    >,
+  }));
+
+  const pairs = shapes.flatMap((left, index) =>
+    shapes.slice(index + 1).map((right) => ({ left, right }))
+  );
+
+  it('has pairs to compare', () => {
+    // Guards the loop below from passing by having nothing in it.
+    expect(pairs.length).toBeGreaterThan(9);
+  });
+
+  it.each(pairs.map(({ left, right }) => [left.id, right.id] as const))(
+    '%s and %s differ in two or more',
+    (leftId, rightId) => {
+      const left = shapes.find((entry) => entry.id === leftId)!.shape;
+      const right = shapes.find((entry) => entry.id === rightId)!.shape;
+      const differences = shapeDifferences(left, right);
+
+      expect([`${leftId}/${rightId}`, differences.length >= 2, differences]).toEqual([
+        `${leftId}/${rightId}`,
+        true,
+        differences,
+      ]);
+    }
+  );
+});
+
 describe('resolveAvatarVisuals covering the catalogue', () => {
   it.each(AVATAR_SKIN_TONES)('gives $id its own palette', (tone) => {
     const { skin } = resolveAvatarVisuals(config({ skinToneId: tone.id }));
