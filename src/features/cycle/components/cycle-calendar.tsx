@@ -191,7 +191,15 @@ export function CycleCalendar({ grid, today, selectedDate, onSelectDay }: CycleC
 
   return (
     <View style={styles.calendar}>
-      <View style={styles.row}>
+      {/* Drawn for the eye, hidden from a screen reader. "Pzt" and "Cmt" are
+          abbreviations to look at; read out they are seven stops of nothing,
+          ahead of forty-two squares that now name their own weekday.
+          `formatDisplayDateWithWeekday` carries the whole argument. */}
+      <View
+        testID="calendar-weekday-row"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.row}>
         {home.weekdayLabels.map((label) => (
           <View key={label} style={styles.weekdayCell}>
             <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>

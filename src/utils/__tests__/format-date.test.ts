@@ -1,7 +1,11 @@
 import type { ISODate } from '@/types/iso-date';
-import { toISODate } from '@/utils/date';
+import { getISOWeekday, toISODate } from '@/utils/date';
 
-import { formatDisplayDate, formatDisplayMonth } from '../format-date';
+import {
+  formatDisplayDate,
+  formatDisplayDateWithWeekday,
+  formatDisplayMonth,
+} from '../format-date';
 
 describe('formatDisplayDate', () => {
   it('formats a date in Turkish', () => {
@@ -80,5 +84,65 @@ describe('formatDisplayMonth', () => {
 
   it('does not depend on the device locale', () => {
     expect(formatDisplayMonth(2026, 9)).not.toMatch(/September|Sep/);
+  });
+});
+
+describe('formatDisplayDateWithWeekday', () => {
+  /**
+   * The weekday a seven-column grid cannot say out loud.
+   *
+   * Both calendar grids draw their column headers for the eye and hide them
+   * from assistive technology, so the weekday has to be in the square itself.
+   * These dates are a known week: 19 October 2026 is a Monday.
+   */
+  it('names the weekday in front of the date', () => {
+    expect(formatDisplayDateWithWeekday(toISODate('2026-10-19'))).toBe(
+      'Pazartesi, 19 Ekim 2026'
+    );
+  });
+
+  it('walks the whole week in order, Monday first', () => {
+    const week = ['19', '20', '21', '22', '23', '24', '25'].map((day) =>
+      formatDisplayDateWithWeekday(toISODate(`2026-10-${day}`)).split(',')[0]
+    );
+
+    expect(week).toEqual([
+      'Pazartesi',
+      'Salı',
+      'Çarşamba',
+      'Perşembe',
+      'Cuma',
+      'Cumartesi',
+      'Pazar',
+    ]);
+  });
+
+  it('says it in English for an English reader', () => {
+    expect(formatDisplayDateWithWeekday(toISODate('2026-10-25'), 'en')).toBe(
+      'Sunday, 25 October 2026'
+    );
+  });
+
+  it('keeps the date exactly as the plain formatter renders it', () => {
+    // The weekday is a prefix, not a reformatting. Anything that splits a date
+     // on spaces still finds the same three tokens after the comma.
+    for (const language of ['tr', 'en'] as const) {
+      const date = toISODate('2026-03-07');
+
+      expect(formatDisplayDateWithWeekday(date, language)).toContain(
+        formatDisplayDate(date, language)
+      );
+    }
+  });
+
+  it('agrees with getISOWeekday rather than keeping its own count', () => {
+    // A second opinion about which day is Monday is how the grid and the label
+    // end up one column apart.
+    const date = toISODate('2026-02-28');
+    const names = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+    expect(formatDisplayDateWithWeekday(date).split(',')[0]).toBe(
+      names[getISOWeekday(date) - 1]
+    );
   });
 });
