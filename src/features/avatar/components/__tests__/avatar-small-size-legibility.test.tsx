@@ -4,11 +4,15 @@ import React from 'react';
 import { AvatarPreview } from '../AvatarPreview';
 
 import {
+  AVATAR_ACCESSORIES,
   AVATAR_HAIR_STYLES,
   AVATAR_OUTFITS,
 } from '@/features/avatar/data/avatar-catalog';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
-import { resolveAvatarVisuals } from '@/features/avatar/presentation/avatar-visuals';
+import {
+  AVATAR_ACCESSORY_GOLD,
+  resolveAvatarVisuals,
+} from '@/features/avatar/presentation/avatar-visuals';
 
 /**
  * Whether the choices are still different from each other once they are small.
@@ -190,6 +194,54 @@ describe('the hair styles at the small size', () => {
 
       expect([style.id, drawn > 0]).toEqual([style.id, true]);
     }
+  });
+});
+
+describe('the accessories at the small size', () => {
+  /**
+   * Accessories are small by nature, so this asks a weaker question than the
+   * other two: not how far apart they are, but that each draws something, in
+   * its own place, that no other one draws.
+   *
+   * They share one colour — `AVATAR_ACCESSORY_GOLD` for the metal ones — and
+   * the glasses are drawn in the skin's feature colour, so the comparison is
+   * of the boxes each adds to the figure rather than of a palette.
+   */
+  /**
+   * The shapes only, never the whole tree.
+   *
+   * Comparing rendered trees looked right and proved nothing: the root carries
+   * an `accessibilityLabel` built from the catalogue, so "Kolye" and "Broş"
+   * made two trees differ even when both drew the identical necklace. Pointing
+   * `brooch` at the necklace's kind — a plausible copy-paste in
+   * `ACCESSORY_KINDS` — passed that version of this test.
+   *
+   * So what is compared is the boxes drawn in the colours an accessory uses:
+   * the gold the metal ones share, and the skin's feature colour the glasses
+   * borrow. The face uses that second colour too, identically for every
+   * accessory, so it cancels out of the comparison.
+   */
+  it('gives every accessory its own shapes', async () => {
+    const { skin } = resolveAvatarVisuals(config());
+    const colours = [AVATAR_ACCESSORY_GOLD, skin.feature];
+
+    const bare = await drawSmall(config());
+    const baseline = JSON.stringify(boxesInColour(bare, colours));
+    const drawings = new Map<string, string>();
+
+    for (const accessory of AVATAR_ACCESSORIES) {
+      const tree = await drawSmall(config({ accessoryId: accessory.id }));
+      const shapes = JSON.stringify(boxesInColour(tree, colours));
+
+      // Each one has to add something: an accessory that drew nothing would be
+      // a row in the picker that does nothing.
+      expect([accessory.id, shapes === baseline]).toEqual([accessory.id, false]);
+
+      drawings.set(accessory.id, shapes);
+    }
+
+    // And each has to draw something no other one draws.
+    expect(new Set(drawings.values()).size).toBe(AVATAR_ACCESSORIES.length);
   });
 });
 

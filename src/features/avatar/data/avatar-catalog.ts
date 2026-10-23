@@ -104,6 +104,8 @@ const avatarCatalogueTr = {
     { id: 'glasses', label: 'Gözlük' },
     { id: 'hair-clip', label: 'Toka' },
     { id: 'earrings', label: 'Küpe' },
+    { id: 'necklace', label: 'Kolye' },
+    { id: 'brooch', label: 'Broş' },
   ] as readonly AvatarOption[],
 };
 
@@ -161,6 +163,8 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'glasses', label: 'Glasses' },
     { id: 'hair-clip', label: 'Hair clip' },
     { id: 'earrings', label: 'Earrings' },
+    { id: 'necklace', label: 'Necklace' },
+    { id: 'brooch', label: 'Brooch' },
   ],
 };
 

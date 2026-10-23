@@ -65,7 +65,12 @@ export type AvatarOutfitShape = {
   readonly corner: number;
 };
 
-export type AvatarAccessoryKind = 'glasses' | 'hair-clip' | 'earrings';
+export type AvatarAccessoryKind =
+  | 'glasses'
+  | 'hair-clip'
+  | 'earrings'
+  | 'necklace'
+  | 'brooch';
 
 /**
  * The metal the earrings and the hair clip are drawn in.
@@ -273,6 +278,16 @@ const ACCESSORY_KINDS: Readonly<Record<string, AvatarAccessoryKind>> = {
   glasses: 'glasses',
   'hair-clip': 'hair-clip',
   earrings: 'earrings',
+  /**
+   * Two that sit below the chin rather than on the head.
+   *
+   * Which is the reason for choosing them: the first three all land on the
+   * face or the hair, and a covering already occupies that area. A necklace
+   * and a brooch are the accessories somebody wearing a headscarf can still
+   * see on their avatar.
+   */
+  necklace: 'necklace',
+  brooch: 'brooch',
 };
 
 /**

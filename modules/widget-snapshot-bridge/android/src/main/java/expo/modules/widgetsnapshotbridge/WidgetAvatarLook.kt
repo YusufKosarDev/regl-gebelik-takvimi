@@ -59,7 +59,13 @@ data class WidgetAvatarLook(
 enum class WidgetAccessory {
   GLASSES,
   HAIR_CLIP,
-  EARRINGS
+  EARRINGS,
+
+  /** At the collarbone, which is below the chin and clear of any covering. */
+  NECKLACE,
+
+  /** Pinned to one side of the garment, for the same reason. */
+  BROOCH
 }
 
 private const val NEUTRAL_SKIN = 0xFFCBC3BC.toInt()
@@ -121,7 +127,9 @@ private val OUTFIT_COLORS = mapOf(
 private val ACCESSORIES = mapOf(
   "glasses" to WidgetAccessory.GLASSES,
   "hair-clip" to WidgetAccessory.HAIR_CLIP,
-  "earrings" to WidgetAccessory.EARRINGS
+  "earrings" to WidgetAccessory.EARRINGS,
+  "necklace" to WidgetAccessory.NECKLACE,
+  "brooch" to WidgetAccessory.BROOCH
 )
 
 /** The colour of an accessory, which is the same warm metal for all of them. */
