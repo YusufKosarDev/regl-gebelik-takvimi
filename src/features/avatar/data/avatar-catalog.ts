@@ -100,6 +100,32 @@ const avatarCatalogueTr = {
     { id: 'vest', label: 'Yelek' },
   ] as readonly AvatarOption[],
 
+  /**
+   * The face, which every avatar has one of whether or not it was chosen.
+   *
+   * So there is no "Yok" here, unlike the accessories: an absent choice is
+   * `calm`, the face the app has always drawn, and `avatar-visuals` resolves it
+   * that way. Somebody who never opens this section keeps the avatar they had.
+   */
+  expressions: [
+    { id: 'calm', label: 'Sakin' },
+    { id: 'smiling', label: 'Gülümseyen' },
+    { id: 'tired', label: 'Yorgun' },
+    { id: 'thoughtful', label: 'Düşünceli' },
+  ] as readonly AvatarOption[],
+
+  /**
+   * The disc behind the figure. This one *does* have an absent state — a plain
+   * figure on nothing is what every avatar looks like today — so the screen
+   * offers "Yok" beside it, the way it does for an accessory.
+   */
+  backgrounds: [
+    { id: 'lavender', label: 'Lavanta' },
+    { id: 'rose', label: 'Gül' },
+    { id: 'stone', label: 'Taş' },
+    { id: 'ice', label: 'Buz' },
+  ] as readonly AvatarOption[],
+
   accessories: [
     { id: 'glasses', label: 'Gözlük' },
     { id: 'hair-clip', label: 'Toka' },
@@ -159,6 +185,20 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'vest', label: 'Vest' },
   ],
 
+  expressions: [
+    { id: 'calm', label: 'Calm' },
+    { id: 'smiling', label: 'Smiling' },
+    { id: 'tired', label: 'Tired' },
+    { id: 'thoughtful', label: 'Thoughtful' },
+  ],
+
+  backgrounds: [
+    { id: 'lavender', label: 'Lavender' },
+    { id: 'rose', label: 'Rose' },
+    { id: 'stone', label: 'Stone' },
+    { id: 'ice', label: 'Ice' },
+  ],
+
   accessories: [
     { id: 'glasses', label: 'Glasses' },
     { id: 'hair-clip', label: 'Hair clip' },
@@ -182,4 +222,6 @@ export const AVATAR_SKIN_TONES = avatarCatalogueTr.skinTones;
 export const AVATAR_HAIR_STYLES = avatarCatalogueTr.hairStyles;
 export const AVATAR_HAIR_COLORS = avatarCatalogueTr.hairColors;
 export const AVATAR_OUTFITS = avatarCatalogueTr.outfits;
+export const AVATAR_EXPRESSIONS = avatarCatalogueTr.expressions;
+export const AVATAR_BACKGROUNDS = avatarCatalogueTr.backgrounds;
 export const AVATAR_ACCESSORIES = avatarCatalogueTr.accessories;

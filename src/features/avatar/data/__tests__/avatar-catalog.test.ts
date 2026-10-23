@@ -3,6 +3,8 @@ import type { AvatarOption } from '../../domain/avatar-option';
 import { getAvatarOption } from '../../domain/avatar-option';
 import {
   AVATAR_ACCESSORIES,
+  AVATAR_BACKGROUNDS,
+  AVATAR_EXPRESSIONS,
   AVATAR_HAIR_COLORS,
   AVATAR_HAIR_STYLES,
   AVATAR_OUTFITS,
@@ -20,6 +22,10 @@ const CATEGORIES: readonly [string, readonly AvatarOption[], number][] = [
   ['outfits', AVATAR_OUTFITS, 6],
   // Two of the five sit below the chin, which is where a covering leaves room.
   ['accessories', AVATAR_ACCESSORIES, 5],
+  // Every avatar has a face, so there is no absent option among these.
+  ['expressions', AVATAR_EXPRESSIONS, 4],
+  // Four is what clears the floor against all eight skin tones and each other.
+  ['backgrounds', AVATAR_BACKGROUNDS, 4],
 ];
 
 describe('the avatar catalogue offers every category', () => {
@@ -184,5 +190,31 @@ describe('avatar catalogue purity', () => {
   it('is the same list on every read', () => {
     expect(AVATAR_OUTFITS).toBe(AVATAR_OUTFITS);
     expect(AVATAR_OUTFITS[0]).toBe(AVATAR_OUTFITS[0]);
+  });
+});
+
+describe('the sixth and seventh categories read in both languages', () => {
+  it('names the expressions that were asked for', () => {
+    expect(AVATAR_EXPRESSIONS.map((option) => option.label)).toEqual([
+      'Sakin',
+      'Gülümseyen',
+      'Yorgun',
+      'Düşünceli',
+    ]);
+  });
+
+  it('names the backdrops that were asked for', () => {
+    expect(AVATAR_BACKGROUNDS.map((option) => option.label)).toEqual([
+      'Lavanta',
+      'Gül',
+      'Taş',
+      'Buz',
+    ]);
+  });
+
+  it('offers no absent expression, because a face is not optional', () => {
+    // The absent state is `calm`, resolved in `avatar-visuals`, not a row here.
+    expect(AVATAR_EXPRESSIONS.map((option) => option.id)).toContain('calm');
+    expect(AVATAR_EXPRESSIONS.map((option) => option.label)).not.toContain('Yok');
   });
 });

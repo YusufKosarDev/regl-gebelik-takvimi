@@ -31,6 +31,8 @@ import type { Messages } from '@/i18n';
 
 const avatarLabelsTr = {
   noAccessoryLabel: 'Yok',
+  /** No disc behind the figure, which is what every avatar looked like before. */
+  noBackgroundLabel: 'Yok',
 
   /** The parts of the description, each already in its language's word order. */
   skinPart: (skin: string) => `${skin} ten`,
@@ -55,6 +57,8 @@ const avatarLabelsTr = {
     return null;
   },
   accessoryPart: (accessory: string) => `aksesuar ${accessory}`,
+  expressionPart: (expression: string) => `${expression} ifade`,
+  backgroundPart: (background: string) => `${background} arka plan`,
 
   /** When nothing about the avatar can be named at all. */
   avatarOnly: 'Avatar',
@@ -74,6 +78,8 @@ const avatarLabelsTr = {
   avatarHeadscarfColorSectionTitle: 'Örtü rengi',
   avatarOutfitSectionTitle: 'Kıyafet',
   avatarAccessorySectionTitle: 'Aksesuar',
+  avatarExpressionSectionTitle: 'Yüz ifadesi',
+  avatarBackgroundSectionTitle: 'Arka plan',
 
   avatarSaveButtonLabel: 'Avatarı kaydet',
 
@@ -88,6 +94,7 @@ export type AvatarLabels = typeof avatarLabelsTr;
 
 const avatarLabelsEn: AvatarLabels = {
   noAccessoryLabel: 'None',
+  noBackgroundLabel: 'None',
 
   skinPart: (skin: string) => `${skin.toLowerCase()} skin`,
   hairPart: (style: string | null, color: string | null) => {
@@ -105,6 +112,8 @@ const avatarLabelsEn: AvatarLabels = {
     return null;
   },
   accessoryPart: (accessory: string) => accessory.toLowerCase(),
+  expressionPart: (expression: string) => `${expression.toLowerCase()} expression`,
+  backgroundPart: (background: string) => `${background.toLowerCase()} background`,
 
   avatarOnly: 'Avatar',
   avatarDescription: (parts: string) => `Avatar: ${parts}`,
@@ -120,6 +129,8 @@ const avatarLabelsEn: AvatarLabels = {
   avatarHeadscarfColorSectionTitle: 'Headscarf colour',
   avatarOutfitSectionTitle: 'Outfit',
   avatarAccessorySectionTitle: 'Accessory',
+  avatarExpressionSectionTitle: 'Expression',
+  avatarBackgroundSectionTitle: 'Background',
 
   avatarSaveButtonLabel: 'Save your avatar',
 
@@ -164,11 +175,36 @@ export function describeAvatarIn(
     ? labels.headscarfPart(hairStyle, hairColor)
     : labels.hairPart(hairStyle, hairColor);
 
+  // Named only when it was chosen, unlike the accessory's "Yok".
+  //
+  // The accessory says "none" because the picker visibly asks and none is an
+  // answer. An expression that was never chosen is not an answer: the face is
+  // the one the avatar always had, so saying "Sakin ifade" would make the
+  // sentence longer for everybody who has not opened this section, and would
+  // claim a decision nobody made. It also kept the "knows nothing at all" case
+  // honest — an avatar whose every id is unrecognised reads as "Avatar" rather
+  // than as a calm face it was never given.
+  const expression =
+    config.expressionId === undefined
+      ? null
+      : labelOf(catalogue.expressions, config.expressionId);
+
+  // The backdrop is named only when there is one. "Yok arka plan" would be
+  // reading out the absence of a decoration, which is not worth a listener's
+  // time — unlike the accessory, where "Yok" answers a question the picker
+  // visibly asks.
+  const background =
+    config.backgroundId === undefined
+      ? null
+      : labelOf(catalogue.backgrounds, config.backgroundId);
+
   const parts = [
     skin === null ? null : labels.skinPart(skin),
     onTheHead,
     outfit,
     accessory === null ? null : labels.accessoryPart(accessory),
+    expression === null ? null : labels.expressionPart(expression),
+    background === null ? null : labels.backgroundPart(background),
   ].filter((part): part is string => part !== null);
 
   return parts.length === 0 ? labels.avatarOnly : labels.avatarDescription(parts.join(', '));

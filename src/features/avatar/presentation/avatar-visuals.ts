@@ -65,6 +65,30 @@ export type AvatarOutfitShape = {
   readonly corner: number;
 };
 
+/**
+ * A face, as four multipliers on the one the app has always drawn.
+ *
+ * Multipliers rather than coordinates, so `calm` is `1` across the board and
+ * is therefore the existing face exactly — which is what lets an avatar with
+ * no expression keep the face it already had. The renderer centres the mouth,
+ * which it was already doing by arithmetic, so that too is unchanged at `1`.
+ *
+ * `eyeOpenness` squashes the eye towards a lozenge, `mouthWidth` and
+ * `mouthHeight` scale the mark, and `mouthCorner` rounds it — `1` is the fully
+ * rounded bar drawn today, and towards `0` it straightens.
+ */
+export type AvatarExpressionShape = {
+  readonly eyeOpenness: number;
+  readonly mouthWidth: number;
+  readonly mouthHeight: number;
+  readonly mouthCorner: number;
+};
+
+/** The disc behind the figure. One colour; there is nothing behind it to shade. */
+export type AvatarBackgroundPalette = {
+  readonly base: string;
+};
+
 export type AvatarAccessoryKind =
   | 'glasses'
   | 'hair-clip'
@@ -274,6 +298,44 @@ const OUTFIT_SHAPES: Readonly<Record<string, AvatarOutfitShape>> = {
   vest: { width: 0.62, neckline: 'round', corner: 0.05 },
 };
 
+/**
+ * Four faces, told apart by at least two of the four numbers each.
+ *
+ * The same rule the silhouettes are held to, and held mechanically by the same
+ * kind of test — but the drawn check is a different one, because an eye is a
+ * 3px dot at `small` and no pixel floor built for a silhouette could ever be
+ * met by a face. What is measured there is that each draws marks no other one
+ * draws.
+ *
+ * `calm` is all ones on purpose: it is the face the app drew before this
+ * existed, so an avatar that never chose an expression is unchanged. The
+ * neutral fallback is `calm` for the same reason — an id from a later build
+ * draws the face its owner already had rather than a guess.
+ */
+const EXPRESSION_SHAPES: Readonly<Record<string, AvatarExpressionShape>> = {
+  calm: { eyeOpenness: 1, mouthWidth: 1, mouthHeight: 1, mouthCorner: 1 },
+  smiling: { eyeOpenness: 1, mouthWidth: 1.4, mouthHeight: 1.6, mouthCorner: 1 },
+  tired: { eyeOpenness: 0.45, mouthWidth: 0.8, mouthHeight: 0.7, mouthCorner: 1 },
+  thoughtful: { eyeOpenness: 0.8, mouthWidth: 0.55, mouthHeight: 1, mouthCorner: 0.3 },
+};
+
+/**
+ * Four discs, each far enough from every skin tone to keep a head visible.
+ *
+ * That second constraint did the choosing. A peach disc is the obvious one to
+ * want and is not available: it measured 19 against `skin-tone-1` and 10
+ * against `skin-tone-2`, so the lightest faces would have sunk into it. These
+ * four are what clears 45 from all eight tones and from each other, and four
+ * is the largest set that does — a fifth either came within range of a tone or
+ * of another disc.
+ */
+const BACKGROUND_PALETTES: Readonly<Record<string, AvatarBackgroundPalette>> = {
+  lavender: { base: '#CFC3E8' },
+  rose: { base: '#E3C2CC' },
+  stone: { base: '#C9C6C0' },
+  ice: { base: '#C6DCD8' },
+};
+
 const ACCESSORY_KINDS: Readonly<Record<string, AvatarAccessoryKind>> = {
   glasses: 'glasses',
   'hair-clip': 'hair-clip',
@@ -321,6 +383,10 @@ export type AvatarVisuals = {
   readonly outfitShape: AvatarOutfitShape;
   /** `null` for no accessory, and also for one this build cannot draw. */
   readonly accessory: AvatarAccessoryKind | null;
+  /** Always a face: an absent choice resolves to the one already drawn. */
+  readonly expression: AvatarExpressionShape;
+  /** `null` for no disc, and also for a colour this build does not have. */
+  readonly background: AvatarBackgroundPalette | null;
 };
 
 /**
@@ -360,5 +426,16 @@ export function resolveAvatarVisuals(config: AvatarConfig): AvatarVisuals {
     outfitShape: OUTFIT_SHAPES[config.outfitId] ?? NEUTRAL_OUTFIT_SHAPE,
     accessory:
       config.accessoryId === undefined ? null : (ACCESSORY_KINDS[config.accessoryId] ?? null),
+    // Absent and unknown both land on `calm` — the face the avatar already
+    // had — so neither an upgrade nor a downgrade changes somebody's face.
+    expression:
+      config.expressionId === undefined
+        ? EXPRESSION_SHAPES.calm
+        : (EXPRESSION_SHAPES[config.expressionId] ?? EXPRESSION_SHAPES.calm),
+    // Absent and unknown both land on no disc, which is the figure as it was.
+    background:
+      config.backgroundId === undefined
+        ? null
+        : (BACKGROUND_PALETTES[config.backgroundId] ?? null),
   };
 }
