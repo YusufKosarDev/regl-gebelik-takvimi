@@ -187,8 +187,18 @@ class WidgetAvatarLookTest {
     hairStyleId: String = "bun",
     hairColorId: String = "red",
     outfitId: String = "dress",
-    accessoryId: String? = null
-  ) = WidgetAvatar(skinToneId, hairStyleId, hairColorId, outfitId, accessoryId)
+    accessoryId: String? = null,
+    expressionId: String? = null,
+    backgroundId: String? = null
+  ) = WidgetAvatar(
+    skinToneId,
+    hairStyleId,
+    hairColorId,
+    outfitId,
+    accessoryId,
+    expressionId,
+    backgroundId
+  )
 
   @Test
   fun `gives every catalogue skin tone its own colour`() {
@@ -242,6 +252,46 @@ class WidgetAvatarLookTest {
    * hair — so `KNOT` is wrong for the knotted one however tempting, because
    * `KNOT` is drawn as a bun and a bun is hair.
    */
+  @Test
+  fun `maps every catalogue backdrop onto its colour`() {
+    val ids = listOf("lavender", "rose", "stone", "ice")
+    val colors = ids.map { widgetAvatarLook(avatar(backgroundId = it)).background }
+
+    assertEquals(ids.size, colors.toSet().size)
+    assertTrue(colors.all { it != null })
+  }
+
+  @Test
+  fun `draws no disc when no backdrop was chosen`() {
+    assertNull(widgetAvatarLook(avatar(backgroundId = null)).background)
+  }
+
+  @Test
+  fun `draws no disc for a backdrop it does not have`() {
+    assertNull(widgetAvatarLook(avatar(backgroundId = "a-colour-from-later")).background)
+  }
+
+  /**
+   * The expression changes nothing here, and that is the decision.
+   *
+   * The face a widget draws is two 3px dots and a 12x3 bar; what separates a
+   * smile from a calm mouth is the curve of that bar, and none of it survives
+   * at this size. So `expressionId` crosses the boundary and is ignored.
+   *
+   * Pinned rather than left implicit, because "the widget ignores it" and "the
+   * widget forgot it" look identical from the outside — and the day somebody
+   * adds a mouth shape to the look, this test is what tells them it was a
+   * choice they are reversing.
+   */
+  @Test
+  fun `looks the same whatever the expression is`() {
+    val faces = listOf("calm", "smiling", "tired", "thoughtful", "a-face-from-later")
+    val looks = faces.map { widgetAvatarLook(avatar(expressionId = it)) }
+
+    assertEquals(1, looks.toSet().size)
+    assertEquals(widgetAvatarLook(avatar(expressionId = null)), looks.first())
+  }
+
   @Test
   fun `maps every headscarf onto the covering shape`() {
     val ids = listOf("headscarf-plain", "headscarf-draped", "headscarf-knotted")

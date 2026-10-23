@@ -53,7 +53,21 @@ data class WidgetAvatarLook(
   val hairShape: WidgetHairShape,
   val outfit: Int,
   val hasAccessory: Boolean,
-  val accessory: WidgetAccessory?
+  val accessory: WidgetAccessory?,
+  /**
+   * The disc behind the figure, or `null` for none.
+   *
+   * The one thing from version 9 of the schema that this look carries. A field
+   * of colour at launcher size is the most legible thing an avatar has, and it
+   * costs one circle.
+   *
+   * There is deliberately no expression here. The face is two 3px dots and a
+   * 12x3 bar, and what separates a smile from a calm mouth is the curve of
+   * that bar — nothing that survives. `widgetAvatarLook` ignores
+   * `expressionId` for that reason, and `WidgetAvatarLookTest` pins it so the
+   * absence reads as a decision rather than as something missed.
+   */
+  val background: Int?
 )
 
 enum class WidgetAccessory {
@@ -132,6 +146,13 @@ private val ACCESSORIES = mapOf(
   "brooch" to WidgetAccessory.BROOCH
 )
 
+private val BACKGROUND_COLORS = mapOf(
+  "lavender" to 0xFFCFC3E8.toInt(),
+  "rose" to 0xFFE3C2CC.toInt(),
+  "stone" to 0xFFC9C6C0.toInt(),
+  "ice" to 0xFFC6DCD8.toInt()
+)
+
 /** The colour of an accessory, which is the same warm metal for all of them. */
 const val WIDGET_ACCESSORY_COLOR: Int = 0xFFE2B84B.toInt()
 
@@ -151,7 +172,8 @@ fun widgetAvatarLook(avatar: WidgetAvatar?): WidgetAvatarLook {
       hairShape = WidgetHairShape.CLOSE,
       outfit = NEUTRAL_OUTFIT,
       hasAccessory = false,
-      accessory = null
+      accessory = null,
+      background = null
     )
   }
 
@@ -165,6 +187,8 @@ fun widgetAvatarLook(avatar: WidgetAvatar?): WidgetAvatarLook {
     hairShape = HAIR_SHAPES[avatar.hairStyleId] ?: WidgetHairShape.CLOSE,
     outfit = OUTFIT_COLORS[avatar.outfitId] ?: NEUTRAL_OUTFIT,
     hasAccessory = accessory != null,
-    accessory = accessory
+    accessory = accessory,
+    // Absent and unknown both mean no disc, which is the figure as it was.
+    background = avatar.backgroundId?.let { BACKGROUND_COLORS[it] }
   )
 }
