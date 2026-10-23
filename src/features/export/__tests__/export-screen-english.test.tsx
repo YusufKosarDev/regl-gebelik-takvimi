@@ -142,6 +142,27 @@ describe('the screen in English', () => {
     expect(screen.getByText(exportMessages.en.pdfButtonText)).toBeTruthy();
   });
 
+  /**
+   * The buttons are in the order the note lists them.
+   *
+   * The note is read first and sends somebody looking down at the buttons for
+   * the one it describes. `export-pdf-messages.test.ts` holds the note to this
+   * order; this holds the buttons to it, so neither can move without the other
+   * going red.
+   */
+  it('offers them in the order the note lists them', async () => {
+    const screen = await render(<ExportScreen />);
+
+    const order = [
+      exportMessages.en.summaryButtonText,
+      exportMessages.en.csvButtonText,
+      exportMessages.en.pdfButtonText,
+    ].map((text) => JSON.stringify(screen.toJSON()).indexOf(text));
+
+    expect(order.every((position) => position >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((left, right) => left - right));
+  });
+
   it('says plainly that a shared file leaves the app', async () => {
     // This app's whole argument is that the records stay on the phone, and this
     // is the one screen that hands them to something else.
