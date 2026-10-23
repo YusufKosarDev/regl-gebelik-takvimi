@@ -33,6 +33,10 @@ jest.mock('@/features/export/infrastructure/share-file', () => ({
   shareTextFile: jest.fn(),
 }));
 
+jest.mock('@/features/export/infrastructure/share-pdf-file', () => ({
+  sharePdfFile: jest.fn(),
+}));
+
 jest.mock('@/storage/db', () => ({
   openAppDatabase: jest.fn(),
   DATABASE_NAME: 'regl-gebelik.db',
@@ -73,6 +77,7 @@ jest.mock('@/utils/today', () => ({
 }));
 
 const share = jest.requireMock('@/features/export/infrastructure/share-file');
+const pdfShare = jest.requireMock('@/features/export/infrastructure/share-pdf-file');
 const db = jest.requireMock('@/storage/db');
 const cycle = jest.requireMock('@/features/cycle/data/cycle-repository');
 const pregnancy = jest.requireMock('@/features/pregnancy/data/pregnancy-repository');
@@ -108,17 +113,33 @@ beforeEach(() => {
   });
   dailyLog.loadAllDailyEntries.mockResolvedValue([]);
   share.shareTextFile.mockResolvedValue('shared');
+  pdfShare.sharePdfFile.mockResolvedValue('shared');
 });
 
 describe('the screen in English', () => {
-  it('offers both files and says they go separately', async () => {
+  it('offers all three files and says they go separately', async () => {
     const screen = await render(<ExportScreen />);
 
     expect(screen.getByLabelText(exportMessages.en.summaryButtonLabel)).toBeTruthy();
     expect(screen.getByLabelText(exportMessages.en.csvButtonLabel)).toBeTruthy();
-    expect(screen.getByText(exportMessages.en.twoFilesNote)).toBeTruthy();
+    expect(screen.getByLabelText(exportMessages.en.pdfButtonLabel)).toBeTruthy();
+    expect(screen.getByText(exportMessages.en.threeFilesNote)).toBeTruthy();
 
     expectNoTurkishCatalogueText(screen);
+  });
+
+  /**
+   * The `.txt` is not replaced by the PDF.
+   *
+   * It is the one of the three that depends on no renderer, so it is what is
+   * left when `printToFileAsync` fails. A later tidy-up that collapsed the two
+   * readable formats into one would take the fallback with it.
+   */
+  it('keeps the readable summary alongside the printable one', async () => {
+    const screen = await render(<ExportScreen />);
+
+    expect(screen.getByText(exportMessages.en.summaryButtonText)).toBeTruthy();
+    expect(screen.getByText(exportMessages.en.pdfButtonText)).toBeTruthy();
   });
 
   it('says plainly that a shared file leaves the app', async () => {
@@ -161,6 +182,53 @@ describe('sharing', () => {
     expect(file.fileName).toBe('period-records-2026-03-20.csv');
     expect(file.mimeType).toBe('text/csv');
     expect(file.contents.split('\r\n')[0]).toContain('date,is_period_day');
+  });
+
+  /**
+   * The third button goes through `sharePdfFile`, not through the text share.
+   *
+   * It has to: the printed PDF lands outside the folder the wipe empties and
+   * only that path moves it in. Wiring the third button to `shareTextFile`
+   * would write the HTML out as a file named `.pdf` and leave the real one
+   * behind, which is the failure the whole third file was arranged around.
+   */
+  it('prints and shares the document when the third is pressed', async () => {
+    const screen = await render(<ExportScreen />);
+
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.pdfButtonLabel));
+
+    await waitFor(() => {
+      expect(pdfShare.sharePdfFile).toHaveBeenCalledTimes(1);
+    });
+
+    expect(share.shareTextFile).not.toHaveBeenCalled();
+
+    const document = pdfShare.sharePdfFile.mock.calls[0][0];
+
+    expect(document.fileName).toBe('period-summary-2026-03-20.pdf');
+    expect(document.html).toContain(exportMessages.en.pdfIntro);
+    expect(document.html).toContain(exportMessages.en.summaryFooter);
+  });
+
+  it('names the symptoms on the page in the language the app is in', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({
+        date: toISODate(`2026-03-0${index + 2}`),
+        flowId: null,
+        moodId: null,
+        symptomIds: ['cramps'],
+      }))
+    );
+
+    const screen = await render(<ExportScreen />);
+
+    await fireEvent.press(screen.getByLabelText(exportMessages.en.pdfButtonLabel));
+
+    await waitFor(() => {
+      expect(pdfShare.sharePdfFile).toHaveBeenCalledTimes(1);
+    });
+
+    expect(pdfShare.sharePdfFile.mock.calls[0][0].html).toContain('Cramps — 5 days');
   });
 
   it('builds the file in the language the app is in', async () => {
