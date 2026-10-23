@@ -212,7 +212,7 @@ class WidgetAvatarLookTest {
 
   @Test
   fun `gives every catalogue outfit its own`() {
-    val ids = listOf("t-shirt", "sweatshirt", "shirt", "dress")
+    val ids = listOf("t-shirt", "sweatshirt", "shirt", "dress", "tunic", "vest")
     val colors = ids.map { widgetAvatarLook(avatar(outfitId = it)).outfit }
 
     assertEquals(ids.size, colors.toSet().size)

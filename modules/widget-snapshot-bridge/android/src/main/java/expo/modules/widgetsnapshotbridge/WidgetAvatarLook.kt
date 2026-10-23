@@ -112,7 +112,10 @@ private val OUTFIT_COLORS = mapOf(
   "t-shirt" to 0xFF7C8CA1.toInt(),
   "sweatshirt" to 0xFF8F7C9C.toInt(),
   "shirt" to 0xFF6F9080.toInt(),
-  "dress" to 0xFFA8798A.toInt()
+  "dress" to 0xFFA8798A.toInt(),
+  // Two warm garments; the cool half of the wheel was already crowded.
+  "tunic" to 0xFFA8925C.toInt(),
+  "vest" to 0xFFA85F5F.toInt()
 )
 
 private val ACCESSORIES = mapOf(
