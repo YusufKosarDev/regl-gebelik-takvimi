@@ -53,7 +53,7 @@ koşar; yayın günü taze bir koşu istemek ucuzdur.)
 Üç akış koşar — `smoke` (onboarding → regl kaydı → her sekme), `app-lock`
 (PIN kur → soğuk açılış → PIN ile gir) ve `language` (İngilizceye geç, arayüz
 takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
-**görmedikleri iki şey kalıyor** ve onlar elle bakılır:
+**görmedikleri üç şey kalıyor** ve onlar elle bakılır:
 
 - **Ana ekran widget'ı.** Maestro bir widget'ı launcher'a ekleyemez. Kartın
   günü, fazı ve destek cümlesi artık snapshot'ta taşınıyor ve `language`
@@ -63,6 +63,14 @@ takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
 - **Ekran gizliliği.** Kilit açıkken uygulamanın görev değiştiricide (task
   switcher) önizlemesinin boş olması. Hiçbir otomatik testle sınanamaz: PIN kur,
   uygulamayı arka plana al, kare düğmesine bas, önizlemenin boş olduğunu gör.
+- **Kayıtlarının özeti ekranındaki çubuklar.** Geçmiş sekmesi → "Dökümü gör".
+  `phase-palette-distinctness.test.ts` dört faz renginin hue mesafesini ölçüyor
+  ve en yakın çifti 89'da tutuyor. Ama bir ölçüm, dört tonun **belirli bir okur
+  için** dört renk olduğunu söyleyemez — ve parlaklık payı zaten ince: en yakın
+  çiftin kontrast oranı 1.17, yani ayrım neredeyse tamamen tondan geliyor.
+  Çubukların yanındaki sayılar bu yüzden var ve onlar test ediliyor; renklerin
+  kendisi göz istiyor. Açık ve koyu temada ayrı ayrı bak, dört dilimin
+  birbirinden ayırt edilebildiğini gör.
 
 ## 2. AAB üretimi
 
