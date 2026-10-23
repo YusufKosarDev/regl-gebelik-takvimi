@@ -229,3 +229,59 @@ describe('validateAvatarConfig scope', () => {
     expect(() => validateAvatarConfig(config({ hairStyleId: 'henüz-yok' }))).not.toThrow();
   });
 });
+
+/**
+ * The sixth and seventh choices, both optional for the same reason.
+ *
+ * An avatar saved before they existed has neither, and it is not a partial
+ * avatar: no expression is the face it is already drawn with, and no backdrop
+ * is the plain figure it already is. Required would have meant choosing one
+ * for somebody, which is what version 4 of the schema refused to do.
+ */
+describe('validateAvatarConfig on the expression and the backdrop', () => {
+  it('accepts an avatar with both', () => {
+    expect(() =>
+      validateAvatarConfig(config({ expressionId: 'smiling', backgroundId: 'lavender' }))
+    ).not.toThrow();
+  });
+
+  it('accepts one without either', () => {
+    expect(() => validateAvatarConfig(config())).not.toThrow();
+  });
+
+  it('accepts them explicitly absent', () => {
+    expect(() =>
+      validateAvatarConfig(config({ expressionId: undefined, backgroundId: undefined }))
+    ).not.toThrow();
+  });
+
+  it('refuses a blank expressionId, which is not the same as none', () => {
+    expect(() => validateAvatarConfig(config({ expressionId: '' }))).toThrow(
+      /blank expressionId/
+    );
+  });
+
+  it('refuses a whitespace-only expressionId', () => {
+    expect(() => validateAvatarConfig(config({ expressionId: '  ' }))).toThrow(
+      /blank expressionId/
+    );
+  });
+
+  it('refuses a blank backgroundId', () => {
+    expect(() => validateAvatarConfig(config({ backgroundId: '' }))).toThrow(
+      /blank backgroundId/
+    );
+  });
+
+  it('refuses an expressionId that is not text', () => {
+    expect(() =>
+      validateAvatarConfig(config({ expressionId: 7 as unknown as string }))
+    ).toThrow(/expressionId that is not text/);
+  });
+
+  it('refuses a backgroundId that is not text', () => {
+    expect(() =>
+      validateAvatarConfig(config({ backgroundId: {} as unknown as string }))
+    ).toThrow(/backgroundId that is not text/);
+  });
+});

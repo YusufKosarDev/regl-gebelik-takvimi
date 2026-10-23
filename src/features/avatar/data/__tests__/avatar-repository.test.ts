@@ -56,6 +56,8 @@ function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     hair_color_id: 'dark-brown',
     outfit_id: 'shirt',
     accessory_id: null,
+    expression_id: null,
+    background_id: null,
     ...overrides,
   };
 }
@@ -83,11 +85,25 @@ describe('saveAvatarConfig writing an avatar', () => {
   it('binds every id rather than interpolating it', async () => {
     const spy = createDatabaseSpy();
 
-    await saveAvatarConfig(spy.db, config({ accessoryId: 'glasses' }));
+    await saveAvatarConfig(
+      spy.db,
+      config({ accessoryId: 'glasses', expressionId: 'smiling', backgroundId: 'lavender' })
+    );
     const [sql, ...params] = spy.runAsync.mock.calls[0];
 
-    expect(String(sql)).not.toMatch(/skin-tone-3|wavy|dark-brown|shirt|glasses/);
-    expect(params).toEqual([1, 'skin-tone-3', 'wavy', 'dark-brown', 'shirt', 'glasses']);
+    expect(String(sql)).not.toMatch(
+      /skin-tone-3|wavy|dark-brown|shirt|glasses|smiling|lavender/
+    );
+    expect(params).toEqual([
+      1,
+      'skin-tone-3',
+      'wavy',
+      'dark-brown',
+      'shirt',
+      'glasses',
+      'smiling',
+      'lavender',
+    ]);
   });
 
   it('binds an absent accessory as NULL', async () => {
@@ -410,5 +426,65 @@ describe('what an avatar repository error gives away', () => {
     await saveAvatarConfig(spy.db, config());
 
     expect(spy.runAsync.mock.calls[0]).toContain('wavy');
+  });
+});
+
+/**
+ * The two columns version 9 added, both allowed to hold no choice.
+ *
+ * NULL round-trips as an absent key rather than an explicit `undefined`, so an
+ * avatar saved before these existed loads back equal to what was saved — which
+ * is the property that makes "no expression" mean "the face it already had"
+ * rather than "a field somebody forgot to fill in".
+ */
+describe('the expression and the backdrop in storage', () => {
+  it('binds both as NULL when neither was chosen', async () => {
+    const spy = createDatabaseSpy();
+
+    await saveAvatarConfig(spy.db, config());
+
+    expect(spy.runAsync.mock.calls[0][7]).toBeNull();
+    expect(spy.runAsync.mock.calls[0][8]).toBeNull();
+  });
+
+  it('reads them back when the row has them', async () => {
+    const spy = createDatabaseSpy(
+      row({ expression_id: 'tired', background_id: 'stone' })
+    );
+
+    await expect(loadAvatarConfig(spy.db)).resolves.toEqual({
+      skinToneId: 'skin-tone-3',
+      hairStyleId: 'wavy',
+      hairColorId: 'dark-brown',
+      outfitId: 'shirt',
+      expressionId: 'tired',
+      backgroundId: 'stone',
+    });
+  });
+
+  it('leaves the keys off entirely when the columns are NULL', async () => {
+    const spy = createDatabaseSpy(row());
+    const loaded = await loadAvatarConfig(spy.db);
+
+    expect(Object.keys(loaded ?? {})).not.toContain('expressionId');
+    expect(Object.keys(loaded ?? {})).not.toContain('backgroundId');
+  });
+
+  it('refuses a blank expressionId before it reaches the database', async () => {
+    const spy = createDatabaseSpy();
+
+    await expect(
+      saveAvatarConfig(spy.db, config({ expressionId: '' }))
+    ).rejects.toThrow(/blank expressionId/);
+
+    expect(spy.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('raises on a non-text expression column rather than ignoring it', async () => {
+    const spy = createDatabaseSpy(row({ expression_id: 7 }));
+
+    await expect(loadAvatarConfig(spy.db)).rejects.toThrow(
+      /non-text expression_id/
+    );
   });
 });
