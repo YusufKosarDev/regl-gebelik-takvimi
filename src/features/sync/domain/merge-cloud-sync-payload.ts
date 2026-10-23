@@ -463,10 +463,35 @@ function mergeAvatarConfigFields(
     conflicts
   );
 
-  // The key is left out rather than set to `undefined`. No accessory is stored
-  // as an absent field everywhere else in this app, and an explicit `undefined`
-  // is not the same thing to a database or to `JSON.stringify`.
-  return accessoryId === undefined ? required : { ...required, accessoryId };
+  const expressionId = mergeOptionalField(
+    'avatarConfig.expressionId',
+    base.expressionId,
+    local.expressionId,
+    remote.expressionId,
+    conflicts
+  );
+
+  const backgroundId = mergeOptionalField(
+    'avatarConfig.backgroundId',
+    base.backgroundId,
+    local.backgroundId,
+    remote.backgroundId,
+    conflicts
+  );
+
+  // Each key is left out rather than set to `undefined`. An absent choice is
+  // stored as an absent field everywhere else in this app, and an explicit
+  // `undefined` is not the same thing to a database or to `JSON.stringify`.
+  //
+  // Three of these now, and they are the reason this function is a list of
+  // named fields rather than a spread: a field nobody added here is a field
+  // that silently loses one side's edit, with the merge reporting success.
+  return {
+    ...required,
+    ...(accessoryId === undefined ? {} : { accessoryId }),
+    ...(expressionId === undefined ? {} : { expressionId }),
+    ...(backgroundId === undefined ? {} : { backgroundId }),
+  };
 }
 
 function mergeNotificationPreferencesFields(
