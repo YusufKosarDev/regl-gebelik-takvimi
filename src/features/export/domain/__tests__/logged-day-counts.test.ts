@@ -121,6 +121,8 @@ describe('counting for the document', () => {
   it('counts a day once however many times the id appears on it', () => {
     // A stored day should not hold the same symptom twice, but it is a list in
     // the database and a count of days must not become a count of mentions.
+    // `most-logged.ts` is what makes this true; this asserts it still arrives
+    // here, because a page handed to a clinician is where it costs most.
     const entries = Array.from({ length: 5 }, (_, index) =>
       day(`2026-09-0${index + 1}`, ['cramps', 'cramps'], null)
     );

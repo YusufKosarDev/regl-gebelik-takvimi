@@ -37,18 +37,23 @@ export type LoggedDayCounts = {
  *
  * Symptoms and moods in one tally, because the section is one section and a
  * reader has no use for the boundary between two catalogues. `mostLogged` does
- * the counting, so the order is total: most written down first, ties broken by
- * id, which is what stops two exports of the same data disagreeing.
+ * the counting, so this inherits its two guarantees: the order is total - most
+ * written down first, ties broken by id, which is what stops two exports of the
+ * same data disagreeing - and a day holding the same id twice counts once.
  *
- * ## Why the ids are deduplicated on the way in
+ * ## Why that second guarantee is worth naming here
  *
- * `mostLogged` adds one per id it is handed, so a stored day holding the same
- * symptom twice would count as two days. On a screen that cannot happen - the
- * chips are a toggle - but this reads whatever the database holds, and a count
- * of mentions printed under a heading that says days would be a wrong number
- * on a page somebody takes to an appointment. The `Set` makes the row shape
- * irrelevant. `most-logged.ts` is left alone deliberately: changing it would
- * change the records-summary screen too, and the fix belongs where the risk is.
+ * It was not true when this file was written. `mostLogged` added one per id it
+ * was handed, so a stored day naming the same symptom twice counted as two
+ * days, and this file deduplicated the ids itself to avoid it. That was the
+ * wrong place: the screens had the same wrong number, and a count of mentions
+ * under a heading that says days is wrong wherever it is shown.
+ *
+ * So the fix moved to `most-logged.ts` and to `symptom-phase-correlation.ts`,
+ * which had it too, and the workaround here went away. What remains is the
+ * reason it mattered enough to chase: this is the furthest from the screen one
+ * of these numbers travels, onto a page somebody hands to a clinician, and
+ * there is nobody there to notice it is wrong.
  *
  * ## Why the labels are resolved before the floor is applied
  *
@@ -71,9 +76,7 @@ export function countLoggedDaysForDocument(
 ): LoggedDayCounts {
   const counted = mostLogged(
     entries,
-    (entry) => [
-      ...new Set([...entry.symptomIds, ...(entry.moodId === null ? [] : [entry.moodId])]),
-    ],
+    (entry) => [...entry.symptomIds, ...(entry.moodId === null ? [] : [entry.moodId])],
     Number.POSITIVE_INFINITY
   );
 

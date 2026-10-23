@@ -83,6 +83,20 @@ export function tallyPlacedDays(phased: readonly PhasedDailyEntry[]): PhaseTally
  * about. They are excluded from both, and `placedCount` is named so that a
  * caller cannot mistake it for how many days were recorded.
  *
+ * ## A day is a day, however the row is shaped
+ *
+ * `idsOf` returns a list, and nothing in the schema stops a stored day holding
+ * `cramps` twice. This counted one per id it was handed, so such a row counted
+ * as two days - in the tally the summary screen draws as a bar, in
+ * `placedCount`, and therefore in the share that decides whether a row is
+ * called notable. Four real days could reach the floor of five.
+ *
+ * Today's chips are a toggle so the screen cannot write that row, but that is a
+ * property of this version of the UI rather than of the data. `mostLogged` had
+ * the same fault, found on the printable export where the number reaches a page
+ * somebody hands to a clinician, and both now reduce a day's ids to a set
+ * before counting anything.
+ *
  * ## It describes, it does not explain
  *
  * Nothing here is a correlation in the statistical sense and nothing downstream
@@ -111,7 +125,9 @@ export function correlatePhases(
       continue;
     }
 
-    for (const id of idsOf(entry)) {
+    // A set, so a stored day naming the same id twice is still one day. See
+    // "A day is a day, however the row is shaped" above.
+    for (const id of new Set(idsOf(entry))) {
       const tally = byId.get(id) ?? emptyTally();
 
       tally[phase] += 1;
