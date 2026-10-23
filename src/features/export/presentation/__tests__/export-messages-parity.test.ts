@@ -13,8 +13,12 @@ describe('parity', () => {
       ['summaryRecordOngoing', ['1 September 2026']],
       ['summaryRecordUnknownEnd', ['1 September 2026']],
       ['summaryLogCount', [42]],
+      // A catalogue word with no Turkish letter in it, so the check reports the
+      // catalogue rather than the argument it was handed.
+      ['pdfCountLine', ['Cramps', 11]],
       ['summaryFileName', ['2026-09-17']],
       ['csvFileName', ['2026-09-17']],
+      ['pdfFileName', ['2026-09-17']],
     ],
     // Two dates that were already formatted in the chosen language, joined by
     // an en dash. The join itself has nothing to translate.

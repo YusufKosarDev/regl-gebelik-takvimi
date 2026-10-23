@@ -3,10 +3,11 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { exportMessages } from '../../presentation/export-messages';
 import { buildExportFiles } from '../build-export-files';
 
+import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
 import { toISODate } from '@/utils/date';
 
 /**
- * Both export files, from one read.
+ * All three export files, from one read.
  *
  * The reads are faked at the repository boundary, so `buildCloudSyncPayloadV1`,
  * the phase index, the row builder and the CSV writer all stay real - this pins
@@ -71,6 +72,7 @@ function build(language: 'tr' | 'en' = 'en') {
     today: TODAY,
     language,
     messages: exportMessages[language],
+    labels: dailyLogCatalogueLabels[language],
   });
 }
 
@@ -93,7 +95,9 @@ describe('the two files', () => {
 
     expect(english.summary.fileName).toBe('period-summary-2026-03-20.txt');
     expect(english.csv.fileName).toBe('period-records-2026-03-20.csv');
+    expect(english.pdf.fileName).toBe('period-summary-2026-03-20.pdf');
     expect(turkish.summary.fileName).toBe('regl-ozeti-2026-03-20.txt');
+    expect(turkish.pdf.fileName).toBe('regl-ozeti-2026-03-20.pdf');
   });
 
   it('gives each one the type a receiving app will recognise', async () => {
@@ -101,6 +105,55 @@ describe('the two files', () => {
 
     expect(files.summary.mimeType).toBe('text/plain');
     expect(files.csv.mimeType).toBe('text/csv');
+  });
+});
+
+describe('the printable document', () => {
+  /**
+   * The counts are the whole of the difference between the PDF and the `.txt`,
+   * so this is the part of the third file worth pinning here: that the labels
+   * reached it, in the chosen language, and that the floor was applied over
+   * real data rather than over a hand-built list.
+   */
+  it('counts what was written down, in the chosen language', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue(
+      Array.from({ length: 6 }, (_, index) => ({
+        date: toISODate(`2026-03-0${index + 2}`),
+        flowId: null,
+        moodId: null,
+        symptomIds: ['cramps'],
+      }))
+    );
+
+    const english = await build('en');
+    const turkish = await build('tr');
+
+    expect(english.pdf.html).toContain('Cramps — 6 days');
+    expect(turkish.pdf.html).toContain('Kramp — 6 gün');
+  });
+
+  it('leaves out what was written on fewer days than the floor, and says so', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue([
+      {
+        date: toISODate('2026-03-10'),
+        flowId: null,
+        moodId: null,
+        symptomIds: ['headache'],
+      },
+    ]);
+
+    const files = await build('en');
+
+    expect(files.pdf.html).not.toContain('Headache');
+    expect(files.pdf.html).toContain(exportMessages.en.pdfCountsBelowFloor);
+  });
+
+  it('carries the whole summary as well as the counts', async () => {
+    const files = await build('en');
+
+    expect(files.pdf.html).toContain(exportMessages.en.summaryCycleLengths(28, 5));
+    expect(files.pdf.html).toContain('2 March 2026');
+    expect(files.pdf.html).toContain(exportMessages.en.summaryFooter);
   });
 });
 
@@ -211,6 +264,15 @@ describe('with nothing recorded', () => {
 
     expect(files.summary.contents).toContain(exportMessages.en.summaryNoRecords);
     expect(files.csv.contents.split('\r\n')[0]).toContain('date');
+    expect(files.pdf.html).toContain(exportMessages.en.summaryNoRecords);
+  });
+
+  it('still says on the page that nothing reached the counting floor', async () => {
+    cycle.loadCycleProfile.mockResolvedValue(null);
+
+    const files = await build('en');
+
+    expect(files.pdf.html).toContain(exportMessages.en.pdfCountsNone);
   });
 });
 

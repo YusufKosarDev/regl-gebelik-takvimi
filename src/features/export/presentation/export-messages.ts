@@ -31,15 +31,24 @@ const exportMessagesTr = {
   summaryButtonLabel: 'Kayıtlarının okunur özetini paylaş',
   csvButtonText: 'Ham veriyi (CSV) paylaş',
   csvButtonLabel: 'Kayıtlarının tamamını CSV dosyası olarak paylaş',
+  pdfButtonText: 'Yazdırılabilir PDF paylaş',
+  pdfButtonLabel: 'Kayıtlarının özetini yazdırılabilir PDF olarak paylaş',
 
   /**
-   * Said once, under the two buttons.
+   * Said once, under the three buttons.
    *
-   * Two buttons rather than one is not a design preference: the system share
+   * Three buttons rather than one is not a design preference: the system share
    * sheet takes one file at a time. Saying so is better than letting somebody
-   * press once and wonder where the other half went.
+   * press once and wonder where the other two went.
+   *
+   * The `.txt` stays alongside the PDF rather than being replaced by it. It is
+   * the one of the three that depends on no renderer: `printToFileAsync` hands
+   * the HTML to the platform's WebView, and when that fails there has to be a
+   * readable format left.
    */
-  twoFilesNote: 'İki dosya ayrı ayrı paylaşılır: özet okumak için, CSV ise hesap tablosu için.',
+  threeFilesNote:
+    'Üç dosya ayrı ayrı paylaşılır: PDF yazdırmak için, özet okumak için, '
+    + 'CSV ise hesap tablosu için.',
 
   preparingMessage: 'Hazırlanıyor...',
   shareFailedMessage: 'Dosya paylaşılamadı.',
@@ -73,10 +82,65 @@ const exportMessagesTr = {
   summaryFooter:
     'Bu özet uygulamadaki kayıtlardan üretilmiştir ve tıbbi bir değerlendirme değildir.',
 
+  /* ------------------------------------------------- what the PDF adds -- */
+
+  /**
+   * The sentences the printable document needs and the `.txt` does not.
+   *
+   * All of them exist because a document arrives without the app. Nobody can
+   * tap through to context, the reader may never have seen the app, and a
+   * typeset page reads as a report where the same words in a `.txt` read as a
+   * dump - the form makes a claim the content does not. So the page says, in
+   * words, the three things the app says structurally everywhere else:
+   *
+   *   - what it is (`pdfIntro`), because the footer alone comes too late;
+   *   - which numbers a person entered and which the device worked out
+   *     (`pdfEnteredNote`, `pdfRecordedNote`, `pdfCountsNote`). The CSV can
+   *     leave this to its column names - `cycle_day` and `phase` are the
+   *     worked-out ones - and a page has no column names;
+   *   - what is missing and why (`pdfCountsBelowFloor`, `pdfCountsNone`),
+   *     which is `build-export-rows.ts`'s "an empty cell means the app has
+   *     nothing to say" in a format that has no cells.
+   */
+  pdfIntro:
+    'Bu belge bir telefon uygulamasındaki kayıtlardan üretildi. İçindeki her şey '
+    + 'ya girilen bir kayıt ya da o kayıtların sayımıdır.',
+
+  pdfEnteredNote: 'İlk satır ayarlardan girildi. Varsa altındaki satırlar kayıtlardan hesaplandı.',
+  pdfRecordedNote: 'Tarihler girildiği gibi, en yeniden en eskiye.',
+
+  pdfCountsHeading: 'Yazılan belirtiler ve ruh halleri',
+
+  /**
+   * `most-logged.ts` wrote this rule for the screen; the document is where it
+   * would be broken. "Cramps, eleven days" is a count of what somebody wrote
+   * down, not a measure of how often they had cramps.
+   */
+  pdfCountsNote:
+    'Bunlar bir şeyin kaç gün yazıldığının sayımıdır; ne sıklıkta yaşandığının ölçümü değil.',
+
+  pdfCountLine: (label: string, days: number) => `${label} — ${days} gün`,
+
+  /**
+   * Why the short counts are absent, and where the complete record is.
+   *
+   * The floor is the five the daily-log domain already uses. The screen shows
+   * counts under it, as plain numbers, and can afford to: a reader there can
+   * look at the rest of the screen. A page cannot be asked a follow-up
+   * question, so it carries only the counts the app elsewhere treats as enough
+   * to mention - and says where the others are rather than dropping them in
+   * silence.
+   */
+  pdfCountsBelowFloor:
+    'Beşten az güne yazılanlar bu listede yok. Günü gününe kayıtların tamamı CSV dosyasında.',
+
+  pdfCountsNone: 'Beş ya da daha fazla güne yazılmış bir belirti ya da ruh hali yok.',
+
   /* ------------------------------------------------------------ the files -- */
 
   summaryFileName: (isoDate: string) => `regl-ozeti-${isoDate}.txt`,
   csvFileName: (isoDate: string) => `regl-kayitlari-${isoDate}.csv`,
+  pdfFileName: (isoDate: string) => `regl-ozeti-${isoDate}.pdf`,
 };
 
 export type ExportMessages = typeof exportMessagesTr;
@@ -91,9 +155,12 @@ const exportMessagesEn: ExportMessages = {
   summaryButtonLabel: 'Share a readable summary of your records',
   csvButtonText: 'Share the raw data (CSV)',
   csvButtonLabel: 'Share all of your records as a CSV file',
+  pdfButtonText: 'Share a printable PDF',
+  pdfButtonLabel: 'Share a summary of your records as a printable PDF',
 
-  twoFilesNote:
-    'The two files are shared separately: the summary to read, the CSV for a spreadsheet.',
+  threeFilesNote:
+    'The three files are shared separately: the PDF to print, the summary to read, '
+    + 'the CSV for a spreadsheet.',
 
   preparingMessage: 'Preparing…',
   shareFailedMessage: 'That file could not be shared.',
@@ -125,8 +192,32 @@ const exportMessagesEn: ExportMessages = {
   summaryFooter:
     'This summary was produced from the records in the app and is not a medical assessment.',
 
+  pdfIntro:
+    'This document was produced from the records kept in a phone app. Everything in it '
+    + 'is either a record somebody entered or a count of those records.',
+
+  pdfEnteredNote:
+    'The first line was entered in the settings. Any lines below it were worked out '
+    + 'from the records.',
+  pdfRecordedNote: 'The dates as they were entered, newest first.',
+
+  pdfCountsHeading: 'Symptoms and moods written down',
+
+  pdfCountsNote:
+    'These are counts of how many days something was written down, not a measurement '
+    + 'of how often it happened.',
+
+  pdfCountLine: (label: string, days: number) => `${label} — ${days} days`,
+
+  pdfCountsBelowFloor:
+    'Anything written on fewer than five days is not in this list. The complete '
+    + 'day-by-day records are in the CSV file.',
+
+  pdfCountsNone: 'Nothing was written down on five or more days.',
+
   summaryFileName: (isoDate: string) => `period-summary-${isoDate}.txt`,
   csvFileName: (isoDate: string) => `period-records-${isoDate}.csv`,
+  pdfFileName: (isoDate: string) => `period-summary-${isoDate}.pdf`,
 };
 
 export const exportMessages: Messages<ExportMessages> = {
