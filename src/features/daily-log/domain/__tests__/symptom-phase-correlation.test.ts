@@ -196,3 +196,58 @@ describe('determinism', () => {
     expect(backwards[0].dominantPhase).toBe('menstrual');
   });
 });
+
+describe('a day that names the same thing twice', () => {
+  /**
+   * `placedCount` says "Days holding it that the cycle can place", and the
+   * phase tally underneath it is what the summary screen draws as a bar.
+   *
+   * `symptomIds` is a list in the database and nothing in the schema stops it
+   * holding `cramps` twice. This counted one per id it was handed, so such a
+   * row counted as two days - in the tally, in `placedCount`, and therefore in
+   * the share that decides whether anything is called notable. Today's chips
+   * are a toggle so the screen cannot write that row, but that is a fact about
+   * this version of the UI rather than about the data.
+   *
+   * `mostLogged` had the same fault and carries the same note.
+   */
+  it('counts it as one day, not two', () => {
+    const [row] = correlatePhases(days(1, 'luteal', ['cramps', 'cramps']), symptomsOf);
+
+    expect(row.placedCount).toBe(1);
+    expect(row.byPhase.luteal).toBe(1);
+  });
+
+  it('does not inflate the bar it is drawn as', () => {
+    const phased = [
+      ...days(3, 'luteal', ['cramps', 'cramps']),
+      ...days(2, 'menstrual', ['cramps']),
+    ];
+
+    const [row] = correlatePhases(phased, symptomsOf);
+
+    expect(row.byPhase).toEqual({ menstrual: 2, follicular: 0, ovulatory: 0, luteal: 3 });
+    expect(row.placedCount).toBe(5);
+  });
+
+  /**
+   * The consequence that matters most, because it is the one that puts a
+   * sentence on a screen.
+   *
+   * Four days of `cramps`, one of which names it twice, used to reach the floor
+   * of five and could be called notable off the back of a day that does not
+   * exist.
+   */
+  it('cannot push a row over the floor on repeats alone', () => {
+    const phased = [
+      ...days(1, 'luteal', ['cramps', 'cramps']),
+      ...days(3, 'luteal', ['cramps']),
+      ...days(8, 'menstrual'),
+    ];
+
+    const [row] = correlatePhases(phased, symptomsOf);
+
+    expect(row.placedCount).toBe(MIN_ENTRIES_FOR_CORRELATION - 1);
+    expect(row.isNotable).toBe(false);
+  });
+});
