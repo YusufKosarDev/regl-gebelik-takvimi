@@ -318,6 +318,24 @@ const homeMessagesTr = {
   labelledValue: (label: string, value: string) => `${label}: ${value}`,
 
   /**
+   * The same, with the row's note spoken after it.
+   *
+   * `CycleSummary` collapses each row into one accessibility node, so whatever
+   * the row has to say has to be in one string. It used to use
+   * `labelledValue` for every row, which meant the fertility row's note - the
+   * sentence saying the estimate is not a method of contraception - was on
+   * screen and inaudible. {@link SummaryRow} says the note "travels with the
+   * row rather than being placed near it, so the number and the warning about
+   * it cannot be separated"; this is what makes that true of the spoken row as
+   * well as the drawn one.
+   *
+   * The value first and the caveat second, which is the order the eye reads
+   * them in.
+   */
+  labelledValueWithNote: (label: string, value: string, note: string) =>
+    `${label}: ${value}. ${note}`,
+
+  /**
    * The calendar's column headers, Monday first.
    *
    * A fixed tuple per language rather than anything locale-driven: Intl is
@@ -455,6 +473,9 @@ const homeMessagesEn: HomeMessages = {
   legendItemLabel: (spokenMarker: string, label: string) => `${spokenMarker}: ${label}`,
 
   labelledValue: (label: string, value: string) => `${label}: ${value}`,
+
+  labelledValueWithNote: (label: string, value: string, note: string) =>
+    `${label}: ${value}. ${note}`,
 
   weekdayLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 
