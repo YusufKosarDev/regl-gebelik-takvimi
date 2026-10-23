@@ -313,6 +313,7 @@ export default function DailyEntryScreen() {
               dayLabelFor={(day) => formatDisplayDate(day, language)}
               disabled={isBusy}
               lastSelectableDate={getTodayLocalISODate()}
+              unavailableHint={strings.futureDayHint}
             />
 
             {/* The refusal belongs here rather than with the others.
