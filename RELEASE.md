@@ -53,7 +53,7 @@ koşar; yayın günü taze bir koşu istemek ucuzdur.)
 Üç akış koşar — `smoke` (onboarding → regl kaydı → her sekme), `app-lock`
 (PIN kur → soğuk açılış → PIN ile gir) ve `language` (İngilizceye geç, arayüz
 takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
-**görmedikleri üç şey kalıyor** ve onlar elle bakılır:
+**görmedikleri dört şey kalıyor** ve onlar elle bakılır:
 
 - **Ana ekran widget'ı.** Maestro bir widget'ı launcher'a ekleyemez. Kartın
   günü, fazı ve destek cümlesi artık snapshot'ta taşınıyor ve `language`
@@ -71,6 +71,16 @@ takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
   Çubukların yanındaki sayılar bu yüzden var ve onlar test ediliyor; renklerin
   kendisi göz istiyor. Açık ve koyu temada ayrı ayrı bak, dört dilimin
   birbirinden ayırt edilebildiğini gör.
+- **Yazdırılabilir PDF.** Dışa aktar → "Yazdırılabilir PDF paylaş". Sayfanın
+  kendisi `export-pdf.test.ts` ile tutuluyor, ama PDF'i üreten şey cihazın
+  WebView'i: `printToFileAsync`'e HTML veriliyor ve geri dönen dosyaya bu kodun
+  bir daha bakma şansı yok. Geliştirme sırasında masaüstü Chromium ile — yani
+  Android WebView'in aynı motoruyla — ölçüldü: kâğıt A4 (594.96 × 841.92),
+  dipnot iki sayfanın ikisinde de en altta, ve `ş ğ İ ı ö ç ü` ile `–`
+  birebir çıkıyor. Bir motorun yaptığı, o cihazdaki sürümünün yapacağı değil.
+  Cihazda bak: **kâğıt A4 mi**, **dipnot her sayfada mı**, ve
+  **Türkçe harfler kutu değil mi** (`İştah değişimi`, `Göğüs hassasiyeti`
+  satırları en çok şeyi bir arada gösteriyor).
 
 ## 2. AAB üretimi
 
