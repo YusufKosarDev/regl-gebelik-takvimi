@@ -10,11 +10,13 @@ import {
 } from '../avatar-catalog';
 
 const CATEGORIES: readonly [string, readonly AvatarOption[], number][] = [
-  ['skin tones', AVATAR_SKIN_TONES, 6],
+  // Six along the original warm ramp and two olive undertones.
+  ['skin tones', AVATAR_SKIN_TONES, 8],
   // Nine hair styles and three headscarves, which are styles rather than a
   // layer of their own; `avatar-visuals` carries the reasoning.
   ['hair styles', AVATAR_HAIR_STYLES, 12],
-  ['hair colors', AVATAR_HAIR_COLORS, 6],
+  // Also the colours a covering can be, which is the same list.
+  ['hair colors', AVATAR_HAIR_COLORS, 9],
   ['outfits', AVATAR_OUTFITS, 4],
   ['accessories', AVATAR_ACCESSORIES, 3],
 ];
@@ -49,6 +51,9 @@ describe('the avatar catalogue offers every category', () => {
       'Açık kahve',
       'Sarı',
       'Kızıl',
+      'Kestane',
+      'Gri',
+      'Bordo',
     ]);
   });
 
@@ -120,7 +125,11 @@ describe('looking options up in the catalogue', () => {
   });
 
   it('returns null for an id no category has', () => {
-    expect(getAvatarOption(AVATAR_SKIN_TONES, 'skin-tone-7')).toBeNull();
+    // Not the next number in the sequence: this used to ask about
+    // `skin-tone-7`, which stopped being a missing id the day a seventh tone
+    // shipped. An id that is not a shape the catalogue could ever take cannot
+    // be overtaken the same way.
+    expect(getAvatarOption(AVATAR_SKIN_TONES, 'skin-tone-that-was-never-drawn')).toBeNull();
   });
 
   it('never throws over a duplicate, because the catalogue has none', () => {

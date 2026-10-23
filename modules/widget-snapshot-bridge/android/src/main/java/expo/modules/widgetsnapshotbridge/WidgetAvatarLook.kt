@@ -73,7 +73,11 @@ private val SKIN_COLORS = mapOf(
   "skin-tone-3" to (0xFFD9A277.toInt() to 0xFFC2885E.toInt()),
   "skin-tone-4" to (0xFFB77C52.toInt() to 0xFF9E653F.toInt()),
   "skin-tone-5" to (0xFF8A5736.toInt() to 0xFF734527.toInt()),
-  "skin-tone-6" to (0xFF58361F.toInt() to 0xFF452817.toInt())
+  "skin-tone-6" to (0xFF58361F.toInt() to 0xFF452817.toInt()),
+  // The two olive undertones. Nothing deeper than tone 6 exists, because below
+  // it the ear has no room left to be darker than the cheek.
+  "skin-tone-7" to (0xFFA49674.toInt() to 0xFF867B5F.toInt()),
+  "skin-tone-8" to (0xFF867656.toInt() to 0xFF6E6147.toInt())
 )
 
 private val HAIR_COLORS = mapOf(
@@ -82,7 +86,11 @@ private val HAIR_COLORS = mapOf(
   "brown" to 0xFF6A4322.toInt(),
   "light-brown" to 0xFFA8754A.toInt(),
   "blonde" to 0xFFD9B268.toInt(),
-  "red" to 0xFFA7381E.toInt()
+  "red" to 0xFFA7381E.toInt(),
+  // Also the colour of a covering, which takes it from this same list.
+  "auburn" to 0xFF8E4A2B.toInt(),
+  "grey" to 0xFF9C9690.toInt(),
+  "burgundy" to 0xFF5B2334.toInt()
 )
 
 private val HAIR_SHAPES = mapOf(

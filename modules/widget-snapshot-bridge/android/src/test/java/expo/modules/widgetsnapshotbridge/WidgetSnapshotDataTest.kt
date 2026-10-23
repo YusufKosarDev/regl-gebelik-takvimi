@@ -192,14 +192,19 @@ class WidgetAvatarLookTest {
 
   @Test
   fun `gives every catalogue skin tone its own colour`() {
-    val colors = (1..6).map { widgetAvatarLook(avatar(skinToneId = "skin-tone-$it")).skin }
+    val colors = (1..8).map { widgetAvatarLook(avatar(skinToneId = "skin-tone-$it")).skin }
 
-    assertEquals(6, colors.toSet().size)
+    assertEquals(8, colors.toSet().size)
   }
 
   @Test
   fun `gives every catalogue hair colour its own`() {
-    val ids = listOf("black", "dark-brown", "brown", "light-brown", "blonde", "red")
+    // Also the colours a covering can be: a headscarf is a hair style, so it
+    // takes its colour from this same list.
+    val ids = listOf(
+      "black", "dark-brown", "brown", "light-brown", "blonde", "red",
+      "auburn", "grey", "burgundy"
+    )
     val colors = ids.map { widgetAvatarLook(avatar(hairColorId = it)).hair }
 
     assertEquals(ids.size, colors.toSet().size)
