@@ -49,6 +49,8 @@ const avatarCatalogueTr = {
     { id: 'skin-tone-4', label: '4. ton' },
     { id: 'skin-tone-5', label: '5. ton' },
     { id: 'skin-tone-6', label: '6. ton' },
+    { id: 'skin-tone-7', label: '7. ton' },
+    { id: 'skin-tone-8', label: '8. ton' },
   ] as readonly AvatarOption[],
 
   /**
@@ -84,6 +86,9 @@ const avatarCatalogueTr = {
     { id: 'light-brown', label: 'Açık kahve' },
     { id: 'blonde', label: 'Sarı' },
     { id: 'red', label: 'Kızıl' },
+    { id: 'auburn', label: 'Kestane' },
+    { id: 'grey', label: 'Gri' },
+    { id: 'burgundy', label: 'Bordo' },
   ] as readonly AvatarOption[],
 
   outfits: [
@@ -110,6 +115,8 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'skin-tone-4', label: 'Tone 4' },
     { id: 'skin-tone-5', label: 'Tone 5' },
     { id: 'skin-tone-6', label: 'Tone 6' },
+    { id: 'skin-tone-7', label: 'Tone 7' },
+    { id: 'skin-tone-8', label: 'Tone 8' },
   ],
 
   hairStyles: [
@@ -134,6 +141,9 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'light-brown', label: 'Light brown' },
     { id: 'blonde', label: 'Blonde' },
     { id: 'red', label: 'Red' },
+    { id: 'auburn', label: 'Auburn' },
+    { id: 'grey', label: 'Grey' },
+    { id: 'burgundy', label: 'Burgundy' },
   ],
 
   outfits: [

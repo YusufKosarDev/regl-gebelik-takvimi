@@ -88,6 +88,24 @@ const SKIN_PALETTES: Readonly<Record<string, AvatarSkinPalette>> = {
   'skin-tone-4': { base: '#B77C52', shade: '#9E653F', feature: '#3B2617' },
   'skin-tone-5': { base: '#8A5736', shade: '#734527', feature: '#2C1B10' },
   'skin-tone-6': { base: '#58361F', shade: '#452817', feature: '#F0DCCB' },
+
+  /**
+   * Two olive undertones, which is the gap the first six left.
+   *
+   * The shipped ramp runs light to deep along one warm, red-leaning hue, and
+   * what it had none of was an olive cast. So these are not a seventh and
+   * eighth step on the same ramp — adding those would have meant pairs closer
+   * together than any two already there — they are the same range in a
+   * different undertone, and every pair in the eight stays at least as far
+   * apart as tones 1 and 2, which are the closest of the original six.
+   *
+   * Nothing deeper than tone 6 was possible. The ear is drawn a step darker
+   * than the face, and below tone 6 there is no room left to be darker in:
+   * a ninth, deeper tone measured a shade step of 0.0066 against the 0.01967
+   * that tone 6 manages, so its ear would have disappeared into its cheek.
+   */
+  'skin-tone-7': { base: '#A49674', shade: '#867B5F', feature: '#241A14' },
+  'skin-tone-8': { base: '#867656', shade: '#6E6147', feature: '#241A14' },
 };
 
 const HAIR_PALETTES: Readonly<Record<string, AvatarHairPalette>> = {
@@ -97,6 +115,20 @@ const HAIR_PALETTES: Readonly<Record<string, AvatarHairPalette>> = {
   'light-brown': { base: '#A8754A', shade: '#8A5C36' },
   blonde: { base: '#D9B268', shade: '#BC9348' },
   red: { base: '#A7381E', shade: '#822915' },
+
+  /**
+   * Three more, and they have to work as cloth as well as as hair.
+   *
+   * A covering takes its colour from this same list — it is a hair style, so
+   * there is one thing on the head and it has one colour. That rules out the
+   * obviously scarf-only colours a fabric list would have, and these three are
+   * chosen because each is a real hair colour *and* a plausible cloth:
+   * chestnut, grey, and the dark red that is dyed hair and ordinary fabric
+   * alike.
+   */
+  auburn: { base: '#8E4A2B', shade: '#6E3820' },
+  grey: { base: '#9C9690', shade: '#7E7872' },
+  burgundy: { base: '#5B2334', shade: '#431A26' },
 };
 
 const OUTFIT_PALETTES: Readonly<Record<string, AvatarOutfitPalette>> = {

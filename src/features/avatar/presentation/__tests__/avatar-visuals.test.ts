@@ -99,6 +99,112 @@ describe('the hair styles are told apart by at least two numbers each', () => {
 });
 
 /**
+ * Whether two swatches are far enough apart to be two swatches.
+ *
+ * The tests below this used to ask only that the colours were *unequal*, which
+ * accepts two tones a hex apart: a picker offering both would be offering the
+ * same choice twice, and the person would be picking at random.
+ *
+ * Redmean, which is the short well-known approximation of perceived distance
+ * and far closer to the eye than comparing channels. The floors are measured
+ * from the shipped catalogue, one per category, because the categories do not
+ * span the same range: skin runs along one warm ramp and the garments are free
+ * to be any colour at all.
+ */
+function colourDistance(left: string, right: string): number {
+  const channels = (hex: string) =>
+    [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+
+  const [r1, g1, b1] = channels(left);
+  const [r2, g2, b2] = channels(right);
+  const mean = (r1 + r2) / 2;
+  const [dr, dg, db] = [r1 - r2, g1 - g2, b1 - b2];
+
+  return Math.round(
+    Math.sqrt((2 + mean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - mean) / 256) * db * db)
+  );
+}
+
+/** Perceived brightness, for the parts that have to read against each other. */
+function luminance(hex: string): number {
+  const channel = (index: number) => {
+    const value = parseInt(hex.slice(index, index + 2), 16) / 255;
+
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+/**
+ * The floors, each the weakest pair the shipped catalogue already manages.
+ *
+ * Measured, not chosen. Skin's closest pair is tones 1 and 2 at 70, the hair's
+ * is black and dark brown at 48, and the garments' is the t-shirt and the
+ * sweatshirt at 45. Anything added has to be at least as distinguishable as
+ * what is already there, and nothing is claimed of the existing sets that they
+ * do not achieve.
+ */
+const COLOUR_FLOORS = { skin: 70, hair: 48, outfit: 45 } as const;
+
+describe('the colours are far enough apart to be separate choices', () => {
+  const closest = (swatches: readonly string[]) =>
+    swatches.flatMap((left, index) =>
+      swatches.slice(index + 1).map((right) => colourDistance(left, right))
+    );
+
+  it('keeps every pair of skin tones apart', () => {
+    const tones = AVATAR_SKIN_TONES.map(
+      (tone) => resolveAvatarVisuals(config({ skinToneId: tone.id })).skin.base
+    );
+
+    expect(Math.min(...closest(tones))).toBeGreaterThanOrEqual(COLOUR_FLOORS.skin);
+  });
+
+  it('keeps every pair of hair colours apart', () => {
+    const colours = AVATAR_HAIR_COLORS.map(
+      (colour) => resolveAvatarVisuals(config({ hairColorId: colour.id })).hair.base
+    );
+
+    expect(Math.min(...closest(colours))).toBeGreaterThanOrEqual(COLOUR_FLOORS.hair);
+  });
+
+  it('keeps every pair of garments apart', () => {
+    const garments = AVATAR_OUTFITS.map(
+      (outfit) => resolveAvatarVisuals(config({ outfitId: outfit.id })).outfit.base
+    );
+
+    expect(Math.min(...closest(garments))).toBeGreaterThanOrEqual(COLOUR_FLOORS.outfit);
+  });
+
+  /**
+   * The parts of one figure have to read against each other too.
+   *
+   * A flat ear on a flat face is no ear, and eyes that match the skin are no
+   * eyes. The old test for this asserted only inequality while its name
+   * promised "darker", so it would have passed a shade one hex from the face.
+   */
+  it.each(AVATAR_SKIN_TONES.map((tone) => tone.id))('%s reads as a face', (id) => {
+    const { skin } = resolveAvatarVisuals(config({ skinToneId: id }));
+
+    const shadeStep = luminance(skin.base) - luminance(skin.shade);
+    const featureStep = Math.abs(luminance(skin.base) - luminance(skin.feature));
+
+    // Tone 6's ear is the shallowest at 0.01967, and tone 5's eyes the faintest
+    // at 0.11129. Both measured from the shipped six, rounded down so the
+    // tones they came from are not excluded by their own floor.
+    expect([id, shadeStep >= 0.019, featureStep >= 0.111]).toEqual([id, true, true]);
+  });
+
+  it.each(AVATAR_HAIR_COLORS.map((colour) => colour.id))('%s has a darker length', (id) => {
+    const { hair } = resolveAvatarVisuals(config({ hairColorId: id }));
+
+    // Black is the shallowest at 0.0070; there is not much room under black.
+    expect([id, luminance(hair.base) - luminance(hair.shade) >= 0.007]).toEqual([id, true]);
+  });
+});
+
+/**
  * The headscarves, which are hair styles rather than a layer of their own.
  *
  * `avatar-visuals` carries the reasoning. What is checked here is that the
