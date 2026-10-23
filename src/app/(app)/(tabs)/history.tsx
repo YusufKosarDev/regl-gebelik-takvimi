@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,6 +58,7 @@ export default function HistoryScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [records, setRecords] = useState<readonly PeriodRecord[] | null>(null);
+  const router = useRouter();
   const [log, setLog] = useState<DailyLogHistory | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -484,6 +486,7 @@ export default function HistoryScreen() {
                   moods={log.moodCorrelations}
                   hasPlacedDays={log.phased.some((day) => day.phase !== null)}
                   hasPeriodRecords={(records?.length ?? 0) > 0}
+                  onOpenSummary={() => router.push('/(app)/records-summary')}
                 />
               </>
             )}

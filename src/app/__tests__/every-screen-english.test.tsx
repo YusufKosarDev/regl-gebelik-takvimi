@@ -219,6 +219,7 @@ const SCREENS: readonly [string, () => React.ComponentType][] = [
   ['the daily entry screen', () => require('@/app/(app)/daily-entry').default],
   ['the daily log history screen', () => require('@/app/(app)/daily-log-history').default],
   ['the export screen', () => require('@/app/(app)/export').default],
+  ['the records summary screen', () => require('@/app/(app)/records-summary').default],
   ['the pregnancy settings screen', () => require('@/app/(app)/pregnancy-settings').default],
   ['the pregnancy start screen', () => require('@/app/(app)/pregnancy-start').default],
   ['the sync conflict screen', () => require('@/app/(app)/sync-conflict').default],

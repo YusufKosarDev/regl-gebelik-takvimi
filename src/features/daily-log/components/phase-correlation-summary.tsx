@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { PhaseCorrelation } from '../domain/symptom-phase-correlation';
 import { dailyLogCatalogueLabels, labelFor } from '../presentation/daily-log-catalogues';
 import { dailyLogHistoryMessages } from '../presentation/daily-log-history-messages';
+import { recordsSummaryMessages } from '../presentation/records-summary-messages';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -34,6 +35,7 @@ export function PhaseCorrelationSummary({
   moods,
   hasPlacedDays,
   hasPeriodRecords,
+  onOpenSummary,
 }: {
   readonly symptoms: readonly PhaseCorrelation[];
   readonly moods: readonly PhaseCorrelation[];
@@ -44,10 +46,18 @@ export function PhaseCorrelationSummary({
    * there, so the message names the real cause - the days themselves.
    */
   readonly hasPeriodRecords: boolean;
+  /**
+   * Opens the long form of this panel, when a caller wants the link here.
+   *
+   * Optional so the panel can stay exactly as it was on the screen that did
+   * not ask for a new control.
+   */
+  readonly onOpenSummary?: () => void;
 }) {
   const history = useMessages(dailyLogHistoryMessages);
   const labels = useMessages(dailyLogCatalogueLabels);
   const phases = useMessages(cycleLabels);
+  const summary = useMessages(recordsSummaryMessages);
 
   const notable = [...symptoms, ...moods].filter((correlation) => correlation.isNotable);
 
@@ -99,6 +109,25 @@ export function PhaseCorrelationSummary({
       <ThemedText type="small" themeColor="textSecondary">
         {history.summaryDisclaimer}
       </ThemedText>
+
+      {/* Only where a caller wired it.
+          The link belongs to this panel — the summary screen is its long form —
+          but this component is rendered on two screens, and adding a control to
+          both would put one on a screen nobody asked to change. `cycle-arc.tsx`
+          records what that costs: five tests pinned the exact list of controls
+          on a screen, and a new one entered all five. So the callback is
+          optional and the History tab is the only place that passes it. */}
+      {onOpenSummary !== undefined && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={summary.openLabel}
+          onPress={onOpenSummary}
+          style={({ pressed }) => [styles.open, pressed && styles.pressed]}>
+          <ThemedText type="smallBold" themeColor="primary">
+            {summary.openLabel}
+          </ThemedText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -106,5 +135,13 @@ export function PhaseCorrelationSummary({
 const styles = StyleSheet.create({
   summary: {
     gap: Spacing.two,
+  },
+  open: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });
