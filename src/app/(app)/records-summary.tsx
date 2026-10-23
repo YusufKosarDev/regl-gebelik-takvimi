@@ -201,7 +201,11 @@ export default function RecordsSummaryScreen() {
 
                     {drawn.map((row) => (
                       <View key={row.correlation.id} style={styles.bar}>
-                        <ThemedText type="small">
+                        {/* A heading, so the bars are something a screen
+                            reader can jump between. Without it the screen is
+                            one flat run and the only way to reach the fourth
+                            symptom is to hear the first three. */}
+                        <ThemedText accessibilityRole="header" type="small">
                           {summary.barHeading(row.label, row.correlation.placedCount)}
                         </ThemedText>
 

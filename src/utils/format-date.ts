@@ -1,6 +1,8 @@
 import type { Language } from '@/i18n/language';
 import { SOURCE_LANGUAGE } from '@/i18n/language';
 import type { ISODate } from '@/types/iso-date';
+// `date.ts` imports nothing from here, so naming it directly closes no cycle.
+import { getISOWeekday } from '@/utils/date';
 
 /**
  * Renders an `ISODate` for display, in the language the reader is being shown.
@@ -78,11 +80,66 @@ const MONTH_NAMES: Readonly<Record<Language, readonly string[]>> = {
   ],
 };
 
+/**
+ * The weekday names, Monday first.
+ *
+ * Monday first because `getISOWeekday` is 1 on Monday and both calendar grids
+ * are laid out that way, so the index needs no arithmetic to line up with
+ * either.
+ *
+ * Local tables for the same reason the months are: Hermes on Android ships
+ * without full ICU unless it is turned on, so `Intl` would quietly give English
+ * on some devices and not others.
+ *
+ * These are only ever spoken, never drawn - the grids draw the three-letter
+ * abbreviations from `homeMessages.weekdayLabels` and hide them from assistive
+ * technology. "Pzt" is a word to look at, not one to hear.
+ */
+const WEEKDAY_NAMES: Readonly<Record<Language, readonly string[]>> = {
+  tr: ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'],
+  en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+};
+
 export function formatDisplayDate(date: ISODate, language: Language = SOURCE_LANGUAGE): string {
   const [year, month, day] = date.split('-');
   const monthName = MONTH_NAMES[language][Number(month) - 1];
 
   return `${Number(day)} ${monthName} ${Number(year)}`;
+}
+
+/**
+ * The same date with its weekday in front, for a square in a calendar grid.
+ *
+ * ## Why the weekday is in the cell and not only above the column
+ *
+ * Both grids draw seven column headers, and to a screen reader those were seven
+ * stops reading "Pzt", "Sal", "Çar" - abbreviations meant for the eye, read out
+ * as though they were words - followed by forty-two date sentences with no
+ * weekday in any of them. The information a seven-column layout carries in its
+ * geometry was therefore carried nowhere: somebody who focused a square had no
+ * way to know which column it was in short of counting from the start of the
+ * row.
+ *
+ * So the weekday moves into the square and the headers are hidden. Nothing a
+ * sighted reader sees changes.
+ *
+ * ## Why the weekday comes first
+ *
+ * Turkish writes it last - "23 Ekim 2026 Pazartesi" - and this says
+ * "Pazartesi, 23 Ekim 2026" in both languages anyway. The weekday is the part
+ * that locates the square in its row, and a listener who has to wait through
+ * the date to hear it is doing the thing the column header was supposed to
+ * spare them.
+ *
+ * Display only, like everything else here.
+ */
+export function formatDisplayDateWithWeekday(
+  date: ISODate,
+  language: Language = SOURCE_LANGUAGE
+): string {
+  const weekday = WEEKDAY_NAMES[language][getISOWeekday(date) - 1];
+
+  return `${weekday}, ${formatDisplayDate(date, language)}`;
 }
 
 /**

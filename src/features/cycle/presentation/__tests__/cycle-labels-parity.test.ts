@@ -71,10 +71,10 @@ describe('a calendar day, as a screen reader reads it', () => {
 
   it('reads the date first, in the language it was given', () => {
     expect(getCalendarDayAccessibilityLabelIn(cycleLabels.en, 'en', day())).toBe(
-      '17 September 2026'
+      'Thursday, 17 September 2026'
     );
     expect(getCalendarDayAccessibilityLabelIn(cycleLabels.tr, 'tr', day())).toBe(
-      '17 Eylül 2026'
+      'Perşembe, 17 Eylül 2026'
     );
   });
 
@@ -83,7 +83,7 @@ describe('a calendar day, as a screen reader reads it', () => {
     // sentences to listen through.
     expect(
       getCalendarDayAccessibilityLabelIn(cycleLabels.en, 'en', day({ phase: 'follicular' }))
-    ).toBe('17 September 2026');
+    ).toBe('Thursday, 17 September 2026');
     expect(
       getCalendarDayAccessibilityLabelIn(cycleLabels.en, 'en', day({ phase: 'menstrual' }))
     ).toContain('Period');
@@ -101,6 +101,26 @@ describe('a calendar day, as a screen reader reads it', () => {
     ).toContain('doğurganlık en yüksek');
   });
 
+  /**
+   * The weekday is in the square, because the column above it is not spoken.
+   *
+   * The grid draws seven abbreviated column headers and hides them from
+   * assistive technology - "Pzt" read out is not a word - so the only place a
+   * listener can learn which column a square is in is the square itself.
+   * Without this a month is forty-two dates in a seven-wide layout whose width
+   * carries information that reaches nobody who cannot see it.
+   */
+  it('names the weekday, in both languages', () => {
+    expect(getCalendarDayAccessibilityLabelIn(cycleLabels.tr, 'tr', day())).toContain('Perşembe');
+    expect(getCalendarDayAccessibilityLabelIn(cycleLabels.en, 'en', day())).toContain('Thursday');
+  });
+
+  it('says the weekday before the date, so the column arrives first', () => {
+    const label = getCalendarDayAccessibilityLabelIn(cycleLabels.tr, 'tr', day());
+
+    expect(label.indexOf('Perşembe')).toBeLessThan(label.indexOf('17 Eylül'));
+  });
+
   it('puts today and selected last, after what the domain says', () => {
     const label = getCalendarDayAccessibilityLabelIn(
       cycleLabels.en,
@@ -109,6 +129,6 @@ describe('a calendar day, as a screen reader reads it', () => {
       { isToday: true, isSelected: true }
     );
 
-    expect(label).toBe('17 September 2026, Period, today, selected');
+    expect(label).toBe('Thursday, 17 September 2026, Period, today, selected');
   });
 });

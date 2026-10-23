@@ -4,7 +4,7 @@ import type { CyclePhase } from '../domain/phases';
 
 import type { Messages } from '@/i18n';
 import type { Language } from '@/i18n/language';
-import { formatDisplayDate } from '@/utils/format-date';
+import { formatDisplayDateWithWeekday } from '@/utils/format-date';
 
 /**
  * The domain's phase and fertility values, as words a person reads.
@@ -120,7 +120,11 @@ export function getCalendarDayAccessibilityLabelIn(
   day: CycleCalendarDay,
   options: { readonly isToday?: boolean; readonly isSelected?: boolean } = {}
 ): string {
-  const parts: string[] = [formatDisplayDate(day.date, language)];
+  // With the weekday, because the grid's column headers are drawn for the eye
+  // and hidden from assistive technology: a square that does not name its
+  // weekday is a square in a seven-column layout with no way to say which
+  // column. `formatDisplayDateWithWeekday` carries the whole argument.
+  const parts: string[] = [formatDisplayDateWithWeekday(day.date, language)];
 
   if (day.phase === 'menstrual' || day.phase === 'ovulatory') {
     parts.push(getCyclePhaseLabelIn(labels, day.phase));

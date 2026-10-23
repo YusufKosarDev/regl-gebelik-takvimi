@@ -14,9 +14,24 @@ import { useMessages } from '@/i18n';
  * building them, so what a row says stays in one place - beside the wording
  * for the calendar rows, which are the same four facts about a different day.
  *
- * The note under a row is still optional and still read as part of the same
- * accessible label, so the fertility estimate and the warning about it are one
- * thing to a screen reader, as they are to the eye.
+ * ## The note is spoken, and for a while it was not
+ *
+ * Each row is one accessibility node - `accessible` on the surface - because a
+ * label and a value read as two stops is a row somebody has to assemble in
+ * their head. The cost of collapsing a row is that nothing inside it is read
+ * on its own, so everything the row says has to be in the one label.
+ *
+ * It was not. Every row was labelled with `labelledValue(label, value)`, and
+ * the only row that has a note is the fertility row, whose note says the
+ * estimate must not be used as a method of contraception. That sentence was
+ * drawn on screen and silently dropped from what a screen reader said - so the
+ * reading was offered without its caveat to exactly the people who could not
+ * see the caveat.
+ *
+ * This file and {@link SummaryRow} both claimed otherwise in prose, which is
+ * how it survived: the note "travels with the row ... so the number and the
+ * warning about it cannot be separated" was true of the model and false of the
+ * rendering, and no test asked. `cycle-summary.test.tsx` asks now.
  */
 export function CycleSummary({
   rows,
@@ -32,7 +47,11 @@ export function CycleSummary({
           key={row.label}
           level="lined"
           accessible
-          accessibilityLabel={home.labelledValue(row.label, row.value)}>
+          accessibilityLabel={
+            row.note === undefined
+              ? home.labelledValue(row.label, row.value)
+              : home.labelledValueWithNote(row.label, row.value, row.note)
+          }>
           <ThemedText type="small" themeColor="textSecondary">
             {row.label}
           </ThemedText>

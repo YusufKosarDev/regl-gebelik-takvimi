@@ -326,8 +326,19 @@ describe('HomeScreen with a saved profile', () => {
 
     expect(getByLabelText('Döngü günü: 17. gün')).toBeTruthy();
     expect(getByLabelText('Döngü evresi: Luteal')).toBeTruthy();
-    expect(getByLabelText('Doğurganlık tahmini: Düşük')).toBeTruthy();
     expect(getByLabelText('Sonraki regl tahmini: 29 Eylül 2026')).toBeTruthy();
+
+    // The fertility row speaks its note too, which is the one row that has
+    // one. This assertion used to read 'Doğurganlık tahmini: Düşük' and was
+    // pinning the bug: the sentence saying the estimate is not a method of
+    // contraception was drawn on screen and dropped from the spoken row.
+    // `cycle-summary.test.tsx` holds the rule; this holds it on the screen.
+    expect(
+      getByLabelText(
+        'Doğurganlık tahmini: Düşük. Doğurganlık bilgileri tahminidir ve gebelikten '
+          + 'korunma yöntemi olarak kullanılmamalıdır.'
+      )
+    ).toBeTruthy();
   });
 
   it('opens the database once and reads the clock once', async () => {
@@ -1608,6 +1619,26 @@ describe('HomeScreen pregnancy dashboard', () => {
     const { getByText } = await renderScreen();
 
     expect(getByText('Gebelik takibi')).toBeTruthy();
+  });
+
+  /**
+   * The date at the top is a heading, as it is in the cycle view.
+   *
+   * `SkyHero` carries the cycle view's headings and is not drawn in this mode,
+   * so the block that replaces it - "Bugün" over the date - was two plain text
+   * nodes. The screen still had headings further down, in `PregnancySection`,
+   * which is why the gap was easy to miss: jumping by heading landed past the
+   * date rather than on it, and the first thing the screen says was reachable
+   * only by swiping to it.
+   *
+   * One node rather than two, for the reason `CycleSummary` collapses a row: a
+   * word and the value under it read as two stops is something somebody has to
+   * put back together.
+   */
+  it('heads the date, so it is not something to swipe past', async () => {
+    const { getByRole } = await renderScreen();
+
+    expect(getByRole('header', { name: 'Bugün: 17 Eylül 2026' })).toBeTruthy();
   });
 
   it('shows how far along the pregnancy is', async () => {

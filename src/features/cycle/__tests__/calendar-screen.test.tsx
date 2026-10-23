@@ -255,11 +255,14 @@ describe('CalendarScreen calendar section', () => {
     expect(getByLabelText('Eylül 2026 takvimi')).toBeTruthy();
   });
 
-  it('renders the weekday headers', async () => {
+  it('renders the weekday headers, drawn but not spoken', async () => {
     const { getByText } = await renderScreen();
 
+    // `includeHiddenElements` because the row is hidden from assistive
+    // technology: the abbreviations are for the eye, and each square names its
+    // own weekday instead. `cycle-calendar.test.tsx` holds both halves.
     for (const label of ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']) {
-      expect(getByText(label)).toBeTruthy();
+      expect(getByText(label, { includeHiddenElements: true })).toBeTruthy();
     }
   });
 
@@ -463,7 +466,7 @@ describe('CalendarScreen today highlight', () => {
 
     // Today starts out selected, so the label says both.
     expect(getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
-      '17 Eylül 2026, bugün, seçili'
+      'Perşembe, 17 Eylül 2026, bugün, seçili'
     );
   });
 
@@ -476,7 +479,7 @@ describe('CalendarScreen today highlight', () => {
     expect(queryByTestId('calendar-today-2026-09-17')).toBeNull();
     // The cycle state survives the highlight.
     expect(getByTestId('calendar-day-2026-09-14').props.accessibilityLabel).toBe(
-      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün, seçili'
+      'Pazartesi, 14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün, seçili'
     );
   });
 
