@@ -1621,6 +1621,26 @@ describe('HomeScreen pregnancy dashboard', () => {
     expect(getByText('Gebelik takibi')).toBeTruthy();
   });
 
+  /**
+   * The date at the top is a heading, as it is in the cycle view.
+   *
+   * `SkyHero` carries the cycle view's headings and is not drawn in this mode,
+   * so the block that replaces it - "Bugün" over the date - was two plain text
+   * nodes. The screen still had headings further down, in `PregnancySection`,
+   * which is why the gap was easy to miss: jumping by heading landed past the
+   * date rather than on it, and the first thing the screen says was reachable
+   * only by swiping to it.
+   *
+   * One node rather than two, for the reason `CycleSummary` collapses a row: a
+   * word and the value under it read as two stops is something somebody has to
+   * put back together.
+   */
+  it('heads the date, so it is not something to swipe past', async () => {
+    const { getByRole } = await renderScreen();
+
+    expect(getByRole('header', { name: 'Bugün: 17 Eylül 2026' })).toBeTruthy();
+  });
+
   it('shows how far along the pregnancy is', async () => {
     const { getByText } = await renderScreen();
 
