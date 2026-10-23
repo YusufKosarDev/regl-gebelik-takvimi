@@ -3,6 +3,8 @@ import { isHeadcovering, resolveAvatarVisuals } from '../avatar-visuals';
 
 import {
   AVATAR_ACCESSORIES,
+  AVATAR_BACKGROUNDS,
+  AVATAR_EXPRESSIONS,
   AVATAR_HAIR_COLORS,
   AVATAR_HAIR_STYLES,
   AVATAR_OUTFITS,
@@ -495,5 +497,109 @@ describe('describeAvatar', () => {
 
   it('never shows an error word', () => {
     expect(describeAvatar(config({ outfitId: 'spacesuit' }))).not.toContain('Bilinmiyor');
+  });
+});
+
+/**
+ * The faces, held to the same two-difference rule as the silhouettes.
+ *
+ * Four numbers rather than six, and the same reasoning: a face that differs
+ * from its neighbour in one of them is the same face offered twice. The drawn
+ * check is a different one — an eye is a 3px dot at `small` — and lives in
+ * `avatar-small-size-legibility.test.tsx`.
+ */
+describe('the expressions are told apart by at least two numbers each', () => {
+  const shapes = AVATAR_EXPRESSIONS.map((expression) => ({
+    id: expression.id,
+    shape: resolveAvatarVisuals(config({ expressionId: expression.id }))
+      .expression as unknown as Record<string, unknown>,
+  }));
+
+  const pairs = shapes.flatMap((left, index) =>
+    shapes.slice(index + 1).map((right) => [left.id, right.id] as const)
+  );
+
+  it('has pairs to compare', () => {
+    expect(pairs.length).toBeGreaterThan(4);
+  });
+
+  it.each(pairs)('%s and %s differ in two or more', (leftId, rightId) => {
+    const left = shapes.find((entry) => entry.id === leftId)!.shape;
+    const right = shapes.find((entry) => entry.id === rightId)!.shape;
+    const differences = shapeDifferences(left, right);
+
+    expect([`${leftId}/${rightId}`, differences.length >= 2, differences]).toEqual([
+      `${leftId}/${rightId}`,
+      true,
+      differences,
+    ]);
+  });
+
+  it('leaves calm as the face the app already drew', () => {
+    // Every multiplier at 1, which is what makes "no expression chosen" and
+    // "the avatar you already had" the same drawing.
+    const { expression } = resolveAvatarVisuals(config({ expressionId: 'calm' }));
+
+    expect(expression).toEqual({
+      eyeOpenness: 1,
+      mouthWidth: 1,
+      mouthHeight: 1,
+      mouthCorner: 1,
+    });
+  });
+
+  it('falls back to calm rather than to a face nobody picked', () => {
+    const { expression } = resolveAvatarVisuals(
+      config({ expressionId: 'a-face-from-a-later-build' })
+    );
+
+    expect(expression).toEqual(resolveAvatarVisuals(config({ expressionId: 'calm' })).expression);
+  });
+});
+
+/**
+ * The backdrops, which have a constraint the other palettes do not.
+ *
+ * A disc sits behind the head, so it is not enough for the four to differ from
+ * each other — each has to differ from every skin tone, or the face sinks into
+ * it. That constraint is what chose them: a peach disc, the obvious one to
+ * want, measured 19 against `skin-tone-1` and 10 against `skin-tone-2`.
+ */
+describe('the backdrops keep a head visible', () => {
+  const discs = AVATAR_BACKGROUNDS.map((background) => ({
+    id: background.id,
+    base: resolveAvatarVisuals(config({ backgroundId: background.id })).background!.base,
+  }));
+
+  it('has discs to check', () => {
+    expect(discs.length).toBeGreaterThan(2);
+  });
+
+  it.each(discs.map((disc) => disc.id))('%s is clear of every skin tone', (id) => {
+    const disc = discs.find((entry) => entry.id === id)!.base;
+
+    const closest = Math.min(
+      ...AVATAR_SKIN_TONES.map((tone) =>
+        colourDistance(disc, resolveAvatarVisuals(config({ skinToneId: tone.id })).skin.base)
+      )
+    );
+
+    expect([id, closest >= COLOUR_FLOORS.outfit]).toEqual([id, true]);
+  });
+
+  it('keeps every pair of discs apart', () => {
+    const closest = discs.flatMap((left, index) =>
+      discs.slice(index + 1).map((right) => colourDistance(left.base, right.base))
+    );
+
+    expect(Math.min(...closest)).toBeGreaterThanOrEqual(COLOUR_FLOORS.outfit);
+  });
+
+  it('draws no disc at all when none was chosen', () => {
+    expect(resolveAvatarVisuals(config()).background).toBeNull();
+  });
+
+  it('draws no disc for a colour it does not have', () => {
+    expect(resolveAvatarVisuals(config({ backgroundId: 'a-colour-from-later' })).background).toBeNull();
   });
 });

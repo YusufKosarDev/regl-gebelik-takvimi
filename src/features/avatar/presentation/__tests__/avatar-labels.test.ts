@@ -15,6 +15,8 @@ describe('parity of the screen strings', () => {
     functions: [
       ['skinPart', ['Tone 1']],
       ['hairPart', ['Short', 'Black'], ['Short', null], [null, 'Black'], [null, null]],
+      ['expressionPart', ['Smiling'], ['Calm']],
+      ['backgroundPart', ['Lavender'], ['Stone']],
       [
         'headscarfPart',
         ['Plain headscarf', 'Burgundy'],

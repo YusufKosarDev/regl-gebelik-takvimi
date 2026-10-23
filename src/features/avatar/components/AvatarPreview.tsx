@@ -63,6 +63,7 @@ export function AvatarPreview({ config, size = 'large', testID }: AvatarPreviewP
       accessibilityLabel={describeAvatarIn(labels, catalogue, config)}
       testID={testID}
       style={{ width: u(CANVAS.width), height: u(CANVAS.height) }}>
+      <Background visuals={visuals} u={u} />
       <HairBack visuals={visuals} u={u} />
       <Neck visuals={visuals} u={u} />
       <Outfit visuals={visuals} u={u} />
@@ -76,6 +77,43 @@ export function AvatarPreview({ config, size = 'large', testID }: AvatarPreviewP
 }
 
 type Part = { visuals: AvatarVisuals; u: (value: number) => number };
+
+/**
+ * The disc behind the figure, or nothing.
+ *
+ * First of the siblings, so everything else is drawn on top of it — which is
+ * the whole of what "background" means here, since the stack is JSX order.
+ *
+ * Inside the existing canvas rather than around it. Extending the canvas would
+ * change the size of every avatar on every screen that places one; a disc that
+ * fits leaves all of that alone. It covers the head and the shoulders and the
+ * figure overflows it below, which is what a badge looks like.
+ */
+const BACKGROUND = { size: 124, left: 4, top: 4 };
+
+function Background({ visuals, u }: Part) {
+  const { background } = visuals;
+
+  if (background === null) {
+    return null;
+  }
+
+  return (
+    <View
+      style={[
+        styles.layer,
+        {
+          left: u(BACKGROUND.left),
+          top: u(BACKGROUND.top),
+          width: u(BACKGROUND.size),
+          height: u(BACKGROUND.size),
+          backgroundColor: background.base,
+          borderRadius: u(BACKGROUND.size / 2),
+        },
+      ]}
+    />
+  );
+}
 
 /**
  * The length of hair that falls behind the head and shoulders.
@@ -304,10 +342,18 @@ function HairFront({ visuals, u }: Part) {
 
 /** Eyes and a mouth, in whatever reads on this skin tone. */
 function Face({ visuals, u }: Part) {
+  const { expression } = visuals;
+
+  // Kept centred on the eye line as it narrows, so a squashed eye closes
+  // towards the middle rather than sinking down the cheek.
+  const eyeHeight = EYE.size * expression.eyeOpenness;
+  const mouthWidth = MOUTH.width * expression.mouthWidth;
+  const mouthHeight = MOUTH.height * expression.mouthHeight;
+
   const eye = {
-    top: u(EYE.top),
+    top: u(EYE.top + (EYE.size - eyeHeight) / 2),
     width: u(EYE.size),
-    height: u(EYE.size),
+    height: u(eyeHeight),
     backgroundColor: visuals.skin.feature,
     borderRadius: u(EYE.size / 2),
   };
@@ -321,12 +367,16 @@ function Face({ visuals, u }: Part) {
         style={[
           styles.layer,
           {
-            left: u(MOUTH.left),
+            // Centred by arithmetic rather than by `MOUTH.left`, which is the
+            // centre already: 57 + 18/2 is 66, and the canvas is 132 wide. So
+            // a mouth of the drawn width lands exactly where it always did,
+            // and a wider one grows from the middle instead of to the right.
+            left: u(CANVAS.width / 2 - mouthWidth / 2),
             top: u(MOUTH.top),
-            width: u(MOUTH.width),
-            height: u(MOUTH.height),
+            width: u(mouthWidth),
+            height: u(mouthHeight),
             backgroundColor: visuals.skin.feature,
-            borderRadius: u(MOUTH.height),
+            borderRadius: u(MOUTH.height * expression.mouthCorner),
           },
         ]}
       />

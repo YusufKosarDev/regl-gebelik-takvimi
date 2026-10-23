@@ -70,7 +70,9 @@ function isSameAvatarConfig(a: AvatarConfig, b: AvatarConfig): boolean {
     a.hairStyleId === b.hairStyleId &&
     a.hairColorId === b.hairColorId &&
     a.outfitId === b.outfitId &&
-    (a.accessoryId ?? null) === (b.accessoryId ?? null)
+    (a.accessoryId ?? null) === (b.accessoryId ?? null) &&
+    (a.expressionId ?? null) === (b.expressionId ?? null) &&
+    (a.backgroundId ?? null) === (b.backgroundId ?? null)
   );
 }
 
@@ -195,6 +197,18 @@ export default function AvatarScreen() {
     setHasSaveError(false);
   };
 
+  /** Same shape for the backdrop: "Yok" drops the key rather than blanking it. */
+  const chooseBackground = (id: string | null) => {
+    setConfig((current) => {
+      const { backgroundId, ...rest } = current;
+
+      void backgroundId;
+
+      return id === null ? rest : { ...rest, backgroundId: id };
+    });
+    setHasSaveError(false);
+  };
+
   const handleSave = async () => {
     if (saveInFlight.current) {
       return;
@@ -315,6 +329,30 @@ export default function AvatarScreen() {
 
                   {/* "Yok" leads rather than trails: wearing nothing is a choice
                       people make, not a way of skipping the question. */}
+                  {/* No `noneLabel`: every avatar has a face, and an absent
+                      choice is `calm` rather than nothing — so the row shows
+                      calm selected rather than offering "Yok" beside it. */}
+                  <OptionSection
+                    title={avatar.avatarExpressionSectionTitle}
+                    options={catalogue.expressions}
+                    selectedId={config.expressionId ?? 'calm'}
+                    onSelect={(id) => choose({ expressionId: id ?? config.expressionId })}
+                    disabled={isSaving}
+                    theme={theme}
+                  />
+
+                  {/* This one does have an absent state: a plain figure on
+                      nothing is what every avatar looked like before. */}
+                  <OptionSection
+                    title={avatar.avatarBackgroundSectionTitle}
+                    options={catalogue.backgrounds}
+                    selectedId={config.backgroundId ?? null}
+                    onSelect={chooseBackground}
+                    disabled={isSaving}
+                    theme={theme}
+                    noneLabel={avatar.noBackgroundLabel}
+                  />
+
                   <OptionSection
                     title={avatar.avatarAccessorySectionTitle}
                     options={catalogue.accessories}

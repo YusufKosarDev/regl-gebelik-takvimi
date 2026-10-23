@@ -5,6 +5,7 @@ import { AvatarPreview } from '../AvatarPreview';
 
 import {
   AVATAR_ACCESSORIES,
+  AVATAR_EXPRESSIONS,
   AVATAR_HAIR_STYLES,
   AVATAR_OUTFITS,
 } from '@/features/avatar/data/avatar-catalog';
@@ -271,5 +272,68 @@ describe('the outfits at the small size', () => {
     );
 
     expect(tooClose).toEqual([]);
+  });
+});
+
+/**
+ * The faces, which cannot be held to the 10px floor and should not be.
+ *
+ * At `small` an eye is a 3px dot and the mouth a 9×2 bar. A floor built for
+ * silhouettes would reject every expression there could ever be, so this asks
+ * the question the accessories are asked instead: does each one draw marks no
+ * other one draws, and does the face change at all.
+ *
+ * The first case is the one that matters most and is not about legibility: an
+ * avatar with no expression has to draw exactly the face it drew before the
+ * column existed. NULL means "the face it already had", and that is only true
+ * if `calm` is that face to the pixel.
+ */
+describe('the expressions at the small size', () => {
+  const faceColours = () => [resolveAvatarVisuals(config()).skin.feature];
+
+  it('draws an avatar with no expression exactly as calm', async () => {
+    const absent = await drawSmall(config());
+    const calm = await drawSmall(config({ expressionId: 'calm' }));
+
+    expect(JSON.stringify(boxesInColour(calm, faceColours()))).toBe(
+      JSON.stringify(boxesInColour(absent, faceColours()))
+    );
+  });
+
+  it('draws an expression it does not know as calm too', async () => {
+    const stranger = await drawSmall(config({ expressionId: 'a-face-from-a-later-build' }));
+    const calm = await drawSmall(config({ expressionId: 'calm' }));
+
+    expect(JSON.stringify(boxesInColour(stranger, faceColours()))).toBe(
+      JSON.stringify(boxesInColour(calm, faceColours()))
+    );
+  });
+
+  it('gives every expression its own face', async () => {
+    const drawings = new Map<string, string>();
+
+    for (const expression of AVATAR_EXPRESSIONS) {
+      const tree = await drawSmall(config({ expressionId: expression.id }));
+
+      drawings.set(expression.id, JSON.stringify(boxesInColour(tree, faceColours())));
+    }
+
+    expect(new Set(drawings.values()).size).toBe(AVATAR_EXPRESSIONS.length);
+  });
+
+  it('changes the face for every expression that is not calm', async () => {
+    const calm = JSON.stringify(boxesInColour(await drawSmall(config()), faceColours()));
+
+    for (const expression of AVATAR_EXPRESSIONS) {
+      if (expression.id === 'calm') {
+        continue;
+      }
+
+      const drawn = JSON.stringify(
+        boxesInColour(await drawSmall(config({ expressionId: expression.id })), faceColours())
+      );
+
+      expect([expression.id, drawn === calm]).toEqual([expression.id, false]);
+    }
   });
 });
