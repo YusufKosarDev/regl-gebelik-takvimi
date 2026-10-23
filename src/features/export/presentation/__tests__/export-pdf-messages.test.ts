@@ -229,4 +229,31 @@ describe('the note under the buttons', () => {
   it('no longer claims there are two', () => {
     expect('twoFilesNote' in exportMessages.tr).toBe(false);
   });
+
+  /**
+   * In the order the buttons are in.
+   *
+   * Somebody reading the note looks down at the buttons to find the one it is
+   * describing. A list that runs the other way makes them do the matching
+   * themselves, and `export-screen-english.test.tsx` holds the buttons to the
+   * same order so the two cannot drift apart.
+   */
+  it('lists the three in the order they are offered', () => {
+    const turkish = [
+      exportMessages.tr.threeFilesNote.indexOf('özet'),
+      exportMessages.tr.threeFilesNote.indexOf('CSV'),
+      exportMessages.tr.threeFilesNote.indexOf('PDF'),
+    ];
+
+    const english = [
+      exportMessages.en.threeFilesNote.indexOf('summary'),
+      exportMessages.en.threeFilesNote.indexOf('CSV'),
+      exportMessages.en.threeFilesNote.indexOf('PDF'),
+    ];
+
+    for (const positions of [turkish, english]) {
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect(positions).toEqual([...positions].sort((left, right) => left - right));
+    }
+  });
 });

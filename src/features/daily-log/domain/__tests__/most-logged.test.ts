@@ -83,3 +83,55 @@ describe('mostLogged', () => {
     ]);
   });
 });
+
+describe('a day that names the same thing twice', () => {
+  /**
+   * One day is one day, however the row is shaped.
+   *
+   * `symptomIds` is a list in the database, and nothing in the schema stops it
+   * holding `cramps` twice. Today's chips are a toggle so the screen cannot
+   * produce such a row - but that is a property of this version of the UI, not
+   * of the data, and every heading over these numbers says "gün" / "days".
+   * Counting mentions under that heading is simply a wrong number, and it gets
+   * wronger the further from the screen it travels: the printable export puts
+   * it on a page somebody hands to a clinician.
+   *
+   * So the count is of days, and the shape of the row is irrelevant to it.
+   */
+  it('counts it once', () => {
+    const days = [entry('2026-10-01', ['cramps', 'cramps'])];
+
+    expect(mostLogged(days, symptomsOf, 5)).toEqual([{ id: 'cramps', count: 1 }]);
+  });
+
+  it('still counts the other days it falls on', () => {
+    const days = [
+      entry('2026-10-01', ['cramps', 'cramps']),
+      entry('2026-10-02', ['cramps']),
+      entry('2026-10-03', ['cramps', 'cramps', 'cramps']),
+    ];
+
+    expect(mostLogged(days, symptomsOf, 5)).toEqual([{ id: 'cramps', count: 3 }]);
+  });
+
+  it('does not let a repeat push a thing up the order', () => {
+    // The order is "most written down first". A day holding `acne` three times
+    // is still one day, so two days of `cramps` comes first.
+    const days = [
+      entry('2026-10-01', ['acne', 'acne', 'acne']),
+      entry('2026-10-02', ['cramps']),
+      entry('2026-10-03', ['cramps']),
+    ];
+
+    expect(mostLogged(days, symptomsOf, 5)).toEqual([
+      { id: 'cramps', count: 2 },
+      { id: 'acne', count: 1 },
+    ]);
+  });
+
+  it('counts the distinct things on the day towards the limit, not the mentions', () => {
+    const days = [entry('2026-10-01', ['a', 'a', 'b', 'b'])];
+
+    expect(mostLogged(days, symptomsOf, 5)).toHaveLength(2);
+  });
+});
