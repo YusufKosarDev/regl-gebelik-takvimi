@@ -30,7 +30,7 @@ describe('WeekStrip', () => {
   it('shows the seven days of the week the date is in, Monday first', async () => {
     const { getAllByRole } = await renderStrip();
 
-    const days = getAllByRole('button').map((node) => node.props.accessibilityLabel as string);
+    const days = getAllByRole('radio').map((node) => node.props.accessibilityLabel as string);
 
     expect(days).toEqual([
       '2026-10-05',
@@ -46,7 +46,7 @@ describe('WeekStrip', () => {
   it('builds the week from Monday even when the date is mid-week', async () => {
     const { getAllByRole } = await renderStrip('2026-10-07' as ISODate);
 
-    const days = getAllByRole('button').map((node) => node.props.accessibilityLabel as string);
+    const days = getAllByRole('radio').map((node) => node.props.accessibilityLabel as string);
 
     expect(days[0]).toBe('2026-10-05');
     expect(days[6]).toBe('2026-10-11');
@@ -55,7 +55,7 @@ describe('WeekStrip', () => {
   it('marks the day being edited and no other', async () => {
     const { getAllByRole } = await renderStrip();
 
-    const selected = getAllByRole('button')
+    const selected = getAllByRole('radio')
       .filter((node) => node.props.accessibilityState?.selected === true)
       .map((node) => node.props.accessibilityLabel as string);
 
@@ -84,7 +84,7 @@ describe('WeekStrip', () => {
   it('gives every day a target big enough to hit', async () => {
     const { getAllByRole } = await renderStrip();
 
-    for (const day of getAllByRole('button')) {
+    for (const day of getAllByRole('radio')) {
       expect(StyleSheet.flatten(day.props.style)?.minHeight).toBeGreaterThanOrEqual(44);
     }
   });
@@ -95,5 +95,80 @@ describe('WeekStrip', () => {
     const { getByLabelText } = await renderStrip(SUNDAY);
 
     expect(getByLabelText('2026-10-08')).toBeTruthy();
+  });
+});
+
+/**
+ * One of seven, which is what `radio` says and `button` did not.
+ *
+ * The strip picks one day out of seven, which is the shape `choice-grid.tsx`
+ * already has a pattern for: `radio` inside a `radiogroup`, with `selected` on
+ * the chosen one. As seven buttons, TalkBack said "button, selected" and could
+ * not say of how many - the same gap the avatar grid had, in the other
+ * direction.
+ */
+describe('the strip as one choice out of seven', () => {
+  it('offers its days as radios rather than as buttons', async () => {
+    const { getAllByRole, queryAllByRole } = await renderStrip();
+
+    expect(getAllByRole('radio')).toHaveLength(7);
+    expect(queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('wraps them in a group, so the seven can be counted', async () => {
+    const { getByTestId } = await renderStrip();
+
+    expect(getByTestId('week-strip').props.accessibilityRole).toBe('radiogroup');
+  });
+});
+
+describe('a day that has not arrived yet', () => {
+  const HINT = 'Henüz gelmemiş bir güne kayıt eklenemez.';
+
+  function renderWithToday(today: ISODate) {
+    return render(
+      <WeekStrip
+        date={SUNDAY}
+        onSelect={() => {}}
+        weekdayLabels={LABELS}
+        dayLabelFor={(d) => d}
+        lastSelectableDate={today}
+        unavailableHint={HINT}
+      />
+    );
+  }
+
+  /**
+   * The week always shows seven, so up to six of them can be days that refuse
+   * the tap. Announced as "disabled" and nothing else, they are up to six stops
+   * that say a control exists and will not work, with no reason given - and the
+   * reason is not guessable from a strip that looks like six identical days.
+   */
+  it('says why it cannot be chosen', async () => {
+    // Thursday the 8th is the last selectable day, so Friday on are not.
+    const { getByLabelText } = await renderWithToday('2026-10-08' as ISODate);
+
+    expect(getByLabelText('2026-10-09').props.accessibilityHint).toBe(HINT);
+  });
+
+  it('puts no hint on a day that can be chosen', async () => {
+    const { getByLabelText } = await renderWithToday('2026-10-08' as ISODate);
+
+    expect(getByLabelText('2026-10-07').props.accessibilityHint).toBeUndefined();
+    expect(getByLabelText('2026-10-08').props.accessibilityHint).toBeUndefined();
+  });
+
+  it('still says it is disabled, so the hint explains rather than replaces', async () => {
+    const { getByLabelText } = await renderWithToday('2026-10-08' as ISODate);
+
+    expect(getByLabelText('2026-10-09').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('adds no hint at all when the caller gave none', async () => {
+    // The component is handed its words; it does not invent them. A caller
+    // with no last-selectable date has no unavailable days to explain.
+    const { getByLabelText } = await renderStrip();
+
+    expect(getByLabelText('2026-10-09').props.accessibilityHint).toBeUndefined();
   });
 });

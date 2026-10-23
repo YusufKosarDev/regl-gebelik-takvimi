@@ -43,6 +43,7 @@ export function WeekStrip({
   dayLabelFor,
   disabled = false,
   lastSelectableDate,
+  unavailableHint,
 }: {
   /** The day being edited. The week drawn is the one containing it. */
   readonly date: ISODate;
@@ -58,6 +59,17 @@ export function WeekStrip({
    * tomorrow would be counted by the history and missed by the export.
    */
   readonly lastSelectableDate?: ISODate;
+  /**
+   * Why a day past `lastSelectableDate` will not take a tap, for the days that
+   * will not take one.
+   *
+   * Handed in like the weekday words and the spoken date, for the reason given
+   * above: this component owns no wording. Without it those days announce
+   * themselves as disabled and stop there — up to six stops saying a control
+   * exists and will not work, with no reason, on a strip where six identical
+   * squares give no clue which rule they fell foul of.
+   */
+  readonly unavailableHint?: string;
 }) {
   const theme = useTheme();
 
@@ -65,7 +77,11 @@ export function WeekStrip({
   const monday = addDays(date, -(getISOWeekday(date) - 1));
 
   return (
-    <View style={styles.strip}>
+    // A group of radios rather than seven buttons: this picks one day out of
+    // seven, which is what `radio` says and `button` did not. `choice-grid.tsx`
+    // holds the same pattern for the single-select catalogues, and as buttons
+    // TalkBack could say "selected" but not of how many.
+    <View accessibilityRole="radiogroup" testID="week-strip" style={styles.strip}>
       {weekdayLabels.map((label, index) => {
         const day = addDays(monday, index);
         const isSelected = day === date;
@@ -76,8 +92,11 @@ export function WeekStrip({
         return (
           <Pressable
             key={day}
-            accessibilityRole="button"
+            accessibilityRole="radio"
             accessibilityLabel={dayLabelFor(day)}
+            // Only on the days it is about. A hint on all seven would be read
+            // out six times over for a rule that applies to one of them.
+            accessibilityHint={isBeyondLast ? unavailableHint : undefined}
             accessibilityState={{ selected: isSelected, disabled: isDayDisabled }}
             disabled={isDayDisabled}
             onPress={() => onSelect(day)}

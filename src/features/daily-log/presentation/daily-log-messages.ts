@@ -69,6 +69,20 @@ const dailyLogMessagesTr = {
   unsavedMessage: 'Önce bu günü kaydet ya da temizle.',
 
   /**
+   * Why a day in the strip will not take a tap.
+   *
+   * Spoken only, as the hint on the days past today. The week always draws
+   * seven, so up to six of them refuse the tap — and announced as "disabled"
+   * and nothing more they are up to six stops saying a control exists and will
+   * not work. A sighted reader can see that those squares are ahead of today;
+   * a listener is told six times that something is unavailable and never why.
+   *
+   * `build-export-rows.ts` has the reason the days refuse at all: a record
+   * dated tomorrow would be counted by the history and missed by the export.
+   */
+  futureDayHint: 'Henüz gelmemiş bir güne kayıt eklenemez.',
+
+  /**
    * What each section is for, folded up behind the chevron beside its name.
    *
    * The job each of these has to do is say whether the section takes one
@@ -143,6 +157,8 @@ const dailyLogMessagesEn: DailyLogMessages = {
   emptySelectionMessage: 'Choose at least one thing to save.',
 
   unsavedMessage: 'Save or clear this day first.',
+
+  futureDayHint: 'A day that has not arrived yet cannot be logged.',
 
   flowExplanation: 'How heavy the bleeding was that day. One choice.',
   symptomsExplanation: 'What you noticed that day. You can choose more than one.',
