@@ -333,6 +333,24 @@ export type AvatarVisuals = {
  *
  * Pure: the config is read, never mutated.
  */
+/**
+ * Whether this hair style is a covering rather than hair.
+ *
+ * Asked by the words — the colour section's heading and the spoken
+ * description — because a covering takes its colour from the hair's list and
+ * "Saç rengi" above a picker colouring a headscarf is the wrong question.
+ *
+ * Answered from `wrap`, the same number that draws it, rather than from a list
+ * of ids kept in step by hand: a fourth covering is then named correctly by
+ * having been drawn correctly, which is one fact to get right instead of two.
+ *
+ * An id this build does not have is not a covering. It draws as hair, so it is
+ * named as hair, and the two answers agree.
+ */
+export function isHeadcovering(hairStyleId: string): boolean {
+  return (HAIR_SHAPES[hairStyleId] ?? NEUTRAL_HAIR_SHAPE).wrap > 0;
+}
+
 export function resolveAvatarVisuals(config: AvatarConfig): AvatarVisuals {
   return {
     skin: SKIN_PALETTES[config.skinToneId] ?? NEUTRAL_SKIN,

@@ -1,5 +1,5 @@
-import { describeAvatar } from '../avatar-labels';
-import { resolveAvatarVisuals } from '../avatar-visuals';
+import { avatarLabels, colourSectionTitleIn, describeAvatar } from '../avatar-labels';
+import { isHeadcovering, resolveAvatarVisuals } from '../avatar-visuals';
 
 import {
   AVATAR_ACCESSORIES,
@@ -245,6 +245,62 @@ describe('the headscarf styles', () => {
     );
 
     expect(new Set(shapes).size).toBe(SCARVES.length);
+  });
+});
+
+/**
+ * What the screen and the screen reader call the thing on the head.
+ *
+ * A covering takes its colour from the hair's list, because it is a hair style
+ * and there is one thing on the head with one colour. The cost of that is a
+ * section headed "Saç rengi" above a picker that is colouring a headscarf, and
+ * a description that reads "Sarma Lacivert saç" to somebody who cannot see the
+ * drawing and chose a scarf.
+ *
+ * So the words follow the choice. Both halves, not only the heading: the
+ * heading is for whoever can see the picker, and the sentence is for whoever
+ * cannot.
+ */
+describe('a covering is called a covering', () => {
+  it('knows which styles are coverings', () => {
+    expect(isHeadcovering('headscarf-plain')).toBe(true);
+    expect(isHeadcovering('headscarf-draped')).toBe(true);
+    expect(isHeadcovering('headscarf-knotted')).toBe(true);
+  });
+
+  it.each(['short', 'long', 'bun', 'braid', 'ponytail', 'short-wavy'])(
+    'does not call %s one',
+    (id) => {
+      expect([id, isHeadcovering(id)]).toEqual([id, false]);
+    }
+  );
+
+  it('says so about an id it has never heard of', () => {
+    // An unknown style draws as hair, so it is named as hair.
+    expect(isHeadcovering('a-style-from-a-later-build')).toBe(false);
+  });
+
+  it('describes a covering as one in Turkish', () => {
+    const description = describeAvatar(
+      config({ hairStyleId: 'headscarf-plain', hairColorId: 'burgundy' })
+    );
+
+    expect(description).toContain('örtü');
+    expect(description).not.toContain('saç');
+  });
+
+  it('still describes hair as hair', () => {
+    const description = describeAvatar(config({ hairStyleId: 'long' }));
+
+    expect(description).toContain('saç');
+    expect(description).not.toContain('örtü');
+  });
+
+  it('names the colour section for whichever is on the head', () => {
+    expect(colourSectionTitleIn(avatarLabels.tr, 'headscarf-draped')).toBe('Örtü rengi');
+    expect(colourSectionTitleIn(avatarLabels.tr, 'wavy')).toBe('Saç rengi');
+    expect(colourSectionTitleIn(avatarLabels.en, 'headscarf-draped')).toBe('Headscarf colour');
+    expect(colourSectionTitleIn(avatarLabels.en, 'wavy')).toBe('Hair colour');
   });
 });
 

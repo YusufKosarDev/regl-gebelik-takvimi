@@ -20,7 +20,10 @@ import { loadAvatarConfig } from '@/features/avatar/data/avatar-repository';
 import type { AvatarConfig } from '@/features/avatar/domain/avatar-config';
 import type { AvatarOption } from '@/features/avatar/domain/avatar-option';
 import { syncWidgetSnapshotQuietly } from '@/features/widget/application/sync-widget-snapshot';
-import { avatarLabels } from '@/features/avatar/presentation/avatar-labels';
+import {
+  avatarLabels,
+  colourSectionTitleIn,
+} from '@/features/avatar/presentation/avatar-labels';
 import { useDataChangeReload } from '@/hooks/use-data-change-reload';
 import { useTheme } from '@/hooks/use-theme';
 import { useMessages } from '@/i18n';
@@ -293,7 +296,7 @@ export default function AvatarScreen() {
                   />
 
                   <OptionSection
-                    title={avatar.avatarHairColorSectionTitle}
+                    title={colourSectionTitleIn(avatar, config.hairStyleId)}
                     options={catalogue.hairColors}
                     selectedId={config.hairColorId}
                     onSelect={(id) => choose({ hairColorId: id ?? config.hairColorId })}

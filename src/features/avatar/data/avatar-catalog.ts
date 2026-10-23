@@ -74,9 +74,9 @@ const avatarCatalogueTr = {
     { id: 'braid', label: 'Örgü' },
     { id: 'ponytail', label: 'At kuyruğu' },
     { id: 'short-wavy', label: 'Kısa dalgalı' },
-    { id: 'headscarf-plain', label: 'Örtü — sade' },
-    { id: 'headscarf-draped', label: 'Örtü — omuza salınan' },
-    { id: 'headscarf-knotted', label: 'Örtü — arkadan bağlı' },
+    { id: 'headscarf-plain', label: 'Sade örtü' },
+    { id: 'headscarf-draped', label: 'Omuza salınan örtü' },
+    { id: 'headscarf-knotted', label: 'Arkadan bağlı örtü' },
   ] as readonly AvatarOption[],
 
   hairColors: [
@@ -133,9 +133,9 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'braid', label: 'Braid' },
     { id: 'ponytail', label: 'Ponytail' },
     { id: 'short-wavy', label: 'Short wavy' },
-    { id: 'headscarf-plain', label: 'Headscarf — plain' },
-    { id: 'headscarf-draped', label: 'Headscarf — draped' },
-    { id: 'headscarf-knotted', label: 'Headscarf — knotted' },
+    { id: 'headscarf-plain', label: 'Plain headscarf' },
+    { id: 'headscarf-draped', label: 'Draped headscarf' },
+    { id: 'headscarf-knotted', label: 'Knotted headscarf' },
   ],
 
   hairColors: [
