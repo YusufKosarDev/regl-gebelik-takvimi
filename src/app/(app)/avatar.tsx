@@ -440,7 +440,12 @@ function OptionSection({
         {title}
       </ThemedText>
 
-      <View style={styles.options}>
+      {/* A group around the radios, not just radios. Without it TalkBack says
+          "radio button, selected" and cannot say of how many, so somebody
+          arriving in the middle of nine skin tones has no way to know there
+          are nine. `choice-grid.tsx` and `language-picker.tsx` already do
+          this; this grid had the roles without the group. */}
+      <View accessibilityRole="radiogroup" style={styles.options}>
         {choices.map((choice) => {
           const isSelected = choice.id === selectedId;
 

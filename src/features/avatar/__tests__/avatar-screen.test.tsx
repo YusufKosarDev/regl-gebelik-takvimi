@@ -156,7 +156,82 @@ describe('AvatarScreen with nothing saved', () => {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
   });
+
+  /**
+   * Each category is a group, not a loose row of radio buttons.
+   *
+   * The options already say `radio` and carry `selected`, which is right, and
+   * without a group around them TalkBack has nothing to count against: it says
+   * "radio button, selected" and cannot say *of how many*. Somebody arriving in
+   * the middle of nine skin tones has no way to know there are nine or where
+   * they are among them.
+   *
+   * This is the house pattern rather than a new idea — `choice-grid.tsx` wraps
+   * its single-select catalogues this way and `language-picker.tsx` does the
+   * same with three options. The avatar grid was the one place that had the
+   * roles without the group.
+   */
+  it('groups each category, so a screen reader can count the options', async () => {
+    const screen = await renderScreen();
+
+    // Walked rather than queried by role. A `*ByRole` query only matches an
+    // element that is itself an accessibility element, and the group must not
+    // be one: `accessible` on it would collapse the radios inside into a
+    // single stop, which is the opposite of the point. `choice-grid.tsx` marks
+    // its group the same way and for the same reason.
+    const { groups, loose } = countRadios(screen.toJSON());
+
+    // Skin tone, hair style, hair colour, outfit, accessory, expression,
+    // backdrop.
+    expect(groups).toBeGreaterThanOrEqual(5);
+
+    // Every radio is inside a group rather than loose on the screen.
+    expect(loose).toBe(0);
+  });
 });
+
+/**
+ * How many radio groups the tree holds, and how many radios sit outside one.
+ *
+ * The second number is the one that matters: a group that wraps four of nine
+ * options is a group that lies about how many there are.
+ */
+function countRadios(tree: unknown): { groups: number; loose: number } {
+  let groups = 0;
+  let loose = 0;
+
+  const walk = (node: unknown, insideGroup: boolean): void => {
+    if (Array.isArray(node)) {
+      node.forEach((child) => walk(child, insideGroup));
+
+      return;
+    }
+
+    if (node === null || typeof node !== 'object') {
+      return;
+    }
+
+    const typed = node as { props?: Record<string, unknown>; children?: unknown };
+    const role = typed.props?.accessibilityRole;
+
+    let nowInsideGroup = insideGroup;
+
+    if (role === 'radiogroup') {
+      groups += 1;
+      nowInsideGroup = true;
+    }
+
+    if (role === 'radio' && !insideGroup) {
+      loose += 1;
+    }
+
+    walk(typed.children, nowInsideGroup);
+  };
+
+  walk(tree, false);
+
+  return { groups, loose };
+}
 
 describe('AvatarScreen with an avatar already saved', () => {
   beforeEach(() => {
