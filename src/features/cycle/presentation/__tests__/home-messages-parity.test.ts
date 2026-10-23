@@ -21,6 +21,7 @@ describe('parity', () => {
       ['calendarMonthLabel', ['September 2026']],
       ['legendItemLabel', ['P', 'Period day']],
       ['labelledValue', ['Cycle day', 'Day 14']],
+      ['labelledValueWithNote', ['Fertility estimate', 'Low', 'This is an estimate.']],
       ['nextPeriodRangeValue', ['24 October 2026', '2 November 2026']],
       ['cycleLengthSuggestionBody', [31, 28, 5]],
       ['cycleLengthSuggestionAcceptText', [31]],
@@ -28,7 +29,15 @@ describe('parity', () => {
     ],
     // All three are joins of values that have already been translated, or of
     // two dates that were formatted in the chosen language before arriving.
-    identical: ['labelledValue', 'legendItemLabel', 'nextPeriodRangeValue'],
+    // Joins of words that arrived already translated. `labelledValueWithNote`
+    // adds only ": " and ". " to three translated arguments, so the two halves
+    // coinciding is correct rather than a missed translation.
+    identical: [
+      'labelledValue',
+      'labelledValueWithNote',
+      'legendItemLabel',
+      'nextPeriodRangeValue',
+    ],
   });
 });
 
