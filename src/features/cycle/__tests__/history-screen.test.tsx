@@ -361,14 +361,22 @@ describe('HistoryScreen scope', () => {
     );
   });
 
-  it('offers both edits plus delete per record, and nothing else', async () => {
+  it('offers both edits plus delete per record, one way out, and nothing else', async () => {
     const { queryAllByRole } = await renderScreen();
 
     // The fixture's newest record is ongoing, so it offers the start edit and
     // delete but no end edit: ending a period is the Cycle tab's job.
+    //
+    // "Dökümü gör" is the one control here that is not about a record. It was
+    // added deliberately and this list is where that decision is recorded:
+    // the phase panel's long form is a pushed screen, and the panel is where
+    // it is reached from. The list stays exhaustive — which is the point of
+    // the test — so the next control still has to argue for itself here.
     expect(
       queryAllByRole('button').map((node) => node.props.accessibilityLabel as string)
     ).toEqual([
+      // First in the tree: the panel sits above the record list.
+      'Dökümü gör',
       '17 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
       '17 Eylül 2026 regl kaydını sil',
       '2 Eylül 2026 regl kaydının başlangıç tarihini düzenle',
