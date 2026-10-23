@@ -221,6 +221,12 @@ class WidgetAvatarLookTest {
     assertEquals(WidgetHairShape.FULL, widgetAvatarLook(avatar(hairStyleId = "curly")).hairShape)
     assertEquals(WidgetHairShape.KNOT, widgetAvatarLook(avatar(hairStyleId = "bun")).hairShape)
     assertEquals(WidgetHairShape.LONG, widgetAvatarLook(avatar(hairStyleId = "wavy")).hairShape)
+    assertEquals(WidgetHairShape.LONG, widgetAvatarLook(avatar(hairStyleId = "braid")).hairShape)
+    assertEquals(WidgetHairShape.MID, widgetAvatarLook(avatar(hairStyleId = "ponytail")).hairShape)
+    assertEquals(
+      WidgetHairShape.FULL,
+      widgetAvatarLook(avatar(hairStyleId = "short-wavy")).hairShape
+    )
   }
 
   /**

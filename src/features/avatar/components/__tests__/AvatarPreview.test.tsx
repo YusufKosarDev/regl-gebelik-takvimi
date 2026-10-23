@@ -90,7 +90,7 @@ describe('AvatarPreview draws deterministically', () => {
 });
 
 describe('AvatarPreview draws the hair styles apart', () => {
-  it('gives each of the six its own silhouette', async () => {
+  it('gives every hair style its own drawing', async () => {
     const trees = await drawEach(
       AVATAR_HAIR_STYLES.map((style) => config({ hairStyleId: style.id }))
     );

@@ -167,7 +167,7 @@ describe('resolveAvatarVisuals covering the catalogue', () => {
     expect(new Set(colours).size).toBe(AVATAR_HAIR_COLORS.length);
   });
 
-  it('gives the six hair styles six different silhouettes', () => {
+  it('gives every hair style its own silhouette', () => {
     const shapes = AVATAR_HAIR_STYLES.map((style) =>
       JSON.stringify(resolveAvatarVisuals(config({ hairStyleId: style.id })).hairShape)
     );

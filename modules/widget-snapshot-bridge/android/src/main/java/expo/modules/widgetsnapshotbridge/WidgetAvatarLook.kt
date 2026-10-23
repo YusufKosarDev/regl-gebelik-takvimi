@@ -92,6 +92,9 @@ private val HAIR_SHAPES = mapOf(
   "curly" to WidgetHairShape.FULL,
   "bun" to WidgetHairShape.KNOT,
   "wavy" to WidgetHairShape.LONG,
+  "braid" to WidgetHairShape.LONG,
+  "ponytail" to WidgetHairShape.MID,
+  "short-wavy" to WidgetHairShape.FULL,
   "headscarf-plain" to WidgetHairShape.WRAP,
   "headscarf-draped" to WidgetHairShape.WRAP,
   "headscarf-knotted" to WidgetHairShape.WRAP
