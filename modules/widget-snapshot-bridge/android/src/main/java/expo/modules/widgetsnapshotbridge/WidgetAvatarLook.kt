@@ -31,7 +31,19 @@ enum class WidgetHairShape {
   FULL,
 
   /** Gathered above the head. */
-  KNOT
+  KNOT,
+
+  /**
+   * A covering that frames the face, with no forehead showing.
+   *
+   * One entry for all three headscarf styles on purpose. They differ by how
+   * they are tied — close, draped over a shoulder, knotted at the back — and
+   * at the size a launcher draws this, none of that survives: what reads is
+   * cloth round the face instead of hair, which is the thing worth keeping.
+   * `widget-avatar-shape-coverage.test.ts` holds that collision as declared
+   * rather than letting a fourth style join it unnoticed.
+   */
+  WRAP
 }
 
 data class WidgetAvatarLook(
@@ -79,7 +91,10 @@ private val HAIR_SHAPES = mapOf(
   "long" to WidgetHairShape.LONG,
   "curly" to WidgetHairShape.FULL,
   "bun" to WidgetHairShape.KNOT,
-  "wavy" to WidgetHairShape.LONG
+  "wavy" to WidgetHairShape.LONG,
+  "headscarf-plain" to WidgetHairShape.WRAP,
+  "headscarf-draped" to WidgetHairShape.WRAP,
+  "headscarf-knotted" to WidgetHairShape.WRAP
 )
 
 private val OUTFIT_COLORS = mapOf(

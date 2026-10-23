@@ -39,8 +39,15 @@ object WidgetAvatarArtist {
       WidgetHairShape.MID -> u(22f)
       WidgetHairShape.FULL -> u(16f)
       WidgetHairShape.LONG -> u(38f)
+      WidgetHairShape.WRAP -> u(16f)
     }
-    val spread = if (look.hairShape == WidgetHairShape.FULL) u(12f) else u(3f)
+    val spread = when (look.hairShape) {
+      WidgetHairShape.FULL -> u(12f)
+      // Wider than the head, which is what makes it read as cloth round the
+      // face rather than as hair behind it.
+      WidgetHairShape.WRAP -> u(9f)
+      else -> u(3f)
+    }
 
     paint.color = look.hair
     canvas.drawRoundRect(
@@ -72,10 +79,16 @@ object WidgetAvatarArtist {
       paint
     )
 
-    // The fringe, over the forehead.
+    // The fringe, over the forehead — or, for a covering, the band across it,
+    // which comes down further and leaves no forehead showing. It stops above
+    // the eyes either way: those are drawn after this.
+    // 22 rather than more: the band's bottom lands at 40 and the eyes start at
+    // 42.5, so there is clearance. At 24 they would touch.
+    val brow = if (look.hairShape == WidgetHairShape.WRAP) u(22f) else u(16f)
+
     paint.color = look.hair
     canvas.drawRoundRect(
-      RectF(headLeft - u(2f), headTop - u(4f), headRight + u(2f), headTop + u(16f)),
+      RectF(headLeft - u(2f), headTop - u(4f), headRight + u(2f), headTop + brow),
       headWidth * 0.4f,
       headWidth * 0.4f,
       paint

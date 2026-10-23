@@ -98,6 +98,50 @@ describe('the hair styles are told apart by at least two numbers each', () => {
   );
 });
 
+/**
+ * The headscarves, which are hair styles rather than a layer of their own.
+ *
+ * `avatar-visuals` carries the reasoning. What is checked here is that the
+ * modelling actually holds: a covering says so in its shape, an ordinary style
+ * says it is not one, and the three variants are told apart by how they are
+ * tied rather than by colour — which is the whole point of having three.
+ */
+describe('the headscarf styles', () => {
+  const SCARVES = ['headscarf-plain', 'headscarf-draped', 'headscarf-knotted'] as const;
+
+  it.each(SCARVES)('%s is in the catalogue', (id) => {
+    expect(AVATAR_HAIR_STYLES.map((style) => style.id)).toContain(id);
+  });
+
+  it.each(SCARVES)('%s resolves as a covering', (id) => {
+    const { hairShape } = resolveAvatarVisuals(config({ hairStyleId: id }));
+
+    expect([id, hairShape.wrap > 0]).toEqual([id, true]);
+  });
+
+  it('leaves every style that is not a covering at no wrap', () => {
+    const notCoverings = AVATAR_HAIR_STYLES.filter(
+      (style) => !SCARVES.includes(style.id as (typeof SCARVES)[number])
+    );
+
+    const wrapped = notCoverings.filter(
+      (style) => resolveAvatarVisuals(config({ hairStyleId: style.id })).hairShape.wrap !== 0
+    );
+
+    expect(wrapped.map((style) => style.id)).toEqual([]);
+  });
+
+  it('ties the three differently rather than colouring them differently', () => {
+    // Colour is a separate choice the person makes, so three variants that
+    // differed only in colour would be one variant offered three times.
+    const shapes = SCARVES.map((id) =>
+      JSON.stringify(resolveAvatarVisuals(config({ hairStyleId: id })).hairShape)
+    );
+
+    expect(new Set(shapes).size).toBe(SCARVES.length);
+  });
+});
+
 describe('resolveAvatarVisuals covering the catalogue', () => {
   it.each(AVATAR_SKIN_TONES)('gives $id its own palette', (tone) => {
     const { skin } = resolveAvatarVisuals(config({ skinToneId: tone.id }));
