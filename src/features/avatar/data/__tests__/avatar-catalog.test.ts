@@ -38,9 +38,9 @@ describe('the avatar catalogue offers every category', () => {
       'Örgü',
       'At kuyruğu',
       'Kısa dalgalı',
-      'Örtü — sade',
-      'Örtü — omuza salınan',
-      'Örtü — arkadan bağlı',
+      'Sade örtü',
+      'Omuza salınan örtü',
+      'Arkadan bağlı örtü',
     ]);
   });
 

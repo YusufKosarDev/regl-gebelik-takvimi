@@ -15,6 +15,13 @@ describe('parity of the screen strings', () => {
     functions: [
       ['skinPart', ['Tone 1']],
       ['hairPart', ['Short', 'Black'], ['Short', null], [null, 'Black'], [null, null]],
+      [
+        'headscarfPart',
+        ['Plain headscarf', 'Burgundy'],
+        ['Plain headscarf', null],
+        [null, 'Burgundy'],
+        [null, null],
+      ],
       ['accessoryPart', ['Glasses']],
       ['avatarDescription', ['tone 1 skin, short black hair']],
       ['avatarChoiceLabel', ['Hair style', 'Short']],
@@ -99,6 +106,13 @@ describe('how an avatar reads aloud', () => {
     // halves build the sentence themselves.
     expect(avatarLabels.tr.hairPart('Kısa', 'Siyah')).toBe('Kısa Siyah saç');
     expect(avatarLabels.en.hairPart('Short', 'Black')).toBe('short black hair');
+
+    // Colour first for a covering, and no trailing noun: the style labels
+    // already end in the word, so the hair template would say it twice.
+    expect(avatarLabels.tr.headscarfPart('Sade örtü', 'Bordo')).toBe('Bordo Sade örtü');
+    expect(avatarLabels.en.headscarfPart('Plain headscarf', 'Burgundy')).toBe(
+      'burgundy plain headscarf'
+    );
   });
 
   it('names an accessory when there is one', () => {

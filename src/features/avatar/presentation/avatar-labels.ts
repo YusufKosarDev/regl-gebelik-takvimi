@@ -4,6 +4,8 @@ import type { AvatarConfig } from '../domain/avatar-config';
 import type { AvatarOption } from '../domain/avatar-option';
 import { getAvatarOption } from '../domain/avatar-option';
 
+import { isHeadcovering } from './avatar-visuals';
+
 import type { Messages } from '@/i18n';
 
 /**
@@ -39,6 +41,19 @@ const avatarLabelsTr = {
 
     return null;
   },
+  /**
+   * A covering, named as one.
+   *
+   * Colour first here, style second: the style labels already end in the word
+   * — "Sade örtü" — so the hair template's trailing noun would say it twice.
+   */
+  headscarfPart: (style: string | null, color: string | null) => {
+    if (style !== null && color !== null) return `${color} ${style}`;
+    if (style !== null) return style;
+    if (color !== null) return `${color} örtü`;
+
+    return null;
+  },
   accessoryPart: (accessory: string) => `aksesuar ${accessory}`,
 
   /** When nothing about the avatar can be named at all. */
@@ -55,6 +70,8 @@ const avatarLabelsTr = {
   avatarSkinSectionTitle: 'Ten tonu',
   avatarHairStyleSectionTitle: 'Saç stili',
   avatarHairColorSectionTitle: 'Saç rengi',
+  /** The same picker, when what it is colouring is a covering. */
+  avatarHeadscarfColorSectionTitle: 'Örtü rengi',
   avatarOutfitSectionTitle: 'Kıyafet',
   avatarAccessorySectionTitle: 'Aksesuar',
 
@@ -80,6 +97,13 @@ const avatarLabelsEn: AvatarLabels = {
 
     return null;
   },
+  headscarfPart: (style: string | null, color: string | null) => {
+    if (style !== null && color !== null) return `${color.toLowerCase()} ${style.toLowerCase()}`;
+    if (style !== null) return style.toLowerCase();
+    if (color !== null) return `${color.toLowerCase()} headscarf`;
+
+    return null;
+  },
   accessoryPart: (accessory: string) => accessory.toLowerCase(),
 
   avatarOnly: 'Avatar',
@@ -93,6 +117,7 @@ const avatarLabelsEn: AvatarLabels = {
   avatarSkinSectionTitle: 'Skin tone',
   avatarHairStyleSectionTitle: 'Hair style',
   avatarHairColorSectionTitle: 'Hair colour',
+  avatarHeadscarfColorSectionTitle: 'Headscarf colour',
   avatarOutfitSectionTitle: 'Outfit',
   avatarAccessorySectionTitle: 'Accessory',
 
@@ -132,9 +157,16 @@ export function describeAvatarIn(
       ? labels.noAccessoryLabel
       : labelOf(catalogue.accessories, config.accessoryId);
 
+  // A covering is named as one. It takes its colour from the hair's list, so
+  // the only thing that says which it is is the style — and somebody who
+  // cannot see the drawing has nothing else to go on.
+  const onTheHead = isHeadcovering(config.hairStyleId)
+    ? labels.headscarfPart(hairStyle, hairColor)
+    : labels.hairPart(hairStyle, hairColor);
+
   const parts = [
     skin === null ? null : labels.skinPart(skin),
-    labels.hairPart(hairStyle, hairColor),
+    onTheHead,
     outfit,
     accessory === null ? null : labels.accessoryPart(accessory),
   ].filter((part): part is string => part !== null);
@@ -160,6 +192,19 @@ export const AVATAR_LOAD_FAILED_MESSAGE = avatarLabelsTr.avatarLoadFailedMessage
 export const AVATAR_SAVE_FAILED_MESSAGE = avatarLabelsTr.avatarSaveFailedMessage;
 
 export const avatarChoiceLabel = avatarLabelsTr.avatarChoiceLabel;
+
+/**
+ * What to head the colour section with, for the thing currently on the head.
+ *
+ * Here rather than in the screen so the two places that have to agree — the
+ * heading somebody reads and the sentence a screen reader speaks — are decided
+ * by one function.
+ */
+export function colourSectionTitleIn(labels: AvatarLabels, hairStyleId: string): string {
+  return isHeadcovering(hairStyleId)
+    ? labels.avatarHeadscarfColorSectionTitle
+    : labels.avatarHairColorSectionTitle;
+}
 
 export function describeAvatar(config: AvatarConfig): string {
   return describeAvatarIn(avatarLabelsTr, avatarCatalogue.tr, config);
