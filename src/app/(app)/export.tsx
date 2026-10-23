@@ -6,9 +6,12 @@ import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import type { ExportFile } from '@/features/export/application/build-export-files';
+import { dailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
+import type { ExportFiles } from '@/features/export/application/build-export-files';
 import { buildExportFiles } from '@/features/export/application/build-export-files';
+import type { ShareOutcome } from '@/features/export/infrastructure/share-file';
 import { shareTextFile } from '@/features/export/infrastructure/share-file';
+import { sharePdfFile } from '@/features/export/infrastructure/share-pdf-file';
 import { exportMessages } from '@/features/export/presentation/export-messages';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
@@ -20,12 +23,18 @@ import { getTodayLocalISODate } from '@/utils/today';
 /**
  * Taking the records off the phone.
  *
- * ## Why two buttons
+ * ## Why three buttons
  *
- * The system share sheet takes one file at a time, so "both formats" is two
- * actions rather than one. The note under the buttons says so, because somebody
- * who pressed once and got a summary would reasonably assume that was all of
- * it.
+ * The system share sheet takes one file at a time, so "all the formats" is
+ * three actions rather than one. The note under the buttons says so, because
+ * somebody who pressed once and got a summary would reasonably assume that was
+ * all of it.
+ *
+ * The `.txt` stays beside the PDF rather than being replaced by it. It is the
+ * one of the three that depends on no renderer - `printToFileAsync` hands the
+ * HTML to the platform's WebView - so it is what is left when the printing
+ * fails, and a screen whose whole job is getting the records out should not
+ * have a single point of failure.
  *
  * ## Why the files are built on press and not on load
  *
@@ -44,6 +53,9 @@ import { getTodayLocalISODate } from '@/utils/today';
 export default function ExportScreen() {
   const theme = useTheme();
   const strings = useMessages(exportMessages);
+  // The printable document is the only one of the three that names a symptom,
+  // and it needs the word rather than the stored id.
+  const labels = useMessages(dailyLogCatalogueLabels);
   const language = useLanguage();
 
   /**
@@ -58,7 +70,7 @@ export default function ExportScreen() {
    * reads hit the same database and both end in a share sheet. This is only
    * about which label says so.
    */
-  const [busyFile, setBusyFile] = useState<'summary' | 'csv' | null>(null);
+  const [busyFile, setBusyFile] = useState<'summary' | 'csv' | 'pdf' | null>(null);
   const isBusy = busyFile !== null;
   const [notice, setNotice] = useState<string | null>(null);
   const [today] = useState<ISODate>(() => getTodayLocalISODate());
@@ -68,10 +80,18 @@ export default function ExportScreen() {
   // is still working has nothing useful to do.
   const shareInFlight = useRef(false);
 
+  /**
+   * One flow for all three, with the sending passed in.
+   *
+   * The PDF does not go out the same way the other two do - it is printed on
+   * the device and then moved into the folder the wipe empties, which is
+   * `share-pdf-file.ts`'s whole job - so the caller hands over the sending
+   * rather than just picking a file out of the set.
+   */
   const share = useCallback(
     async (
-      which: 'summary' | 'csv',
-      pick: (files: { summary: ExportFile; csv: ExportFile }) => ExportFile
+      which: 'summary' | 'csv' | 'pdf',
+      send: (files: ExportFiles) => Promise<ShareOutcome>
     ) => {
       if (shareInFlight.current) {
         return;
@@ -83,7 +103,12 @@ export default function ExportScreen() {
 
       try {
         const db = await openAppDatabase();
-        const files = await buildExportFiles(db, { today, language, messages: strings });
+        const files = await buildExportFiles(db, {
+          today,
+          language,
+          messages: strings,
+          labels,
+        });
 
         if (files.isEmpty) {
           setNotice(strings.emptyMessage);
@@ -91,7 +116,7 @@ export default function ExportScreen() {
           return;
         }
 
-        const outcome = await shareTextFile(pick(files));
+        const outcome = await send(files);
 
         if (outcome === 'unavailable') {
           setNotice(strings.sharingUnavailableMessage);
@@ -104,7 +129,7 @@ export default function ExportScreen() {
         setBusyFile(null);
       }
     },
-    [today, language, strings]
+    [today, language, strings, labels]
   );
 
   return (
@@ -133,7 +158,7 @@ export default function ExportScreen() {
                 accessibilityState={{ disabled: isBusy }}
                 disabled={isBusy}
                 onPress={() => {
-                  void share('summary', (files) => files.summary);
+                  void share('summary', (files) => shareTextFile(files.summary));
                 }}
                 style={({ pressed }) => [
                   styles.primaryButton,
@@ -152,7 +177,7 @@ export default function ExportScreen() {
                 accessibilityState={{ disabled: isBusy }}
                 disabled={isBusy}
                 onPress={() => {
-                  void share('csv', (files) => files.csv);
+                  void share('csv', (files) => shareTextFile(files.csv));
                 }}
                 style={({ pressed }) => [
                   styles.secondaryButton,
@@ -165,8 +190,27 @@ export default function ExportScreen() {
                 </ThemedText>
               </Pressable>
 
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={strings.pdfButtonLabel}
+                accessibilityState={{ disabled: isBusy }}
+                disabled={isBusy}
+                onPress={() => {
+                  void share('pdf', (files) => sharePdfFile(files.pdf));
+                }}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { borderColor: theme.backgroundSelected },
+                  isBusy && styles.disabled,
+                  pressed && !isBusy && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">
+                  {busyFile === 'pdf' ? strings.preparingMessage : strings.pdfButtonText}
+                </ThemedText>
+              </Pressable>
+
               <ThemedText type="small" themeColor="textSecondary">
-                {strings.twoFilesNote}
+                {strings.threeFilesNote}
               </ThemedText>
             </View>
 
