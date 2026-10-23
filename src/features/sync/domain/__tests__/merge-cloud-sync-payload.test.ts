@@ -1294,3 +1294,76 @@ describe('what the result promises', () => {
     expect(cloudSyncConflictPaths(merge(payload(), payload(), payload()))).toEqual([]);
   });
 });
+
+/**
+ * The two fields version 9 added, merged like the accessory and for the same
+ * reason: this function names every field it merges, so one left out of it is
+ * one that silently loses an edit while the merge reports success.
+ */
+describe('merging the expression and the backdrop', () => {
+  it('keeps a side that changed the expression on its own', () => {
+    const base = payload({ avatarConfig: avatar() });
+
+    const result = merge(
+      base,
+      payload({ avatarConfig: avatar({ expressionId: 'smiling' }) }),
+      base
+    );
+
+    expect(result.kind === 'merged' && result.payload.avatarConfig).toEqual(
+      avatar({ expressionId: 'smiling' })
+    );
+  });
+
+  it('keeps a side that changed the backdrop on its own', () => {
+    const base = payload({ avatarConfig: avatar() });
+
+    const result = merge(
+      base,
+      base,
+      payload({ avatarConfig: avatar({ backgroundId: 'stone' }) })
+    );
+
+    expect(result.kind === 'merged' && result.payload.avatarConfig).toEqual(
+      avatar({ backgroundId: 'stone' })
+    );
+  });
+
+  it('takes both when the two sides changed one each', () => {
+    const base = payload({ avatarConfig: avatar() });
+
+    const result = merge(
+      base,
+      payload({ avatarConfig: avatar({ expressionId: 'tired' }) }),
+      payload({ avatarConfig: avatar({ backgroundId: 'ice' }) })
+    );
+
+    expect(result.kind === 'merged' && result.payload.avatarConfig).toEqual(
+      avatar({ expressionId: 'tired', backgroundId: 'ice' })
+    );
+  });
+
+  it('reports a conflict when both changed the expression differently', () => {
+    const base = payload({ avatarConfig: avatar({ expressionId: 'calm' }) });
+
+    const result = merge(
+      base,
+      payload({ avatarConfig: avatar({ expressionId: 'smiling' }) }),
+      payload({ avatarConfig: avatar({ expressionId: 'tired' }) })
+    );
+
+    expect(result.kind === 'conflict' && result.conflicts[0]).toMatchObject({
+      path: 'avatarConfig.expressionId',
+    });
+  });
+
+  it('leaves the keys off when neither side has them', () => {
+    const base = payload({ avatarConfig: avatar() });
+
+    const result = merge(base, base, base);
+    const merged = result.kind === 'merged' ? result.payload.avatarConfig : null;
+
+    expect(Object.keys(merged ?? {})).not.toContain('expressionId');
+    expect(Object.keys(merged ?? {})).not.toContain('backgroundId');
+  });
+});

@@ -639,3 +639,51 @@ describe('the fields a comparison must not forget', () => {
     expect(preview.periodRecords.changed).toBe(1);
   });
 });
+
+/**
+ * The fields version 9 added, compared like the rest of the avatar.
+ *
+ * The preview answers "would a restore change this?", and it answers it from a
+ * hand-written list of fields. One missing from that list is a field the
+ * preview calls unchanged while the restore replaces it — somebody told their
+ * avatar is safe, and then it is not.
+ */
+describe('a backup that differs only in the face or the backdrop', () => {
+  it('sees a different expression', () => {
+    const local = payload();
+    const remote = payload({
+      avatarConfig: { ...local.avatarConfig!, expressionId: 'smiling' },
+    });
+
+    expect(buildCloudRestorePreviewV1(local, remote).avatarConfig).toBe('replace');
+  });
+
+  it('sees a different backdrop', () => {
+    const local = payload();
+    const remote = payload({
+      avatarConfig: { ...local.avatarConfig!, backgroundId: 'ice' },
+    });
+
+    expect(buildCloudRestorePreviewV1(local, remote).avatarConfig).toBe('replace');
+  });
+
+  it('sees one being taken away', () => {
+    const local = payload({
+      avatarConfig: { ...payload().avatarConfig!, backgroundId: 'rose' },
+    });
+
+    expect(buildCloudRestorePreviewV1(local, payload()).avatarConfig).toBe('replace');
+  });
+
+  it('still says unchanged when both sides have the same ones', () => {
+    const same = payload({
+      avatarConfig: {
+        ...payload().avatarConfig!,
+        expressionId: 'tired',
+        backgroundId: 'stone',
+      },
+    });
+
+    expect(buildCloudRestorePreviewV1(same, same).avatarConfig).toBe('unchanged');
+  });
+});

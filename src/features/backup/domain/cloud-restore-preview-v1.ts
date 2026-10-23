@@ -105,6 +105,11 @@ export function fingerprintAvatarConfig(config: AvatarConfig): Fingerprint {
     config.hairColorId,
     config.outfitId,
     config.accessoryId ?? null,
+    // A field missing from this list is one the preview calls unchanged while
+    // the restore replaces it, so somebody is told nothing will happen to
+    // their avatar and then it changes.
+    config.expressionId ?? null,
+    config.backgroundId ?? null,
   ];
 }
 
