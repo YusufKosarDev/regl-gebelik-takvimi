@@ -51,6 +51,17 @@ const avatarCatalogueTr = {
     { id: 'skin-tone-6', label: '6. ton' },
   ] as readonly AvatarOption[],
 
+  /**
+   * Hair and headscarves in one list, because they answer one question.
+   *
+   * A covering is what is on the head instead of hair on show, not something
+   * worn over it, so it is a style rather than a layer. `avatar-visuals` holds
+   * the reasoning and the `wrap` number that draws it.
+   *
+   * Appended rather than interleaved: ids are the stored value and the order is
+   * only what the picker shows, so a new entry goes at the end where it cannot
+   * disturb anything.
+   */
   hairStyles: [
     { id: 'short', label: 'Kısa' },
     { id: 'medium', label: 'Orta' },
@@ -58,6 +69,9 @@ const avatarCatalogueTr = {
     { id: 'curly', label: 'Kıvırcık' },
     { id: 'bun', label: 'Topuz' },
     { id: 'wavy', label: 'Dalgalı' },
+    { id: 'headscarf-plain', label: 'Örtü — sade' },
+    { id: 'headscarf-draped', label: 'Örtü — omuza salınan' },
+    { id: 'headscarf-knotted', label: 'Örtü — arkadan bağlı' },
   ] as readonly AvatarOption[],
 
   hairColors: [
@@ -102,6 +116,9 @@ const avatarCatalogueEn: AvatarCatalogue = {
     { id: 'curly', label: 'Curly' },
     { id: 'bun', label: 'Bun' },
     { id: 'wavy', label: 'Wavy' },
+    { id: 'headscarf-plain', label: 'Headscarf — plain' },
+    { id: 'headscarf-draped', label: 'Headscarf — draped' },
+    { id: 'headscarf-knotted', label: 'Headscarf — knotted' },
   ],
 
   hairColors: [

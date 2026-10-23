@@ -77,11 +77,19 @@ export function AvatarPreview({ config, size = 'large', testID }: AvatarPreviewP
 
 type Part = { visuals: AvatarVisuals; u: (value: number) => number };
 
-/** The length of hair that falls behind the head and shoulders. */
+/**
+ * The length of hair that falls behind the head and shoulders.
+ *
+ * Also what frames the face when the style is a covering. `wrap` widens this
+ * piece and brings it past the jaw, and because it is drawn *behind* the head
+ * the face stays on top of it — which is what a headscarf does and what hair
+ * drawn over the face would not.
+ */
 function HairBack({ visuals, u }: Part) {
   const { hairShape, hair } = visuals;
-  const spread = HEAD.width * hairShape.volume;
-  const fall = HEAD.height * hairShape.length;
+  const frame = HEAD.width * 0.17 * hairShape.wrap;
+  const spread = HEAD.width * hairShape.volume + frame;
+  const fall = HEAD.height * hairShape.length + HEAD.height * 0.26 * hairShape.wrap;
 
   return (
     <View
@@ -251,7 +259,7 @@ function Ears({ visuals, u }: Part) {
 /** The fringe over the forehead, plus a gathered knot when the style has one. */
 function HairFront({ visuals, u }: Part) {
   const { hairShape, hair } = visuals;
-  const spread = HEAD.width * hairShape.volume;
+  const spread = HEAD.width * hairShape.volume + HEAD.width * 0.1 * hairShape.wrap;
 
   return (
     <>
@@ -262,7 +270,10 @@ function HairFront({ visuals, u }: Part) {
             left: u(HEAD.left - spread * 0.6),
             top: u(HEAD.top - 4),
             width: u(HEAD.width + spread * 1.2),
-            height: u(HEAD.height * 0.42),
+            // A covering comes further down the forehead than a fringe does,
+            // but stops short of the eyes: `Face` draws on top of this, and a
+            // band that reached them would put the eyes on the cloth.
+            height: u(HEAD.height * (0.42 + 0.06 * hairShape.wrap)),
             backgroundColor: hair.base,
             borderTopLeftRadius: u(HEAD.width * 0.5),
             borderTopRightRadius: u(HEAD.width * 0.5),

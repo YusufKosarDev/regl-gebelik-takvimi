@@ -65,6 +65,13 @@ const DECLARED_COLLISIONS: readonly (readonly string[])[] = [
   // Both fall past the shoulders; the wave is a corner radius, and the widget
   // draws one rounded rectangle.
   ['long', 'wavy'],
+
+  // All three coverings. They differ by how they are tied — close, draped over
+  // a shoulder, knotted at the back — and none of that survives at launcher
+  // size. What survives, and what matters, is cloth round the face instead of
+  // hair. Mapping the knotted one to `KNOT` to keep its knot would draw it as
+  // a bun, which is hair, and that is the one thing it must not read as.
+  ['headscarf-draped', 'headscarf-knotted', 'headscarf-plain'],
 ];
 
 describe('the widget can draw every hair style', () => {

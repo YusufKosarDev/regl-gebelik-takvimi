@@ -38,7 +38,8 @@ export type AvatarOutfitPalette = {
  *
  * `length` is how far it falls past the jaw, `volume` how far it spreads past
  * the head, `fringe` how rounded the top edge is, `knot` a gathered bun above
- * the head and `scallop` the softened side edges that read as a wave.
+ * the head, `scallop` the softened side edges that read as a wave, and `wrap`
+ * how much of a covering this is rather than hair.
  */
 export type AvatarHairShape = {
   readonly length: number;
@@ -46,6 +47,15 @@ export type AvatarHairShape = {
   readonly fringe: number;
   readonly knot: boolean;
   readonly scallop: boolean;
+  /**
+   * How far the shape comes round the face: 0 for hair, 1 for a headscarf.
+   *
+   * It widens the piece behind the head so it frames the face and squares the
+   * band across the forehead, which is the difference between hair and a
+   * covering at any size. Between the two is allowed by the type and is not
+   * used: a half-covering is not a thing anybody picked.
+   */
+  readonly wrap: number;
 };
 
 /** A garment as a shape: how wide the shoulders sit, and what the neckline does. */
@@ -97,18 +107,78 @@ const OUTFIT_PALETTES: Readonly<Record<string, AvatarOutfitPalette>> = {
 };
 
 /**
- * Six silhouettes that have to be told apart at a glance.
+ * Silhouettes that have to be told apart at a glance.
  *
- * Every style differs from every other in at least two of the five numbers, so
- * none of them is a near-copy of its neighbour at the small size.
+ * Every style differs from every other in at least two of its numbers, so none
+ * of them is a near-copy of its neighbour at the small size. That rule is held
+ * mechanically by `avatar-visuals.test.ts`, at a threshold measured from this
+ * table rather than assumed, and the drawn result is measured again at `small`
+ * by `avatar-small-size-legibility.test.tsx`.
+ *
+ * ## Why a headscarf is a hair style and not a layer of its own
+ *
+ * The question will come up, because the obvious reading is that a covering
+ * goes *over* hair and so belongs above it in the stack. It does not, for
+ * somebody wearing one: a headscarf is what is on their head instead of hair
+ * on show, so there is no hair underneath to draw and nothing to hide.
+ *
+ * Modelled as a layer it would need the one thing this renderer has no concept
+ * of — a layer that suppresses another. `resolveAvatarVisuals` answers each
+ * field independently and every part is drawn unconditionally; a covering that
+ * had to blank the hair would put a condition between the two, in both this
+ * renderer and the Kotlin one, for a case where the hair was never wanted.
+ *
+ * Modelled as a style it costs nothing structural: the same `hairStyleId`, the
+ * same stored column, the same single choice on the screen. What was needed was
+ * one more number — `wrap` — because the five that described hair could not say
+ * "comes round the face".
+ *
+ * The consequence to know about is that a covering and hair share the colour
+ * choice, since both are `hairColorId`. That is why the colour section renames
+ * itself when a covering is picked rather than offering a second list: one
+ * thing is on the head, and it has one colour.
+ *
+ * The three variants differ by how they are tied, never by colour — colour is
+ * already the person's own choice, so three variants that differed in it would
+ * be one variant offered three times.
  */
 const HAIR_SHAPES: Readonly<Record<string, AvatarHairShape>> = {
-  short: { length: 0, volume: 0.06, fringe: 0.5, knot: false, scallop: false },
-  medium: { length: 0.42, volume: 0.1, fringe: 0.42, knot: false, scallop: false },
-  long: { length: 1, volume: 0.14, fringe: 0.34, knot: false, scallop: false },
-  curly: { length: 0.3, volume: 0.42, fringe: 0.9, knot: false, scallop: true },
-  bun: { length: 0, volume: 0.02, fringe: 0.26, knot: true, scallop: false },
-  wavy: { length: 0.72, volume: 0.22, fringe: 0.46, knot: false, scallop: true },
+  short: { length: 0, volume: 0.06, fringe: 0.5, knot: false, scallop: false, wrap: 0 },
+  medium: { length: 0.42, volume: 0.1, fringe: 0.42, knot: false, scallop: false, wrap: 0 },
+  long: { length: 1, volume: 0.14, fringe: 0.34, knot: false, scallop: false, wrap: 0 },
+  curly: { length: 0.3, volume: 0.42, fringe: 0.9, knot: false, scallop: true, wrap: 0 },
+  bun: { length: 0, volume: 0.02, fringe: 0.26, knot: true, scallop: false, wrap: 0 },
+  wavy: { length: 0.72, volume: 0.22, fringe: 0.46, knot: false, scallop: true, wrap: 0 },
+
+  /** Wrapped close, no tail: the covering and the face, nothing else. */
+  'headscarf-plain': {
+    length: 0.1,
+    volume: 0.08,
+    fringe: 0.1,
+    knot: false,
+    scallop: false,
+    wrap: 1,
+  },
+
+  /** The long end left over a shoulder, which is the length past the jaw. */
+  'headscarf-draped': {
+    length: 0.85,
+    volume: 0.2,
+    fringe: 0.1,
+    knot: false,
+    scallop: false,
+    wrap: 1,
+  },
+
+  /** Gathered and tied at the back, which reads as the knot above the head. */
+  'headscarf-knotted': {
+    length: 0.06,
+    volume: 0.01,
+    fringe: 0.1,
+    knot: true,
+    scallop: false,
+    wrap: 1,
+  },
 };
 
 const OUTFIT_SHAPES: Readonly<Record<string, AvatarOutfitShape>> = {
@@ -140,6 +210,9 @@ const NEUTRAL_HAIR_SHAPE: AvatarHairShape = {
   fringe: 0.5,
   knot: false,
   scallop: false,
+  // Hair, not a covering: an id this build cannot place is drawn as the plainer
+  // of the two rather than as a guess at somebody's headscarf.
+  wrap: 0,
 };
 const NEUTRAL_OUTFIT_SHAPE: AvatarOutfitShape = { width: 0.82, neckline: 'round', corner: 0.2 };
 

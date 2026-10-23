@@ -223,6 +223,23 @@ class WidgetAvatarLookTest {
     assertEquals(WidgetHairShape.LONG, widgetAvatarLook(avatar(hairStyleId = "wavy")).hairShape)
   }
 
+  /**
+   * All three coverings draw as one shape, and that is the decision.
+   *
+   * They differ by how they are tied, and none of that survives at the size a
+   * launcher draws this. What has to survive is cloth round the face instead of
+   * hair — so `KNOT` is wrong for the knotted one however tempting, because
+   * `KNOT` is drawn as a bun and a bun is hair.
+   */
+  @Test
+  fun `maps every headscarf onto the covering shape`() {
+    val ids = listOf("headscarf-plain", "headscarf-draped", "headscarf-knotted")
+
+    for (id in ids) {
+      assertEquals(WidgetHairShape.WRAP, widgetAvatarLook(avatar(hairStyleId = id)).hairShape)
+    }
+  }
+
   @Test
   fun `maps the three accessories`() {
     assertEquals(WidgetAccessory.GLASSES, widgetAvatarLook(avatar(accessoryId = "glasses")).accessory)

@@ -11,7 +11,9 @@ import {
 
 const CATEGORIES: readonly [string, readonly AvatarOption[], number][] = [
   ['skin tones', AVATAR_SKIN_TONES, 6],
-  ['hair styles', AVATAR_HAIR_STYLES, 6],
+  // Six hair styles and three headscarves, which are styles rather than a
+  // layer of their own; `avatar-visuals` carries the reasoning.
+  ['hair styles', AVATAR_HAIR_STYLES, 9],
   ['hair colors', AVATAR_HAIR_COLORS, 6],
   ['outfits', AVATAR_OUTFITS, 4],
   ['accessories', AVATAR_ACCESSORIES, 3],
@@ -30,6 +32,9 @@ describe('the avatar catalogue offers every category', () => {
       'Kıvırcık',
       'Topuz',
       'Dalgalı',
+      'Örtü — sade',
+      'Örtü — omuza salınan',
+      'Örtü — arkadan bağlı',
     ]);
   });
 
