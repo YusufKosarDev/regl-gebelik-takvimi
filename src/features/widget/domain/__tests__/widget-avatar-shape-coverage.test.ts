@@ -62,9 +62,17 @@ function widgetHairShapes(): Readonly<Record<string, string>> {
  * the drawing cannot express.
  */
 const DECLARED_COLLISIONS: readonly (readonly string[])[] = [
-  // Both fall past the shoulders; the wave is a corner radius, and the widget
-  // draws one rounded rectangle.
-  ['long', 'wavy'],
+  // All fall past the shoulders. The wave is a corner radius and the plait is a
+  // narrower fall; the widget draws one rounded rectangle either way.
+  ['braid', 'long', 'wavy'],
+
+  // Both fall to about the jaw. A ponytail is gathered and a bob is not, which
+  // is a difference in the hair's edges — nothing the enum can hold.
+  ['medium', 'ponytail'],
+
+  // Both wider than the head. Length separates them in the app and not here:
+  // `FULL` is one spread rectangle whatever it falls to.
+  ['curly', 'short-wavy'],
 
   // All three coverings. They differ by how they are tied — close, draped over
   // a shoulder, knotted at the back — and none of that survives at launcher

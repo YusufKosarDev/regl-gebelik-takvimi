@@ -150,6 +150,30 @@ const HAIR_SHAPES: Readonly<Record<string, AvatarHairShape>> = {
   bun: { length: 0, volume: 0.02, fringe: 0.26, knot: true, scallop: false, wrap: 0 },
   wavy: { length: 0.72, volume: 0.22, fringe: 0.46, knot: false, scallop: true, wrap: 0 },
 
+  /**
+   * A single plait: as long as a wave falls and far narrower than any of them.
+   *
+   * The numbers are not the first ones that satisfied the two-difference rule.
+   * `length: 0.92, volume: 0.03` did, and drew 8px from `long` at `small` —
+   * under the floor. Narrowing alone could not fix it: against `long`'s own
+   * `volume: 0.14` the widest possible gap is about 9px, so the length had to
+   * come in too.
+   */
+  braid: { length: 0.72, volume: 0.01, fringe: 0.18, knot: false, scallop: false, wrap: 0 },
+
+  /**
+   * Gathered and falling behind.
+   *
+   * The very high `fringe` is the pulled-back top: a ponytail has no fringe to
+   * speak of, and a rounded top edge is how that reads without a part line. It
+   * is also what carries the difference from `medium` at `small` — the first
+   * attempt sat 7px away on length and volume alone.
+   */
+  ponytail: { length: 0.48, volume: 0.01, fringe: 0.95, knot: false, scallop: false, wrap: 0 },
+
+  /** Waves without the length: `wavy`'s edges on a crop, and narrower than `curly`. */
+  'short-wavy': { length: 0.1, volume: 0.3, fringe: 0.56, knot: false, scallop: true, wrap: 0 },
+
   /** Wrapped close, no tail: the covering and the face, nothing else. */
   'headscarf-plain': {
     length: 0.1,
