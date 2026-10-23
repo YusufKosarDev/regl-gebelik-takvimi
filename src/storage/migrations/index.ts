@@ -8,7 +8,7 @@ import { describeValue } from '@/shared/logging';
  * our own, so there is nothing to bootstrap: a brand new database reports 0.
  */
 
-export const LATEST_SCHEMA_VERSION = 8;
+export const LATEST_SCHEMA_VERSION = 9;
 
 type UserVersionRow = {
   readonly user_version: number;
@@ -364,6 +364,60 @@ async function migrateToVersion8(db: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Schema for version 9: a face and a backdrop.
+ *
+ * ## Two columns, one step
+ *
+ * They are one decision — the next two things a person chooses about their
+ * avatar, added together — and two migrations would mean two schema versions
+ * and two passes over every file that names an avatar field, for nothing.
+ * Version 4 set the precedent by creating a whole table in one step.
+ *
+ * ## Both nullable, and nothing backfilled
+ *
+ * The same decision version 4 made when it added the table and wrote no
+ * avatar into it: picking one for somebody is the choice the feature exists to
+ * let them make. Here NULL has a meaning on each column rather than being an
+ * absence to tidy up later — no expression is the face the avatar is already
+ * drawn with, and no backdrop is the plain figure it already is. An existing
+ * avatar therefore looks exactly the same after this migration as before it,
+ * which is the point.
+ *
+ * A required sixth layer was not an option for the same reason, and could not
+ * have been: an existing row has no value to be required of it.
+ *
+ * `CHECK` mirrors `accessory_id`'s. NULL is how "not chosen" is already said on
+ * this table, so a blank string is neither that nor a choice, and the database
+ * refuses what the domain refuses. No CHECK lists the catalogue values, for the
+ * reason the table has said since version 4: a constraint that knew them would
+ * have to be migrated every time one is added.
+ */
+const MIGRATION_V9 = `
+  ALTER TABLE avatar_config
+  ADD COLUMN expression_id TEXT NULL
+    CHECK (expression_id IS NULL OR length(trim(expression_id)) > 0);
+
+  ALTER TABLE avatar_config
+  ADD COLUMN background_id TEXT NULL
+    CHECK (background_id IS NULL OR length(trim(background_id)) > 0);
+`;
+
+/**
+ * Adds the expression and backdrop columns.
+ *
+ * Same bargain as every step before it: both columns and the version bump
+ * share one transaction, so a failure leaves the database still reporting
+ * version 8 rather than claiming a column it does not have — or, worse here
+ * than elsewhere, claiming one of two.
+ */
+async function migrateToVersion9(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATION_V9);
+    await db.execAsync('PRAGMA user_version = 9');
+  });
+}
+
+/**
  * Brings the database schema up to `LATEST_SCHEMA_VERSION`.
  *
  * Refuses to run against a database written by a newer build: silently
@@ -425,5 +479,9 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 8) {
     await migrateToVersion8(db);
+  }
+
+  if (currentVersion < 9) {
+    await migrateToVersion9(db);
   }
 }

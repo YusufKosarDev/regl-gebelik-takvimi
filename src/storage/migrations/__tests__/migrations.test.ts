@@ -71,20 +71,20 @@ function expectOnlyAdditiveAlters(sql: string): void {
 }
 
 describe('LATEST_SCHEMA_VERSION', () => {
-  it('is 8', () => {
-    expect(LATEST_SCHEMA_VERSION).toBe(8);
+  it('is 9', () => {
+    expect(LATEST_SCHEMA_VERSION).toBe(9);
   });
 });
 
 describe('runMigrations when the database is already current', () => {
   it('resolves without error', async () => {
-    const spy = createDatabaseSpy({ user_version: 8 });
+    const spy = createDatabaseSpy({ user_version: 9 });
 
     await expect(runMigrations(spy.db)).resolves.toBeUndefined();
   });
 
   it('reads the version with PRAGMA user_version', async () => {
-    const spy = createDatabaseSpy({ user_version: 8 });
+    const spy = createDatabaseSpy({ user_version: 9 });
 
     await runMigrations(spy.db);
 
@@ -93,7 +93,7 @@ describe('runMigrations when the database is already current', () => {
   });
 
   it('runs no statements and opens no transaction', async () => {
-    const spy = createDatabaseSpy({ user_version: 8 });
+    const spy = createDatabaseSpy({ user_version: 9 });
 
     await runMigrations(spy.db);
 
@@ -106,21 +106,21 @@ describe('runMigrations when the database is already current', () => {
 
 describe('runMigrations when the database is newer than this build', () => {
   it('throws rather than continuing', async () => {
-    const spy = createDatabaseSpy({ user_version: 9 });
+    const spy = createDatabaseSpy({ user_version: 10 });
 
     await expect(runMigrations(spy.db)).rejects.toThrow(/newer than supported version/);
   });
 
   it('names both the found and the supported version', async () => {
-    const spy = createDatabaseSpy({ user_version: 10 });
+    const spy = createDatabaseSpy({ user_version: 11 });
 
     await expect(runMigrations(spy.db)).rejects.toThrow(
-      'Database schema version 10 is newer than supported version 8.'
+      'Database schema version 11 is newer than supported version 9.'
     );
   });
 
   it('runs no statements before throwing', async () => {
-    const spy = createDatabaseSpy({ user_version: 9 });
+    const spy = createDatabaseSpy({ user_version: 10 });
 
     await expect(runMigrations(spy.db)).rejects.toThrow();
 
@@ -305,7 +305,7 @@ describe('runMigrations applying version 1 to an empty database', () => {
 
     // One per version, so an interrupted upgrade keeps whichever steps already
     // committed.
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(8);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(9);
   });
 
   it('issues no statements outside that transaction', async () => {
@@ -315,7 +315,7 @@ describe('runMigrations applying version 1 to an empty database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(8);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(9);
     expect(spy.execAsync).not.toHaveBeenCalled();
   });
 
@@ -427,7 +427,7 @@ describe('runMigrations applying version 2 to an empty database', () => {
 
     expect(statements).toContain('PRAGMA user_version = 1');
     expect(statements).toContain('PRAGMA user_version = 2');
-    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 8');
+    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 9');
   });
 });
 
@@ -472,7 +472,7 @@ describe('runMigrations upgrading a version 1 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(7);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(8);
   });
 });
 
@@ -618,7 +618,7 @@ describe('runMigrations upgrading a version 2 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(6);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(7);
   });
 
   it('issues no statements outside those transactions', async () => {
@@ -626,7 +626,7 @@ describe('runMigrations upgrading a version 2 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(6);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(7);
     expect(spy.execAsync).not.toHaveBeenCalled();
   });
 });
@@ -752,6 +752,7 @@ describe('runMigrations applying version 4 to an empty database', () => {
       'PRAGMA user_version = 6',
       'PRAGMA user_version = 7',
       'PRAGMA user_version = 8',
+      'PRAGMA user_version = 9',
     ]);
   });
 });
@@ -805,7 +806,7 @@ describe('runMigrations upgrading a version 3 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(5);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(6);
   });
 
   it('issues no statements outside those transactions', async () => {
@@ -813,7 +814,7 @@ describe('runMigrations upgrading a version 3 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(5);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(6);
     expect(spy.execAsync).not.toHaveBeenCalled();
   });
 });
@@ -832,6 +833,7 @@ describe('runMigrations upgrading a version 2 database to the latest', () => {
       'PRAGMA user_version = 6',
       'PRAGMA user_version = 7',
       'PRAGMA user_version = 8',
+      'PRAGMA user_version = 9',
     ]);
   });
 
@@ -850,7 +852,7 @@ describe('runMigrations upgrading a version 2 database to the latest', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(6);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(7);
   });
 });
 
@@ -933,13 +935,13 @@ describe('runMigrations applying version 5 to an empty database', () => {
     expect(sql).not.toMatch(/reminder_hour|reminder_time|reminder_day|scheduled_at/i);
   });
 
-  it('ends at version 8', async () => {
+  it('ends at version 9', async () => {
     const spy = createDatabaseSpy({ user_version: 0 });
 
     await runMigrations(spy.db);
     const statements = statementsFrom(spy);
 
-    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 8');
+    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 9');
   });
 });
 
@@ -994,7 +996,7 @@ describe('runMigrations upgrading a version 4 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(4);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(5);
   });
 
   it('issues no statements outside those transactions', async () => {
@@ -1002,7 +1004,7 @@ describe('runMigrations upgrading a version 4 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(4);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(5);
     expect(spy.execAsync).not.toHaveBeenCalled();
   });
 });
@@ -1150,7 +1152,7 @@ describe('runMigrations upgrading a version 5 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(3);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(4);
   });
 
   it('issues no statements outside that transaction', async () => {
@@ -1158,21 +1160,21 @@ describe('runMigrations upgrading a version 5 database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(3);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(4);
     expect(spy.execAsync).not.toHaveBeenCalled();
   });
 
-  it('ends at version 8', async () => {
+  it('ends at version 9', async () => {
     const spy = createDatabaseSpy({ user_version: 5 });
 
     await runMigrations(spy.db);
     const statements = statementsFrom(spy);
 
-    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 8');
+    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 9');
   });
 
   it('runs nothing again on a second pass', async () => {
-    const upgraded = createDatabaseSpy({ user_version: 8 });
+    const upgraded = createDatabaseSpy({ user_version: 9 });
 
     await runMigrations(upgraded.db);
 
@@ -1238,16 +1240,16 @@ describe('runMigrations applying version 7 to an empty database', () => {
 
     await runMigrations(spy.db);
 
-    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(2);
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(3);
   });
 
-  it('ends at version 8', async () => {
+  it('ends at version 9', async () => {
     const spy = createDatabaseSpy({ user_version: 6 });
 
     await runMigrations(spy.db);
     const statements = statementsFrom(spy);
 
-    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 8');
+    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 9');
   });
 });
 
@@ -1279,5 +1281,101 @@ describe('runMigrations when the version 6 step fails', () => {
     // The bump shares the transaction with the DDL, so a failure leaves the
     // database reporting 5.
     expect(statementsFrom(spy)).not.toContain('PRAGMA user_version = 6');
+  });
+});
+
+/**
+ * Version 9: a face and a backdrop, in one step.
+ *
+ * Two columns rather than two migrations. They are one decision — the sixth and
+ * seventh things a person chooses about their avatar, added together — and
+ * splitting them would mean two schema versions and two passes over the same
+ * files for nothing. `MIGRATION_V4` set the precedent by creating a whole table
+ * in one step.
+ *
+ * Both nullable, which is the v4 decision still standing: an existing avatar
+ * has no expression and no backdrop, and choosing either for somebody is the
+ * thing the feature exists to let them do. NULL means "the face it already
+ * had" and "no disc", which is exactly what those avatars look like today.
+ */
+describe('migrating to version 9', () => {
+  it('adds both avatar columns', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).toMatch(/ALTER TABLE avatar_config\s+ADD COLUMN expression_id TEXT NULL/i);
+    expect(sql).toMatch(/ALTER TABLE avatar_config\s+ADD COLUMN background_id TEXT NULL/i);
+  });
+
+  it('refuses a blank in either, the way accessory_id does', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    // An id of spaces names nothing, and NULL is already how "not chosen" is
+    // said — so a blank is neither, and the database refuses what the domain
+    // refuses.
+    expect(sql).toMatch(
+      /CHECK \(expression_id IS NULL OR length\(trim\(expression_id\)\) > 0\)/i
+    );
+    expect(sql).toMatch(
+      /CHECK \(background_id IS NULL OR length\(trim\(background_id\)\) > 0\)/i
+    );
+  });
+
+  it('backfills nothing', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 });
+
+    await runMigrations(spy.db);
+    const sql = statementsFrom(spy).join(' ');
+
+    expect(sql).not.toMatch(/UPDATE avatar_config/i);
+    expect(sql).not.toMatch(/INSERT INTO avatar_config/i);
+    expect(spy.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('adds only, never rewrites', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 });
+
+    await runMigrations(spy.db);
+
+    expectOnlyAdditiveAlters(statementsFrom(spy).join(' '));
+  });
+
+  it('shares one transaction with the version bump', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 });
+
+    await runMigrations(spy.db);
+
+    expect(spy.withTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('ends at version 9', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 });
+
+    await runMigrations(spy.db);
+    const statements = statementsFrom(spy);
+
+    expect(statements[statements.length - 1]).toBe('PRAGMA user_version = 9');
+  });
+
+  it('runs nothing again on a second pass', async () => {
+    const upgraded = createDatabaseSpy({ user_version: 9 });
+
+    await runMigrations(upgraded.db);
+
+    expect(upgraded.execAsync).not.toHaveBeenCalled();
+    expect(upgraded.withTransactionAsync).not.toHaveBeenCalled();
+  });
+
+  it('leaves the database at 8 when the step fails', async () => {
+    const spy = createDatabaseSpy({ user_version: 8 }, { execError: new Error('disk is full') });
+
+    await runMigrations(spy.db).catch(() => undefined);
+
+    expect(statementsFrom(spy)).not.toContain('PRAGMA user_version = 9');
   });
 });

@@ -30,6 +30,19 @@ export type AvatarConfig = {
   readonly hairColorId: string;
   readonly outfitId: string;
   readonly accessoryId?: string;
+  /**
+   * The face, and the disc behind the figure. Optional for the reason
+   * `accessoryId` is, with one addition.
+   *
+   * Absent is a meaning here rather than a gap: no expression is the face the
+   * avatar is already drawn with, and no backdrop is the plain figure it
+   * already is. An avatar saved before either existed is therefore complete,
+   * not partial, and looks the same as it did — which is why neither could be
+   * required. An existing row has no value to be required of it, and choosing
+   * one on somebody's behalf is what the feature exists to avoid.
+   */
+  readonly expressionId?: string;
+  readonly backgroundId?: string;
 };
 
 /** The fields an avatar cannot be drawn without, checked in this order. */
@@ -75,7 +88,12 @@ export function validateAvatarConfig(config: AvatarConfig): void {
     assertId(field, config[field]);
   });
 
-  if (config.accessoryId !== undefined) {
-    assertId('accessoryId', config.accessoryId);
-  }
+  // The optional ones, each checked only when it is there. `''` is refused for
+  // all three for the same reason: it is neither a choice nor the absence of
+  // one, and treating it as none would turn a bug into a shrug.
+  (['accessoryId', 'expressionId', 'backgroundId'] as const).forEach((field) => {
+    if (config[field] !== undefined) {
+      assertId(field, config[field]);
+    }
+  });
 }

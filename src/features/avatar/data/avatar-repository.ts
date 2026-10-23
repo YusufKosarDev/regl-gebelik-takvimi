@@ -29,6 +29,8 @@ type AvatarRow = {
   readonly hair_color_id: unknown;
   readonly outfit_id: unknown;
   readonly accessory_id: unknown;
+  readonly expression_id: unknown;
+  readonly background_id: unknown;
 };
 
 const UPSERT_AVATAR = `
@@ -38,21 +40,26 @@ const UPSERT_AVATAR = `
     hair_style_id,
     hair_color_id,
     outfit_id,
-    accessory_id
+    accessory_id,
+    expression_id,
+    background_id
   )
-  VALUES (?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     skin_tone_id = excluded.skin_tone_id,
     hair_style_id = excluded.hair_style_id,
     hair_color_id = excluded.hair_color_id,
     outfit_id = excluded.outfit_id,
-    accessory_id = excluded.accessory_id
+    accessory_id = excluded.accessory_id,
+    expression_id = excluded.expression_id,
+    background_id = excluded.background_id
 `;
 
 const DELETE_AVATAR = 'DELETE FROM avatar_config WHERE id = ?';
 
 const SELECT_AVATAR = `
-  SELECT skin_tone_id, hair_style_id, hair_color_id, outfit_id, accessory_id
+  SELECT skin_tone_id, hair_style_id, hair_color_id, outfit_id, accessory_id,
+         expression_id, background_id
   FROM avatar_config
   WHERE id = ?
 `;
@@ -67,18 +74,18 @@ function toStoredId(column: string, value: unknown): string {
 }
 
 /**
- * The accessory column, which is allowed to be empty of a choice.
+ * One of the columns that is allowed to be empty of a choice.
  *
- * NULL is "no accessory" and becomes `undefined`. Anything else has to be text,
- * because a number or an object in that column is corruption rather than a
- * person who picked nothing.
+ * NULL becomes `undefined`. Anything else has to be text, because a number or
+ * an object in one of these columns is corruption rather than a person who
+ * picked nothing.
  */
-function toStoredAccessory(value: unknown): string | undefined {
+function toStoredOptionalId(column: string, value: unknown): string | undefined {
   if (value === null || value === undefined) {
     return undefined;
   }
 
-  return toStoredId('accessory_id', value);
+  return toStoredId(column, value);
 }
 
 /**
@@ -104,7 +111,9 @@ export async function saveAvatarConfig(
     config.hairStyleId,
     config.hairColorId,
     config.outfitId,
-    config.accessoryId ?? null
+    config.accessoryId ?? null,
+    config.expressionId ?? null,
+    config.backgroundId ?? null
   );
 
   notifyLocalDataChanged();
@@ -127,14 +136,20 @@ export async function loadAvatarConfig(db: SQLiteDatabase): Promise<AvatarConfig
     return null;
   }
 
-  const accessoryId = toStoredAccessory(row.accessory_id);
+  const accessoryId = toStoredOptionalId('accessory_id', row.accessory_id);
+  const expressionId = toStoredOptionalId('expression_id', row.expression_id);
+  const backgroundId = toStoredOptionalId('background_id', row.background_id);
 
   const config: AvatarConfig = {
     skinToneId: toStoredId('skin_tone_id', row.skin_tone_id),
     hairStyleId: toStoredId('hair_style_id', row.hair_style_id),
     hairColorId: toStoredId('hair_color_id', row.hair_color_id),
     outfitId: toStoredId('outfit_id', row.outfit_id),
+    // Keys left out rather than set to `undefined`, so what was saved and what
+    // is loaded compare equal.
     ...(accessoryId === undefined ? {} : { accessoryId }),
+    ...(expressionId === undefined ? {} : { expressionId }),
+    ...(backgroundId === undefined ? {} : { backgroundId }),
   };
 
   validateAvatarConfig(config);
