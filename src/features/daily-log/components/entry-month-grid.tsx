@@ -16,7 +16,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, useMessages } from '@/i18n';
 import type { ISODate } from '@/types/iso-date';
 import { getDayOfMonth } from '@/utils/date';
-import { formatDisplayDate } from '@/utils/format-date';
+import { formatDisplayDateWithWeekday } from '@/utils/format-date';
 
 /**
  * A month with a dot on every day that has something written on it.
@@ -56,7 +56,14 @@ export function EntryMonthGrid({
 
   return (
     <View style={styles.month}>
-      <View style={styles.weekdayRow}>
+      {/* Drawn for the eye, hidden from a screen reader. "Pzt" and "Cmt" are
+          abbreviations to look at; read out they are seven stops of nothing,
+          ahead of a grid whose squares now name their own weekday. */}
+      <View
+        testID="log-weekday-row"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.weekdayRow}>
         {home.weekdayLabels.map((weekday, index) => (
           <ThemedText
             key={`weekday-${index}`}
@@ -84,7 +91,12 @@ export function EntryMonthGrid({
           const entry = entriesByDate.get(date);
           const isMarked = entry !== undefined && hasAnything(entry);
 
-          const readableDate = formatDisplayDate(date, language);
+          // With the weekday: the column headers above are drawn for the eye
+          // and hidden from assistive technology, so the square has to say
+          // which column it is in. `formatDisplayDateWithWeekday` carries the
+          // argument, and `cycle-calendar.tsx` does the same for the same
+          // reason.
+          const readableDate = formatDisplayDateWithWeekday(date, language);
           const summary =
             entry === undefined
               ? ''

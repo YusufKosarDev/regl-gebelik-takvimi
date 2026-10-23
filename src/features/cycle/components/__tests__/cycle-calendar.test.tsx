@@ -11,6 +11,22 @@ import { buildCycleCalendarGrid } from '@/features/cycle/presentation/build-cycl
 import type { CycleCalendarGrid } from '@/features/cycle/presentation/build-cycle-calendar-grid';
 import type { CycleProfile } from '@/features/cycle/domain/types';
 import type { ISODate } from '@/types/iso-date';
+import { formatDisplayDateWithWeekday } from '@/utils/format-date';
+
+/**
+ * How a square's date is spoken: weekday first, then the date.
+ *
+ * Composed from the formatter rather than typed out. These assertions used to
+ * hold strings like `'3 Eylül 2026, Regl'`, and when the weekday moved into the
+ * square - because the column headers above are drawn for the eye and hidden
+ * from assistive technology - fifteen of them had to gain a weekday each.
+ * Typing fifteen weekdays by hand is fifteen chances to name the wrong one, and
+ * a test that disagrees with the formatter about which day is Thursday is worse
+ * than no test. What these assertions are really about is the part after the
+ * date, which stays spelled out.
+ */
+const spokenDate = (date: string): string =>
+  formatDisplayDateWithWeekday(date as ISODate, 'tr');
 
 /** Cycle 28, period 5 -> ovulation on day 14, fertile window days 9-15. */
 const profile: CycleProfile = {
@@ -42,12 +58,22 @@ function markersOn(screen: Awaited<ReturnType<typeof renderCalendar>>, date: str
     .map((node) => node.props.children as string);
 }
 
+/**
+ * The column headers are still drawn, and are no longer spoken.
+ *
+ * `includeHiddenElements` everywhere here: the row is marked hidden from
+ * assistive technology, and the default queries skip anything that is. Without
+ * the option these assertions would report a missing header row, which is the
+ * opposite of what changed.
+ */
 describe('CycleCalendar weekday header', () => {
+  const shown = { includeHiddenElements: true } as const;
+
   it('renders all seven labels in order', async () => {
     const { getByText } = await renderCalendar();
 
     for (const label of ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']) {
-      expect(getByText(label)).toBeTruthy();
+      expect(getByText(label, shown)).toBeTruthy();
     }
   });
 
@@ -58,7 +84,29 @@ describe('CycleCalendar weekday header', () => {
     const { getByText } = await renderCalendar();
 
     for (const label of homeMessages.tr.weekdayLabels) {
-      expect(getByText(label)).toBeTruthy();
+      expect(getByText(label, shown)).toBeTruthy();
+    }
+  });
+
+  /**
+   * And the reason they are hidden: read out, "Pzt" and "Cmt" are seven stops
+   * of nothing. The weekday a listener actually needs is in each square, which
+   * `cycle-labels.ts` and `format-date.ts` carry.
+   */
+  it('is hidden from a screen reader', async () => {
+    const { getByTestId } = await renderCalendar();
+    const row = getByTestId('calendar-weekday-row', shown);
+
+    expect(row.props.accessibilityElementsHidden).toBe(true);
+    expect(row.props.importantForAccessibility).toBe('no-hide-descendants');
+  });
+
+  it('does not offer the abbreviations as spoken stops', async () => {
+    const { queryByText } = await renderCalendar();
+
+    // The default query is the screen reader's view of the tree.
+    for (const label of homeMessages.tr.weekdayLabels) {
+      expect([label, queryByText(label)]).toEqual([label, null]);
     }
   });
 });
@@ -287,14 +335,14 @@ describe('CycleCalendar accessibility', () => {
   it('reads an ordinary day as just its date', async () => {
     const { getByTestId } = await renderCalendar();
 
-    expect(getByTestId('calendar-day-2026-09-20').props.accessibilityLabel).toBe('20 Eylül 2026');
+    expect(getByTestId('calendar-day-2026-09-20').props.accessibilityLabel).toBe(spokenDate('2026-09-20'));
   });
 
   it('names the phase on a menstrual day', async () => {
     const { getByTestId } = await renderCalendar();
 
     expect(getByTestId('calendar-day-2026-09-03').props.accessibilityLabel).toBe(
-      '3 Eylül 2026, Regl'
+      `${spokenDate('2026-09-03')}, Regl`
     );
   });
 
@@ -302,7 +350,7 @@ describe('CycleCalendar accessibility', () => {
     const { getByTestId } = await renderCalendar();
 
     expect(getByTestId('calendar-day-2026-09-14').props.accessibilityLabel).toBe(
-      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek'
+      `${spokenDate('2026-09-14')}, Yumurtlama, doğurganlık en yüksek`
     );
   });
 
@@ -310,7 +358,7 @@ describe('CycleCalendar accessibility', () => {
     const { getByTestId } = await renderCalendar();
 
     expect(getByTestId('calendar-day-2026-09-11').props.accessibilityLabel).toBe(
-      '11 Eylül 2026, doğurganlık yüksek'
+      `${spokenDate('2026-09-11')}, doğurganlık yüksek`
     );
   });
 
@@ -318,7 +366,7 @@ describe('CycleCalendar accessibility', () => {
     const { getByTestId } = await renderCalendar();
 
     expect(getByTestId('calendar-day-2026-09-29').props.accessibilityLabel).toBe(
-      '29 Eylül 2026, sonraki regl başlangıcı tahmini'
+      `${spokenDate('2026-09-29')}, sonraki regl başlangıcı tahmini`
     );
   });
 
@@ -476,7 +524,7 @@ describe('CycleCalendar today does not replace the cycle state', () => {
     expect(markersOn(screen, '2026-09-03')).toEqual(['R']);
     expect(screen.getByTestId('calendar-today-2026-09-03')).toBeTruthy();
     expect(screen.getByTestId('calendar-day-2026-09-03').props.accessibilityLabel).toBe(
-      '3 Eylül 2026, Regl, bugün'
+      `${spokenDate('2026-09-03')}, Regl, bugün`
     );
   });
 
@@ -490,7 +538,7 @@ describe('CycleCalendar today does not replace the cycle state', () => {
     expect(markersOn(screen, '2026-09-14')).toEqual(['Y']);
     expect(screen.getByTestId('calendar-today-2026-09-14')).toBeTruthy();
     expect(screen.getByTestId('calendar-day-2026-09-14').props.accessibilityLabel).toBe(
-      '14 Eylül 2026, Yumurtlama, doğurganlık en yüksek, bugün'
+      `${spokenDate('2026-09-14')}, Yumurtlama, doğurganlık en yüksek, bugün`
     );
   });
 
@@ -504,7 +552,7 @@ describe('CycleCalendar today does not replace the cycle state', () => {
     expect(markersOn(screen, '2026-09-11')).toEqual(['○']);
     expect(screen.getByTestId('calendar-today-2026-09-11')).toBeTruthy();
     expect(screen.getByTestId('calendar-day-2026-09-11').props.accessibilityLabel).toBe(
-      '11 Eylül 2026, doğurganlık yüksek, bugün'
+      `${spokenDate('2026-09-11')}, doğurganlık yüksek, bugün`
     );
   });
 
@@ -518,7 +566,7 @@ describe('CycleCalendar today does not replace the cycle state', () => {
     expect(markersOn(screen, '2026-09-29')).toEqual(['≈']);
     expect(screen.getByTestId('calendar-today-2026-09-29')).toBeTruthy();
     expect(screen.getByTestId('calendar-day-2026-09-29').props.accessibilityLabel).toBe(
-      '29 Eylül 2026, sonraki regl başlangıcı tahmini, bugün'
+      `${spokenDate('2026-09-29')}, sonraki regl başlangıcı tahmini, bugün`
     );
   });
 
@@ -552,7 +600,7 @@ describe('CycleCalendar without onSelectDay', () => {
     const cell = screen.getByTestId('calendar-day-2026-09-17');
 
     expect(cell.props.accessible).toBe(true);
-    expect(cell.props.accessibilityLabel).toBe('17 Eylül 2026');
+    expect(cell.props.accessibilityLabel).toBe(spokenDate('2026-09-17'));
     expect(cell.props.accessibilityRole).toBeUndefined();
   });
 
@@ -564,7 +612,7 @@ describe('CycleCalendar without onSelectDay', () => {
     // Still not a button, but the label and state do reflect the selection.
     expect(screen.queryAllByRole('button')).toHaveLength(0);
     expect(screen.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
-      '17 Eylül 2026, seçili'
+      `${spokenDate('2026-09-17')}, seçili`
     );
   });
 });
@@ -638,7 +686,7 @@ describe('CycleCalendar with onSelectDay', () => {
     const rendered = await screen;
 
     expect(rendered.getByTestId('calendar-day-2026-09-03').props.accessibilityLabel).toBe(
-      '3 Eylül 2026, Regl, seçili'
+      `${spokenDate('2026-09-03')}, Regl, seçili`
     );
   });
 
@@ -647,7 +695,7 @@ describe('CycleCalendar with onSelectDay', () => {
     const rendered = await screen;
 
     expect(rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
-      '17 Eylül 2026, bugün, seçili'
+      `${spokenDate('2026-09-17')}, bugün, seçili`
     );
     expect(rendered.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
   });
@@ -659,7 +707,7 @@ describe('CycleCalendar with onSelectDay', () => {
     // Today keeps its own mark and label; only "seçili" moves.
     expect(rendered.getByTestId('calendar-today-2026-09-17')).toBeTruthy();
     expect(rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityLabel).toBe(
-      '17 Eylül 2026, bugün'
+      `${spokenDate('2026-09-17')}, bugün`
     );
     expect(
       rendered.getByTestId('calendar-day-2026-09-17').props.accessibilityState.selected
@@ -702,7 +750,7 @@ describe('CycleCalendar selection keeps the cycle markers', () => {
 
     expect(markersOn(screen, '2026-09-29')).toEqual(['≈']);
     expect(screen.getByTestId('calendar-day-2026-09-29').props.accessibilityLabel).toBe(
-      '29 Eylül 2026, sonraki regl başlangıcı tahmini, seçili'
+      `${spokenDate('2026-09-29')}, sonraki regl başlangıcı tahmini, seçili`
     );
   });
 
