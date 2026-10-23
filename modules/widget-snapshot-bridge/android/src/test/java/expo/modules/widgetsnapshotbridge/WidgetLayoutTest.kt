@@ -144,7 +144,7 @@ class WidgetContentDescriptionTest {
     phaseLabel: String? = null,
     moods: List<String> = listOf("Kramplar olabilir"),
     message: String? = "Kendine alan tanı.",
-    avatar: WidgetAvatar? = WidgetAvatar("skin-tone-4", "bun", "red", "dress", "glasses")
+    avatar: WidgetAvatar? = WidgetAvatar("skin-tone-4", "bun", "red", "dress", "glasses", "smiling", "lavender")
   ) = WidgetSnapshot(
     "2026-09-18",
     cycleDay,
@@ -225,7 +225,7 @@ class WidgetContentDescriptionTest {
   fun `never reads out an id it does not know either`() {
     val stranger = snapshot(
       phase = "gebelik",
-      avatar = WidgetAvatar("skin-tone-99", "mohawk", "teal", "spacesuit", "monocle")
+      avatar = WidgetAvatar("skin-tone-99", "mohawk", "teal", "spacesuit", "monocle", "grinning", "chartreuse")
     )
 
     WidgetSizeClass.values().forEach { size ->

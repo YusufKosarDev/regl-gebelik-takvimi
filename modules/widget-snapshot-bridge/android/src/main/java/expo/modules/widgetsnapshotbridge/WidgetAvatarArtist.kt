@@ -31,6 +31,15 @@ object WidgetAvatarArtist {
     val headBottom = u(70f)
     val headWidth = headRight - headLeft
 
+    // The disc, before anything else, so the whole figure sits on it. Inset
+    // from the bitmap's edge rather than filling it: a circle that touched the
+    // sides would be clipped square by the launcher's own rounding on some
+    // devices, and the figure is drawn to this 100-unit space either way.
+    look.background?.let { disc ->
+      paint.color = disc
+      canvas.drawCircle(u(50f), u(48f), u(46f), paint)
+    }
+
     // Hair behind the head: how far it falls is the whole of what a widget-sized
     // drawing can say about the style.
     val fall = when (look.hairShape) {

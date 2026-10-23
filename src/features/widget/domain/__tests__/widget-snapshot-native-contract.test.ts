@@ -39,6 +39,8 @@ const AVATAR_KEYS = [
   'hairColorId',
   'outfitId',
   'accessoryId',
+  'expressionId',
+  'backgroundId',
 ] as const;
 
 function avatar(): AvatarConfig {
@@ -48,6 +50,8 @@ function avatar(): AvatarConfig {
     hairColorId: 'red',
     outfitId: 'dress',
     accessoryId: 'glasses',
+    expressionId: 'smiling',
+    backgroundId: 'lavender',
   };
 }
 
@@ -151,5 +155,41 @@ describe('the Kotlin side reads the same names', () => {
 
   it('agrees on the version it accepts', () => {
     expect(kotlin).toContain('WIDGET_SNAPSHOT_VERSION = 1');
+  });
+});
+
+/**
+ * The two fields version 9 added, absent as well as present.
+ *
+ * Both are optional, and the widget reads an absent key as "none" the way it
+ * does for the accessory — so writing `null` instead of leaving the key out
+ * would be a third state neither side has a meaning for.
+ */
+describe('an avatar with no expression and no backdrop', () => {
+  it('writes neither key', () => {
+    const { expressionId, backgroundId, ...rest } = avatar();
+
+    void expressionId;
+    void backgroundId;
+
+    const text = serializeWidgetSnapshotV1({ ...snapshot(), avatar: rest });
+
+    expect(text).not.toContain('expressionId');
+    expect(text).not.toContain('backgroundId');
+  });
+
+  it('is still a complete avatar to the widget', () => {
+    const { expressionId, backgroundId, ...rest } = avatar();
+
+    void expressionId;
+    void backgroundId;
+
+    const written = JSON.parse(serializeWidgetSnapshotV1({ ...snapshot(), avatar: rest }));
+
+    // The four required ids are what makes an avatar drawable; these two are
+    // not among them, and the Kotlin refuses a half avatar on that basis.
+    expect(Object.keys(written.avatar).sort()).toEqual(
+      ['skinToneId', 'hairStyleId', 'hairColorId', 'outfitId', 'accessoryId'].sort()
+    );
   });
 });

@@ -19,7 +19,22 @@ data class WidgetAvatar(
   val hairStyleId: String,
   val hairColorId: String,
   val outfitId: String,
-  val accessoryId: String?
+  val accessoryId: String?,
+  /**
+   * Carried across the boundary, and only one of them is drawn.
+   *
+   * The backdrop is: a disc of colour behind the figure is the thing that
+   * reads at the size a launcher draws this. The expression is not, and that
+   * is a decision rather than an omission — the face here is two 3px dots and
+   * a 12x3 bar, and the difference between a smile and a calm mouth is the
+   * curve of that bar. `widgetAvatarLook` therefore ignores `expressionId`,
+   * and a test pins that it does, so nobody "fixes" it by accident.
+   *
+   * It is still read rather than dropped, so the day the widget can say
+   * something about a face the value is already here.
+   */
+  val expressionId: String?,
+  val backgroundId: String?
 )
 
 data class WidgetSnapshot(
@@ -67,6 +82,8 @@ private const val KEY_HAIR_STYLE_ID = "hairStyleId"
 private const val KEY_HAIR_COLOR_ID = "hairColorId"
 private const val KEY_OUTFIT_ID = "outfitId"
 private const val KEY_ACCESSORY_ID = "accessoryId"
+private const val KEY_EXPRESSION_ID = "expressionId"
+private const val KEY_BACKGROUND_ID = "backgroundId"
 
 /** `null` where the key is absent, JSON null, or not text. */
 private fun JSONObject.optText(key: String): String? {
@@ -123,7 +140,9 @@ private fun parseAvatar(json: JSONObject?): WidgetAvatar? {
     hairStyleId = hairStyleId,
     hairColorId = hairColorId,
     outfitId = outfitId,
-    accessoryId = json.optText(KEY_ACCESSORY_ID)
+    accessoryId = json.optText(KEY_ACCESSORY_ID),
+    expressionId = json.optText(KEY_EXPRESSION_ID),
+    backgroundId = json.optText(KEY_BACKGROUND_ID)
   )
 }
 

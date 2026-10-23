@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  AVATAR_BACKGROUNDS,
   AVATAR_HAIR_COLORS,
   AVATAR_OUTFITS,
   AVATAR_SKIN_TONES,
@@ -163,5 +164,35 @@ describe('the accessory metal is one colour in both', () => {
 
     expect(declared).not.toBeNull();
     expect(toHex(declared![1])).toBe(AVATAR_ACCESSORY_GOLD.toUpperCase());
+  });
+});
+
+describe('the widget draws the backdrops in the app colours', () => {
+  const kotlinBackground = singleColourMap('BACKGROUND_COLORS');
+
+  it('carries exactly the catalogue backdrops', () => {
+    expect(Object.keys(kotlinBackground).sort()).toEqual(
+      AVATAR_BACKGROUNDS.map((background) => background.id).sort()
+    );
+  });
+
+  it.each(AVATAR_BACKGROUNDS.map((background) => background.id))('%s matches', (id) => {
+    const { background } = resolveAvatarVisuals(config({ backgroundId: id }));
+
+    expect([id, kotlinBackground[id]]).toEqual([id, background!.base]);
+  });
+});
+
+/**
+ * The expression is not in this file, and that is the point.
+ *
+ * It crosses the boundary — the widget reads `expressionId` — and nothing on
+ * the widget varies with it, because a 12x3 mouth cannot hold the difference
+ * between a smile and a calm line. There is no colour to compare, and the
+ * Kotlin side pins the deliberate ignoring in `WidgetAvatarLookTest`.
+ */
+describe('the expression has no colour to drift', () => {
+  it('is not a palette on either side', () => {
+    expect(kotlin).not.toContain('EXPRESSION_COLORS');
   });
 });
