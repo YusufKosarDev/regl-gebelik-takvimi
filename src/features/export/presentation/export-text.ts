@@ -1,21 +1,11 @@
 import type { ExportMessages } from './export-messages';
+import type { ExportSummaryData } from './export-sections';
+import { buildExportSections } from './export-sections';
 
-import type { CycleLengthObservations } from '@/features/cycle/domain/observed-cycle-lengths';
-import type { CycleSettings, PeriodRecord } from '@/features/cycle/domain/types';
-import type { DailyEntry } from '@/features/daily-log/domain/catalogues';
 import type { Language } from '@/i18n/language';
-import type { ISODate } from '@/types/iso-date';
 import { formatDisplayDate } from '@/utils/format-date';
 
-/** Everything the summary is written from. */
-export type ExportSummaryData = {
-  readonly today: ISODate;
-  readonly cycleSettings: CycleSettings | null;
-  readonly observations: CycleLengthObservations;
-  /** Newest first, which is the order somebody reads a history in. */
-  readonly periodRecords: readonly PeriodRecord[];
-  readonly dailyEntries: readonly DailyEntry[];
-};
+export type { ExportSummaryData } from './export-sections';
 
 /**
  * The readable summary, as plain text.
@@ -32,6 +22,30 @@ export type ExportSummaryData = {
  * leaves the phone and might be read by somebody who has never seen the app
  * needs it most.
  *
+ * ## Why its PDF sibling says more than this does
+ *
+ * `export-pdf.ts` builds a third file from the same sections and adds a count
+ * of what was written down - "Kramp - 11 gün" - which this file deliberately
+ * has none of. That is not an inconsistency to be tidied up later. The two
+ * files are different kinds of thing:
+ *
+ * This one is a readable dump. It is the format that depends on no renderer, it
+ * opens anywhere, and it is what is left when `printToFileAsync` fails. Someone
+ * reading it is reading their own records in the plainest form the app can
+ * produce them in.
+ *
+ * The PDF is a document to hand to a clinician. It is typeset, it arrives
+ * without the app, and the third thing a clinician actually looks at - after
+ * cycle lengths and period dates - is symptoms. Day by day is still refused
+ * there for the reason above, but an aggregate count over five days or more is
+ * a count rather than four hundred lines, and on a page that somebody is going
+ * to be asked questions about it earns its place.
+ *
+ * So the sections are shared and the difference is deliberate: a dump says
+ * everything plainly, a document says the few things its reader will use. What
+ * neither may do is disagree about the records, which is why the branching
+ * lives in `export-sections.ts` rather than in each of them.
+ *
  * ## Shape
  *
  * `*In(messages, …)` like every other multi-key sentence builder here, so the
@@ -46,63 +60,13 @@ export function buildExportTextIn(
   const lines: string[] = [
     messages.summaryHeading,
     messages.summaryGeneratedOn(formatDisplayDate(data.today, language)),
-    '',
-    messages.summaryCycleHeading,
   ];
 
-  if (data.cycleSettings !== null) {
-    lines.push(
-      messages.summaryCycleLengths(
-        data.cycleSettings.averageCycleLengthDays,
-        data.cycleSettings.averagePeriodLengthDays
-      )
-    );
+  for (const section of buildExportSections(messages, data, language)) {
+    // The provenance notes are the page's, not this file's: they answer a
+    // question a document with no column names raises, and a dump does not.
+    lines.push('', section.heading, ...section.lines);
   }
-
-  if (data.observations.medianDays === null) {
-    lines.push(messages.summaryNoObservations);
-  } else {
-    lines.push(
-      messages.summaryObservedLength(
-        data.observations.medianDays,
-        data.observations.lengths.length
-      )
-    );
-
-    if (data.observations.shortestDays !== null && data.observations.longestDays !== null) {
-      lines.push(
-        messages.summaryObservedRange(
-          data.observations.shortestDays,
-          data.observations.longestDays
-        )
-      );
-    }
-  }
-
-  lines.push('', messages.summaryRecordsHeading);
-
-  if (data.periodRecords.length === 0) {
-    lines.push(messages.summaryNoRecords);
-  } else {
-    for (const record of data.periodRecords) {
-      const start = formatDisplayDate(record.startDate, language);
-
-      if (record.isOngoing) {
-        lines.push(messages.summaryRecordOngoing(start));
-      } else if (record.endDate === undefined) {
-        lines.push(messages.summaryRecordUnknownEnd(start));
-      } else {
-        lines.push(messages.summaryRecordLine(start, formatDisplayDate(record.endDate, language)));
-      }
-    }
-  }
-
-  lines.push('', messages.summaryLogHeading);
-  lines.push(
-    data.dailyEntries.length === 0
-      ? messages.summaryNoLog
-      : messages.summaryLogCount(data.dailyEntries.length)
-  );
 
   lines.push('', messages.summaryFooter);
 
