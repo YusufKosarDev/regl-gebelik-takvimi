@@ -163,7 +163,7 @@ describe('AvatarPreview draws the colours apart', () => {
 });
 
 describe('AvatarPreview draws the accessories', () => {
-  it('draws each of the three differently, and none at all', async () => {
+  it('draws each one differently, and none at all', async () => {
     const trees = await drawEach([
       config(),
       ...AVATAR_ACCESSORIES.map((accessory) => config({ accessoryId: accessory.id })),

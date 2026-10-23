@@ -336,7 +336,7 @@ function Face({ visuals, u }: Part) {
 
 /** Whichever accessory was chosen, drawn where it would actually sit. */
 function Accessory({ visuals, u }: Part) {
-  const { accessory, hair, skin } = visuals;
+  const { accessory, hair, skin, outfit } = visuals;
 
   if (accessory === null) {
     return null;
@@ -389,25 +389,91 @@ function Accessory({ visuals, u }: Part) {
     );
   }
 
-  // A clip sits on the hair rather than the face, so it is drawn against the
-  // fringe and tinted to stand off whatever colour the hair is.
-  return (
-    <View
-      style={[
-        styles.layer,
-        {
-          left: u(HEAD.left + 4),
-          top: u(HEAD.top + 8),
-          width: u(20),
-          height: u(7),
-          backgroundColor: AVATAR_ACCESSORY_GOLD,
-          borderColor: hair.shade,
-          borderWidth: u(1),
-          borderRadius: u(3.5),
-        },
-      ]}
-    />
-  );
+  if (accessory === 'hair-clip') {
+    // A clip sits on the hair rather than the face, so it is drawn against the
+    // fringe and tinted to stand off whatever colour the hair is.
+    return (
+      <View
+        style={[
+          styles.layer,
+          {
+            left: u(HEAD.left + 4),
+            top: u(HEAD.top + 8),
+            width: u(20),
+            height: u(7),
+            backgroundColor: AVATAR_ACCESSORY_GOLD,
+            borderColor: hair.shade,
+            borderWidth: u(1),
+            borderRadius: u(3.5),
+          },
+        ]}
+      />
+    );
+  }
+
+  if (accessory === 'necklace') {
+    // At the collarbone, which is below the neck and on the garment: a chain
+    // across and a drop under it, because one bar alone reads as a collar.
+    return (
+      <>
+        <View
+          style={[
+            styles.layer,
+            {
+              left: u(CANVAS.width / 2 - 9),
+              top: u(CANVAS.height - BODY.height + 2),
+              width: u(18),
+              height: u(5),
+              backgroundColor: AVATAR_ACCESSORY_GOLD,
+              borderRadius: u(2.5),
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.layer,
+            {
+              left: u(CANVAS.width / 2 - 3),
+              top: u(CANVAS.height - BODY.height + 6),
+              width: u(6),
+              height: u(6),
+              backgroundColor: AVATAR_ACCESSORY_GOLD,
+              borderRadius: u(3),
+            },
+          ]}
+        />
+      </>
+    );
+  }
+
+  if (accessory === 'brooch') {
+    // Off to one side on the garment, where a brooch is actually pinned — and
+    // where it stays visible under a covering, which the clip does not.
+    return (
+      <View
+        style={[
+          styles.layer,
+          {
+            left: u(CANVAS.width / 2 - 24),
+            top: u(CANVAS.height - BODY.height + 10),
+            width: u(8),
+            height: u(8),
+            backgroundColor: AVATAR_ACCESSORY_GOLD,
+            borderColor: outfit.trim,
+            borderWidth: u(1),
+            borderRadius: u(4),
+          },
+        ]}
+      />
+    );
+  }
+
+  // Every kind is drawn above. This is here so that adding one to
+  // `AvatarAccessoryKind` without drawing it is a type error rather than an
+  // accessory that silently renders as nothing.
+  const unreachable: never = accessory;
+
+  return unreachable;
 }
 
 const styles = StyleSheet.create({

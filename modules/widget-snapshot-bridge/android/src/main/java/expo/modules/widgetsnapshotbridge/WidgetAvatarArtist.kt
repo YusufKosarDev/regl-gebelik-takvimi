@@ -131,6 +131,20 @@ object WidgetAvatarArtist {
         )
       }
 
+      // The garment starts at 74, so both of these land on it rather than on
+      // the chin — which is the point of having them: a covering takes the
+      // whole head, and these two are what is still visible under one.
+      WidgetAccessory.NECKLACE -> {
+        paint.color = WIDGET_ACCESSORY_COLOR
+        canvas.drawRoundRect(RectF(u(42f), u(77f), u(58f), u(81f)), u(2f), u(2f), paint)
+        canvas.drawCircle(u(50f), u(84f), u(3.5f), paint)
+      }
+
+      WidgetAccessory.BROOCH -> {
+        paint.color = WIDGET_ACCESSORY_COLOR
+        canvas.drawCircle(u(32f), u(84f), u(4f), paint)
+      }
+
       null -> Unit
     }
 

@@ -252,10 +252,12 @@ class WidgetAvatarLookTest {
   }
 
   @Test
-  fun `maps the three accessories`() {
+  fun `maps every accessory`() {
     assertEquals(WidgetAccessory.GLASSES, widgetAvatarLook(avatar(accessoryId = "glasses")).accessory)
     assertEquals(WidgetAccessory.HAIR_CLIP, widgetAvatarLook(avatar(accessoryId = "hair-clip")).accessory)
     assertEquals(WidgetAccessory.EARRINGS, widgetAvatarLook(avatar(accessoryId = "earrings")).accessory)
+    assertEquals(WidgetAccessory.NECKLACE, widgetAvatarLook(avatar(accessoryId = "necklace")).accessory)
+    assertEquals(WidgetAccessory.BROOCH, widgetAvatarLook(avatar(accessoryId = "brooch")).accessory)
   }
 
   @Test

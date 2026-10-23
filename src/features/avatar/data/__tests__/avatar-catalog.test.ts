@@ -18,7 +18,8 @@ const CATEGORIES: readonly [string, readonly AvatarOption[], number][] = [
   // Also the colours a covering can be, which is the same list.
   ['hair colors', AVATAR_HAIR_COLORS, 9],
   ['outfits', AVATAR_OUTFITS, 6],
-  ['accessories', AVATAR_ACCESSORIES, 3],
+  // Two of the five sit below the chin, which is where a covering leaves room.
+  ['accessories', AVATAR_ACCESSORIES, 5],
 ];
 
 describe('the avatar catalogue offers every category', () => {
@@ -62,6 +63,8 @@ describe('the avatar catalogue offers every category', () => {
       'Gözlük',
       'Toka',
       'Küpe',
+      'Kolye',
+      'Broş',
     ]);
   });
 
