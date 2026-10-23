@@ -137,6 +137,36 @@ describe('the screen in English', () => {
 
     expectNoTurkishCatalogueText(screen);
   });
+
+  /**
+   * The same rule the cycle calendar keeps, in the other grid.
+   *
+   * Seven abbreviated column headers are drawn for the eye and hidden from
+   * assistive technology, so each square names its own weekday. A square that
+   * does not is a square in a seven-wide layout with no way to say which
+   * column - and the abbreviations read out are seven stops of nothing.
+   */
+  it('names each square weekday, and does not speak the column headers', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue(lutealDays(6, ['cramps']));
+
+    const screen = await renderScreen();
+
+    // 16 March 2026 is a Monday.
+    expect(
+      (screen.getByTestId('log-day-2026-03-16').props.accessibilityLabel as string)
+    ).toContain('Monday, 16 March 2026');
+
+    const row = screen.getByTestId('log-weekday-row', { includeHiddenElements: true });
+
+    expect(row.props.accessibilityElementsHidden).toBe(true);
+    expect(row.props.importantForAccessibility).toBe('no-hide-descendants');
+
+    // Still drawn: the default query is the screen reader's view, so the
+    // abbreviation being absent there and present with hidden elements
+    // included is exactly the split this change makes.
+    expect(screen.queryByText('Mon')).toBeNull();
+    expect(screen.getByText('Mon', { includeHiddenElements: true })).toBeTruthy();
+  });
 });
 
 describe('what the summary refuses to say', () => {
