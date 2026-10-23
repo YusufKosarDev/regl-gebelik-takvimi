@@ -2,13 +2,17 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { buildExportRows, EXPORT_COLUMNS } from '../domain/build-export-rows';
 import { toCsv } from '../domain/csv';
+import { countLoggedDaysForDocument } from '../domain/logged-day-counts';
 import type { ExportMessages } from '../presentation/export-messages';
+import { buildExportPdfHtmlIn } from '../presentation/export-pdf';
 import { buildExportTextIn } from '../presentation/export-text';
 
 import { buildCycleCalendarMonth } from '@/features/cycle/application/build-cycle-calendar-month';
 import { buildCyclePhaseIndex } from '@/features/cycle/application/build-cycle-phase-index';
 import { observeCycleLengths } from '@/features/cycle/domain/observed-cycle-lengths';
 import type { CycleProfile } from '@/features/cycle/domain/types';
+import type { DailyLogCatalogueLabels } from '@/features/daily-log/presentation/daily-log-catalogues';
+import { labelFor } from '@/features/daily-log/presentation/daily-log-catalogues';
 import { buildCloudSyncPayloadV1 } from '@/features/privacy/application/build-cloud-sync-payload-v1';
 import type { Language } from '@/i18n/language';
 import type { ISODate } from '@/types/iso-date';
@@ -26,9 +30,23 @@ export type ExportFile = {
   readonly contents: string;
 };
 
+/**
+ * The printable document, which is markup rather than the file itself.
+ *
+ * `printToFileAsync` renders it on the device, so what this layer can build is
+ * the input to that - and no `mimeType`, because the type of the thing the
+ * share sheet eventually receives is decided where it is printed.
+ * `share-pdf-file.ts` owns that half.
+ */
+export type ExportPdfDocument = {
+  readonly fileName: string;
+  readonly html: string;
+};
+
 export type ExportFiles = {
   readonly summary: ExportFile;
   readonly csv: ExportFile;
+  readonly pdf: ExportPdfDocument;
   /** `true` when there is nothing recorded, so the screen can say so. */
   readonly isEmpty: boolean;
 };
@@ -38,10 +56,20 @@ export type BuildExportFilesInput = {
   readonly language: Language;
   /** The already-chosen catalogue half, like `today` and for the same reason. */
   readonly messages: ExportMessages;
+  /**
+   * The daily-log words, also already narrowed to one language.
+   *
+   * The printable document is the only one of the three that names a symptom:
+   * the CSV writes stored ids on purpose - "raw means stable" - and the `.txt`
+   * does not mention them at all. So this arrives here rather than being
+   * reached for from inside the renderer, which keeps the catalogue a thing the
+   * caller chose like everything else in this input.
+   */
+  readonly labels: DailyLogCatalogueLabels;
 };
 
 /**
- * Both export files, from one read of the database.
+ * All three export files, from one read of the database.
  *
  * ## It reuses the sync payload rather than reading anything itself
  *
@@ -63,7 +91,7 @@ export async function buildExportFiles(
   db: SQLiteDatabase,
   input: BuildExportFilesInput
 ): Promise<ExportFiles> {
-  const { today, language, messages } = input;
+  const { today, language, messages, labels } = input;
   const payload = await buildCloudSyncPayloadV1(db);
 
   const profile: CycleProfile | null =
@@ -82,14 +110,27 @@ export async function buildExportFiles(
     daysBetween(a.startDate, b.startDate)
   );
 
-  const summary = buildExportTextIn(
+  const summaryData = {
+    today,
+    cycleSettings: payload.cycleSettings,
+    observations,
+    periodRecords: newestFirst,
+    dailyEntries: payload.dailyEntries,
+  };
+
+  const summary = buildExportTextIn(messages, summaryData, language);
+
+  // One lookup across both catalogues, which is the same thing the
+  // records-summary screen does and for the same reason: the two id spaces do
+  // not overlap, and a reader of a page has no use for the boundary.
+  const pdfHtml = buildExportPdfHtmlIn(
     messages,
     {
-      today,
-      cycleSettings: payload.cycleSettings,
-      observations,
-      periodRecords: newestFirst,
-      dailyEntries: payload.dailyEntries,
+      ...summaryData,
+      loggedCounts: countLoggedDaysForDocument(
+        payload.dailyEntries,
+        (id) => labelFor(labels.symptoms, id) ?? labelFor(labels.moods, id)
+      ),
     },
     language
   );
@@ -118,6 +159,10 @@ export async function buildExportFiles(
       fileName: messages.csvFileName(today),
       mimeType: 'text/csv',
       contents: toCsv([...EXPORT_COLUMNS], rows),
+    },
+    pdf: {
+      fileName: messages.pdfFileName(today),
+      html: pdfHtml,
     },
     isEmpty: payload.periodRecords.length === 0 && payload.dailyEntries.length === 0,
   };
