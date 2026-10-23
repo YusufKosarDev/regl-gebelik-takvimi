@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import DailyEntryScreen from '@/app/(app)/daily-entry';
@@ -104,7 +104,14 @@ describe('what the screen offers', () => {
   it('offers four flow levels, ten symptoms and five moods', async () => {
     const screen = await renderScreen();
 
-    expect(screen.queryAllByRole('radio')).toHaveLength(9);
+    // The week strip is seven radios of its own — it picks one day out of
+    // seven, so it carries the same role the single-choice catalogues do. The
+    // catalogues are counted apart from it rather than against a total that
+    // would move whenever either changed.
+    const strip = within(screen.getByTestId('week-strip')).queryAllByRole('radio');
+
+    expect(strip).toHaveLength(7);
+    expect(screen.queryAllByRole('radio')).toHaveLength(9 + strip.length);
     expect(screen.queryAllByRole('checkbox')).toHaveLength(10);
   });
 
