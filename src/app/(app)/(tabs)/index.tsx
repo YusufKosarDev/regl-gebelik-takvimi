@@ -707,7 +707,21 @@ export default function HomeScreen() {
                   no hero - but it still has a today, and losing the date when
                   the mode switched was a regression rather than a simplification. */}
               {isPregnancyView ? (
-                <View style={styles.pregnancyHeader}>
+                // One header node, the way `SkyHero` heads the cycle view's
+                // day. `SkyHero` is not drawn in this mode, so without this
+                // the first thing the screen says is two plain text nodes:
+                // jumping by heading lands past the date, on the pregnancy
+                // section below. One node rather than two for the reason
+                // `CycleSummary` collapses a row — a word and the value under
+                // it read as two stops is something to put back together.
+                <View
+                  accessible
+                  accessibilityRole="header"
+                  accessibilityLabel={home.labelledValue(
+                    home.todayHeading,
+                    formatDisplayDate(dashboard.today, language)
+                  )}
+                  style={styles.pregnancyHeader}>
                   <ThemedText type="small" themeColor="textSecondary">
                     {home.todayHeading}
                   </ThemedText>
