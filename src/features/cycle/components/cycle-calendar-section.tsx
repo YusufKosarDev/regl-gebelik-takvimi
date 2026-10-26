@@ -104,8 +104,13 @@ export function CycleCalendarSection({
           <Icon name="chevron-left" />
         </Pressable>
 
+        {/* The month arrows replace forty-two squares with the focus still on
+            the arrow, so this heading says which month is now on screen. The
+            grid itself is not a live region - announcing forty-two squares
+            would read the month out. */}
         <ThemedText
           accessibilityLabel={home.calendarMonthLabel(monthHeading)}
+          accessibilityLiveRegion="polite"
           style={styles.monthHeading}>
           {monthHeading}
         </ThemedText>
@@ -150,7 +155,11 @@ export function CycleCalendarSection({
           // It also stopped the panel competing with the grid. The month was
           // the one thing on this screen drawn in no colour at all, sitting
           // above the one block that had some.
-          <Surface level="lined">
+          // Tapping a square rewrites this whole card with the focus still on
+          // the square, so the card says what it now holds. `polite`, so it
+          // waits for the gap rather than cutting off the square's own
+          // announcement of the day that was just selected.
+          <Surface level="lined" testID="selected-day-card" accessibilityLiveRegion="polite">
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
               {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>

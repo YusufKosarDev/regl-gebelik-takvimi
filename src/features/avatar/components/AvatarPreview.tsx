@@ -61,6 +61,15 @@ export function AvatarPreview({ config, size = 'large', testID }: AvatarPreviewP
       accessible
       accessibilityRole="image"
       accessibilityLabel={describeAvatarIn(labels, catalogue, config)}
+      // Pressing a choice changes this drawing, and this label is the only
+      // place the result exists. The focus stays on the choice two inches
+      // below, so without the live region somebody picking a headscarf colour
+      // hears the choice confirm itself and nothing about what it did.
+      //
+      // `polite` rather than an imperative announcement: the label is already
+      // written and already changes, so the platform can read it in the next
+      // gap. `announceForAccessibility` interrupts by default.
+      accessibilityLiveRegion="polite"
       testID={testID}
       style={{ width: u(CANVAS.width), height: u(CANVAS.height) }}>
       <Background visuals={visuals} u={u} />
