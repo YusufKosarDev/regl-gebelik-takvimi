@@ -154,13 +154,41 @@ export function CycleCalendarSection({
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
               {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>
-            {/* The visible text already reads "label: value", so it
-                needs no separate accessibility label. */}
-            {selectedDayRowsIn(home, labels, selectedDay).map((row) => (
-              <ThemedText key={row.label} type="small">
-                {home.labelledValue(row.label, row.value)}
-              </ThemedText>
-            ))}
+            {/* A row with no caveat is one line, and its visible text already
+                reads "label: value", so it needs no separate accessibility
+                label.
+
+                A row with one is two lines and a single spoken stop. Drawing
+                the caveat is not the same as saying it: on the home screen
+                this week the same sentence was on screen and silently absent
+                from what a screen reader announced, because the row collapsed
+                into one node whose label left the note out. `SummaryRow` has
+                the rule - the number and the warning about it cannot be
+                separated - and a caveat announced as its own stop is one
+                somebody can swipe past without hearing. */}
+            {selectedDayRowsIn(home, labels, selectedDay).map((row) =>
+              row.note === undefined ? (
+                <ThemedText key={row.label} type="small">
+                  {home.labelledValue(row.label, row.value)}
+                </ThemedText>
+              ) : (
+                <View
+                  key={row.label}
+                  accessible
+                  accessibilityLabel={home.labelledValueWithNote(
+                    row.label,
+                    row.value,
+                    row.note
+                  )}>
+                  <ThemedText type="small">
+                    {home.labelledValue(row.label, row.value)}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+                    {row.note}
+                  </ThemedText>
+                </View>
+              )
+            )}
 
             {/* Past the predicted period the cycle day is still a real count
                 from a real record, and the phase and fertility estimates are
@@ -232,6 +260,12 @@ export function CycleCalendarSection({
 const styles = StyleSheet.create({
   calendarSection: {
     gap: Spacing.two,
+  },
+  // The same offset `CycleSummary` gives its note, so the caveat sits under
+  // the number it belongs to on both screens rather than reading as the next
+  // row down.
+  rowNote: {
+    marginTop: Spacing.one,
   },
   monthBar: {
     flexDirection: 'row',
