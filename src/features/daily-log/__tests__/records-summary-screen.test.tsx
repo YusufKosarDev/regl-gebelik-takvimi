@@ -243,3 +243,105 @@ describe('the cycle length section', () => {
     }
   });
 });
+
+/**
+ * Why the same symptom can show two different day counts on this screen.
+ *
+ * ## The confusion
+ *
+ * The phase section counts `placedCount` - days the cycle can place - and "En
+ * çok yazdıkların" counts every recorded day. Both are right and the
+ * difference is deliberate: `most-logged.ts` refuses `placedCount` outright,
+ * because "somebody in their first month, before a period has been recorded,
+ * would see every count as zero while their days sat in the database".
+ *
+ * But the two numbers reach the screen through the *same* sentence shape -
+ * `countOnly` renders "Kramp: 3 gün" in one section and "Kramp: 11 gün" in the
+ * other - and nothing said why. Someone who logged for three weeks before
+ * recording their first period saw one word with two numbers under it.
+ *
+ * Making them agree would break the decision `most-logged.ts` records;
+ * dropping a section loses what it says. What was missing was the sentence.
+ *
+ * ## Only when the difference is really there
+ *
+ * Shown when some recorded day has no phase, which is exactly when the two
+ * counts can diverge. An explanation printed on every visit is an explanation
+ * nobody reads, and for somebody whose every day is placed there is nothing to
+ * explain.
+ */
+describe('the two day counts', () => {
+  /** Days before the first recorded period, which the cycle cannot place. */
+  function daysBeforeAndAfter() {
+    return [
+      ...Array.from({ length: 4 }, (_, index) =>
+        entry(`2026-08-${String(10 + index).padStart(2, '0')}`, ['cramps'])
+      ),
+      ...daysHolding('cramps', MIN_ENTRIES_FOR_CORRELATION),
+    ];
+  }
+
+  it('explains itself when some days cannot be placed', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue(daysBeforeAndAfter());
+
+    const view = await open();
+
+    expect(view.getByText(tr.placedOnlyNote)).toBeTruthy();
+  });
+
+  it('says nothing when every recorded day is placed', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue(
+      daysHolding('cramps', MIN_ENTRIES_FOR_CORRELATION)
+    );
+
+    const view = await open();
+
+    expect(view.queryByText(tr.placedOnlyNote)).toBeNull();
+  });
+
+  it('says nothing when no day is placed, where another sentence already does', async () => {
+    // `unplacedNote` covers that case and says more about it. Two
+    // explanations of the same absence is one too many.
+    cycle.loadCycleProfile.mockResolvedValue({
+      settings: { averageCycleLengthDays: 28, averagePeriodLengthDays: 5 },
+      periodRecords: [],
+    });
+    dailyLog.loadAllDailyEntries.mockResolvedValue(
+      daysHolding('cramps', MIN_ENTRIES_FOR_CORRELATION)
+    );
+
+    const view = await open();
+
+    expect(view.queryByText(tr.placedOnlyNote)).toBeNull();
+    expect(view.getByText(tr.unplacedNote)).toBeTruthy();
+  });
+
+  it('points at the section that holds the other number', async () => {
+    dailyLog.loadAllDailyEntries.mockResolvedValue(daysBeforeAndAfter());
+
+    const view = await open();
+    const written = texts(view.toJSON()).join(' | ');
+
+    // The sentence says the days are "in the counts below", so the counts
+    // have to be below it.
+    expect(written.indexOf(tr.placedOnlyNote)).toBeLessThan(
+      written.indexOf(tr.mostLoggedTitle)
+    );
+  });
+});
+
+describe('the note under a short bar', () => {
+  /**
+   * It used to say "beşten az kaydı olanlar" / "under five entries". The rule
+   * is `placedCount < 5`, so a symptom with eleven records of which three are
+   * placed fell under a note telling its reader it had fewer than five
+   * records - which was false for exactly the people the note was shown to.
+   */
+  it('says placed days, which is what the threshold measures', () => {
+    expect(tr.belowThresholdNote).toContain('Yerleştirilmiş gün');
+    expect(tr.belowThresholdNote).not.toContain('kaydı olanlar');
+
+    expect(recordsSummaryMessages.en.belowThresholdNote).toContain('placed days');
+    expect(recordsSummaryMessages.en.belowThresholdNote).not.toContain('entries');
+  });
+});

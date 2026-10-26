@@ -118,6 +118,23 @@ export default function RecordsSummaryScreen() {
   const observations = log?.profile === null || log === null ? null : observeCycleLengths(log.profile);
   const hasPlacedDays = (log?.phased ?? []).some((day) => day.phase !== null);
 
+  /**
+   * Whether this screen is about to show two different counts for one symptom.
+   *
+   * The phase section counts placed days and "En çok yazdıkların" counts every
+   * recorded day, which only diverge when a recorded day has no phase.
+   *
+   * `hasPlacedDays` is the half that is redundant today: the note is rendered
+   * inside the section that is already gated on it, so dropping it from here
+   * changes nothing and a mutation that does so survives. It is kept because
+   * the condition then says what it means on its own - with nothing placed at
+   * all, `unplacedNote` explains the absence and says more about it, and a
+   * second sentence would explain the same thing twice. A note moved out of
+   * that section would otherwise acquire a bug on the way.
+   */
+  const hasUnplacedDays = (log?.phased ?? []).some((day) => day.phase === null);
+  const countsCanDiverge = hasPlacedDays && hasUnplacedDays;
+
   /** Rows worth a bar, and rows that are only a number. */
   const split = (correlations: readonly PhaseCorrelation[], kind: 'symptoms' | 'moods') => {
     const named = correlations
@@ -198,6 +215,14 @@ export default function RecordsSummaryScreen() {
                     <ThemedText accessibilityRole="header" type="smallBold">
                     {summary.phaseBreakdownTitle}
                   </ThemedText>
+
+                    {/* Only when the numbers really differ - see
+                        `countsCanDiverge`. */}
+                    {countsCanDiverge && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {summary.placedOnlyNote}
+                      </ThemedText>
+                    )}
 
                     {drawn.map((row) => (
                       <View key={row.correlation.id} style={styles.bar}>
