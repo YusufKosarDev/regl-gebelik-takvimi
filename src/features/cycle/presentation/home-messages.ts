@@ -546,6 +546,26 @@ export function legendItemsIn(messages: HomeMessages): readonly LegendItem[] {
  * No domain function is called again here: `CycleCalendarDay` carries everything
  * this card shows, so the card and the square it came from cannot disagree.
  *
+ * ## The fertility row carries the contraception warning, and did not
+ *
+ * For five weeks this returned a fertility estimate and no note, while
+ * {@link summaryRowsIn} returned the same estimate with the sentence saying it
+ * is not a method of contraception. Somebody tapping 14 September in the
+ * calendar was shown the estimate without the caveat; somebody reading the
+ * same estimate on the home screen was shown both.
+ *
+ * Nothing defended that. `SummaryRow`'s doc named it ("with one addition"),
+ * this block did not mention the warning at all, and the two return types
+ * differed - three descriptions of a difference and no reason for it. The one
+ * place it was written down is `801dc56`, the commit that created the panel:
+ * "The summary, the legend and the contraception disclaimer are untouched."
+ * That is a scope sentence beside two things that genuinely did not need
+ * touching, and the later rewrite of these rows (`7e2c5c9`) reconsidered all
+ * three states of the card without mentioning the warning either.
+ *
+ * One estimate, one warning, wherever it is read. The two functions return the
+ * same shape now, which is what `SummaryRow`'s doc always claimed.
+ *
  * ## Past the horizon it returns one row, not three
  *
  * The cycle day survives there and the phase and fertility do not, so asking
@@ -560,7 +580,7 @@ export function selectedDayRowsIn(
   messages: HomeMessages,
   labels: CycleLabels,
   day: CycleCalendarDay
-): { label: string; value: string }[] {
+): SummaryRow[] {
   const cycleDayRow = {
     label: messages.rowCycleDay,
     value:
@@ -577,17 +597,30 @@ export function selectedDayRowsIn(
     {
       label: messages.rowFertility,
       value: getFertilityLevelLabelIn(labels, day.fertilityLevel),
+      // The same sentence the summary's fertility row carries, from the same
+      // key. Not on the cycle day or the phase: the cycle day is arithmetic
+      // from a record and the phase is a label for it, and a warning repeated
+      // under all three is three sentences nobody reads.
+      note: messages.fertilityDisclaimer,
     },
   ];
 }
 
 /**
- * The four facts at the top of the home screen, read off today's summary.
+ * One labelled fact, with the caveat that belongs to it when it has one.
  *
- * The same shape as {@link selectedDayRowsIn} and built the same way, with one
- * addition: the fertility row carries the note that says the estimate is not a
- * method of contraception. It travels with the row rather than being placed
- * near it, so the number and the warning about it cannot be separated.
+ * Returned by both {@link selectedDayRowsIn} and {@link summaryRowsIn}, which
+ * is what makes the calendar's card and the home screen's summary say the same
+ * thing about the same day. It did not always: this type carried the note and
+ * the calendar's rows were a narrower shape without one, so the fertility
+ * estimate reached the calendar stripped of the sentence saying it is not a
+ * method of contraception. `selectedDayRowsIn` has the whole of that story.
+ *
+ * `note` travels on the row rather than being placed near it, so the number
+ * and the warning about it cannot be separated - and `CycleSummary` and
+ * `cycle-calendar-section.tsx` both speak them as one stop, because a caveat
+ * that a screen reader announces separately is a caveat somebody can swipe
+ * past without hearing.
  */
 export type SummaryRow = { label: string; value: string; note?: string };
 
@@ -765,7 +798,7 @@ export function legendItemLabel(item: LegendItem): string {
   return homeMessagesTr.legendItemLabel(item.spokenMarker, item.label);
 }
 
-export function selectedDayRows(day: CycleCalendarDay): { label: string; value: string }[] {
+export function selectedDayRows(day: CycleCalendarDay): SummaryRow[] {
   return selectedDayRowsIn(homeMessagesTr, cycleLabels.tr, day);
 }
 

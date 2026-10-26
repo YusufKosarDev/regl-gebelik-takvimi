@@ -106,7 +106,7 @@ describe('selectedDayRows', () => {
     expect(selectedDayRows(day({ cycleDay: 12, phase: 'ovulatory', fertilityLevel: 'peak' }))).toEqual([
       { label: 'Döngü günü', value: '12. gün' },
       { label: 'Döngü evresi', value: 'Yumurtlama' },
-      { label: 'Doğurganlık tahmini', value: 'En yüksek' },
+      { label: 'Doğurganlık tahmini', value: 'En yüksek', note: FERTILITY_DISCLAIMER },
     ]);
   });
 
@@ -114,13 +114,22 @@ describe('selectedDayRows', () => {
     expect(selectedDayRows(day({ cycleDay: null }))[0]?.value).toBe('Henüz başlamadı');
   });
 
-  // A day in the calendar and today in the summary are the same four facts minus
-  // the prediction, so the wording has to match or the same day reads two ways.
+  /**
+   * A day in the calendar and today in the summary are the same four facts
+   * minus the prediction, so the wording has to match or the same day reads
+   * two ways.
+   *
+   * Compared whole, notes included. It used to strip the note off the summary
+   * rows before comparing - `summary.slice(0, 3).map(({ label, value }) => …)`
+   * - which is how the two screens disagreed about the contraception warning
+   * while a test called their wording identical. The stripping *was* the
+   * difference it was supposed to catch.
+   */
   it('words the facts it shares with the summary identically', () => {
     const summary = summaryRows(dashboard(), 'tr');
     const selected = selectedDayRows(day());
 
-    expect(selected).toEqual(summary.slice(0, 3).map(({ label, value }) => ({ label, value })));
+    expect(selected).toEqual(summary.slice(0, 3));
   });
 });
 
@@ -219,5 +228,70 @@ describe('the next period row past the horizon', () => {
     expect(homeMessages.en.nextPeriodExpectedDayPassed).not.toBe(
       homeMessages.en.nextPeriodStale
     );
+  });
+});
+
+/**
+ * The calendar's fertility row carries the same warning the summary's does.
+ *
+ * ## Why this was missing, and why it is not a judgement call
+ *
+ * Both screens show a fertility estimate off the same domain value. Only the
+ * home screen carried the sentence saying the estimate is not a method of
+ * contraception, and nothing anywhere said why. Three places named the
+ * difference - `SummaryRow`'s doc ("with one addition"), `selectedDayRowsIn`'s
+ * own doc, which did not mention the warning at all, and the two return types
+ * themselves - and none of them defended it.
+ *
+ * The one place it was written down is the commit that created the panel,
+ * `801dc56`: "The summary, the legend and the contraception disclaimer are
+ * untouched." That is a scope sentence, not a decision - it records what the
+ * round did not touch, beside two other things that genuinely did not need
+ * touching. The later rewrite of these rows, `7e2c5c9`, reconsidered all three
+ * states of the card and never mentioned the warning either.
+ *
+ * So somebody tapping 14 September in the calendar was shown an estimate and
+ * not the caveat, while somebody looking at the same estimate on the home
+ * screen was shown both. One estimate, one warning, wherever it is read.
+ */
+describe('the warning the estimate travels with', () => {
+  it('is on the calendar row, not only the summary row', () => {
+    const fertility = selectedDayRows(day({ fertilityLevel: 'peak' })).find(
+      (row) => row.label === 'Doğurganlık tahmini'
+    );
+
+    expect(fertility?.note).toBe(FERTILITY_DISCLAIMER);
+  });
+
+  it('is the same sentence both screens use, not a second copy of it', () => {
+    const fromCalendar = selectedDayRows(day()).find(
+      (row) => row.label === 'Doğurganlık tahmini'
+    );
+    const fromSummary = summaryRows(dashboard(), 'tr').find(
+      (row) => row.label === 'Doğurganlık tahmini'
+    );
+
+    expect(fromCalendar?.note).toBe(fromSummary?.note);
+  });
+
+  it('sits on the fertility row and no other', () => {
+    // The cycle day is arithmetic from a record and the phase is a label for
+    // it. Neither is the thing somebody might act on, and a warning repeated
+    // under all three would be three sentences nobody reads.
+    const noted = selectedDayRows(day()).filter((row) => row.note !== undefined);
+
+    expect(noted.map((row) => row.label)).toEqual(['Doğurganlık tahmini']);
+  });
+
+  /**
+   * Past the horizon the panel offers no estimate at all, so there is nothing
+   * to qualify. A warning about an estimate that is not on screen would be the
+   * card answering a question it did not ask.
+   */
+  it('is absent past the horizon, where there is no estimate to qualify', () => {
+    const rows = selectedDayRows(day({ isBeyondHorizon: true }));
+
+    expect(rows.map((row) => row.label)).toEqual(['Döngü günü']);
+    expect(rows.some((row) => row.note !== undefined)).toBe(false);
   });
 });

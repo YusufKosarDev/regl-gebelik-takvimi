@@ -744,6 +744,59 @@ describe('CalendarScreen selected day', () => {
     expect(screen.getByText('Doğurganlık tahmini: Yüksek')).toBeTruthy();
   });
 
+  /**
+   * The estimate and its caveat, on the screen and in one spoken stop.
+   *
+   * Two halves, and the second is the one that was missed on the home screen
+   * this week: the sentence was drawn there and silently absent from what a
+   * screen reader said, because the row was collapsed into one node whose
+   * label left the note out. Drawing it is not the same as saying it.
+   */
+  it('draws the contraception warning under the estimate', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(screen.getByText(homeMessages.tr.fertilityDisclaimer)).toBeTruthy();
+  });
+
+  it('speaks the warning as part of the estimate, not as a stop after it', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(
+      screen.getByLabelText(
+        homeMessages.tr.labelledValueWithNote(
+          'Doğurganlık tahmini',
+          'Yüksek',
+          homeMessages.tr.fertilityDisclaimer
+        )
+      )
+    ).toBeTruthy();
+  });
+
+  it('leaves the rows with no caveat as plain one-line rows', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    // The cycle day is arithmetic from a record and the phase is a label for
+    // it. A warning under all three would be three sentences nobody reads.
+    expect(screen.getByText('Döngü günü: 11. gün')).toBeTruthy();
+    expect(screen.queryByLabelText(/Döngü günü.*korunma/)).toBeNull();
+  });
+
+  it('leaves the predicted-period note where it was, under the rows', async () => {
+    // The caveat is part of the fertility row now, so a second sentence below
+    // the rows must not have been absorbed into it.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-29'));
+
+    expect(screen.getByText(homeMessages.tr.predictedPeriodStartNote)).toBeTruthy();
+  });
+
   it('moves the selection mark with the tap', async () => {
     const screen = await renderScreen();
 
@@ -1158,6 +1211,21 @@ describe('CalendarScreen past the predicted period', () => {
     // The two inferences are not offered at all - not even as "Bilinmiyor".
     expect(screen.queryByText(/Döngü evresi/)).toBeNull();
     expect(screen.queryByText(/Doğurganlık tahmini/)).toBeNull();
+  });
+
+  /**
+   * And no contraception warning either, because there is no estimate to
+   * qualify. The caveat travels on the fertility row, so a card with no
+   * fertility row has nothing to say about it - a warning here would be the
+   * card answering a question it did not ask.
+   */
+  it('says nothing about contraception where it offers no estimate', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(homeMessages.tr.calendarNextMonthLabel));
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-10-10'));
+
+    expect(screen.queryByText(homeMessages.tr.fertilityDisclaimer)).toBeNull();
   });
 
   it('still says everything for a day inside the cycle', async () => {
