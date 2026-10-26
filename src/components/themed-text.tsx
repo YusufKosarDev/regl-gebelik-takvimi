@@ -47,6 +47,7 @@ export function ThemedText({
   type = 'default',
   themeColor,
   maxFontSizeMultiplier,
+  accessibilityLiveRegion,
   ...rest
 }: ThemedTextProps) {
   const theme = useTheme();
@@ -123,6 +124,27 @@ export function ThemedText({
   return (
     <Text
       maxFontSizeMultiplier={maxFontSizeMultiplier ?? scale.maxFontSizeMultiplier}
+      // A text that calls itself an alert announces itself. Fifty-nine places
+      // in this app render a notice as `accessibilityRole="alert"` - a save
+      // result, a refusal, a failed sync - and every one of them was silent:
+      // the role is documented as "an element contains important text to be
+      // presented to the user", which describes the element and does not say
+      // it. `accessibilityLiveRegion` is the Android mechanism, and its own
+      // documented example is a changing `Text` that TalkBack reads *because
+      // of* the property.
+      //
+      // Here rather than at the call sites: one rule instead of fifty-nine
+      // chances to forget it, and a notice written next month gets it by
+      // saying what it is.
+      //
+      // `polite` and never `assertive`. Nothing in this app earns interrupting
+      // whatever TalkBack is saying mid-sentence, which is also why
+      // `announceForAccessibility` appears nowhere - it interrupts by default.
+      // A caller can still say `none` for a notice that is rendered on arrival
+      // rather than in answer to something.
+      accessibilityLiveRegion={
+        accessibilityLiveRegion ?? (rest.accessibilityRole === 'alert' ? 'polite' : undefined)
+      }
       style={
         resolved.lineHeight === undefined
           ? resolved

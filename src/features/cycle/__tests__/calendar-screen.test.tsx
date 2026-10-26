@@ -255,6 +255,48 @@ describe('CalendarScreen calendar section', () => {
     expect(getByLabelText('Eylül 2026 takvimi')).toBeTruthy();
   });
 
+  /**
+   * The two changes on this screen that happen with the focus elsewhere.
+   *
+   * Pressing a month arrow replaces forty-two squares while the focus stays on
+   * the arrow; pressing a square rewrites the card below it while the focus
+   * stays on the square. Neither arrives as a notice, so neither is covered by
+   * the rule in `themed-text.tsx`, and a screen reader had no way to learn
+   * about either.
+   *
+   * The month heading and the card are the elements that already say what
+   * changed, so they are the elements that say it again. The grid is not a live
+   * region: announcing forty-two squares would read the month out.
+   */
+  it('announces the month when it changes, from the heading', async () => {
+    const { getByLabelText } = await renderScreen();
+
+    expect(
+      getByLabelText(homeMessages.tr.calendarMonthLabel('Eylül 2026')).props
+        .accessibilityLiveRegion
+    ).toBe('polite');
+  });
+
+  it('does not make the grid announce itself', async () => {
+    const { getByTestId } = await renderScreen();
+
+    expect(
+      getByTestId('calendar-day-2026-09-17').props.accessibilityLiveRegion
+    ).toBeUndefined();
+    expect(
+      getByTestId('calendar-weekday-row', { includeHiddenElements: true }).props
+        .accessibilityLiveRegion
+    ).toBeUndefined();
+  });
+
+  it('announces the selected day card when another day is tapped', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(screen.getByTestId('selected-day-card').props.accessibilityLiveRegion).toBe('polite');
+  });
+
   it('renders the weekday headers, drawn but not spoken', async () => {
     const { getByText } = await renderScreen();
 
