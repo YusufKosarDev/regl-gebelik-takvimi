@@ -54,6 +54,14 @@ export function LengthStepper({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={decreaseLabel}
+          // Only at the bottom of the range, and only because the bottom is
+          // the one thing on this screen nothing says out loud. A disabled
+          // control announces itself as disabled and stops there, which is not
+          // a reason - and a hint on a button that works would be read out on
+          // every pass for nothing, with no way to turn it off on Android.
+          accessibilityHint={
+            value <= min ? cycleSettings.lengthLimitHint(min, max) : undefined
+          }
           accessibilityState={{ disabled: !canDecrease }}
           disabled={!canDecrease}
           onPress={() => onChange(-1)}
@@ -80,6 +88,10 @@ export function LengthStepper({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={increaseLabel}
+          // The same rule at the other end of the range.
+          accessibilityHint={
+            value >= max ? cycleSettings.lengthLimitHint(min, max) : undefined
+          }
           accessibilityState={{ disabled: !canIncrease }}
           disabled={!canIncrease}
           onPress={() => onChange(1)}

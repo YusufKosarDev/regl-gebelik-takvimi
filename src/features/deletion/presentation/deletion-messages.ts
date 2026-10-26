@@ -67,6 +67,9 @@ const deletionMessagesTr = {
 
   accountDeleteOpenLabel: 'Hesabı sil',
 
+  accountDeleteOpenHint:
+    'Hesabını ve buluttaki yedeğini siler. Bu telefondaki kayıtlar kalır.',
+
   accountDeletePanelTitle: 'Hesabını silmek üzeresin',
 
   accountDeletePanelBody:
@@ -138,6 +141,21 @@ const deletionMessagesTr = {
 
   localWipeOpenLabel: 'Tüm verilerimi sil',
 
+  /**
+   * What survives, which the label does not say.
+   *
+   * Both delete buttons on this screen say "sil" and neither says what is left
+   * afterwards, so the two are tellable apart only by reading the section
+   * description above each - a separate text node a screen reader may not have
+   * reached before arriving on the button. These two hints are the pair that
+   * earns one.
+   *
+   * `Bu günü temizle` and `17 Eylül regl kaydını sil` get none, though both
+   * are destructive: their labels already name exactly what they touch.
+   */
+  localWipeOpenHint:
+    'Bu telefondaki kayıtları siler. Hesabın ve buluttaki yedeğin kalır.',
+
   localWipePanelTitle: 'Bu cihazdaki her şey silinecek',
 
   localWipePanelBody:
@@ -194,6 +212,9 @@ const deletionMessagesEn: DeletionMessages = {
     'Your account and your cloud backup are deleted for good. This cannot be undone.',
 
   accountDeleteOpenLabel: 'Delete my account',
+
+  accountDeleteOpenHint:
+    'Deletes your account and your cloud backup. The records on this phone stay.',
 
   accountDeletePanelTitle: 'You are about to delete your account',
 
@@ -255,6 +276,9 @@ const deletionMessagesEn: DeletionMessages = {
     'phone. The app starts over.',
 
   localWipeOpenLabel: 'Delete all my data',
+
+  localWipeOpenHint:
+    'Deletes the records on this phone. Your account and your cloud backup stay.',
 
   localWipePanelTitle: 'Everything on this device will be deleted',
 

@@ -1056,6 +1056,11 @@ export default function SettingsScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={deletion.localWipeOpenLabel}
+                  // Both delete buttons on this screen say "sil" and neither
+                  // label says what survives. The section descriptions do, and
+                  // they are separate text nodes a screen reader may not have
+                  // reached before landing on the button.
+                  accessibilityHint={deletion.localWipeOpenHint}
                   onPress={() => {
                     setWipeNotice(null);
                     setWipeVerifyMessage(null);

@@ -2578,6 +2578,24 @@ describe('the status line and the conflict notice', () => {
  * The rule and the reason are in `jest/assert-destructive-confirmation.ts`.
  */
 describe('AccountScreen deletion confirmation weights', () => {
+  /**
+   * The hint reaches the button, not only the catalogue.
+   *
+   * `accessibility-hints.test.ts` holds what the four hints say and that there
+   * are four. This holds that this one is on the control - a hint in a
+   * catalogue nothing reads is a sentence nobody hears.
+   *
+   * "Hesabı sil" does not say what survives, and the section description that
+   * does is a separate stop above it.
+   */
+  it('says on the delete button what deleting the account leaves behind', async () => {
+    const screen = await renderSignedIn();
+
+    expect(
+      screen.getByLabelText(deletionMessages.tr.accountDeleteOpenLabel).props.accessibilityHint
+    ).toBe(deletionMessages.tr.accountDeleteOpenHint);
+  });
+
   it('fills Cancel and outlines the deletion, with Cancel first', async () => {
     const screen = await renderSignedIn();
 

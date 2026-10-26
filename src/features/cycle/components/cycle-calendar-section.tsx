@@ -93,6 +93,10 @@ export function CycleCalendarSection({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={home.calendarPreviousMonthLabel}
+          // Only at the edge of the range the calendar can show. Disabled and
+          // silent about why is the gap; a hint on a working arrow would be
+          // read out on every pass, and on Android cannot be turned off.
+          accessibilityHint={canGoBack ? undefined : home.calendarMonthLimitHint}
           accessibilityState={{ disabled: !canGoBack }}
           disabled={!canGoBack}
           onPress={() => setMonthOffset((current) => current - 1)}
@@ -118,6 +122,7 @@ export function CycleCalendarSection({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={home.calendarNextMonthLabel}
+          accessibilityHint={canGoForward ? undefined : home.calendarMonthLimitHint}
           accessibilityState={{ disabled: !canGoForward }}
           disabled={!canGoForward}
           onPress={() => setMonthOffset((current) => current + 1)}
