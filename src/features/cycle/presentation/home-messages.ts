@@ -275,6 +275,16 @@ const homeMessagesTr = {
   /** The month on screen, as something to read aloud. */
   calendarMonthLabel: (monthHeading: string) => `${monthHeading} takvimi`,
 
+  /**
+   * Why a month arrow at the edge of the supported range refuses.
+   *
+   * The arrow announces itself as disabled and stops there, and nothing on
+   * screen says how far the calendar goes. One of four hints in the app: on
+   * Android a hint cannot be turned off, so one that repeats its label is a
+   * sentence read out forever and needed once.
+   */
+  calendarMonthLimitHint: 'Takvimin gösterebildiği aralığın sonu.',
+
   /* ----------------------------------------- the links that are not tabs -- */
 
   /** The daily log, as against the period records that live in a tab now. */
@@ -446,6 +456,8 @@ const homeMessagesEn: HomeMessages = {
     'The day count continues; estimates do not reach past your next period.',
 
   calendarMonthLabel: (monthHeading: string) => `Calendar for ${monthHeading}`,
+
+  calendarMonthLimitHint: 'The end of the range the calendar can show.',
 
   logHistoryLinkLabel: 'See your daily log history',
   logHistoryLinkText: 'Your log history',

@@ -59,6 +59,22 @@ const settingsMessagesTr = {
   /** A stepper's current value, read as the field it belongs to. */
   lengthValueLabel: (label: string, value: number) => `${label}: ${value} gün`,
 
+  /**
+   * Why a step button at the end of its range will not take a press.
+   *
+   * A disabled control announces itself as disabled and stops there, and
+   * "disabled" is not a reason. Nothing on screen says where the range ends,
+   * so the numbers are in the hint rather than a sentence saying there is a
+   * limit - "you are at the limit" leaves somebody to find the other end by
+   * pressing.
+   *
+   * On the button that refuses, and only that one: a hint on a working button
+   * is read out on every pass for nothing, and on Android a hint cannot be
+   * turned off.
+   */
+  lengthLimitHint: (minDays: number, maxDays: number) =>
+    `${minDays}-${maxDays} gün arasında seçilebilir.`,
+
   /* ------------------------------------------------------- the two sections -- */
 
   notificationsSectionTitle: 'Bildirimler',
@@ -121,6 +137,9 @@ const settingsMessagesEn: SettingsMessages = {
 
   lengthValueLabel: (label: string, value: number) =>
     `${label}: ${plural(value, `${value} day`, `${value} days`)}`,
+
+  lengthLimitHint: (minDays: number, maxDays: number) =>
+    `Can be set between ${minDays} and ${maxDays} days.`,
 
   notificationsSectionTitle: 'Notifications',
 

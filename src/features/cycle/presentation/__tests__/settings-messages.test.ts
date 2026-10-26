@@ -8,6 +8,7 @@ describe('parity', () => {
     functions: [
       ['daysUnit', [0], [1], [2], [28]],
       ['lengthValueLabel', ['Average cycle length', 1], ['Average cycle length', 28]],
+      ['lengthLimitHint', [21, 35]],
     ],
   });
 });

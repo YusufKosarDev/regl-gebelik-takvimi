@@ -86,6 +86,9 @@ export function AccountDeletionPanel({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={deletion.accountDeleteOpenLabel}
+            // The other half of the pair: this one takes the account and the
+            // cloud backup and leaves the phone, and the label says neither.
+            accessibilityHint={deletion.accountDeleteOpenHint}
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
             onPress={() => {
