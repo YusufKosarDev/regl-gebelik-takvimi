@@ -1,4 +1,4 @@
-import { EXPORT_DIRECTORY, deleteExportCache } from '../export-cache';
+import { EXPORT_DIRECTORY, PRINT_DIRECTORY, deleteExportCache } from '../export-cache';
 
 /**
  * The folder the share sheet is fed from, emptied on demand.
@@ -50,7 +50,39 @@ describe('deleteExportCache', () => {
   it('removes the exports folder when it is there', () => {
     deleteExportCache();
 
-    expect(state.deleted).toEqual([`file:///cache/${EXPORT_DIRECTORY}`]);
+    expect(state.deleted).toContain(`file:///cache/${EXPORT_DIRECTORY}`);
+  });
+
+  /**
+   * And the printer's own folder, which is not inside `exports`.
+   *
+   * `printToFileAsync` writes to `<cache>/Print` - read off
+   * `expo-print`'s `FileUtils.kt`, which calls
+   * `generateOutputPath(context.cacheDir, "Print", ".pdf")` - and
+   * `share-pdf-file.ts` moves the result into `exports` straight away.
+   *
+   * Straight away is not always. If the move fails the PDF is still in
+   * `Print`, and if the delete that follows also fails it stays there. That
+   * file is a typeset page of somebody's records, and before this the wipe
+   * swept one folder and never looked in the other - so `share-pdf-file.ts`
+   * promised "the wipe's own sweep is the second chance" for a path where
+   * there was no sweep.
+   */
+  it("removes the printer folder too, where a failed move leaves a PDF", () => {
+    deleteExportCache();
+
+    expect(state.deleted).toContain(`file:///cache/${PRINT_DIRECTORY}`);
+  });
+
+  it('empties both folders, not one or the other', () => {
+    deleteExportCache();
+
+    expect(state.deleted).toHaveLength(2);
+  });
+
+  it('names the printer folder the printer actually uses', () => {
+    // Capitalised, because `expo-print` passes the literal "Print".
+    expect(PRINT_DIRECTORY).toBe('Print');
   });
 
   it('does nothing when there is nothing to remove', () => {
