@@ -52,6 +52,29 @@ const recordsSummaryMessagesTr = {
 
   phaseBreakdownTitle: 'Evrelere göre dağılım',
 
+  /**
+   * Why this section's numbers are smaller than the counts further down.
+   *
+   * Two sections on this screen count the same symptom and get different
+   * answers. Here it is `placedCount` - days the cycle can place - and under
+   * "En çok yazdıkların" it is every recorded day. Both are right, and the
+   * difference is a decision `most-logged.ts` wrote down: it refuses
+   * `placedCount` because "somebody in their first month, before a period has
+   * been recorded, would see every count as zero while their days sat in the
+   * database".
+   *
+   * What was missing is this sentence. The two numbers arrive through the same
+   * `countOnly` shape - "Kramp: 3 gün" here, "Kramp: 11 gün" there - so
+   * somebody who logged for three weeks before recording a period saw one word
+   * with two numbers under it and nothing saying why.
+   *
+   * Shown only when some recorded day has no phase, which is exactly when the
+   * two can diverge. An explanation printed every visit is one nobody reads.
+   */
+  placedOnlyNote:
+    'Bu bölüm yalnız döngüne yerleştirilebilen günleri sayıyor. İlk kayıtlı reglinden '
+    + 'önceki günler burada yok; aşağıdaki sayımlarda var.',
+
   /** One phase inside a bar's legend: its word and how many days fell in it. */
   phaseCount: (phase: string, days: number) => `${phase}: ${days} gün`,
 
@@ -79,8 +102,8 @@ const recordsSummaryMessagesTr = {
    * is a measurement of four things.
    */
   belowThresholdNote:
-    'Beşten az kaydı olanlar için çubuk çizilmiyor: kısa bir çubuğun uzunluğu ' +
-    'istatistik gibi okunuyor. Sayılar aşağıda.',
+    'Yerleştirilmiş günü beşten az olanlar için çubuk çizilmiyor: kısa bir çubuğun ' +
+    'uzunluğu istatistik gibi okunuyor. Sayılar aşağıda.',
 
   countOnly: (label: string, days: number) => `${label}: ${days} gün`,
 
@@ -110,6 +133,10 @@ const recordsSummaryMessagesEn: RecordsSummaryMessages = {
 
   phaseBreakdownTitle: 'By phase',
 
+  placedOnlyNote:
+    'This section counts only the days that can be placed in your cycle. Days before '
+    + 'your first recorded period are not here; they are in the counts below.',
+
   phaseCount: (phase: string, days: number) => `${phase}: ${days} days`,
 
   barHeading: (label: string, placed: number) => `${label} — ${placed} days`,
@@ -127,8 +154,8 @@ const recordsSummaryMessagesEn: RecordsSummaryMessages = {
   mostLoggedTitle: 'What you write down most',
 
   belowThresholdNote:
-    'No bar is drawn under five entries: the length of a short bar reads as a statistic. ' +
-    'The counts are below.',
+    'No bar is drawn for fewer than five placed days: the length of a short bar reads '
+    + 'as a statistic. The counts are below.',
 
   countOnly: (label: string, days: number) => `${label}: ${days} days`,
 
