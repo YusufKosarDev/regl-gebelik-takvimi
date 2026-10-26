@@ -122,32 +122,197 @@ describe('the three lists are the same set', () => {
     expect(sorted(excluded)).toEqual(sorted(patterns));
   });
 
-  /**
-   * And a package whose major is not ignored can still open an SDK migration
-   * as a routine weekly update, which is what happened on 23 October 2026.
-   */
-  it('holds the major of exactly what the group collects', () => {
-    expect(sorted(ignoreRules.map((rule) => rule.name))).toEqual(sorted(patterns));
-  });
 });
 
 describe('what is ignored, and only that', () => {
-  it('ignores majors and nothing else', () => {
-    // Minors and patches inside the current SDK line are the updates this
-    // group exists to deliver. Ignoring those would silence it entirely.
+  /**
+   * A patch inside the current SDK line is the update this group exists to
+   * deliver. Ignoring one would leave the group opening empty PRs.
+   */
+  it('never ignores a patch', () => {
     for (const rule of ignoreRules) {
-      expect([rule.name, rule.types]).toEqual([rule.name, "'version-update:semver-major'"]);
+      expect([rule.name, rule.types.includes('semver-patch')]).toEqual([rule.name, false]);
+    }
+  });
+
+  it('always ignores the major, whatever else a rule holds', () => {
+    for (const rule of ignoreRules) {
+      expect([rule.name, rule.types.includes('semver-major')]).toEqual([rule.name, true]);
     }
   });
 
   it('covers the packages an SDK bump actually moves', () => {
     // The names from the 23 October PR that made this necessary: the SDK
     // itself, the React Native surface it pins, and the test runner whose
-    // major `jest-expo` pins.
-    const names = ignoreRules.map((rule) => rule.name);
+    // major `jest-expo` pins. Checked by coverage rather than by literal
+    // pattern, because which wildcard reaches a package is this file's
+    // business and not something to restate here.
+    for (const name of ['expo', 'expo-print', 'react-native', 'react', 'jest', 'jest-expo']) {
+      const covered = ignoreRules.some((rule) => covers(rule.name, name));
 
-    for (const pattern of ['expo*', 'react-native*', 'react', 'jest', 'jest-expo']) {
-      expect([pattern, names.includes(pattern)]).toEqual([pattern, true]);
+      expect([name, covered]).toEqual([name, true]);
+    }
+  });
+
+  /**
+   * One rule per package, so no dependency is matched by two.
+   *
+   * The `react-native*` wildcard used to cover `react-native` and
+   * `react-native-screens` with one rule, and those two need different
+   * answers now - the first is pre-1.0 and the second is not. Splitting it
+   * into names is only safe if nothing else overlaps.
+   */
+  it('matches each managed package with exactly one rule', () => {
+    const managed = Object.keys({
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies,
+    }).filter((name) => patterns.some((pattern) => covers(pattern, name)));
+
+    expect(managed.length).toBeGreaterThan(10);
+
+    for (const name of managed) {
+      const matching = ignoreRules.filter((rule) => covers(rule.name, name));
+
+      expect([name, matching.length]).toEqual([name, 1]);
+    }
+  });
+});
+
+/**
+ * Pre-1.0 packages, where a minor is the breaking lane.
+ *
+ * ## The gap this closes, and how it was found
+ *
+ * The rule above holds majors back, and the first version of it was presented
+ * as closing the hole that Expo SDK 58 came through. It did not. Dependabot
+ * rebuilt the group the same afternoon and the new PR was "10 updates" instead
+ * of "31" - the change worked - and it was still red, with the same twenty-odd
+ * `tsc` errors, because it still carried:
+ *
+ *     - "react-native": "0.86.3"
+ *     + "react-native": "0.88.0"
+ *
+ * Semver treats `0.x.y` as a line where `x` is the minor, so React Native's
+ * breaking releases arrive as `version-update:semver-minor` and
+ * `version-update:semver-major` never fires for them. The same is true of
+ * every other dependency still below 1.0.
+ *
+ * ## Why this is computed rather than listed
+ *
+ * Three packages are below 1.0 in the managed set today. Writing those three
+ * names into the config and stopping there would hold until one of them
+ * reaches 1.0 - at which point its minors become ordinary minors and the extra
+ * rule is harmless - or until a new pre-1.0 dependency is added, at which point
+ * it quietly arrives on the breaking lane with nothing watching. So this reads
+ * `package.json`, finds what is actually below 1.0, and checks the config
+ * covers it.
+ */
+
+type PackageJson = {
+  readonly dependencies?: Readonly<Record<string, string>>;
+  readonly devDependencies?: Readonly<Record<string, string>>;
+};
+
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../../package.json'), 'utf8')
+) as PackageJson;
+
+/**
+ * Does a `dependency-name` pattern cover this package?
+ *
+ * Dependabot matches these as globs where a star stands for any run of
+ * characters, and the patterns in use are plain: a bare name, a prefix, a
+ * scope, or a scope and a prefix together. Walked rather than turned into a
+ * regular expression, because a package name is full of characters a regular
+ * expression cares about and this comparison is not the place to get escaping
+ * wrong.
+ */
+function covers(pattern: string, name: string): boolean {
+  const parts = pattern.split('*');
+
+  if (parts.length === 1) {
+    return pattern === name;
+  }
+
+  const [first, ...rest] = parts;
+  const last = rest[rest.length - 1];
+
+  if (!name.startsWith(first) || !name.endsWith(last)) {
+    return false;
+  }
+
+  let at = first.length;
+
+  for (const part of rest.slice(0, -1)) {
+    const found = name.indexOf(part, at);
+
+    if (found === -1) {
+      return false;
+    }
+
+    at = found + part.length;
+  }
+
+  return name.length >= first.length + last.length;
+}
+
+/** Every dependency pinned below 1.0, from both dependency maps. */
+const belowOne = Object.entries({
+  ...packageJson.dependencies,
+  ...packageJson.devDependencies,
+})
+  .filter(([, range]) => /^[~^]?0\./.test(range))
+  .map(([name]) => name);
+
+/** Those of them the managed group collects, which is where the rule applies. */
+const managedBelowOne = belowOne.filter((name) =>
+  patterns.some((pattern) => covers(pattern, name))
+);
+
+describe('the pre-1.0 packages are known', () => {
+  it('finds some below 1.0 at all', () => {
+    // If this ever reaches zero the assertions below stop asserting anything,
+    // and the ignore rules should be revisited rather than left as decoration.
+    expect(belowOne.length).toBeGreaterThan(0);
+  });
+
+  it('finds the React Native line among the managed ones', () => {
+    // The package that made this necessary. `react-native` is 0.x and will be
+    // for the foreseeable future.
+    expect(managedBelowOne).toContain('react-native');
+  });
+});
+
+describe('a minor is held wherever a minor is the breaking lane', () => {
+  it.each(managedBelowOne)('holds the minor of %s', (name) => {
+    const rule = ignoreRules.find((candidate) => covers(candidate.name, name));
+
+    expect([name, rule?.types]).toEqual([
+      name,
+      "'version-update:semver-major', 'version-update:semver-minor'",
+    ]);
+  });
+
+  /**
+   * And nowhere else. A package at or above 1.0 has ordinary minors - a bug fix
+   * and a new option - and holding those back would silence the group for the
+   * sake of a rule that does not apply to it.
+   */
+  it('holds only the major of everything at or above 1.0', () => {
+    const atLeastOne = Object.entries({
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies,
+    })
+      .filter(([, range]) => !/^[~^]?0\./.test(range))
+      .map(([name]) => name)
+      .filter((name) => patterns.some((pattern) => covers(pattern, name)));
+
+    expect(atLeastOne.length).toBeGreaterThan(3);
+
+    for (const name of atLeastOne) {
+      const rule = ignoreRules.find((candidate) => covers(candidate.name, name));
+
+      expect([name, rule?.types]).toEqual([name, "'version-update:semver-major'"]);
     }
   });
 });

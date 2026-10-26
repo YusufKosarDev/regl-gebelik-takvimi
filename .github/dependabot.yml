@@ -15,7 +15,7 @@
 # the whole group exists - jest-expo pins jest's major the way Expo pins the
 # rest.
 #
-# ## Why the managed set never proposes a major
+# ## Why the managed set never proposes a breaking release
 #
 # On 23 October 2026 the group opened a PR titled "Bump the expo-managed group
 # across 1 directory with 31 updates". That reads like housekeeping. It was
@@ -27,11 +27,37 @@
 #
 # The grouping was not the problem; the framing was. A bot cannot tell a
 # patch from a platform migration, and a PR presented as thirty-one updates
-# invites being merged as thirty-one updates. So majors are ignored for the
-# whole managed set, which puts the decision back where the rule above
+# invites being merged as thirty-one updates. So breaking releases are ignored
+# for the whole managed set, which puts the decision back where the rule above
 # already said it lived: an SDK upgrade is a deliberate round, done by hand
 # with `npx expo install --fix`, on its own branch, with the type errors it
 # turns up fixed in the same change.
+#
+# ## Why three of them hold the minor as well
+#
+# Ignoring the major was the first version of this rule, and it was presented
+# as closing that hole. It did not. Dependabot rebuilt the group the same
+# afternoon: "10 updates" instead of "31", so the rule was working - and the
+# PR was still red with the same twenty-odd `tsc` errors, because it still
+# carried `react-native` 0.86.3 -> 0.88.0.
+#
+# Semver reads `0.x.y` as a line where `x` is the minor, so a pre-1.0 package
+# ships its breaking releases as `semver-minor` and `semver-major` never fires
+# for it at all. Three of the managed set are below 1.0 today - `react-native`,
+# `react-native-web`, `react-native-worklets` - and those three hold the minor
+# too.
+#
+# That is why the `react-native*` wildcard is gone and seven names stand in its
+# place: the wildcard would have covered the three pre-1.0 packages and the
+# four at or above it with one rule, and the two groups need different answers.
+# Two ignore rules matching one package is not a thing to leave ambiguous.
+#
+# `dependabot-config.test.ts` reads `package.json` rather than trusting this
+# list: it finds what is actually below 1.0, and fails if one of them is
+# missing a minor rule or if a package at or above 1.0 has one it should not.
+# A new pre-1.0 dependency therefore cannot arrive on the breaking lane in
+# silence, and a package that reaches 1.0 is noticed rather than left with a
+# rule that has quietly stopped meaning anything.
 #
 # What this costs: Dependabot will not announce that a new SDK exists. That is
 # accepted, because nothing here depended on it for that - `npx expo-doctor`
@@ -81,8 +107,10 @@ updates:
           - 'jest'
           - '@types/jest'
           - 'babel-preset-expo'
-    # Majors in the managed set are a human decision, not a weekly PR. See
-    # "Why the managed set never proposes a major" above.
+    # Breaking releases in the managed set are a human decision, not a weekly
+    # PR. See "Why the managed set never proposes a breaking release" above -
+    # including why three of these hold the minor as well, and why the
+    # `react-native*` wildcard had to become seven names.
     ignore:
       - dependency-name: 'expo*'
         update-types: ['version-update:semver-major']
@@ -91,8 +119,6 @@ updates:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react-native*'
         update-types: ['version-update:semver-major']
       - dependency-name: '@react-native*/*'
         update-types: ['version-update:semver-major']
@@ -103,6 +129,26 @@ updates:
       - dependency-name: '@types/jest'
         update-types: ['version-update:semver-major']
       - dependency-name: 'babel-preset-expo'
+        update-types: ['version-update:semver-major']
+      # Still below 1.0, so semver puts their breaking releases on the minor:
+      # React Native's 0.86 -> 0.88 is a minor and carried the whole SDK 58
+      # migration through the first version of this rule.
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: 'react-native-web'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: 'react-native-worklets'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      # At or above 1.0, so an ordinary minor is an ordinary minor. Listed by
+      # name because `react-native*` would also catch the three above, and two
+      # ignore rules matching one package is not a thing to leave ambiguous.
+      - dependency-name: 'react-native-gesture-handler'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-reanimated'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-safe-area-context'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-screens'
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
