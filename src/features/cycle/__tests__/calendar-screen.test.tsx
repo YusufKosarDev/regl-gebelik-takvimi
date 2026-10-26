@@ -14,7 +14,7 @@
  * for either to disturb.
  */
 
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import CalendarScreen from '@/app/(app)/(tabs)/calendar';
@@ -287,14 +287,6 @@ describe('CalendarScreen calendar section', () => {
       getByTestId('calendar-weekday-row', { includeHiddenElements: true }).props
         .accessibilityLiveRegion
     ).toBeUndefined();
-  });
-
-  it('announces the selected day card when another day is tapped', async () => {
-    const screen = await renderScreen();
-
-    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
-
-    expect(screen.getByTestId('selected-day-card').props.accessibilityLiveRegion).toBe('polite');
   });
 
   it('renders the weekday headers, drawn but not spoken', async () => {
@@ -1319,5 +1311,104 @@ describe('CalendarScreen on a day that has not happened yet', () => {
     await fireEvent.press(screen.getByTestId('calendar-day-2026-09-17'));
 
     expect(screen.getByLabelText('Bu güne ekle')).toBeTruthy();
+  });
+});
+
+/**
+ * What the card announces when a square is tapped, and what it must not repeat.
+ *
+ * ## The collision this resolves
+ *
+ * Two changes landed in the same week and were written without each other in
+ * mind. The fertility row gained the contraception warning in its spoken label,
+ * so the number and the caveat could not be separated. Then the card became a
+ * `polite` live region, so tapping a square announces it.
+ *
+ * On Android a container live region reads its subtree, so the two together
+ * meant the warning was announced on every tap. Someone exploring a month -
+ * which is how a calendar is used - heard "gebelikten korunma yöntemi olarak
+ * kullanılmamalıdır" thirty times, and a sentence heard thirty times is a
+ * sentence nobody hears.
+ *
+ * It was also largely repetition. The square's own label already carries the
+ * weekday, the date, the phase when it is menstrual or ovulatory, the fertility
+ * when it is elevated or peak, today and selected. What the card adds is the
+ * cycle day, and the phase and fertility words for the levels the label leaves
+ * out.
+ *
+ * So the live region covers the rows the label does not carry, and the
+ * fertility row sits outside it. Nothing moves on screen. Focused, the row
+ * still says the number and the caveat as one stop - that rule is untouched.
+ *
+ * The cost, stated: tapping a square no longer announces the fertility value.
+ * For the two levels worth hearing the square's own label already says it, and
+ * the row is the next stop after the ones that are announced.
+ */
+describe('CalendarScreen what a tap announces', () => {
+  beforeEach(() => {
+    repository.loadCycleProfile.mockResolvedValue(profile());
+  });
+
+  it('announces the day, which the square label does not carry', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    const region = within(screen.getByTestId('selected-day-announcement'));
+
+    expect(region.getByText('Döngü günü: 11. gün')).toBeTruthy();
+  });
+
+  it('does not announce the contraception warning', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    const region = within(screen.getByTestId('selected-day-announcement'));
+
+    // Scoped to the region rather than to the screen: the sentence is still on
+    // the card, which the last test in this block asserts. What must not be
+    // true is that it is inside the thing announced on every tap.
+    expect(region.queryByText(homeMessages.tr.fertilityDisclaimer)).toBeNull();
+    expect(region.queryByLabelText(/korunma/)).toBeNull();
+  });
+
+  it('is a polite region, so it waits for the square to finish', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(
+      screen.getByTestId('selected-day-announcement').props.accessibilityLiveRegion
+    ).toBe('polite');
+  });
+
+  it('leaves the card itself without a region, so the subtree is not read twice', async () => {
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(
+      screen.getByTestId('selected-day-card').props.accessibilityLiveRegion
+    ).toBeUndefined();
+  });
+
+  it('still draws the warning and still says it on the row', async () => {
+    // The announcement is what changed. The warning on screen and the warning
+    // in the row's own spoken label are both untouched.
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId('calendar-day-2026-09-11'));
+
+    expect(screen.getByText(homeMessages.tr.fertilityDisclaimer)).toBeTruthy();
+    expect(
+      screen.getByLabelText(
+        homeMessages.tr.labelledValueWithNote(
+          'Doğurganlık tahmini',
+          'Yüksek',
+          homeMessages.tr.fertilityDisclaimer
+        )
+      )
+    ).toBeTruthy();
   });
 });

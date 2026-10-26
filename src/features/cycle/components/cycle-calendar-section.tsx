@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { CycleCalendarDay } from '../application/build-cycle-calendar-month';
 import type { CycleCalendarGrid } from '../presentation/build-cycle-calendar-grid';
 import { cycleLabels } from '../presentation/cycle-labels';
+import type { SummaryRow } from '../presentation/home-messages';
 import { homeMessages, selectedDayRowsIn } from '../presentation/home-messages';
 import { CycleCalendar } from './cycle-calendar';
 import { CycleCalendarLegend } from './cycle-calendar-legend';
@@ -69,6 +70,19 @@ export function CycleCalendarSection({
   const labels = useMessages(cycleLabels);
   const dailyLog = useMessages(dailyLogMessages);
   const language = useLanguage();
+
+  /**
+   * The selected day's rows, split by whether they carry a caveat.
+   *
+   * Split here rather than at the two call sites so `selectedDayRowsIn` is
+   * asked once, and narrowed with a type guard so the noted group's `note` is
+   * a string rather than a `string | undefined` the renderer has to re-check.
+   */
+  const rows = selectedDay === null ? [] : selectedDayRowsIn(home, labels, selectedDay);
+  const plainRows = rows.filter((row) => row.note === undefined);
+  const notedRows = rows.filter(
+    (row): row is SummaryRow & { readonly note: string } => row.note !== undefined
+  );
 
   return (
     <View style={styles.calendarSection}>
@@ -160,49 +174,58 @@ export function CycleCalendarSection({
           // It also stopped the panel competing with the grid. The month was
           // the one thing on this screen drawn in no colour at all, sitting
           // above the one block that had some.
-          // Tapping a square rewrites this whole card with the focus still on
-          // the square, so the card says what it now holds. `polite`, so it
-          // waits for the gap rather than cutting off the square's own
-          // announcement of the day that was just selected.
-          <Surface level="lined" testID="selected-day-card" accessibilityLiveRegion="polite">
+          <Surface level="lined" testID="selected-day-card">
             <ThemedText accessibilityRole="header" style={styles.selectedDate}>
               {formatDisplayDate(selectedDay.date, language)}
             </ThemedText>
-            {/* A row with no caveat is one line, and its visible text already
-                reads "label: value", so it needs no separate accessibility
-                label.
+            {/* Two groups, because they are announced differently.
 
-                A row with one is two lines and a single spoken stop. Drawing
-                the caveat is not the same as saying it: on the home screen
-                this week the same sentence was on screen and silently absent
-                from what a screen reader announced, because the row collapsed
-                into one node whose label left the note out. `SummaryRow` has
-                the rule - the number and the warning about it cannot be
-                separated - and a caveat announced as its own stop is one
-                somebody can swipe past without hearing. */}
-            {selectedDayRowsIn(home, labels, selectedDay).map((row) =>
-              row.note === undefined ? (
+                The rows the square's own label does not carry sit in one
+                polite live region: tapping a square rewrites this card with
+                the focus still on the square, so something has to say what it
+                now holds.
+
+                The fertility row sits outside it. Its spoken label holds the
+                contraception warning - `SummaryRow` has the rule that the
+                number and the caveat cannot be separated - and a container
+                live region reads its whole subtree, so inside the region the
+                warning would be announced on every tap. Thirty taps through a
+                month is thirty readings of it, and a sentence heard thirty
+                times is one nobody hears.
+
+                Nothing moves on screen: the groups are rendered in the order
+                `selectedDayRowsIn` returns them, and only the fertility row
+                has a note. Focused, that row still says the number and the
+                caveat as one stop.
+
+                The cost, stated: a tap no longer announces the fertility
+                value. For the two levels worth hearing - elevated and peak -
+                the square's own label already says it, and the row is the next
+                stop after the announced ones.
+
+                A row with no caveat needs no accessibility label of its own:
+                its visible text already reads "label: value". */}
+            <View testID="selected-day-announcement" accessibilityLiveRegion="polite">
+              {plainRows.map((row) => (
                 <ThemedText key={row.label} type="small">
                   {home.labelledValue(row.label, row.value)}
                 </ThemedText>
-              ) : (
-                <View
-                  key={row.label}
-                  accessible
-                  accessibilityLabel={home.labelledValueWithNote(
-                    row.label,
-                    row.value,
-                    row.note
-                  )}>
-                  <ThemedText type="small">
-                    {home.labelledValue(row.label, row.value)}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
-                    {row.note}
-                  </ThemedText>
-                </View>
-              )
-            )}
+              ))}
+            </View>
+
+            {notedRows.map((row) => (
+              <View
+                key={row.label}
+                accessible
+                accessibilityLabel={home.labelledValueWithNote(row.label, row.value, row.note)}>
+                <ThemedText type="small">
+                  {home.labelledValue(row.label, row.value)}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.rowNote}>
+                  {row.note}
+                </ThemedText>
+              </View>
+            ))}
 
             {/* Past the predicted period the cycle day is still a real count
                 from a real record, and the phase and fertility estimates are
