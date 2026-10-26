@@ -53,7 +53,8 @@ koşar; yayın günü taze bir koşu istemek ucuzdur.)
 Üç akış koşar — `smoke` (onboarding → regl kaydı → her sekme), `app-lock`
 (PIN kur → soğuk açılış → PIN ile gir) ve `language` (İngilizceye geç, arayüz
 takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
-**görmedikleri dört şey kalıyor** ve onlar elle bakılır:
+**görmedikleri şeyler kalıyor** ve onlar elle bakılır. İlk dördü göze,
+ardından gelen beşi kulağa.
 
 - **Ana ekran widget'ı.** Maestro bir widget'ı launcher'a ekleyemez. Kartın
   günü, fazı ve destek cümlesi artık snapshot'ta taşınıyor ve `language`
@@ -81,6 +82,81 @@ takip ediyor mu). Bunlar birim testlerinin göremediği yeri tutar; ama
   Cihazda bak: **kâğıt A4 mi**, **dipnot her sayfada mı**, ve
   **Türkçe harfler kutu değil mi** (`İştah değişimi`, `Göğüs hassasiyeti`
   satırları en çok şeyi bir arada gösteriyor).
+
+### TalkBack ile bakılacaklar
+
+Açmak için: **Ayarlar → Erişilebilirlik → TalkBack**. Sonra parmağını
+ekranda sağa kaydırarak ilerle (sonraki öğe), sola kaydırarak geri dön, ve
+bir şeyi kullanmak için **çift dokun**.
+
+Bu beş madde birim testleriyle tutulmuyor ve tutulamaz. Testler **prop'ları**
+doğruluyor — `accessibilityLiveRegion="polite"` orada mı, ipucu doğru düğmede
+mi — ama TalkBack'in o prop'larla ne yaptığını doğrulamıyor. Bu hafta tam o
+boşlukta üç hata çıktı: 59 bildirim duyurduğunu sanıyordu ve duyurmuyordu, bir
+etiket taşıdığı uyarıyı düşürüyordu, bir kart aynı cümleyi otuz kez okuyacak
+hale gelmişti. Üçü de testler yeşilken duruyordu.
+
+- **Canlı bölgeler — bir ayı gezerken uyarı tekrarlanıyor mu.**
+  *Ne yapılacak:* Takvim sekmesine git, bir güne çift dokun, sonra yan yana
+  birkaç güne daha, art arda.
+  *Ne duyulmalı:* her dokunuşta **"Döngü günü: …"** ve varsa evre. Ay okuna
+  çift dokununca **yeni ayın adı** ("Ekim 2026 takvimi").
+  *Ne duyulmamalı:* **"gebelikten korunma yöntemi olarak kullanılmamalıdır"**.
+  O cümle ekranda duruyor ve doğurganlık satırına odaklanınca okunması gerekir
+  — ama her dokunuşta değil. Bir kez bile her dokunuşta duyarsan bu madde
+  kırmızıdır: kart canlı bölgesinin içine girmiş demektir.
+  *İkinci bakış:* Avatar ekranında bir seçeneğe çift dokun. Önizlemenin yeni
+  tarifi duyulmalı ("Buğday tonu, kumral dalgalı saç, …"); seçimin ne yaptığı
+  başka hiçbir yerden duyulmuyor.
+
+- **İpuçları — etiketten sonra okunuyor mu.**
+  *Ne yapılacak:* Ayarlar → döngü uzunluğunu **en küçük değere** indir, sonra
+  `−` düğmesine odaklan. Ardından Ayarlar → "Tüm verilerimi sil" düğmesine
+  odaklan (çift dokunma).
+  *Ne duyulmalı:* etiket, sonra ipucu — **"Döngü uzunluğunu azalt … 21-35 gün
+  arasında seçilebilir."** ve **"Tüm verilerimi sil … Bu telefondaki kayıtları
+  siler. Hesabın ve buluttaki yedeğin kalır."**
+  *Ne duyulmamalı:* `+` düğmesinde o aralık cümlesi (yalnız reddeden düğmede
+  olmalı), ve "Bu günü temizle" ile regl kaydı silme düğmelerinde herhangi bir
+  ipucu — onların etiketi neye dokunduğunu zaten söylüyor.
+  Android'de ipucu kapatılamaz, yani her ipucu herkese her seferinde okunuyor;
+  bu yüzden uygulamada yedi tane var ve fazlası bu maddenin kırmızısıdır.
+
+- **Hafta günü etiketleri.**
+  *Ne yapılacak:* Takvim sekmesinde ızgaranın başından itibaren sağa kaydırarak
+  ilerle. Sonra Günlük kayıt ekranındaki ay ızgarasında aynısını yap.
+  *Ne duyulmalı:* her kare kendi hafta gününü söylemeli —
+  **"Perşembe, 17 Eylül 2026, bugün"**. Hafta günü **önce** gelir.
+  *Ne duyulmamalı:* ızgaranın üstündeki yedi kısaltma. **"Pzt", "Sal", "Cmt"**
+  diye okunan yedi durak duyarsan bu madde kırmızıdır — o satır göz için
+  çizilmiş ve ekran okuyucudan gizli olmalı. Gözle baktığında satır
+  **görünmeye devam ediyor olmalı**; gizlenen şey yalnız okunması.
+
+- **Radyo grupları — "9 içinden 2" duyuluyor mu.**
+  *Ne yapılacak:* Avatar ekranında ten tonu sırasının ortasındaki bir
+  seçeneğe odaklan. Sonra Günlük kayıt ekranında hafta şeridindeki bir güne, ve
+  bir ruh hali seçeneğine.
+  *Ne duyulmalı:* **"radyo düğmesi"** ya da **"seçili"**/**"seçili değil"**, ve
+  **kaçtan kaçıncı olduğu** — TalkBack'in Türkçe söyleyişi cihaza göre değişir
+  ("9 içinden 2", "2 / 9" gibi). Önemli olan bir sayı duyman.
+  *Ne duyulmamalı:* yalnız **"düğme"**. Grup kaybolmuşsa TalkBack kaç seçenek
+  olduğunu söyleyemez ve dokuz ten tonunun ortasına düşen biri nerede olduğunu
+  bilemez.
+  *Ayrıca:* hafta şeridinde bugünden sonraki günlere odaklan —
+  **"devre dışı"** ve ardından **"Henüz gelmemiş bir güne kayıt eklenemez."**
+  duyulmalı.
+
+- **Çubuğun `image` rolü.**
+  *Ne yapılacak:* Geçmiş sekmesi → "Dökümü gör". Bir çubuğa odaklan.
+  *Ne duyulmalı:* başlık (**"Kramp — 15 gün"**), sonra çubuğun kendisi
+  **tek durak** olarak dört sayıyı birlikte —
+  **"Regl: 3 gün, Foliküler: 2 gün, Yumurtlama: 1 gün, Luteal: 9 gün"** — ve
+  TalkBack'in bunun bir **görsel** olduğunu belirtmesi.
+  *Ne duyulmamalı:* aynı dört sayının **ikinci kez** tek tek okunması. Çubuğun
+  altındaki açıklama göz için çizili ve ekran okuyucudan gizli; dört sayıyı iki
+  kez duyarsan bu madde kırmızıdır.
+  *Ayrıca:* başlıktan başlığa atlama hareketiyle çubuklar arasında
+  gezinebiliyor olmalısın — her çubuğun satırı bir başlık.
 
 ## 2. AAB üretimi
 
