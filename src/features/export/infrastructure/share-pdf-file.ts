@@ -19,7 +19,7 @@ const PDF_MIME_TYPE = 'application/pdf';
  * ## Why the printed file is moved before anything else touches it
  *
  * `printToFileAsync` saves "to app's cache directory" and takes no destination.
- * `deleteExportCache()` empties exactly one folder - `cache/exports` - and
+ * `deleteExportCache()` empties `cache/exports` and `cache/Print` - and
  * `wipe-local-data.ts` calls that and nothing else. So a PDF left where the
  * printer puts it sits *beside* the folder the wipe sweeps, and "delete all my
  * data" would leave behind the most readable copy of somebody's records the app
@@ -85,9 +85,16 @@ export async function sharePdfFile(document: ExportPdfDocument): Promise<ShareOu
     });
   } finally {
     // The receiving app has taken what it is going to take by the time the
-    // sheet resolves. A file that will not delete is logged by name - the
-    // wipe's own sweep is the second chance - and never fails the share that
-    // already happened.
+    // sheet resolves. A file that will not delete is logged by name and never
+    // fails the share that already happened.
+    //
+    // The second chance is the wipe's sweep, and that sentence used to be
+    // written here while being true of only one of the two places `printed`
+    // can be. After a successful move it is in `exports`, which the wipe
+    // emptied. After a failed move it is still in the printer's own folder,
+    // which the wipe did not look in at all - so the promise was missing in
+    // exactly the path this `finally` exists for. `deleteExportCache()` now
+    // empties `Print` as well, which is what makes it true.
     try {
       printed.delete();
     } catch (error: unknown) {
