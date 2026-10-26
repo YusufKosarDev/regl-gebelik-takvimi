@@ -14,6 +14,40 @@
 # neither branch resolves. They are listed with jest-expo now, for the reason
 # the whole group exists - jest-expo pins jest's major the way Expo pins the
 # rest.
+#
+# ## Why the managed set never proposes a major
+#
+# On 23 October 2026 the group opened a PR titled "Bump the expo-managed group
+# across 1 directory with 31 updates". That reads like housekeeping. It was
+# Expo SDK 57 -> 58, React Native 0.86 -> 0.88, Jest 29 -> 30 and
+# async-storage 2 -> 3, and it failed `tsc` with twenty-two errors in three
+# clusters: RN 0.88's `View`/`ScrollView` ref types, `StyleSheet.flatten`
+# becoming nullable, and Jest 30's matcher signatures. None of them were a
+# stale lockfile. All of them were a day's work.
+#
+# The grouping was not the problem; the framing was. A bot cannot tell a
+# patch from a platform migration, and a PR presented as thirty-one updates
+# invites being merged as thirty-one updates. So majors are ignored for the
+# whole managed set, which puts the decision back where the rule above
+# already said it lived: an SDK upgrade is a deliberate round, done by hand
+# with `npx expo install --fix`, on its own branch, with the type errors it
+# turns up fixed in the same change.
+#
+# What this costs: Dependabot will not announce that a new SDK exists. That is
+# accepted, because nothing here depended on it for that - `npx expo-doctor`
+# runs at every release (`RELEASE.md`, step 1) and reports version mismatches
+# against the installed SDK, and the Expo changelog is where a major is read
+# about rather than merged from.
+#
+# Why `ignore` rather than narrowing the group's `update-types`: a group that
+# accepts only minor and patch does not hold a major back, it un-groups it.
+# Every one of the thirty-one packages would arrive as its own PR, which is
+# the exact failure the group was created to prevent, multiplied.
+#
+# The three lists below are the same set of patterns and have to stay the same
+# set: the group collects them, `everything-else` excludes them so they cannot
+# arrive twice, and `ignore` holds their majors. Adding a pattern to one and
+# not the others is how a package ends up in both PRs, or in neither.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -47,6 +81,29 @@ updates:
           - 'jest'
           - '@types/jest'
           - 'babel-preset-expo'
+    # Majors in the managed set are a human decision, not a weekly PR. See
+    # "Why the managed set never proposes a major" above.
+    ignore:
+      - dependency-name: 'expo*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@expo/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native*/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'jest-expo'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'jest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/jest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'babel-preset-expo'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
